@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Star, MapPin, Bed, Bath, Users } from 'lucide-react'
 import { Badge, VerifiedBadge } from '@/components/ui/Badge'
@@ -102,10 +105,39 @@ const MODE_LABELS: Record<string, { label: string; color: 'gold' | 'blue' | 'gre
 }
 
 export function FeaturedListings() {
+  const sectionRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const cards = sectionRef.current?.querySelectorAll('.listing-card')
+    const heading = sectionRef.current?.querySelector('.listing-heading')
+    cards?.forEach((el) => { (el as HTMLElement).style.opacity = '0'; (el as HTMLElement).style.transform = 'translateY(50px) scale(0.97)' })
+    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateY(30px)' }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            import('gsap').then(({ gsap }) => {
+              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+              if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
+              tl.to(entry.target.querySelectorAll('.listing-card'), {
+                y: 0, opacity: 1, scale: 1, stagger: 0.12, duration: 0.7,
+              }, '-=0.2')
+            })
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.05 }
+    )
+    if (sectionRef.current) observer.observe(sectionRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section className="py-20 px-4 bg-white">
+    <section ref={sectionRef} className="py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-end justify-between mb-10">
+        <div className="listing-heading flex items-end justify-between mb-10">
           <div>
             <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--amber)' }}>
               Hand-picked for you

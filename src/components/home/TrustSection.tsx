@@ -34,20 +34,27 @@ export function TrustSection() {
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const cards = ref.current?.querySelectorAll('.trust-card')
+    const heading = ref.current?.querySelector('.trust-heading')
+    cards?.forEach((el) => { (el as HTMLElement).style.opacity = '0'; (el as HTMLElement).style.transform = 'translateY(50px)' })
+    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateY(30px)' }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             import('gsap').then(({ gsap }) => {
-              gsap.from(entry.target.querySelectorAll('.trust-card'), {
-                y: 40, opacity: 0, stagger: 0.12, duration: 0.7, ease: 'power2.out',
-              })
+              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+              if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
+              tl.to(entry.target.querySelectorAll('.trust-card'), {
+                y: 0, opacity: 1, stagger: 0.15, duration: 0.75,
+              }, '-=0.2')
             })
             observer.unobserve(entry.target)
           }
         })
       },
-      { threshold: 0.15 }
+      { threshold: 0.1 }
     )
     if (ref.current) observer.observe(ref.current)
     return () => observer.disconnect()
@@ -56,7 +63,7 @@ export function TrustSection() {
   return (
     <section ref={ref} className="py-20 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-12">
+        <div className="trust-heading text-center mb-12">
           <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--gold)' }}>
             Built for Ghana
           </p>

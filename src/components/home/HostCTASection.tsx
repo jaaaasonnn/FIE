@@ -1,12 +1,40 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { DollarSign, Calendar, Shield, TrendingUp } from 'lucide-react'
 
 export function HostCTASection() {
+  const sectionRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const left = sectionRef.current?.querySelector('.cta-left')
+    const right = sectionRef.current?.querySelector('.cta-right')
+    if (left) { (left as HTMLElement).style.opacity = '0'; (left as HTMLElement).style.transform = 'translateX(-50px)' }
+    if (right) { (right as HTMLElement).style.opacity = '0'; (right as HTMLElement).style.transform = 'translateX(50px)' }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            import('gsap').then(({ gsap }) => {
+              gsap.to([left, right], { x: 0, opacity: 1, stagger: 0.15, duration: 0.9, ease: 'power3.out' })
+            })
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.1 }
+    )
+    if (sectionRef.current) observer.observe(sectionRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section className="py-20 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
+    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div>
+          <div className="cta-left">
             <p className="text-sm font-medium uppercase tracking-widest mb-4" style={{ color: 'var(--gold)' }}>
               For Property Owners
             </p>
@@ -55,7 +83,7 @@ export function HostCTASection() {
           </div>
 
           {/* Earnings preview card */}
-          <div className="relative">
+          <div className="cta-right relative">
             <div
               className="rounded-2xl p-6"
               style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(245,192,106,0.2)' }}

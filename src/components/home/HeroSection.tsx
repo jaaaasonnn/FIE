@@ -18,39 +18,46 @@ export function HeroSection() {
   const router = useRouter()
 
   useEffect(() => {
-    let ctx: { revert: () => void } | undefined
+    // Pre-hide elements so GSAP reveal is visible
+    const els = [titleRef.current, subtitleRef.current, searchRef.current]
+    els.forEach((el) => { if (el) { el.style.opacity = '0'; el.style.transform = 'translateY(50px)' } })
+    if (statsRef.current) {
+      Array.from(statsRef.current.children).forEach((el) => {
+        (el as HTMLElement).style.opacity = '0'
+        ;(el as HTMLElement).style.transform = 'translateY(20px)'
+      })
+    }
 
-    import('gsap').then(({ gsap }) => {
-      import('gsap/ScrollTrigger').then(({ ScrollTrigger }) => {
-        gsap.registerPlugin(ScrollTrigger)
+    let animationFrame: number
+    animationFrame = requestAnimationFrame(async () => {
+      const { gsap } = await import('gsap')
+      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
+      gsap.registerPlugin(ScrollTrigger)
 
-        ctx = gsap.context(() => {
-          const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
 
-          tl.from(titleRef.current, { y: 60, opacity: 0, duration: 1 })
-            .from(subtitleRef.current, { y: 30, opacity: 0, duration: 0.8 }, '-=0.5')
-            .from(searchRef.current, { y: 40, opacity: 0, duration: 0.8 }, '-=0.4')
-            .from(statsRef.current!.children, {
-              y: 20, opacity: 0, stagger: 0.15, duration: 0.6,
-            }, '-=0.3')
+      tl.to(titleRef.current, { y: 0, opacity: 1, duration: 1.1 })
+        .to(subtitleRef.current, { y: 0, opacity: 1, duration: 0.8 }, '-=0.6')
+        .to(searchRef.current, { y: 0, opacity: 1, duration: 0.8 }, '-=0.5')
+        .to(Array.from(statsRef.current?.children || []), {
+          y: 0, opacity: 1, stagger: 0.15, duration: 0.6,
+        }, '-=0.3')
 
-          // Parallax on scroll
-          ScrollTrigger.create({
-            trigger: heroRef.current,
-            start: 'top top',
-            end: 'bottom top',
-            scrub: true,
-            onUpdate: (self) => {
-              if (heroRef.current) {
-                heroRef.current.style.backgroundPositionY = `${self.progress * 30}%`
-              }
-            },
-          })
-        }, heroRef)
+      // Parallax on scroll
+      ScrollTrigger.create({
+        trigger: heroRef.current,
+        start: 'top top',
+        end: 'bottom top',
+        scrub: true,
+        onUpdate: (self) => {
+          if (heroRef.current) {
+            heroRef.current.style.backgroundPositionY = `${self.progress * 30}%`
+          }
+        },
       })
     })
 
-    return () => ctx?.revert()
+    return () => cancelAnimationFrame(animationFrame)
   }, [])
 
   function handleSearch(e: React.FormEvent) {
@@ -180,18 +187,18 @@ export function HeroSection() {
         </div>
 
         {/* Stats */}
-        <div ref={statsRef} className="flex flex-wrap items-center justify-center gap-6 mt-10">
+        <div ref={statsRef} className="flex flex-wrap items-center justify-center gap-8 mt-10">
           {[
             { num: '500+', label: 'Properties' },
             { num: '16', label: 'Regions' },
             { num: '1,200+', label: 'Happy Guests' },
             { num: '4.8★', label: 'Avg Rating' },
           ].map(({ num, label }) => (
-            <div key={label} className="text-center">
-              <div className="text-2xl font-bold" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+            <div key={label} className="text-center px-4 border-r last:border-r-0" style={{ borderColor: 'rgba(245,192,106,0.2)' }}>
+              <div className="text-3xl font-bold" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
                 {num}
               </div>
-              <div className="text-xs" style={{ color: 'rgba(250,247,242,0.6)' }}>{label}</div>
+              <div className="text-xs tracking-wide mt-0.5" style={{ color: 'rgba(250,247,242,0.55)' }}>{label}</div>
             </div>
           ))}
         </div>

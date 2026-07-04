@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 
 const regions = [
@@ -10,10 +13,42 @@ const regions = [
 ]
 
 export function RegionsSection() {
+  const sectionRef = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    const cards = sectionRef.current?.querySelectorAll('.region-card')
+    const heading = sectionRef.current?.querySelector('.region-heading')
+    cards?.forEach((el, i) => {
+      (el as HTMLElement).style.opacity = '0'
+      ;(el as HTMLElement).style.transform = i % 2 === 0 ? 'translateY(40px)' : 'translateY(60px)'
+    })
+    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateX(-30px)' }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            import('gsap').then(({ gsap }) => {
+              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+              if (heading) tl.to(heading, { x: 0, opacity: 1, duration: 0.7 })
+              tl.to(entry.target.querySelectorAll('.region-card'), {
+                y: 0, opacity: 1, stagger: 0.08, duration: 0.65,
+              }, '-=0.3')
+            })
+            observer.unobserve(entry.target)
+          }
+        })
+      },
+      { threshold: 0.1 }
+    )
+    if (sectionRef.current) observer.observe(sectionRef.current)
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section className="py-20 px-4 bg-white">
+    <section ref={sectionRef} className="py-20 px-4 bg-white">
       <div className="max-w-7xl mx-auto">
-        <div className="flex items-end justify-between mb-10">
+        <div className="region-heading flex items-end justify-between mb-10">
           <div>
             <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--amber)' }}>
               16 Regions
@@ -32,7 +67,7 @@ export function RegionsSection() {
             <Link
               key={name}
               href={`/search?region=${encodeURIComponent(name)}`}
-              className="group relative rounded-2xl overflow-hidden aspect-[3/4] block"
+              className="region-card group relative rounded-2xl overflow-hidden aspect-[3/4] block"
             >
               <img
                 src={img}

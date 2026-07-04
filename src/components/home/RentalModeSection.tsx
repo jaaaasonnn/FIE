@@ -42,20 +42,28 @@ export function RentalModeSection() {
   const sectionRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    const cards = sectionRef.current?.querySelectorAll('.mode-card')
+    const heading = sectionRef.current?.querySelector('.mode-heading')
+    if (!cards) return
+
+    // Pre-hide
+    cards.forEach((el) => { (el as HTMLElement).style.opacity = '0'; (el as HTMLElement).style.transform = 'translateY(60px)' })
+    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateY(30px)' }
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             import('gsap').then(({ gsap }) => {
-              gsap.from(entry.target.querySelectorAll('.mode-card'), {
-                y: 50, opacity: 0, stagger: 0.15, duration: 0.8, ease: 'power3.out',
-              })
+              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+              if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
+              tl.to(cards, { y: 0, opacity: 1, stagger: 0.18, duration: 0.8 }, '-=0.3')
             })
             observer.unobserve(entry.target)
           }
         })
       },
-      { threshold: 0.2 }
+      { threshold: 0.1 }
     )
     if (sectionRef.current) observer.observe(sectionRef.current)
     return () => observer.disconnect()
@@ -64,7 +72,7 @@ export function RentalModeSection() {
   return (
     <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--cream)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-14">
+        <div className="mode-heading text-center mb-14">
           <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--amber)' }}>
             What are you looking for?
           </p>
