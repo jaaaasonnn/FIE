@@ -1,0 +1,259 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String?
+  email         String?  @unique
+  phone         String?  @unique
+  passwordHash  String?
+  role          String   @default("GUEST") // GUEST | HOST | ADMIN
+  profilePhoto  String?
+  nationality   String?
+  businessName  String?
+  trustScore    Int      @default(0)
+  isVerified    Boolean  @default(false)
+  isSuperhost   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  listings        Listing[]
+  guestBookings   Booking[]      @relation("GuestBookings")
+  hostBookings    Booking[]      @relation("HostBookings")
+  sentMessages    Message[]      @relation("SentMessages")
+  receivedMessages Message[]     @relation("ReceivedMessages")
+  reviewsGiven    Review[]       @relation("ReviewsGiven")
+  reviewsReceived Review[]       @relation("ReviewsReceived")
+  verification    Verification?
+  disputes        Dispute[]
+  payouts         Payout[]
+  wishlists       Wishlist[]
+  sessions        Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Listing {
+  id                    String   @id @default(cuid())
+  hostId                String
+  title                 String
+  description           String
+  propertyType          String   // Apartment | House | Villa | Studio | Townhouse | Guestroom | Entire compound | Serviced apartment
+  region                String
+  city                  String
+  neighbourhood         String?
+  lat                   Float?
+  lng                   Float?
+  bedrooms              Int
+  bathrooms             Int
+  maxGuests             Int
+  amenities             String   // JSON array stored as string
+  rentalModes           String   // JSON array: ["SHORT_STAY","TEMP_STAY","PERMANENT"]
+  priceNightly          Float?
+  priceMonthly          Float?
+  priceAnnual           Float?
+  advanceMonthsRequired Int?
+  photos                String   // JSON array of URLs
+  rules                 String?  // JSON array
+  cancellationPolicy    String   @default("FLEXIBLE") // FLEXIBLE | MODERATE | STRICT
+  instantBook           Boolean  @default(false)
+  minStayNights         Int      @default(1)
+  isActive              Boolean  @default(true)
+  isFeatured            Boolean  @default(false)
+  avgRating             Float    @default(0)
+  reviewCount           Int      @default(0)
+  welcomeMessage        String?
+  damageDeposit         Float?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  host      User      @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  bookings  Booking[]
+  reviews   Review[]
+  wishlists Wishlist[]
+  blockedDates BlockedDate[]
+}
+
+model BlockedDate {
+  id        String   @id @default(cuid())
+  listingId String
+  date      DateTime
+  reason    String?
+  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+}
+
+model Booking {
+  id              String   @id @default(cuid())
+  listingId       String
+  guestId         String
+  hostId          String
+  rentalMode      String   // SHORT_STAY | TEMP_STAY | PERMANENT
+  checkIn         DateTime
+  checkOut        DateTime
+  nightsOrMonths  Int
+  pricePerUnit    Float
+  subtotal        Float
+  serviceFee      Float
+  damageDeposit   Float    @default(0)
+  totalPrice      Float
+  status          String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | COMPLETED | DISPUTED
+  paymentStatus   String   @default("UNPAID") // UNPAID | PAID | REFUNDED | RELEASED
+  specialRequests String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  listing   Listing   @relation(fields: [listingId], references: [id])
+  guest     User      @relation("GuestBookings", fields: [guestId], references: [id])
+  host      User      @relation("HostBookings", fields: [hostId], references: [id])
+  payments  Payment[]
+  reviews   Review[]
+  messages  Message[]
+  dispute   Dispute?
+  application RentalApplication?
+}
+
+model RentalApplication {
+  id               String   @id @default(cuid())
+  bookingId        String   @unique
+  employmentStatus String
+  monthlyIncome    String
+  reason           String
+  references       String?
+  status           String   @default("PENDING") // PENDING | ACCEPTED | DECLINED
+  createdAt        DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id               String   @id @default(cuid())
+  bookingId        String
+  amount           Float
+  currency         String   @default("USD")
+  method           String   // MOMO | CARD
+  momoNetwork      String?  // MTN | VODAFONE | AIRTELTIGO
+  momoNumber       String?
+  status           String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
+  gatewayReference String?
+  createdAt        DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id])
+}
+
+model Payout {
+  id            String   @id @default(cuid())
+  hostId        String
+  amount        Float
+  currency      String   @default("USD")
+  method        String   // MOMO | BANK_TRANSFER
+  momoNetwork   String?
+  momoNumber    String?
+  bankName      String?
+  accountNumber String?
+  accountName   String?
+  status        String   @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED
+  reference     String?
+  createdAt     DateTime @default(now())
+
+  host User @relation(fields: [hostId], references: [id])
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  bookingId   String
+  listingId   String?
+  reviewerId  String
+  revieweeId  String
+  rating      Int
+  comment     String
+  type        String   // GUEST_TO_HOST | HOST_TO_GUEST
+  isPublished Boolean  @default(false)
+  hostReply   String?
+  createdAt   DateTime @default(now())
+
+  booking  Booking @relation(fields: [bookingId], references: [id])
+  reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
+  reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
+  listing  Listing? @relation(fields: [listingId], references: [id])
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String
+  bookingId  String?
+  content    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  sender   User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  booking  Booking? @relation(fields: [bookingId], references: [id])
+}
+
+model Dispute {
+  id         String   @id @default(cuid())
+  bookingId  String   @unique
+  raisedById String
+  reason     String
+  status     String   @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | CLOSED
+  resolution String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  booking   Booking @relation(fields: [bookingId], references: [id])
+  raisedBy  User    @relation(fields: [raisedById], references: [id])
+}
+
+model Verification {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  idType       String   // GHANA_CARD | PASSPORT | VOTER_ID
+  idPhotoUrl   String
+  selfieUrl    String?
+  status       String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedById String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Wishlist {
+  id        String   @id @default(cuid())
+  userId    String
+  listingId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listingId])
+}
+
+model ExchangeRate {
+  id        String   @id @default(cuid())
+  usdToGhs  Float
+  updatedAt DateTime @updatedAt
+  updatedBy String?
+}
+
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
