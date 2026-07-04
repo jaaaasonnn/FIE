@@ -30,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         rentalModes: JSON.parse(listing.rentalModes || '[]'),
         photos: JSON.parse(listing.photos || '[]'),
         rules: listing.rules ? JSON.parse(listing.rules) : [],
-        blockedDates: listing.blockedDates.map((d) => d.date),
+        blockedDates: listing.blockedDates.map((d: { date: Date }) => d.date),
       },
     })
   } catch (error) {
