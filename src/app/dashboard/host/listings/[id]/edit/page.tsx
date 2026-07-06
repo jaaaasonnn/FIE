@@ -54,7 +54,7 @@ export default function EditListingPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
           <div>
@@ -68,7 +68,7 @@ export default function EditListingPage() {
           <div className="flex gap-2">
             <Link href={`/listings/${params.id}`}
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full"
-              style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--gold)', border: '1px solid rgba(245,192,106,0.3)' }}>
+              style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
               <Eye size={13} /> Preview
             </Link>
             <Link href="/dashboard/host"
@@ -89,7 +89,7 @@ export default function EditListingPage() {
         <form onSubmit={handleSave} className="space-y-6">
           {/* Basic info */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
-            <h3 className="font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>Basic Information</h3>
+            <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Basic Information</h3>
             <div className="space-y-4">
               <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
               <Textarea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
@@ -114,7 +114,7 @@ export default function EditListingPage() {
 
           {/* Location */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
-            <h3 className="font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>Location</h3>
+            <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Location</h3>
             <div className="space-y-4">
               <Select label="Region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })}
                 options={GHANA_REGIONS.map((r) => ({ value: r, label: r }))} />
@@ -127,7 +127,7 @@ export default function EditListingPage() {
 
           {/* Pricing */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
-            <h3 className="font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>Rental Modes & Pricing</h3>
+            <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Rental Modes & Pricing</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2">
                 {[
@@ -170,7 +170,7 @@ export default function EditListingPage() {
 
           {/* Amenities */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
-            <h3 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Amenities</h3>
+            <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Amenities</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {AMENITIES_LIST.map((a) => (
                 <button key={a} type="button" onClick={() => toggleAmenity(a)}
@@ -189,14 +189,14 @@ export default function EditListingPage() {
 
           {/* Welcome message & settings */}
           <div className="bg-white rounded-2xl border border-stone-100 p-6">
-            <h3 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Settings</h3>
+            <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Settings</h3>
             <div className="space-y-4">
               <Textarea label="Automated Welcome Message" value={form.welcomeMessage} onChange={(e) => setForm({ ...form, welcomeMessage: e.target.value })}
                 placeholder="Sent to guests automatically after booking confirmation..." />
               <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--brown-dark)' }}>⚡ Instant Book</p>
-                  <p className="text-xs text-stone-500">Auto-confirm bookings without manual approval</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>⚡ Instant Book</p>
+                  <p className="text-xs text-[#6B645C]">Auto-confirm bookings without manual approval</p>
                 </div>
                 <button type="button" onClick={() => setForm({ ...form, instantBook: !form.instantBook })}
                   className="w-12 h-6 rounded-full transition-all relative"
@@ -207,8 +207,8 @@ export default function EditListingPage() {
               </div>
               <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--brown-dark)' }}>Listing Active</p>
-                  <p className="text-xs text-stone-500">Toggle off to temporarily hide from search</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Listing Active</p>
+                  <p className="text-xs text-[#6B645C]">Toggle off to temporarily hide from search</p>
                 </div>
                 <button type="button" onClick={() => setForm({ ...form, isActive: !form.isActive })}
                   className="w-12 h-6 rounded-full transition-all relative"

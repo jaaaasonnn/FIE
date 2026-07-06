@@ -90,7 +90,7 @@ export function HeroSection() {
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
         {/* Tag */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-6"
-          style={{ backgroundColor: 'rgba(245,192,106,0.2)', border: '1px solid rgba(245,192,106,0.4)', color: 'var(--gold)' }}>
+          style={{ backgroundColor: 'rgba(245,192,106,0.2)', border: '1px solid rgba(245,192,106,0.4)', color: 'var(--color-accent)' }}>
           🇬🇭 Ghana&apos;s Premier Rental Platform
         </div>
 
@@ -131,7 +131,7 @@ export function HeroSection() {
                 className="px-4 py-2 rounded-full text-sm font-medium transition-all"
                 style={
                   mode === val
-                    ? { backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }
+                    ? { backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }
                     : { color: 'rgba(250,247,242,0.7)' }
                 }
               >
@@ -147,7 +147,7 @@ export function HeroSection() {
             style={{ backgroundColor: 'rgba(255,255,255,0.97)', boxShadow: '0 25px 50px rgba(26,18,8,0.4)' }}
           >
             <div className="flex items-center gap-2 flex-1 px-3">
-              <MapPin size={18} style={{ color: 'var(--amber)' }} className="flex-shrink-0" />
+              <MapPin size={18} style={{ color: 'var(--color-accent)' }} className="flex-shrink-0" />
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
@@ -164,7 +164,7 @@ export function HeroSection() {
             <div className="hidden sm:block w-px my-3" style={{ backgroundColor: '#E5E7EB' }} />
 
             <div className="flex items-center gap-2 px-3 sm:w-48">
-              <Calendar size={18} style={{ color: 'var(--amber)' }} className="flex-shrink-0" />
+              <Calendar size={18} style={{ color: 'var(--color-accent)' }} className="flex-shrink-0" />
               <input
                 type="date"
                 value={date}
@@ -178,7 +178,7 @@ export function HeroSection() {
             <button
               type="submit"
               className="flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm transition-all hover:opacity-90 sm:rounded-xl"
-              style={{ backgroundColor: 'var(--amber)', color: '#fff', minWidth: '120px' }}
+              style={{ backgroundColor: 'var(--color-accent)', color: '#fff', minWidth: '120px' }}
             >
               <Search size={16} />
               Search
@@ -195,7 +195,7 @@ export function HeroSection() {
             { num: '4.8★', label: 'Avg Rating' },
           ].map(({ num, label }) => (
             <div key={label} className="text-center px-4 border-r last:border-r-0" style={{ borderColor: 'rgba(245,192,106,0.2)' }}>
-              <div className="text-3xl font-bold" style={{ color: 'var(--gold)' }}>
+              <div className="text-3xl font-bold" style={{ color: 'var(--color-accent)' }}>
                 {num}
               </div>
               <div className="text-xs tracking-wide mt-0.5" style={{ color: 'rgba(250,247,242,0.55)' }}>{label}</div>

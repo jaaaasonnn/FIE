@@ -13,7 +13,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--brown-dark)' }}>
+          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
             {label}
           </label>
         )}
@@ -32,7 +32,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
               leftIcon && 'pl-10',
               error
                 ? 'border-red-300 focus:ring-red-200'
-                : 'border-stone-200 focus:ring-amber-200 focus:border-amber-400',
+                : 'border-stone-200 focus:ring-[#C9932E]/40 focus:border-amber-400',
               className
             )}
             style={{ }}
@@ -40,7 +40,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           />
         </div>
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
-        {hint && !error && <p className="mt-1 text-xs text-stone-500">{hint}</p>}
+        {hint && !error && <p className="mt-1 text-xs text-[#6B645C]">{hint}</p>}
       </div>
     )
   }
@@ -58,7 +58,7 @@ export function Select({ label, error, options, className, ...props }: SelectPro
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--brown-dark)' }}>
+        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
           {label}
         </label>
       )}
@@ -68,7 +68,7 @@ export function Select({ label, error, options, className, ...props }: SelectPro
           'focus:outline-none focus:ring-2',
           error
             ? 'border-red-300 focus:ring-red-200'
-            : 'border-stone-200 focus:ring-amber-200 focus:border-amber-400',
+            : 'border-stone-200 focus:ring-[#C9932E]/40 focus:border-amber-400',
           className
         )}
         style={{ }}
@@ -89,7 +89,7 @@ export function Textarea({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--brown-dark)' }}>
+        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
           {label}
         </label>
       )}
@@ -101,7 +101,7 @@ export function Textarea({
           'placeholder:text-stone-400',
           error
             ? 'border-red-300 focus:ring-red-200'
-            : 'border-stone-200 focus:ring-amber-200 focus:border-amber-400',
+            : 'border-stone-200 focus:ring-[#C9932E]/40 focus:border-amber-400',
           className
         )}
         style={{ }}

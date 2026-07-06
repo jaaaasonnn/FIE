@@ -12,8 +12,8 @@ const modes = [
     subtitle: 'Nightly & weekly',
     desc: "Perfect for Detty December, business trips, or holiday escapes. Book for 1 night or a few weeks with instant confirmation.",
     href: '/search?mode=SHORT_STAY',
-    color: 'var(--amber)',
-    bg: '#FFF8EE'
+    color: 'var(--color-accent)',
+    bg: 'var(--color-accent-subtle)'
   },
   {
     icon: CalendarDays,
@@ -70,16 +70,16 @@ export function RentalModeSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--cream)' }}>
+    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-6xl mx-auto">
         <div className="mode-heading text-center mb-14">
-          <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--amber)' }}>
+          <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--color-accent)' }}>
             What are you looking for?
           </p>
-          <h2 className="text-4xl sm:text-5xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+          <h2 className="text-4xl sm:text-5xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             Three Ways to Rent
           </h2>
-          <p className="text-stone-500 mt-4 max-w-xl mx-auto">
+          <p className="text-[#6B645C] mt-4 max-w-xl mx-auto">
             Whether you need a place for a night or a year, FieGH has the right option for you.
           </p>
         </div>
@@ -96,7 +96,7 @@ export function RentalModeSection() {
                   {m.featured && (
                     <div
                       className="absolute top-4 right-4 text-xs font-semibold px-3 py-1 rounded-full"
-                      style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}
+                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
                     >
                       Most Popular
                     </div>
@@ -109,13 +109,13 @@ export function RentalModeSection() {
                     {m.emoji}
                   </div>
 
-                  <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--brown-dark)' }}>
+                  <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--color-text-primary)' }}>
                     {m.title}
                   </h3>
                   <p className="text-sm font-medium mb-3" style={{ color: m.color }}>
                     {m.subtitle}
                   </p>
-                  <p className="text-sm text-stone-600 leading-relaxed mb-5">
+                  <p className="text-sm text-[#6B645C] leading-relaxed mb-5">
                     {m.desc}
                   </p>
 

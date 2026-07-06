@@ -45,13 +45,13 @@ export function HowItWorksPreview() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--cream)' }}>
+    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-6xl mx-auto">
         <div className="step-heading text-center mb-14">
-          <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--amber)' }}>
+          <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
             Simple Process
           </p>
-          <h2 className="text-4xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+          <h2 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             How FieGH Works
           </h2>
         </div>
@@ -69,14 +69,14 @@ export function HowItWorksPreview() {
                 className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-5 text-xl font-bold relative z-10"
                 style={{
                   backgroundColor: 'var(--brown-dark)',
-                  color: 'var(--gold)',
+                  color: 'var(--color-accent)',
                   boxShadow: '0 8px 24px rgba(26,18,8,0.2)'
                 }}
               >
                 {num}
               </div>
-              <h4 className="font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>{title}</h4>
-              <p className="text-sm text-stone-600 leading-relaxed">{desc}</p>
+              <h4 className="font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{title}</h4>
+              <p className="text-sm text-[#6B645C] leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
@@ -85,7 +85,7 @@ export function HowItWorksPreview() {
           <Link
             href="/how-it-works"
             className="inline-flex items-center gap-2 text-sm font-semibold"
-            style={{ color: 'var(--amber)' }}
+            style={{ color: 'var(--color-accent)' }}
           >
             Learn more about how FieGH works →
           </Link>

@@ -8,7 +8,7 @@ export function Footer() {
       {/* Warning banner */}
       <div style={{ backgroundColor: 'rgba(200,135,63,0.12)', borderBottom: '1px solid rgba(240,184,78,0.15)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <p className="text-center text-sm" style={{ color: 'var(--gold-light)' }}>
+          <p className="text-center text-sm" style={{ color: 'var(--color-accent-subtle)' }}>
             🛡️ Never pay outside the app. FieGH does not support direct bank transfers or cash payments.
           </p>
         </div>
@@ -21,7 +21,7 @@ export function Footer() {
             <Link href="/" className="flex items-center gap-3 mb-5">
               <Image src="/logo.png" alt="FieGH" width={48} height={48} style={{ width: 48, height: 'auto' }} />
               <div className="flex flex-col leading-tight">
-                <span className="text-xl font-bold" style={{ color: 'var(--gold)' }}>FieGH</span>
+                <span className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>FieGH</span>
                 <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>GHANA RENTALS</span>
               </div>
             </Link>
@@ -29,14 +29,14 @@ export function Footer() {
               "Fie" means "home" in Twi. 🇬🇭<br />
               Ghana's premier rental marketplace connecting guests and hosts across all 16 regions.
             </p>
-            <p className="text-xs italic" style={{ color: 'var(--gold)' }}>
+            <p className="text-xs italic" style={{ color: 'var(--color-accent)' }}>
               "Your home in Ghana"
             </p>
           </div>
 
           {/* Explore */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)' }}>
+            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
               Explore
             </h4>
             <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
@@ -48,7 +48,7 @@ export function Footer() {
                 { href: '/search?region=Ashanti', label: 'Kumasi Properties' },
               ].map(({ href, label }) => (
                 <li key={href}>
-                  <Link href={href} className="hover:text-amber-300 transition-colors">{label}</Link>
+                  <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
@@ -56,7 +56,7 @@ export function Footer() {
 
           {/* Hosting */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)' }}>
+            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
               Hosting
             </h4>
             <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
@@ -67,7 +67,7 @@ export function Footer() {
                 { href: '/faq#hosting', label: 'Hosting FAQ' },
               ].map(({ href, label }) => (
                 <li key={href}>
-                  <Link href={href} className="hover:text-amber-300 transition-colors">{label}</Link>
+                  <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
@@ -75,7 +75,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)' }}>
+            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
               Support
             </h4>
             <ul className="space-y-2 text-sm mb-6" style={{ color: 'rgba(250,247,242,0.7)' }}>
@@ -86,21 +86,21 @@ export function Footer() {
                 { href: '/privacy', label: 'Privacy Policy' },
               ].map(({ href, label }) => (
                 <li key={href}>
-                  <Link href={href} className="hover:text-amber-300 transition-colors">{label}</Link>
+                  <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
                 </li>
               ))}
             </ul>
             <div className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.5)' }}>
               <div className="flex items-center gap-2">
-                <MapPin size={14} style={{ color: 'var(--gold)' }} />
+                <MapPin size={14} style={{ color: 'var(--color-accent)' }} />
                 <span>Accra, Ghana 🇬🇭</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail size={14} style={{ color: 'var(--gold)' }} />
+                <Mail size={14} style={{ color: 'var(--color-accent)' }} />
                 <span>hello@fiegh.com</span>
               </div>
               <div className="flex items-center gap-2">
-                <Phone size={14} style={{ color: 'var(--gold)' }} />
+                <Phone size={14} style={{ color: 'var(--color-accent)' }} />
                 <span>+233 XX XXX XXXX</span>
               </div>
             </div>

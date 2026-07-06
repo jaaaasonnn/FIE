@@ -20,7 +20,7 @@ const trust = [
     icon: CreditCard,
     title: 'MoMo & Card Payments',
     desc: 'Pay with MTN MoMo, Vodafone Cash, AirtelTigo Money, or Visa/Mastercard via Paystack.',
-    color: 'var(--amber)'
+    color: 'var(--color-accent)'
   },
   {
     icon: MessageSquare,
@@ -64,7 +64,7 @@ export function TrustSection() {
     <section ref={ref} className="py-20 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
       <div className="max-w-6xl mx-auto">
         <div className="trust-heading text-center mb-12">
-          <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--gold)' }}>
+          <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--color-accent)' }}>
             Built for Ghana
           </p>
           <h2 className="text-4xl font-bold" style={{ color: 'var(--cream)' }}>
@@ -101,7 +101,7 @@ export function TrustSection() {
         >
           <span className="text-xl flex-shrink-0">⚠️</span>
           <p className="text-sm" style={{ color: 'rgba(250,247,242,0.8)' }}>
-            <strong style={{ color: 'var(--gold)' }}>Stay safe:</strong> Never pay outside the FieGH app.
+            <strong style={{ color: 'var(--color-accent)' }}>Stay safe:</strong> Never pay outside the FieGH app.
             FieGH does not support direct bank transfers or cash payments. Report any host asking you
             to pay outside the platform immediately.
           </p>

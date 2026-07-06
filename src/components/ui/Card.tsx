@@ -44,8 +44,8 @@ export function StatCard({
     <Card className="p-5">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-stone-500 mb-1">{label}</p>
-          <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+          <p className="text-sm text-[#6B645C] mb-1">{label}</p>
+          <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             {value}
           </p>
           {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}

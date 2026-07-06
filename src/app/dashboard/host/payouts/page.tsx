@@ -22,18 +22,18 @@ export default function HostPayoutsPage() {
   const totalEarned = MOCK_PAYOUTS.filter((p) => p.status === 'COMPLETED').reduce((s, p) => s + p.net, 0)
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <DollarSign size={22} style={{ color: 'var(--gold)' }} />
+            <DollarSign size={22} style={{ color: 'var(--color-accent)' }} />
             <div>
               <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>Payouts</h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>Your earnings from FieGH</p>
             </div>
           </div>
           <Link href="/dashboard/host" className="text-sm px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--gold)', border: '1px solid rgba(245,192,106,0.3)' }}>
+            style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
             ← Dashboard
           </Link>
         </div>
@@ -43,13 +43,13 @@ export default function HostPayoutsPage() {
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Total Earned', value: `$${totalEarned.toLocaleString()}`, sub: `≈ GH₵ ${(totalEarned * 15.5).toLocaleString()}`, color: 'var(--amber)' },
+            { label: 'Total Earned', value: `$${totalEarned.toLocaleString()}`, sub: `≈ GH₵ ${(totalEarned * 15.5).toLocaleString()}`, color: 'var(--color-accent)' },
             { label: 'This Month', value: '$2,622', sub: '1 payout pending', color: '#2563EB' },
             { label: 'Commission Paid', value: `$${MOCK_PAYOUTS.reduce((s, p) => s + p.commission, 0).toFixed(0)}`, sub: '8% platform fee', color: '#6B7280' },
             { label: 'Avg per Booking', value: '$828', sub: 'Based on 4 payouts', color: '#059669' },
           ].map(({ label, value, sub, color }) => (
             <div key={label} className="bg-white p-4 rounded-2xl border border-stone-100 text-center">
-              <p className="text-xs text-stone-500 mb-1">{label}</p>
+              <p className="text-xs text-[#6B645C] mb-1">{label}</p>
               <p className="text-lg font-bold" style={{ color }}>{value}</p>
               <p className="text-xs text-stone-400 mt-0.5">{sub}</p>
             </div>
@@ -59,10 +59,10 @@ export default function HostPayoutsPage() {
         {/* Payout method */}
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold" style={{ color: 'var(--brown-dark)' }}>Payout Method</h3>
+            <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Payout Method</h3>
             <button onClick={() => setAddingMethod(!addingMethod)}
               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-medium"
-              style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+              style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
               <Plus size={12} /> Add / Change
             </button>
           </div>
@@ -72,8 +72,8 @@ export default function HostPayoutsPage() {
             style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
             <span className="text-2xl">📱</span>
             <div>
-              <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>MTN Mobile Money</p>
-              <p className="text-xs text-stone-500">+233 24 123 4567 · Primary</p>
+              <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>MTN Mobile Money</p>
+              <p className="text-xs text-[#6B645C]">+233 24 123 4567 · Primary</p>
             </div>
             <span className="ml-auto text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>Active</span>
           </div>
@@ -81,7 +81,7 @@ export default function HostPayoutsPage() {
           {/* Add method form */}
           {addingMethod && (
             <div className="mt-4 pt-4 border-t border-stone-100 space-y-3">
-              <p className="text-sm font-medium" style={{ color: 'var(--brown-dark)' }}>Add Payout Method</p>
+              <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Add Payout Method</p>
               <div className="flex gap-2">
                 {['MOMO', 'BANK'].map((m) => (
                   <button key={m} onClick={() => setPayoutMethod(m)}
@@ -111,7 +111,7 @@ export default function HostPayoutsPage() {
                 </div>
               )}
               <button className="w-full py-3 rounded-xl text-sm font-semibold"
-                style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+                style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
                 Save Payout Method
               </button>
             </div>
@@ -121,7 +121,7 @@ export default function HostPayoutsPage() {
         {/* Payout history */}
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-stone-100">
-            <h3 className="font-bold" style={{ color: 'var(--brown-dark)' }}>Payout History</h3>
+            <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Payout History</h3>
           </div>
           <div className="divide-y divide-stone-50">
             {MOCK_PAYOUTS.map((p) => {
@@ -130,8 +130,8 @@ export default function HostPayoutsPage() {
                 <div key={p.id} className="px-5 py-4 hover:bg-stone-50 transition-all">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{p.booking}</p>
-                      <p className="text-xs text-stone-500 mt-0.5">{p.method} · {new Date(p.date).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
+                      <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{p.booking}</p>
+                      <p className="text-xs text-[#6B645C] mt-0.5">{p.method} · {new Date(p.date).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                       <p className="text-xs text-stone-400 mt-0.5">Ref: {p.ref}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
@@ -150,7 +150,7 @@ export default function HostPayoutsPage() {
         </div>
 
         <div className="mt-4 p-4 rounded-xl text-sm"
-          style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)', color: 'var(--brown-dark)' }}>
+          style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)', color: 'var(--color-text-primary)' }}>
           💡 <strong>Payout schedule:</strong> Short stay payments are released 24 hours after guest check-in. Monthly and long-term payments are released on the agreed date. All amounts are in USD and converted at the current rate.
         </div>
       </div>

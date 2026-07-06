@@ -17,7 +17,7 @@ const MOCK_BOOKING = {
 
 export default function BookingConfirmationPage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
@@ -36,25 +36,25 @@ export default function BookingConfirmationPage() {
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
           <img src={MOCK_BOOKING.listing.photo} alt="" className="w-full h-48 object-cover" />
           <div className="p-5">
-            <h2 className="font-bold text-lg mb-2" style={{ color: 'var(--brown-dark)' }}>{MOCK_BOOKING.listing.title}</h2>
-            <div className="flex items-center gap-2 text-sm text-stone-500 mb-4">
+            <h2 className="font-bold text-lg mb-2" style={{ color: 'var(--color-text-primary)' }}>{MOCK_BOOKING.listing.title}</h2>
+            <div className="flex items-center gap-2 text-sm text-[#6B645C] mb-4">
               <MapPin size={14} />
               <span>{MOCK_BOOKING.listing.address}</span>
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="p-3 rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
-                <p className="text-xs text-stone-500 mb-1">Check-in</p>
-                <p className="font-bold" style={{ color: 'var(--brown-dark)' }}>
+                <p className="text-xs text-[#6B645C] mb-1">Check-in</p>
+                <p className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
                   {new Date(MOCK_BOOKING.checkIn).toLocaleDateString('en-GH', { weekday: 'short', day: 'numeric', month: 'long' })}
                 </p>
-                <p className="text-xs text-stone-500">From 2:00 PM</p>
+                <p className="text-xs text-[#6B645C]">From 2:00 PM</p>
               </div>
               <div className="p-3 rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
-                <p className="text-xs text-stone-500 mb-1">Check-out</p>
-                <p className="font-bold" style={{ color: 'var(--brown-dark)' }}>
+                <p className="text-xs text-[#6B645C] mb-1">Check-out</p>
+                <p className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
                   {new Date(MOCK_BOOKING.checkOut).toLocaleDateString('en-GH', { weekday: 'short', day: 'numeric', month: 'long' })}
                 </p>
-                <p className="text-xs text-stone-500">By 12:00 PM</p>
+                <p className="text-xs text-[#6B645C]">By 12:00 PM</p>
               </div>
             </div>
           </div>
@@ -63,8 +63,8 @@ export default function BookingConfirmationPage() {
         {/* Welcome message */}
         {MOCK_BOOKING.welcomeMessage && (
           <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
-            <h3 className="font-bold mb-3" style={{ color: 'var(--brown-dark)' }}>💌 Welcome Message from Host</h3>
-            <p className="text-sm text-stone-700 leading-relaxed p-4 rounded-xl" style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
+            <h3 className="font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>💌 Welcome Message from Host</h3>
+            <p className="text-sm text-[#4A4540] leading-relaxed p-4 rounded-xl" style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
               {MOCK_BOOKING.welcomeMessage}
             </p>
           </div>
@@ -72,35 +72,35 @@ export default function BookingConfirmationPage() {
 
         {/* Host info */}
         <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
-          <h3 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Your Host</h3>
+          <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Your Host</h3>
           <div className="flex items-center gap-4 mb-4">
             <img src={MOCK_BOOKING.host.photo} alt={MOCK_BOOKING.host.name} className="w-14 h-14 rounded-full object-cover" />
             <div>
-              <p className="font-semibold" style={{ color: 'var(--brown-dark)' }}>{MOCK_BOOKING.host.name}</p>
-              <p className="text-sm text-stone-500">📱 {MOCK_BOOKING.host.phone}</p>
+              <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{MOCK_BOOKING.host.name}</p>
+              <p className="text-sm text-[#6B645C]">📱 {MOCK_BOOKING.host.phone}</p>
             </div>
           </div>
           <Link href="/dashboard/guest/messages"
             className="flex items-center justify-center gap-2 w-full py-3 rounded-xl border text-sm font-medium transition-all hover:bg-stone-50"
-            style={{ borderColor: '#E5E7EB', color: 'var(--brown-dark)' }}>
+            style={{ borderColor: '#E5E7EB', color: 'var(--color-text-primary)' }}>
             <MessageSquare size={16} /> Message Host
           </Link>
         </div>
 
         {/* Payment summary */}
         <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
-          <h3 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Payment Summary</h3>
+          <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Payment Summary</h3>
           <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-[#6B645C]">
               <span>Booking total</span>
               <span>${MOCK_BOOKING.total.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-[#6B645C]">
               <span>Approx. in GHS</span>
               <span>GH₵ {(MOCK_BOOKING.total * 15.5).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-stone-100">
-              <span className="text-stone-500">Payment status</span>
+              <span className="text-[#6B645C]">Payment status</span>
               <span className="px-2 py-1 rounded-full text-xs font-semibold" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>Paid ✓</span>
             </div>
           </div>
@@ -122,11 +122,11 @@ export default function BookingConfirmationPage() {
         <div className="grid grid-cols-2 gap-3">
           <Link href="/dashboard/guest"
             className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold"
-            style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+            style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
             <Calendar size={16} /> My Bookings
           </Link>
           <button
-            className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border border-stone-200 text-stone-700 hover:bg-stone-50">
+            className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold border border-stone-200 text-[#4A4540] hover:bg-stone-50">
             <Download size={16} /> Download Receipt
           </button>
         </div>

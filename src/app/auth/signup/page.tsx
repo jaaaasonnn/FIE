@@ -55,7 +55,7 @@ function SignUpForm() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden"
         style={{ backgroundColor: 'var(--brown-dark)' }}>
@@ -63,10 +63,10 @@ function SignUpForm() {
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1611116524765-8e7ad0c0b169?w=800&q=60')`, backgroundSize: 'cover' }} />
         <div className="relative z-10 text-center max-w-sm">
           <Link href="/" className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--gold)' }}>
-              <Home size={24} style={{ color: 'var(--brown-dark)' }} />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <Home size={24} style={{ color: 'var(--color-text-primary)' }} />
             </div>
-            <span className="text-3xl font-bold" style={{ color: 'var(--gold)' }}>FieGH</span>
+            <span className="text-3xl font-bold" style={{ color: 'var(--color-accent)' }}>FieGH</span>
           </Link>
           <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--cream)' }}>
             Join FieGH 🇬🇭
@@ -76,7 +76,7 @@ function SignUpForm() {
           </p>
           {['Free to join', 'Ghana Card verification', 'MoMo & card payments', 'Escrow protection'].map((f) => (
             <div key={f} className="flex items-center gap-3 mb-3">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}>✓</div>
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs" style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>✓</div>
               <span className="text-sm text-left" style={{ color: 'rgba(250,247,242,0.7)' }}>{f}</span>
             </div>
           ))}
@@ -88,13 +88,13 @@ function SignUpForm() {
         <div className="w-full max-w-md py-8">
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brown-dark)' }}>
-              <Home size={16} style={{ color: 'var(--gold)' }} />
+              <Home size={16} style={{ color: 'var(--color-accent)' }} />
             </div>
-            <span className="text-xl font-bold" style={{ color: 'var(--brown-dark)' }}>FieGH</span>
+            <span className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>FieGH</span>
           </Link>
 
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>Create Account</h1>
-          <p className="text-stone-500 mb-6">Join thousands of Ghanaians on FieGH.</p>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Create Account</h1>
+          <p className="text-[#6B645C] mb-6">Join thousands of Ghanaians on FieGH.</p>
 
           {/* Role toggle */}
           <div className="flex gap-2 p-1 rounded-2xl mb-6" style={{ backgroundColor: '#F0EAE0' }}>
@@ -108,8 +108,8 @@ function SignUpForm() {
                 className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-all"
                 style={
                   role === val
-                    ? { backgroundColor: 'var(--brown-dark)', color: 'var(--gold)' }
-                    : { color: 'var(--brown-dark)' }
+                    ? { backgroundColor: 'var(--brown-dark)', color: 'var(--color-accent)' }
+                    : { color: 'var(--color-text-primary)' }
                 }
               >
                 <Icon size={16} />
@@ -187,11 +187,11 @@ function SignUpForm() {
               required
             />
 
-            <p className="text-xs text-stone-500">
+            <p className="text-xs text-[#6B645C]">
               By creating an account you agree to our{' '}
-              <Link href="/terms" style={{ color: 'var(--amber)' }}>Terms of Service</Link>
+              <Link href="/terms" style={{ color: 'var(--color-accent)' }}>Terms of Service</Link>
               {' '}and{' '}
-              <Link href="/privacy" style={{ color: 'var(--amber)' }}>Privacy Policy</Link>.
+              <Link href="/privacy" style={{ color: 'var(--color-accent)' }}>Privacy Policy</Link>.
             </p>
 
             <Button type="submit" size="lg" className="w-full" loading={loading}>
@@ -199,9 +199,9 @@ function SignUpForm() {
             </Button>
           </form>
 
-          <p className="text-center mt-6 text-sm text-stone-600">
+          <p className="text-center mt-6 text-sm text-[#6B645C]">
             Already have an account?{' '}
-            <Link href="/auth/signin" style={{ color: 'var(--amber)' }} className="font-semibold hover:underline">
+            <Link href="/auth/signin" style={{ color: 'var(--color-accent)' }} className="font-semibold hover:underline">
               Sign in
             </Link>
           </p>

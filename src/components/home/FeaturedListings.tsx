@@ -135,21 +135,21 @@ export function FeaturedListings() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4 bg-white">
+    <section ref={sectionRef} className="py-20 px-4 bg-[var(--color-bg)]">
       <div className="max-w-7xl mx-auto">
         <div className="listing-heading flex items-end justify-between mb-10">
           <div>
-            <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--amber)' }}>
+            <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
               Hand-picked for you
             </p>
-            <h2 className="text-4xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+            <h2 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
               Featured Properties
             </h2>
           </div>
           <Link
             href="/search"
             className="hidden sm:flex items-center gap-1 text-sm font-semibold hover:gap-2 transition-all"
-            style={{ color: 'var(--amber)' }}
+            style={{ color: 'var(--color-accent)' }}
           >
             View all <span>→</span>
           </Link>
@@ -172,7 +172,7 @@ export function FeaturedListings() {
                     <span
                       key={m}
                       className="text-xs px-2 py-1 rounded-full font-medium"
-                      style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--gold)', backdropFilter: 'blur(4px)' }}
+                      style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--color-accent)', backdropFilter: 'blur(4px)' }}
                     >
                       {MODE_LABELS[m]?.label}
                     </span>
@@ -187,7 +187,7 @@ export function FeaturedListings() {
               {/* Body */}
               <div className="p-4">
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-semibold text-sm leading-snug flex-1" style={{ color: 'var(--brown-dark)' }}>
+                  <h3 className="font-semibold text-sm leading-snug flex-1" style={{ color: 'var(--color-text-primary)' }}>
                     {listing.title}
                   </h3>
                   <div className="flex items-center gap-1 flex-shrink-0">
@@ -197,12 +197,12 @@ export function FeaturedListings() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-1 text-xs text-stone-500 mb-3">
+                <div className="flex items-center gap-1 text-xs text-[#6B645C] mb-3">
                   <MapPin size={12} />
                   {listing.neighbourhood}, {listing.city}
                 </div>
 
-                <div className="flex items-center gap-3 text-xs text-stone-500 mb-4">
+                <div className="flex items-center gap-3 text-xs text-[#6B645C] mb-4">
                   <span className="flex items-center gap-1"><Bed size={12} />{listing.bedrooms}bd</span>
                   <span className="flex items-center gap-1"><Bath size={12} />{listing.bathrooms}ba</span>
                   <span className="flex items-center gap-1"><Users size={12} />Up to {listing.maxGuests}</span>
@@ -218,15 +218,15 @@ export function FeaturedListings() {
               <div className="px-4 pb-4 flex items-center justify-between">
                 <div>
                   {listing.priceNightly && (
-                    <span className="text-base font-bold" style={{ color: 'var(--brown-dark)' }}>
+                    <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
                       ${listing.priceNightly}
-                      <span className="text-xs font-normal text-stone-500">/night</span>
+                      <span className="text-xs font-normal text-[#6B645C]">/night</span>
                     </span>
                   )}
                   {listing.priceMonthly && !listing.priceNightly && (
-                    <span className="text-base font-bold" style={{ color: 'var(--brown-dark)' }}>
+                    <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
                       ${listing.priceMonthly}
-                      <span className="text-xs font-normal text-stone-500">/month</span>
+                      <span className="text-xs font-normal text-[#6B645C]">/month</span>
                     </span>
                   )}
                   <div className="text-xs text-stone-400">
@@ -235,7 +235,7 @@ export function FeaturedListings() {
                 </div>
                 <button
                   className="text-xs px-4 py-2 rounded-full font-semibold transition-all hover:opacity-90"
-                  style={{ backgroundColor: 'var(--amber)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
                 >
                   View
                 </button>
@@ -248,7 +248,7 @@ export function FeaturedListings() {
           <Link
             href="/search"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
-            style={{ backgroundColor: 'var(--amber)', color: '#fff' }}
+            style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
           >
             View All Properties →
           </Link>

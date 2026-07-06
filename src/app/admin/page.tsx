@@ -30,12 +30,12 @@ export default function AdminPage() {
   const [exchangeRate, setExchangeRate] = useState('15.5')
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Sidebar */}
       <div className="hidden lg:flex flex-col w-56 flex-shrink-0 py-6 px-3"
         style={{ backgroundColor: 'var(--brown-dark)', minHeight: '100vh' }}>
         <div className="px-3 mb-8">
-          <h2 className="font-bold text-lg" style={{ color: 'var(--gold)' }}>
+          <h2 className="font-bold text-lg" style={{ color: 'var(--color-accent)' }}>
             FieGH Admin
           </h2>
           <p className="text-xs mt-1" style={{ color: 'rgba(250,247,242,0.4)' }}>Super Admin Panel</p>
@@ -74,13 +74,13 @@ export default function AdminPage() {
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
                 {activeTab}
               </h1>
-              <p className="text-sm text-stone-500 mt-0.5">FieGH Platform Administration 🇬🇭</p>
+              <p className="text-sm text-[#6B645C] mt-0.5">FieGH Platform Administration 🇬🇭</p>
             </div>
             <div className="text-xs px-3 py-1.5 rounded-full"
-              style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--gold)' }}>
+              style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--color-accent)' }}>
               Admin Access
             </div>
           </div>
@@ -88,7 +88,7 @@ export default function AdminPage() {
           {activeTab === 'Overview' && (
             <div>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                <StatCard icon={<Users size={18} style={{ color: 'var(--amber)' }} />} label="Total Users" value="1,247" sub="+38 this week" />
+                <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value="1,247" sub="+38 this week" />
                 <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value="342" sub="18 pending review" />
                 <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value="2,891" sub="$142k total value" />
                 <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value="$11,360" sub="8% commission" />
@@ -98,31 +98,31 @@ export default function AdminPage() {
                 <div className="bg-white p-5 rounded-2xl border border-stone-100">
                   <div className="flex items-center gap-2 mb-3">
                     <Shield size={16} style={{ color: '#2563EB' }} />
-                    <h3 className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>Pending Verifications</h3>
+                    <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Pending Verifications</h3>
                   </div>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--brown-dark)' }}>14</p>
-                  <p className="text-xs text-stone-500 mt-1">Awaiting ID review</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>14</p>
+                  <p className="text-xs text-[#6B645C] mt-1">Awaiting ID review</p>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-stone-100">
                   <div className="flex items-center gap-2 mb-3">
                     <AlertTriangle size={16} style={{ color: '#DC2626' }} />
-                    <h3 className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>Open Disputes</h3>
+                    <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Open Disputes</h3>
                   </div>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--brown-dark)' }}>3</p>
-                  <p className="text-xs text-stone-500 mt-1">Require resolution</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>3</p>
+                  <p className="text-xs text-[#6B645C] mt-1">Require resolution</p>
                 </div>
                 <div className="bg-white p-5 rounded-2xl border border-stone-100">
                   <div className="flex items-center gap-2 mb-3">
                     <Star size={16} style={{ color: '#F59E0B' }} />
-                    <h3 className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>Avg Platform Rating</h3>
+                    <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Avg Platform Rating</h3>
                   </div>
-                  <p className="text-3xl font-bold" style={{ color: 'var(--brown-dark)' }}>4.7</p>
-                  <p className="text-xs text-stone-500 mt-1">Based on 2,891 reviews</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>4.7</p>
+                  <p className="text-xs text-[#6B645C] mt-1">Based on 2,891 reviews</p>
                 </div>
               </div>
 
               <div className="bg-white p-5 rounded-2xl border border-stone-100">
-                <h3 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Top Regions by Bookings</h3>
+                <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Top Regions by Bookings</h3>
                 <div className="space-y-3">
                   {[
                     { region: 'Greater Accra', bookings: 1842, pct: 64 },
@@ -133,12 +133,12 @@ export default function AdminPage() {
                   ].map(({ region, bookings, pct }) => (
                     <div key={region}>
                       <div className="flex justify-between text-sm mb-1">
-                        <span style={{ color: 'var(--brown-dark)' }}>{region}</span>
-                        <span className="text-stone-500">{bookings.toLocaleString()} bookings</span>
+                        <span style={{ color: 'var(--color-text-primary)' }}>{region}</span>
+                        <span className="text-[#6B645C]">{bookings.toLocaleString()} bookings</span>
                       </div>
                       <div className="h-2 rounded-full bg-stone-100 overflow-hidden">
                         <div className="h-full rounded-full transition-all"
-                          style={{ width: `${pct}%`, backgroundColor: 'var(--gold)' }} />
+                          style={{ width: `${pct}%`, backgroundColor: 'var(--color-accent)' }} />
                       </div>
                     </div>
                   ))}
@@ -154,7 +154,7 @@ export default function AdminPage() {
                   <thead>
                     <tr className="border-b border-stone-200">
                       {['Name', 'Role', 'Phone', 'Verified', 'Trust Score', 'Status', 'Actions'].map((h) => (
-                        <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-stone-500">{h}</th>
+                        <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-[#6B645C]">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -164,10 +164,10 @@ export default function AdminPage() {
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2">
                             <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
-                              style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                              style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                               {u.name[0]}
                             </div>
-                            <span className="font-medium" style={{ color: 'var(--brown-dark)' }}>{u.name}</span>
+                            <span className="font-medium" style={{ color: 'var(--color-text-primary)' }}>{u.name}</span>
                           </div>
                         </td>
                         <td className="py-3 px-3">
@@ -176,7 +176,7 @@ export default function AdminPage() {
                             {u.role}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-stone-500">{u.phone}</td>
+                        <td className="py-3 px-3 text-[#6B645C]">{u.phone}</td>
                         <td className="py-3 px-3">
                           {u.verified ? <CheckCircle size={16} style={{ color: '#059669' }} /> : <XCircle size={16} style={{ color: '#9CA3AF' }} />}
                         </td>
@@ -209,7 +209,7 @@ export default function AdminPage() {
 
           {activeTab === 'Verifications' && (
             <div>
-              <h3 className="font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>Pending ID Verifications</h3>
+              <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Pending ID Verifications</h3>
               <div className="space-y-4">
                 {MOCK_VERIFICATIONS.map((v) => (
                   <div key={v.id} className="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm">
@@ -217,8 +217,8 @@ export default function AdminPage() {
                       <div className="flex items-start gap-4">
                         <img src={v.photo} alt={v.user} className="w-16 h-16 rounded-xl object-cover" />
                         <div>
-                          <p className="font-semibold" style={{ color: 'var(--brown-dark)' }}>{v.user}</p>
-                          <p className="text-sm text-stone-500">{v.idType.replace('_', ' ')}</p>
+                          <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{v.user}</p>
+                          <p className="text-sm text-[#6B645C]">{v.idType.replace('_', ' ')}</p>
                           <p className="text-xs text-stone-400">Submitted: {new Date(v.submitted).toLocaleDateString('en-GH')}</p>
                         </div>
                       </div>
@@ -234,7 +234,7 @@ export default function AdminPage() {
                       </div>
                     </div>
                     <div className="mt-4 p-3 rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
-                      <p className="text-xs text-stone-500">Click Approve to grant the Verified badge. Click Reject to notify user with reason.</p>
+                      <p className="text-xs text-[#6B645C]">Click Approve to grant the Verified badge. Click Reject to notify user with reason.</p>
                     </div>
                   </div>
                 ))}
@@ -251,7 +251,7 @@ export default function AdminPage() {
                     <div className="flex items-center justify-between gap-3 flex-wrap">
                       <div>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{l.title}</h4>
+                          <h4 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{l.title}</h4>
                           {l.flagged && (
                             <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
                               style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
@@ -259,7 +259,7 @@ export default function AdminPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-stone-500">Host: {l.host} · {l.region} · {l.price}</p>
+                        <p className="text-xs text-[#6B645C]">Host: {l.host} · {l.region} · {l.price}</p>
                       </div>
                       <div className="flex gap-2">
                         <button className="px-3 py-1.5 rounded-full text-xs font-semibold"
@@ -280,15 +280,15 @@ export default function AdminPage() {
             <div className="space-y-6">
               <div className="bg-white p-6 rounded-2xl border border-stone-100">
                 <div className="flex items-center gap-2 mb-4">
-                  <Globe size={18} style={{ color: 'var(--amber)' }} />
-                  <h3 className="font-bold" style={{ color: 'var(--brown-dark)' }}>Exchange Rate</h3>
+                  <Globe size={18} style={{ color: 'var(--color-accent)' }} />
+                  <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Exchange Rate</h3>
                 </div>
-                <p className="text-sm text-stone-600 mb-4">
+                <p className="text-sm text-[#6B645C] mb-4">
                   Set the USD to GHS exchange rate used across the platform. Update this weekly.
                 </p>
                 <div className="flex gap-3 items-end">
                   <div className="flex-1">
-                    <label className="text-xs text-stone-500 block mb-1">1 USD = ? GHS</label>
+                    <label className="text-xs text-[#6B645C] block mb-1">1 USD = ? GHS</label>
                     <input
                       type="number"
                       value={exchangeRate}
@@ -298,7 +298,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <button className="px-5 py-3 rounded-xl text-sm font-semibold"
-                    style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+                    style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
                     Update Rate
                   </button>
                 </div>
@@ -308,16 +308,16 @@ export default function AdminPage() {
               </div>
 
               <div className="bg-white p-6 rounded-2xl border border-stone-100">
-                <h3 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Platform Fees</h3>
+                <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Platform Fees</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="p-4 rounded-xl" style={{ backgroundColor: '#FFF8EE' }}>
-                    <p className="text-stone-500 text-xs mb-1">Guest Service Fee</p>
-                    <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>12%</p>
+                    <p className="text-[#6B645C] text-xs mb-1">Guest Service Fee</p>
+                    <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>12%</p>
                     <p className="text-xs text-stone-400">Added to listing price</p>
                   </div>
                   <div className="p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4' }}>
-                    <p className="text-stone-500 text-xs mb-1">Host Commission</p>
-                    <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>8%</p>
+                    <p className="text-[#6B645C] text-xs mb-1">Host Commission</p>
+                    <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>8%</p>
                     <p className="text-xs text-stone-400">Deducted from payout</p>
                   </div>
                 </div>

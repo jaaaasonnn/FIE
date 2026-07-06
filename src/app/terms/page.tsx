@@ -1,6 +1,6 @@
 export default function TermsPage() {
   return (
-    <div style={{ backgroundColor: 'var(--cream)' }}>
+    <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-16 px-4">
         <div className="max-w-3xl mx-auto">
           <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
@@ -11,7 +11,7 @@ export default function TermsPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-16 prose prose-stone">
-        <div className="space-y-8 text-sm text-stone-700 leading-relaxed">
+        <div className="space-y-8 text-sm text-[#4A4540] leading-relaxed">
           {[
             {
               title: '1. Acceptance of Terms',
@@ -59,7 +59,7 @@ export default function TermsPage() {
             },
           ].map(({ title, body }) => (
             <div key={title}>
-              <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>{title}</h2>
+              <h2 className="text-lg font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{title}</h2>
               <p>{body}</p>
             </div>
           ))}

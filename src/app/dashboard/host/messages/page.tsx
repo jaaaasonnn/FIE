@@ -42,7 +42,7 @@ export default function HostMessagesPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
@@ -50,7 +50,7 @@ export default function HostMessagesPage() {
             <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>Chat with your guests</p>
           </div>
           <Link href="/dashboard/host" className="text-sm px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--gold)', border: '1px solid rgba(245,192,106,0.3)' }}>
+            style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
             ← Dashboard
           </Link>
         </div>
@@ -72,20 +72,20 @@ export default function HostMessagesPage() {
                   className="w-full p-4 flex items-start gap-3 text-left border-b border-stone-50 transition-all hover:bg-stone-50"
                   style={{ backgroundColor: activeConv.id === conv.id ? '#FFF8EE' : undefined }}>
                   <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                    style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                    style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                     {conv.guestName[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{conv.guestName}</span>
+                      <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{conv.guestName}</span>
                       <span className="text-xs text-stone-400">{conv.time}</span>
                     </div>
-                    <p className="text-xs text-stone-500 truncate">{conv.listing}</p>
+                    <p className="text-xs text-[#6B645C] truncate">{conv.listing}</p>
                     <p className="text-xs text-stone-400 truncate mt-0.5">{conv.lastMessage}</p>
                   </div>
                   {conv.unread > 0 && (
                     <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
                       {conv.unread}
                     </div>
                   )}
@@ -98,12 +98,12 @@ export default function HostMessagesPage() {
           <div className="hidden sm:flex flex-col flex-1">
             <div className="p-4 border-b border-stone-100 flex items-center gap-3">
               <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
-                style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                 {activeConv.guestName[0]}
               </div>
               <div>
-                <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{activeConv.guestName}</p>
-                <p className="text-xs text-stone-500">{activeConv.listing}</p>
+                <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{activeConv.guestName}</p>
+                <p className="text-xs text-[#6B645C]">{activeConv.listing}</p>
               </div>
             </div>
 
@@ -135,7 +135,7 @@ export default function HostMessagesPage() {
               />
               <button type="submit"
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: 'var(--amber)' }}>
+                style={{ backgroundColor: 'var(--color-accent)' }}>
                 <Send size={16} style={{ color: '#fff' }} />
               </button>
             </form>

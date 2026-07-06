@@ -25,13 +25,13 @@ const MODE_LABELS: Record<string, string> = {
 
 export default function GuestDashboardPage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Header */}
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0"
-              style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               K
             </div>
             <div>
@@ -48,7 +48,7 @@ export default function GuestDashboardPage() {
             <div className="ml-auto hidden sm:block">
               <Link href="/auth/verify-id"
                 className="px-4 py-2 rounded-full text-xs font-semibold"
-                style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}>
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                 Verify ID →
               </Link>
             </div>
@@ -59,7 +59,7 @@ export default function GuestDashboardPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={<Calendar size={18} style={{ color: 'var(--amber)' }} />} label="Total Bookings" value="3" sub="2 completed" />
+          <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Bookings" value="3" sub="2 completed" />
           <StatCard icon={<Heart size={18} style={{ color: '#EF4444' }} />} label="Saved Properties" value="7" />
           <StatCard icon={<Star size={18} style={{ color: '#F59E0B' }} />} label="Reviews Given" value="2" />
           <StatCard icon={<TrendingUp size={18} style={{ color: '#059669' }} />} label="Trust Score" value="65/100" sub="ID verify to boost" />
@@ -107,7 +107,7 @@ export default function GuestDashboardPage() {
 
         {/* Bookings */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>Your Bookings</h2>
+          <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Your Bookings</h2>
           <div className="space-y-4">
             {MOCK_BOOKINGS.map((b) => {
               const s = STATUS_STYLES[b.status]
@@ -118,19 +118,19 @@ export default function GuestDashboardPage() {
                       className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--brown-dark)' }}>{b.title}</h3>
+                        <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>{b.title}</h3>
                         <span className="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0"
                           style={{ backgroundColor: s.bg, color: s.color }}>
                           {s.label}
                         </span>
                       </div>
-                      <p className="text-xs text-stone-500 mt-1">{MODE_LABELS[b.mode]}</p>
-                      <p className="text-xs text-stone-500">
+                      <p className="text-xs text-[#6B645C] mt-1">{MODE_LABELS[b.mode]}</p>
+                      <p className="text-xs text-[#6B645C]">
                         {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
                         {' – '}
                         {new Date(b.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </p>
-                      <p className="text-sm font-bold mt-2" style={{ color: 'var(--brown-dark)' }}>
+                      <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
                         ${b.total.toLocaleString()}
                         <span className="font-normal text-xs text-stone-400 ml-1">≈ GH₵ {(b.total * 15.5).toLocaleString()}</span>
                       </p>
@@ -150,7 +150,7 @@ export default function GuestDashboardPage() {
                     )}
                     {b.status === 'COMPLETED' && (
                       <button className="text-xs px-4 py-2 rounded-full font-medium"
-                        style={{ backgroundColor: '#FFF8EE', color: 'var(--amber)' }}>
+                        style={{ backgroundColor: '#FFF8EE', color: 'var(--color-accent)' }}>
                         Leave Review
                       </button>
                     )}
@@ -164,8 +164,8 @@ export default function GuestDashboardPage() {
         {/* Notifications */}
         <div className="bg-white rounded-2xl border border-stone-100 p-5">
           <div className="flex items-center gap-2 mb-4">
-            <Bell size={18} style={{ color: 'var(--amber)' }} />
-            <h3 className="font-bold" style={{ color: 'var(--brown-dark)' }}>Recent Notifications</h3>
+            <Bell size={18} style={{ color: 'var(--color-accent)' }} />
+            <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Recent Notifications</h3>
           </div>
           <div className="space-y-3">
             {[
@@ -175,10 +175,10 @@ export default function GuestDashboardPage() {
             ].map(({ msg, time, read }) => (
               <div key={msg} className="flex items-start gap-3 p-3 rounded-xl"
                 style={{ backgroundColor: read ? 'transparent' : '#FFF8EE' }}>
-                {!read && <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: 'var(--amber)' }} />}
+                {!read && <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: 'var(--color-accent)' }} />}
                 {read && <div className="w-2 h-2 flex-shrink-0" />}
                 <div>
-                  <p className="text-sm" style={{ color: 'var(--brown-dark)' }}>{msg}</p>
+                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{msg}</p>
                   <p className="text-xs text-stone-400 mt-0.5">{time}</p>
                 </div>
               </div>

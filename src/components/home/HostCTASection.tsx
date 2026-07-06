@@ -35,12 +35,12 @@ export function HostCTASection() {
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="cta-left">
-            <p className="text-sm font-medium uppercase tracking-widest mb-4" style={{ color: 'var(--gold)' }}>
+            <p className="text-sm font-medium uppercase tracking-widest mb-4" style={{ color: 'var(--color-accent)' }}>
               For Property Owners
             </p>
             <h2 className="text-4xl sm:text-5xl font-bold mb-6 leading-tight" style={{ color: 'var(--cream)' }}>
               Turn Your Property<br />
-              <span style={{ color: 'var(--gold)' }}>Into Income</span>
+              <span style={{ color: 'var(--color-accent)' }}>Into Income</span>
             </h2>
             <p className="text-base mb-8 leading-relaxed" style={{ color: 'rgba(250,247,242,0.7)' }}>
               List your apartment, house, villa, or guestroom on FieGH and start earning.
@@ -49,7 +49,7 @@ export function HostCTASection() {
 
             <div className="grid grid-cols-2 gap-4 mb-8">
               {[
-                { icon: DollarSign, label: 'MoMo & Bank Payouts', color: 'var(--gold)' },
+                { icon: DollarSign, label: 'MoMo & Bank Payouts', color: 'var(--color-accent)' },
                 { icon: Calendar, label: 'Full Calendar Control', color: '#60A5FA' },
                 { icon: Shield, label: 'Verified Guest System', color: '#34D399' },
                 { icon: TrendingUp, label: 'Real-Time Analytics', color: '#F472B6' },
@@ -68,7 +68,7 @@ export function HostCTASection() {
               <Link
                 href="/auth/signup?role=host"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm transition-all hover:opacity-90"
-                style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
               >
                 Start Hosting Today
               </Link>
@@ -92,7 +92,7 @@ export function HostCTASection() {
                 <h4 className="font-semibold" style={{ color: 'var(--cream)' }}>
                   Host Earnings Preview
                 </h4>
-                <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--gold)' }}>
+                <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)' }}>
                   Sample
                 </span>
               </div>
@@ -105,7 +105,7 @@ export function HostCTASection() {
                   <div key={item.label} className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
                     <p className="text-xs mb-2" style={{ color: 'rgba(250,247,242,0.6)' }}>{item.label}</p>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm" style={{ color: 'var(--gold)' }}>{item.rate}</span>
+                      <span className="text-sm" style={{ color: 'var(--color-accent)' }}>{item.rate}</span>
                       <span className="text-sm font-bold" style={{ color: 'var(--cream)' }}>
                         {item.monthly}<span className="text-xs font-normal text-stone-400">/mo</span>
                       </span>
@@ -120,7 +120,7 @@ export function HostCTASection() {
               <div className="border-t pt-4" style={{ borderColor: 'rgba(245,192,106,0.15)' }}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>After 8% platform fee</span>
-                  <span className="text-xl font-bold" style={{ color: 'var(--gold)' }}>
+                  <span className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>
                     $2,092/mo
                   </span>
                 </div>

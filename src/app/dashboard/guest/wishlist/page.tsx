@@ -22,7 +22,7 @@ export default function WishlistPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
@@ -59,10 +59,10 @@ export default function WishlistPage() {
         {items.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4">💔</div>
-            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>No saved properties yet</h3>
-            <p className="text-stone-500 mb-6">Tap the ♡ on any listing to save it here.</p>
+            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No saved properties yet</h3>
+            <p className="text-[#6B645C] mb-6">Tap the ♡ on any listing to save it here.</p>
             <Link href="/search" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
               Browse Properties
             </Link>
           </div>
@@ -86,7 +86,7 @@ export default function WishlistPage() {
                     <div className="absolute top-3 left-3 flex gap-1">
                       {listing.modes.slice(0, 1).map((m) => (
                         <span key={m} className="text-xs px-2 py-0.5 rounded-full font-medium"
-                          style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--gold)' }}>
+                          style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--color-accent)' }}>
                           {MODE_LABELS[m]}
                         </span>
                       ))}
@@ -94,19 +94,19 @@ export default function WishlistPage() {
                   </div>
                   <div className="p-4">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--brown-dark)' }}>{listing.title}</h3>
+                      <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>{listing.title}</h3>
                       <div className="flex items-center gap-0.5 flex-shrink-0">
                         <Star size={12} className="fill-amber-400 text-amber-400" />
                         <span className="text-xs font-medium">{listing.rating}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-xs text-stone-500 mb-3">
+                    <div className="flex items-center gap-1 text-xs text-[#6B645C] mb-3">
                       <MapPin size={11} />{listing.neighbourhood}, {listing.city}
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-bold text-sm" style={{ color: 'var(--brown-dark)' }}>
-                          ${listing.priceNightly}<span className="text-xs font-normal text-stone-500">/night</span>
+                        <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                          ${listing.priceNightly}<span className="text-xs font-normal text-[#6B645C]">/night</span>
                         </span>
                         <div className="text-xs text-stone-400">≈ GH₵ {(listing.priceNightly * 15.5).toLocaleString()}</div>
                       </div>

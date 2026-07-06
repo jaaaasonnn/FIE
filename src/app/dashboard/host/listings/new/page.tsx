@@ -84,8 +84,8 @@ export default function NewListingPage() {
         value={form.neighbourhood} onChange={(e) => setForm({ ...form, neighbourhood: e.target.value })} />
       <div className="p-4 rounded-xl border border-dashed border-stone-300 text-center">
         <div className="text-2xl mb-2">📍</div>
-        <p className="text-sm font-medium text-stone-700">Map Pin (Coming Soon)</p>
-        <p className="text-xs text-stone-500">You will be able to drop a precise map pin for your property.</p>
+        <p className="text-sm font-medium text-[#4A4540]">Map Pin (Coming Soon)</p>
+        <p className="text-xs text-[#6B645C]">You will be able to drop a precise map pin for your property.</p>
       </div>
     </div>
   )
@@ -93,7 +93,7 @@ export default function NewListingPage() {
   const step2 = (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium mb-3" style={{ color: 'var(--brown-dark)' }}>Rental Modes (select all that apply)</p>
+        <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>Rental Modes (select all that apply)</p>
         <div className="space-y-3">
           {Object.entries(RENTAL_MODES).map(([key, { label, desc, icon }]) => (
             <button key={key} type="button" onClick={() => toggleMode(key)}
@@ -104,18 +104,18 @@ export default function NewListingPage() {
               }}>
               <span className="text-2xl">{icon}</span>
               <div className="flex-1">
-                <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{label}</p>
-                <p className="text-xs text-stone-500">{desc}</p>
+                <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{label}</p>
+                <p className="text-xs text-[#6B645C]">{desc}</p>
               </div>
-              {form.rentalModes.includes(key) ? <CheckSquare size={20} style={{ color: 'var(--amber)' }} /> : <Square size={20} className="text-stone-300" />}
+              {form.rentalModes.includes(key) ? <CheckSquare size={20} style={{ color: 'var(--color-accent)' }} /> : <Square size={20} className="text-stone-300" />}
             </button>
           ))}
         </div>
       </div>
 
       {form.rentalModes.includes('SHORT_STAY') && (
-        <div className="space-y-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
-          <h4 className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>🌙 Short Stay Pricing</h4>
+        <div className="space-y-3 p-4 rounded-xl border border-[#E5D0A8] bg-[#FAF5EC]">
+          <h4 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>🌙 Short Stay Pricing</h4>
           <Input label="Price per Night (USD $)" type="number" placeholder="e.g. 80"
             value={form.priceNightly} onChange={(e) => setForm({ ...form, priceNightly: e.target.value })} />
           <Select label="Minimum Stay" value={form.minStayNights}
@@ -147,7 +147,7 @@ export default function NewListingPage() {
       )}
 
       <div>
-        <p className="text-sm font-medium mb-2" style={{ color: 'var(--brown-dark)' }}>Cancellation Policy</p>
+        <p className="text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>Cancellation Policy</p>
         <div className="grid grid-cols-3 gap-2">
           {['FLEXIBLE', 'MODERATE', 'STRICT'].map((p) => (
             <button key={p} type="button" onClick={() => setForm({ ...form, cancellationPolicy: p })}
@@ -168,8 +168,8 @@ export default function NewListingPage() {
 
       <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200 bg-white">
         <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--brown-dark)' }}>⚡ Instant Book</p>
-          <p className="text-xs text-stone-500">Auto-confirm guest bookings without manual approval</p>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>⚡ Instant Book</p>
+          <p className="text-xs text-[#6B645C]">Auto-confirm guest bookings without manual approval</p>
         </div>
         <button
           type="button"
@@ -187,7 +187,7 @@ export default function NewListingPage() {
   const step3 = (
     <div className="space-y-6">
       <div>
-        <p className="text-sm font-medium mb-3" style={{ color: 'var(--brown-dark)' }}>Amenities</p>
+        <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>Amenities</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {AMENITIES_LIST.map((a) => (
             <button key={a} type="button" onClick={() => toggleAmenity(a)}
@@ -205,7 +205,7 @@ export default function NewListingPage() {
       </div>
 
       <div>
-        <p className="text-sm font-medium mb-3" style={{ color: 'var(--brown-dark)' }}>House Rules</p>
+        <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>House Rules</p>
         <div className="grid grid-cols-2 gap-2">
           {['No smoking', 'No parties or events', 'No pets', 'Quiet hours after 10pm', 'No unregistered guests', 'No cooking with open fire'].map((r) => {
             const active = form.rules.includes(r)
@@ -232,7 +232,7 @@ export default function NewListingPage() {
 
   const step4 = (
     <div className="space-y-4">
-      <p className="text-sm text-stone-600">Upload up to 12 photos. First photo is your cover image.</p>
+      <p className="text-sm text-[#6B645C]">Upload up to 12 photos. First photo is your cover image.</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <label key={i} className="aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all hover:border-amber-400"
@@ -243,14 +243,14 @@ export default function NewListingPage() {
           </label>
         ))}
       </div>
-      <p className="text-xs text-stone-500">JPG or PNG, max 10MB each. Use bright, well-lit photos for better bookings.</p>
+      <p className="text-xs text-[#6B645C]">JPG or PNG, max 10MB each. Use bright, well-lit photos for better bookings.</p>
     </div>
   )
 
   const step5 = (
     <div className="space-y-4">
       <div className="p-5 rounded-2xl bg-white border border-stone-100">
-        <h4 className="font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Listing Summary</h4>
+        <h4 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Listing Summary</h4>
         <div className="space-y-3 text-sm">
           {[
             ['Title', form.title || '—'],
@@ -265,8 +265,8 @@ export default function NewListingPage() {
             ['Cancellation', form.cancellationPolicy],
           ].map(([k, v]) => (
             <div key={k} className="flex justify-between gap-4">
-              <span className="text-stone-500">{k}</span>
-              <span className="font-medium text-right" style={{ color: 'var(--brown-dark)' }}>{v}</span>
+              <span className="text-[#6B645C]">{k}</span>
+              <span className="font-medium text-right" style={{ color: 'var(--color-text-primary)' }}>{v}</span>
             </div>
           ))}
         </div>
@@ -274,7 +274,7 @@ export default function NewListingPage() {
       <div className="p-4 rounded-xl flex items-start gap-3"
         style={{ backgroundColor: '#FBE8BB', border: '1px solid var(--gold)' }}>
         <span className="text-lg">💡</span>
-        <p className="text-sm" style={{ color: 'var(--brown-dark)' }}>
+        <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
           Your listing will be reviewed before going live. Typical review time is under 24 hours.
         </p>
       </div>
@@ -284,10 +284,10 @@ export default function NewListingPage() {
   const stepContent = [step0, step1, step2, step3, step4, step5]
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-2xl mx-auto px-4 py-10">
-        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>List Your Property</h1>
-        <p className="text-stone-600 text-sm mb-8">Fill in the details to get your property live on FieGH 🇬🇭</p>
+        <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>List Your Property</h1>
+        <p className="text-[#6B645C] text-sm mb-8">Fill in the details to get your property live on FieGH 🇬🇭</p>
 
         {/* Progress */}
         <div className="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
@@ -313,7 +313,7 @@ export default function NewListingPage() {
 
         {/* Step content */}
         <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm mb-6">
-          <h3 className="text-lg font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>
+          <h3 className="text-lg font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>
             Step {step + 1}: {STEPS[step]}
           </h3>
           {stepContent[step]}

@@ -2,48 +2,62 @@
 
 @import "tailwindcss";
 
+/* ─── Canonical palette ─────────────────────────────────────────── */
 :root {
-  --brown-dark: #080400;
-  --gold: #F0B84E;
-  --amber: #C8873F;
-  --cream: #FAF7F2;
-  --brown-mid: #1A0E04;
-  --brown-light: #5C3D1E;
-  --gold-light: #FBE8BB;
-  --amber-dark: #9C5F1F;
-  --surface-dark: #110A02;
-  --border-gold: rgba(240,184,78,0.18);
+  /* New design-system tokens */
+  --color-accent:         #C9932E;
+  --color-accent-hover:   #B37F22;
+  --color-accent-subtle:  #F5ECD6;   /* tinted bg for accent elements */
+  --color-text-primary:   #1F1B16;
+  --color-text-secondary: #6B645C;
+  --color-text-muted:     #9C9589;
+  --color-bg:             #FAF7F2;   /* warm off-white page background */
+  --color-bg-card:        #FFFFFF;
+  --color-border:         #E8E1D6;
+  --color-border-strong:  #D4C9B8;
+
+  /* Dark section surface (footer, hero overlays, host-cta) */
+  --color-surface-dark:   #0F0B05;
+  --color-surface-dark-2: #1C1309;
+
+  /* Legacy aliases — existing components keep working unchanged */
+  --brown-dark:    var(--color-surface-dark);
+  --brown-mid:     var(--color-surface-dark-2);
+  --gold:          var(--color-accent);
+  --amber:         var(--color-accent);
+  --cream:         var(--color-bg);
+  --brown-light:   #5C3D1E;
+  --gold-light:    #F5DFA8;
+  --amber-dark:    var(--color-accent-hover);
+  --surface-dark:  var(--color-surface-dark);
+  --border-gold:   rgba(201,147,46,0.2);
 }
 
-* {
-  box-sizing: border-box;
-}
+/* ─── Base ──────────────────────────────────────────────────────── */
+* { box-sizing: border-box; }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
-  background-color: var(--cream);
-  color: var(--brown-dark);
+  background-color: var(--color-bg);
+  color: var(--color-text-primary);
   font-family: 'Plus Jakarta Sans', sans-serif;
   font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
+/* ─── Type scale ────────────────────────────────────────────────── */
 h1, h2, h3, h4, h5, h6 {
   font-family: 'Plus Jakarta Sans', sans-serif;
-  color: var(--brown-dark);
+  color: var(--color-text-primary);
   font-weight: 700;
 }
 
-/* Type scale */
 h1 { font-weight: 800; letter-spacing: -0.03em; }
 h2 { font-weight: 700; letter-spacing: -0.02em; }
 h3 { font-weight: 700; letter-spacing: -0.01em; }
 h4 { font-weight: 600; }
 
-/* All-caps / badge labels */
 .label-caps {
   font-weight: 600;
   font-size: 0.7rem;
@@ -58,95 +72,90 @@ input, select, textarea, button {
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-/* Scrollbar */
+/* ─── Scrollbar ─────────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--cream); }
-::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--amber); }
+::-webkit-scrollbar-track { background: var(--color-bg); }
+::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
 
-/* Custom utilities */
-.bg-primary { background-color: var(--brown-dark); }
-.bg-gold { background-color: var(--gold); }
-.bg-amber { background-color: var(--amber); }
-.bg-cream { background-color: var(--cream); }
-.text-primary { color: var(--brown-dark); }
-.text-gold { color: var(--gold); }
-.text-amber { color: var(--amber); }
-.border-gold { border-color: var(--gold); }
-.border-amber { border-color: var(--amber); }
+/* ─── Utilities ─────────────────────────────────────────────────── */
+.bg-primary   { background-color: var(--color-surface-dark); }
+.bg-gold      { background-color: var(--color-accent); }
+.bg-amber     { background-color: var(--color-accent); }
+.bg-cream     { background-color: var(--color-bg); }
+.text-primary { color: var(--color-text-primary); }
+.text-gold    { color: var(--color-accent); }
+.text-amber   { color: var(--color-accent); }
+.border-gold  { border-color: var(--color-accent); }
+.border-amber { border-color: var(--color-accent); }
 
-/* Card hover */
+/* ─── Cards ─────────────────────────────────────────────────────── */
 .listing-card {
   transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .listing-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 24px 48px rgba(8, 4, 0, 0.18);
+  box-shadow: 0 24px 48px rgba(31,27,22,0.12);
 }
 
-/* Glass surface for dark sections */
+/* Glass surface (dark sections) */
 .glass-dark {
   background: rgba(255,255,255,0.04);
-  border: 1px solid var(--border-gold);
+  border: 1px solid rgba(201,147,46,0.15);
   backdrop-filter: blur(8px);
 }
 
-/* Refined gold divider */
-.gold-divider {
-  height: 1px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  opacity: 0.35;
-}
-
-/* Gradient overlay for hero images */
+/* ─── Hero image overlay ────────────────────────────────────────── */
 .hero-overlay {
   background: linear-gradient(
     to bottom,
-    rgba(8, 4, 0, 0.15) 0%,
-    rgba(8, 4, 0, 0.55) 60%,
-    rgba(8, 4, 0, 0.92) 100%
+    rgba(15,11,5,0.12) 0%,
+    rgba(15,11,5,0.52) 60%,
+    rgba(15,11,5,0.92) 100%
   );
 }
 
-/* Gold shimmer animation */
+/* ─── Gold shimmer ──────────────────────────────────────────────── */
 @keyframes shimmer {
-  0% { background-position: -200% center; }
-  100% { background-position: 200% center; }
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
 }
 
 .text-shimmer {
-  background: linear-gradient(90deg, var(--gold) 0%, #fff8e7 50%, var(--gold) 100%);
+  background: linear-gradient(90deg, var(--color-accent) 0%, #F5DFA8 50%, var(--color-accent) 100%);
   background-size: 200% auto;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   animation: shimmer 3s linear infinite;
 }
 
-/* Mobile-first responsive inputs */
-input, select, textarea {
-  font-family: 'DM Sans', sans-serif;
+/* ─── Gold divider ──────────────────────────────────────────────── */
+.gold-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+  opacity: 0.3;
 }
 
-/* Status badges */
-.badge-pending { background: #FEF3C7; color: #92400E; }
+/* ─── Status badges ─────────────────────────────────────────────── */
+.badge-pending   { background: #FEF3C7; color: #92400E; }
 .badge-confirmed { background: #D1FAE5; color: #065F46; }
 .badge-cancelled { background: #FEE2E2; color: #991B1B; }
 .badge-completed { background: #DBEAFE; color: #1E40AF; }
-.badge-disputed { background: #EDE9FE; color: #5B21B6; }
+.badge-disputed  { background: #EDE9FE; color: #5B21B6; }
 
-/* Skeleton loading */
+/* ─── Skeleton loader ───────────────────────────────────────────── */
 @keyframes pulse {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50%       { opacity: 0.4; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #e8ddd0 25%, #f5ede3 50%, #e8ddd0 75%);
+  background: linear-gradient(90deg, var(--color-border) 25%, #F0EAE0 50%, var(--color-border) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: 8px;
 }
 
-/* Trust score ring */
+/* ─── Trust score ring ──────────────────────────────────────────── */
 .trust-ring-high { stroke: #22C55E; }
-.trust-ring-mid { stroke: var(--gold); }
-.trust-ring-low { stroke: #EF4444; }
+.trust-ring-mid  { stroke: var(--color-accent); }
+.trust-ring-low  { stroke: #EF4444; }

@@ -23,11 +23,11 @@ export default function GuestPaymentsPage() {
   const total = MOCK_PAYMENTS.filter((p) => p.status === 'SUCCESS').reduce((s, p) => s + p.amount, 0)
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
-            <CreditCard size={22} style={{ color: 'var(--gold)' }} />
+            <CreditCard size={22} style={{ color: 'var(--color-accent)' }} />
             <div>
               <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
                 Payment History
@@ -59,16 +59,16 @@ export default function GuestPaymentsPage() {
         {/* Summary card */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
-            <p className="text-xs text-stone-500 mb-1">Total Spent</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>${total.toLocaleString()}</p>
+            <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${total.toLocaleString()}</p>
             <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * 15.5).toLocaleString()}</p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
-            <p className="text-xs text-stone-500 mb-1">Transactions</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>{MOCK_PAYMENTS.length}</p>
+            <p className="text-xs text-[#6B645C] mb-1">Transactions</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{MOCK_PAYMENTS.length}</p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
-            <p className="text-xs text-stone-500 mb-1">Refunds Received</p>
+            <p className="text-xs text-[#6B645C] mb-1">Refunds Received</p>
             <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
               ${MOCK_PAYMENTS.filter((p) => p.status === 'REFUNDED').reduce((s, p) => s + p.amount, 0).toLocaleString()}
             </p>
@@ -78,7 +78,7 @@ export default function GuestPaymentsPage() {
         {/* Transactions list */}
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-stone-100">
-            <h3 className="font-bold" style={{ color: 'var(--brown-dark)' }}>All Transactions</h3>
+            <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>All Transactions</h3>
           </div>
           <div className="divide-y divide-stone-50">
             {MOCK_PAYMENTS.map((p) => {
@@ -91,8 +91,8 @@ export default function GuestPaymentsPage() {
                       {METHOD_ICONS[p.method] || '💰'}
                     </div>
                     <div>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{p.type}</p>
-                      <p className="text-xs text-stone-500">{p.booking}</p>
+                      <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{p.type}</p>
+                      <p className="text-xs text-[#6B645C]">{p.booking}</p>
                       <p className="text-xs text-stone-400">{p.method} · {new Date(p.date).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
                     </div>
                   </div>
@@ -115,7 +115,7 @@ export default function GuestPaymentsPage() {
         <div className="mt-6 p-4 rounded-2xl flex items-start gap-3"
           style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
           <span className="text-lg">🛡️</span>
-          <p className="text-sm" style={{ color: 'var(--brown-dark)' }}>
+          <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
             All payments are processed securely via <strong>Paystack</strong>. FieGH never asks you to pay outside the app.
             If you spot an unfamiliar transaction, contact <strong>support@fiegh.com</strong> immediately.
           </p>

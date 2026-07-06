@@ -46,18 +46,18 @@ export function RegionsSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4 bg-white">
+    <section ref={sectionRef} className="py-20 px-4 bg-[var(--color-bg)]">
       <div className="max-w-7xl mx-auto">
         <div className="region-heading flex items-end justify-between mb-10">
           <div>
-            <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--amber)' }}>
+            <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
               16 Regions
             </p>
-            <h2 className="text-4xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+            <h2 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
               Explore by Region 🇬🇭
             </h2>
           </div>
-          <Link href="/search" className="hidden sm:block text-sm font-semibold" style={{ color: 'var(--amber)' }}>
+          <Link href="/search" className="hidden sm:block text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
             All regions →
           </Link>
         </div>
@@ -78,7 +78,7 @@ export function RegionsSection() {
               <div className="absolute inset-0 hero-overlay" />
               <div className="absolute bottom-3 left-3 right-3">
                 <p className="text-white font-bold text-sm leading-tight">{city}</p>
-                <p className="text-xs" style={{ color: 'var(--gold)' }}>{count} listings</p>
+                <p className="text-xs" style={{ color: 'var(--color-accent)' }}>{count} listings</p>
               </div>
             </Link>
           ))}

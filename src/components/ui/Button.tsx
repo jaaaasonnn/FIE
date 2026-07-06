@@ -9,20 +9,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'primary', size = 'md', loading, children, disabled, ...props }, ref) => {
-    const base = 'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+    const base =
+      'inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
 
     const variants = {
-      primary: 'bg-amber-600 text-white hover:bg-amber-700 focus:ring-amber-500',
-      secondary: 'text-amber-900 hover:bg-amber-100 focus:ring-amber-400',
-      outline: 'border-2 border-amber-600 text-amber-700 hover:bg-amber-50 focus:ring-amber-500',
-      ghost: 'text-stone-700 hover:bg-stone-100 focus:ring-stone-300',
-      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+      // Single accent color for primary CTA
+      primary:   'bg-[#C9932E] text-white hover:bg-[#B37F22] focus:ring-[#C9932E]/40',
+      secondary: 'bg-[#F5ECD6] text-[#8A5E10] hover:bg-[#EDDFBF] focus:ring-[#C9932E]/30',
+      outline:   'border-[1.5px] border-[#C9932E] text-[#C9932E] hover:bg-[#F5ECD6] focus:ring-[#C9932E]/30',
+      ghost:     'text-[#6B645C] hover:bg-[#F4F2EE] focus:ring-[#E8E1D6]',
+      danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
     }
 
     const sizes = {
-      sm: 'text-xs px-3 py-1.5',
+      sm: 'text-xs px-3.5 py-1.5',
       md: 'text-sm px-5 py-2.5',
-      lg: 'text-base px-7 py-3.5'
+      lg: 'text-base px-7 py-3.5',
     }
 
     return (
@@ -41,7 +43,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     )
-  }
+  },
 )
 
 Button.displayName = 'Button'

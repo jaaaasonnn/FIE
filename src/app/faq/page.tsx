@@ -54,7 +54,7 @@ export default function FAQPage() {
   const [open, setOpen] = useState<string | null>(null)
 
   return (
-    <div style={{ backgroundColor: 'var(--cream)' }}>
+    <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--cream)' }}>
@@ -67,7 +67,7 @@ export default function FAQPage() {
       <div className="max-w-3xl mx-auto px-4 py-16">
         {FAQS.map(({ category, questions }) => (
           <div key={category} className="mb-10">
-            <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>
+            <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>
               {category}
             </h2>
             <div className="space-y-2">
@@ -80,19 +80,19 @@ export default function FAQPage() {
                       onClick={() => setOpen(isOpen ? null : key)}
                       className="w-full flex items-center justify-between p-5 text-left gap-3"
                     >
-                      <span className="font-medium text-sm" style={{ color: 'var(--brown-dark)' }}>{q}</span>
+                      <span className="font-medium text-sm" style={{ color: 'var(--color-text-primary)' }}>{q}</span>
                       <ChevronDown
                         size={18}
                         className="flex-shrink-0 transition-transform"
                         style={{
-                          color: 'var(--amber)',
+                          color: 'var(--color-accent)',
                           transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
                         }}
                       />
                     </button>
                     {isOpen && (
                       <div className="px-5 pb-5">
-                        <p className="text-sm text-stone-600 leading-relaxed border-t border-stone-100 pt-3">{a}</p>
+                        <p className="text-sm text-[#6B645C] leading-relaxed border-t border-stone-100 pt-3">{a}</p>
                       </div>
                     )}
                   </div>
@@ -111,7 +111,7 @@ export default function FAQPage() {
           </p>
           <a href="mailto:hello@fiegh.com"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
-            style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}>
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
             📧 Contact Support
           </a>
         </div>

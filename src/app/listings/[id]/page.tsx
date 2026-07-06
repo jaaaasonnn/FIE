@@ -62,7 +62,7 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
 }
 
 const MODE_LABELS: Record<string, { label: string; color: string }> = {
-  SHORT_STAY: { label: '🌙 Short Stay', color: 'var(--amber)' },
+  SHORT_STAY: { label: '🌙 Short Stay', color: 'var(--color-accent)' },
   TEMP_STAY: { label: '📅 Temporary Stay', color: '#2563EB' },
   PERMANENT: { label: '🏠 Permanent Rental', color: '#059669' }
 }
@@ -89,17 +89,17 @@ export default function ListingDetailPage() {
   const total = basePrice + serviceFee + LISTING.damageDeposit
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Breadcrumb */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-2">
-        <div className="flex items-center gap-2 text-sm text-stone-500">
-          <Link href="/" className="hover:text-amber-600">Home</Link>
+        <div className="flex items-center gap-2 text-sm text-[#6B645C]">
+          <Link href="/" className="hover:text-[#C9932E]">Home</Link>
           <span>/</span>
-          <Link href="/search" className="hover:text-amber-600">Search</Link>
+          <Link href="/search" className="hover:text-[#C9932E]">Search</Link>
           <span>/</span>
-          <Link href={`/search?region=${LISTING.region}`} className="hover:text-amber-600">{LISTING.region}</Link>
+          <Link href={`/search?region=${LISTING.region}`} className="hover:text-[#C9932E]">{LISTING.region}</Link>
           <span>/</span>
-          <span style={{ color: 'var(--brown-dark)' }}>{LISTING.neighbourhood}</span>
+          <span style={{ color: 'var(--color-text-primary)' }}>{LISTING.neighbourhood}</span>
         </div>
       </div>
 
@@ -107,10 +107,10 @@ export default function ListingDetailPage() {
         {/* Title row */}
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
               {LISTING.title}
             </h1>
-            <div className="flex flex-wrap items-center gap-3 text-sm text-stone-500">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-[#6B645C]">
               <span className="flex items-center gap-1">
                 <Star size={14} className="fill-amber-400 text-amber-400" />
                 <strong>{LISTING.rating}</strong> ({LISTING.reviews} reviews)
@@ -125,7 +125,7 @@ export default function ListingDetailPage() {
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button className="p-2 rounded-full hover:bg-stone-100 text-stone-600 transition-all">
+            <button className="p-2 rounded-full hover:bg-stone-100 text-[#6B645C] transition-all">
               <Share2 size={18} />
             </button>
             <button
@@ -135,7 +135,7 @@ export default function ListingDetailPage() {
             >
               <Heart size={18} className={wishlisted ? 'fill-red-500' : ''} />
             </button>
-            <button className="p-2 rounded-full hover:bg-stone-100 text-stone-600 transition-all">
+            <button className="p-2 rounded-full hover:bg-stone-100 text-[#6B645C] transition-all">
               <Flag size={16} />
             </button>
           </div>
@@ -196,33 +196,33 @@ export default function ListingDetailPage() {
                 { icon: <Users size={20} />, val: `Up to ${LISTING.maxGuests} guests` },
               ].map(({ icon, val }) => (
                 <div key={val} className="text-center">
-                  <div className="flex justify-center mb-1" style={{ color: 'var(--amber)' }}>{icon}</div>
-                  <p className="text-xs text-stone-600">{val}</p>
+                  <div className="flex justify-center mb-1" style={{ color: 'var(--color-accent)' }}>{icon}</div>
+                  <p className="text-xs text-[#6B645C]">{val}</p>
                 </div>
               ))}
             </div>
 
             {/* Rental modes */}
             <div>
-              <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Available Rental Options</h3>
+              <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Available Rental Options</h3>
               <div className="space-y-3">
                 {LISTING.modes.map((m) => (
                   <div key={m} className="p-4 rounded-xl border"
                     style={{ borderColor: selectedMode === m ? 'var(--amber)' : '#E5E7EB', backgroundColor: selectedMode === m ? '#FFF8EE' : '#fff' }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>
+                        <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                           {MODE_LABELS[m].label}
                         </span>
                         {m === 'SHORT_STAY' && (
-                          <p className="text-xs text-stone-500 mt-0.5">From <strong>${LISTING.priceNightly}</strong>/night</p>
+                          <p className="text-xs text-[#6B645C] mt-0.5">From <strong>${LISTING.priceNightly}</strong>/night</p>
                         )}
                         {m === 'TEMP_STAY' && (
-                          <p className="text-xs text-stone-500 mt-0.5"><strong>${LISTING.priceMonthly}</strong>/month · 1–11 months</p>
+                          <p className="text-xs text-[#6B645C] mt-0.5"><strong>${LISTING.priceMonthly}</strong>/month · 1–11 months</p>
                         )}
                         {m === 'PERMANENT' && (
                           <>
-                            <p className="text-xs text-stone-500 mt-0.5"><strong>${LISTING.priceAnnual}</strong>/year · 12+ months</p>
+                            <p className="text-xs text-[#6B645C] mt-0.5"><strong>${LISTING.priceAnnual}</strong>/year · 12+ months</p>
                             {LISTING.advanceMonthsRequired && (
                               <p className="text-xs font-medium mt-1" style={{ color: '#DC2626' }}>
                                 ⚠️ {LISTING.advanceMonthsRequired} months advance payment required upfront
@@ -243,19 +243,19 @@ export default function ListingDetailPage() {
 
             {/* Description */}
             <div>
-              <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--brown-dark)' }}>About this property</h3>
-              <div className="text-sm text-stone-600 leading-relaxed whitespace-pre-line">
+              <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>About this property</h3>
+              <div className="text-sm text-[#6B645C] leading-relaxed whitespace-pre-line">
                 {LISTING.description}
               </div>
             </div>
 
             {/* Amenities */}
             <div>
-              <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Amenities</h3>
+              <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Amenities</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {LISTING.amenities.map((a) => (
-                  <div key={a} className="flex items-center gap-2 text-sm text-stone-700 p-3 rounded-xl bg-stone-50">
-                    <span style={{ color: 'var(--amber)' }}>
+                  <div key={a} className="flex items-center gap-2 text-sm text-[#4A4540] p-3 rounded-xl bg-stone-50">
+                    <span style={{ color: 'var(--color-accent)' }}>
                       {AMENITY_ICONS[a] || <CheckCircle size={16} />}
                     </span>
                     {a}
@@ -266,10 +266,10 @@ export default function ListingDetailPage() {
 
             {/* House rules */}
             <div>
-              <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--brown-dark)' }}>House Rules</h3>
+              <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>House Rules</h3>
               <div className="space-y-2">
                 {LISTING.rules.map((r) => (
-                  <div key={r} className="flex items-center gap-2 text-sm text-stone-600">
+                  <div key={r} className="flex items-center gap-2 text-sm text-[#6B645C]">
                     <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0"
                       style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>✗</span>
                     {r}
@@ -280,18 +280,18 @@ export default function ListingDetailPage() {
 
             {/* Host card */}
             <div className="p-5 rounded-2xl bg-white border border-stone-100">
-              <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>Meet your Host</h3>
+              <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Meet your Host</h3>
               <div className="flex items-start gap-4">
                 <img src={LISTING.host.photo} alt={LISTING.host.name}
                   className="w-16 h-16 rounded-full object-cover flex-shrink-0" />
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <h4 className="font-semibold" style={{ color: 'var(--brown-dark)' }}>{LISTING.host.name}</h4>
+                    <h4 className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{LISTING.host.name}</h4>
                     {LISTING.host.verified && <VerifiedBadge />}
                     {LISTING.host.superhost && <SuperhostBadge />}
                   </div>
-                  <p className="text-xs text-stone-500 mb-3">Hosting since {LISTING.host.joined}</p>
-                  <div className="flex gap-4 text-xs text-stone-600">
+                  <p className="text-xs text-[#6B645C] mb-3">Hosting since {LISTING.host.joined}</p>
+                  <div className="flex gap-4 text-xs text-[#6B645C]">
                     <span><strong>{LISTING.host.reviews}</strong> reviews</span>
                     <span><strong>{LISTING.host.responseRate}%</strong> response rate</span>
                   </div>
@@ -299,7 +299,7 @@ export default function ListingDetailPage() {
               </div>
               <Link href={`/messages/new?host=${LISTING.host.name}`}
                 className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl border text-sm font-medium transition-all hover:bg-stone-50"
-                style={{ borderColor: '#E5E7EB', color: 'var(--brown-dark)' }}>
+                style={{ borderColor: '#E5E7EB', color: 'var(--color-text-primary)' }}>
                 💬 Message Host
               </Link>
             </div>
@@ -307,11 +307,11 @@ export default function ListingDetailPage() {
             {/* Reviews */}
             <div>
               <div className="flex items-center gap-3 mb-4">
-                <h3 className="text-lg font-bold" style={{ color: 'var(--brown-dark)' }}>Guest Reviews</h3>
+                <h3 className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>Guest Reviews</h3>
                 <div className="flex items-center gap-1">
                   <Star size={16} className="fill-amber-400 text-amber-400" />
                   <span className="font-bold">{LISTING.rating}</span>
-                  <span className="text-stone-500 text-sm">({LISTING.reviews})</span>
+                  <span className="text-[#6B645C] text-sm">({LISTING.reviews})</span>
                 </div>
               </div>
               <div className="space-y-4">
@@ -320,7 +320,7 @@ export default function ListingDetailPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                          style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                          style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                           {r.name[0]}
                         </div>
                         <span className="text-sm font-medium">{r.name}</span>
@@ -331,7 +331,7 @@ export default function ListingDetailPage() {
                         ))}
                       </div>
                     </div>
-                    <p className="text-sm text-stone-600">{r.comment}</p>
+                    <p className="text-sm text-[#6B645C]">{r.comment}</p>
                     <p className="text-xs text-stone-400 mt-2">{r.date}</p>
                   </div>
                 ))}
@@ -348,7 +348,7 @@ export default function ListingDetailPage() {
                   <button key={m} onClick={() => setSelectedMode(m)}
                     className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
                     style={selectedMode === m
-                      ? { backgroundColor: 'var(--brown-dark)', color: 'var(--gold)' }
+                      ? { backgroundColor: 'var(--brown-dark)', color: 'var(--color-accent)' }
                       : { color: '#6B7280' }}>
                     {MODE_LABELS[m].label}
                   </button>
@@ -359,21 +359,21 @@ export default function ListingDetailPage() {
               <div className="mb-4">
                 {selectedMode === 'SHORT_STAY' && (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>${LISTING.priceNightly}</span>
-                    <span className="text-stone-500 text-sm">/night</span>
+                    <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${LISTING.priceNightly}</span>
+                    <span className="text-[#6B645C] text-sm">/night</span>
                   </div>
                 )}
                 {selectedMode === 'TEMP_STAY' && (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>${LISTING.priceMonthly}</span>
-                    <span className="text-stone-500 text-sm">/month</span>
+                    <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${LISTING.priceMonthly}</span>
+                    <span className="text-[#6B645C] text-sm">/month</span>
                   </div>
                 )}
                 {selectedMode === 'PERMANENT' && (
                   <>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>${LISTING.priceAnnual.toLocaleString()}</span>
-                      <span className="text-stone-500 text-sm">/year</span>
+                      <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${LISTING.priceAnnual.toLocaleString()}</span>
+                      <span className="text-[#6B645C] text-sm">/year</span>
                     </div>
                     <p className="text-xs mt-1 font-medium" style={{ color: '#DC2626' }}>
                       ⚠️ {LISTING.advanceMonthsRequired} months advance required
@@ -393,13 +393,13 @@ export default function ListingDetailPage() {
               {selectedMode === 'SHORT_STAY' && (
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div>
-                    <label className="text-xs text-stone-500 block mb-1">Check-in</label>
+                    <label className="text-xs text-[#6B645C] block mb-1">Check-in</label>
                     <input type="date" value={checkIn}
                       onChange={(e) => setCheckIn(e.target.value)}
                       className="w-full text-xs p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-amber-400" />
                   </div>
                   <div>
-                    <label className="text-xs text-stone-500 block mb-1">Check-out</label>
+                    <label className="text-xs text-[#6B645C] block mb-1">Check-out</label>
                     <input type="date" value={checkOut}
                       onChange={(e) => setCheckOut(e.target.value)}
                       className="w-full text-xs p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-amber-400" />
@@ -409,7 +409,7 @@ export default function ListingDetailPage() {
 
               {selectedMode === 'TEMP_STAY' && (
                 <div className="mb-4">
-                  <label className="text-xs text-stone-500 block mb-1">Number of months (1–11)</label>
+                  <label className="text-xs text-[#6B645C] block mb-1">Number of months (1–11)</label>
                   <input type="number" min={1} max={11} value={months}
                     onChange={(e) => setMonths(parseInt(e.target.value) || 1)}
                     className="w-full text-sm p-2.5 rounded-xl border border-stone-200 focus:outline-none focus:border-amber-400" />
@@ -419,7 +419,7 @@ export default function ListingDetailPage() {
               {/* Fee breakdown */}
               {basePrice > 0 && (
                 <div className="space-y-2 mb-4 text-sm">
-                  <div className="flex justify-between text-stone-600">
+                  <div className="flex justify-between text-[#6B645C]">
                     <span>
                       {selectedMode === 'SHORT_STAY'
                         ? `$${LISTING.priceNightly} × ${nightsCount} nights`
@@ -429,17 +429,17 @@ export default function ListingDetailPage() {
                     </span>
                     <span>${basePrice.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-stone-600">
+                  <div className="flex justify-between text-[#6B645C]">
                     <span>Service fee (12%)</span>
                     <span>${serviceFee.toFixed(0)}</span>
                   </div>
                   {LISTING.damageDeposit > 0 && (
-                    <div className="flex justify-between text-stone-600">
+                    <div className="flex justify-between text-[#6B645C]">
                       <span>Refundable damage deposit</span>
                       <span>${LISTING.damageDeposit}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold pt-2 border-t border-stone-100" style={{ color: 'var(--brown-dark)' }}>
+                  <div className="flex justify-between font-bold pt-2 border-t border-stone-100" style={{ color: 'var(--color-text-primary)' }}>
                     <span>Total</span>
                     <span>${total.toFixed(0)}</span>
                   </div>

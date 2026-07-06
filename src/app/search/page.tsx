@@ -122,7 +122,7 @@ function SearchContent() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Top bar */}
       <div className="sticky top-16 z-30 bg-white border-b border-stone-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
@@ -146,7 +146,7 @@ function SearchContent() {
                   className="px-3 py-2 rounded-full text-xs font-medium transition-all whitespace-nowrap"
                   style={
                     filters.mode === m
-                      ? { backgroundColor: 'var(--brown-dark)', color: 'var(--gold)' }
+                      ? { backgroundColor: 'var(--brown-dark)', color: 'var(--color-accent)' }
                       : { backgroundColor: '#F3F4F6', color: '#374151' }
                   }
                 >
@@ -246,7 +246,7 @@ function SearchContent() {
       {/* Results */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="flex items-center justify-between mb-6">
-          <p className="text-sm text-stone-600">
+          <p className="text-sm text-[#6B645C]">
             <strong>{results.length}</strong> properties found
             {filters.region && <span> in <strong>{filters.region}</strong></span>}
             {filters.mode && <span> · <strong>{MODE_LABELS[filters.mode]}</strong></span>}
@@ -258,7 +258,7 @@ function SearchContent() {
               <button
                 onClick={() => setFilters({ ...filters, mode: '' })}
                 className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
-                style={{ backgroundColor: '#FFF8EE', color: 'var(--amber)', border: '1px solid var(--amber)' }}
+                style={{ backgroundColor: '#FFF8EE', color: 'var(--color-accent)', border: '1px solid var(--amber)' }}
               >
                 {MODE_LABELS[filters.mode]} <X size={12} />
               </button>
@@ -288,7 +288,7 @@ function SearchContent() {
                   <div className="absolute top-2 left-2 flex gap-1 flex-wrap">
                     {listing.modes.slice(0, 2).map((m) => (
                       <span key={m} className="text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--gold)', backdropFilter: 'blur(4px)' }}>
+                        style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--color-accent)', backdropFilter: 'blur(4px)' }}>
                         {MODE_LABELS[m]}
                       </span>
                     ))}
@@ -299,7 +299,7 @@ function SearchContent() {
                 </div>
                 <div className="p-3">
                   <div className="flex items-start justify-between gap-1 mb-1">
-                    <h3 className="font-semibold text-sm leading-snug flex-1" style={{ color: 'var(--brown-dark)' }}>
+                    <h3 className="font-semibold text-sm leading-snug flex-1" style={{ color: 'var(--color-text-primary)' }}>
                       {listing.title}
                     </h3>
                     <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -307,7 +307,7 @@ function SearchContent() {
                       <span className="text-xs font-medium">{listing.rating}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-stone-500 mb-2">
+                  <div className="flex items-center gap-1 text-xs text-[#6B645C] mb-2">
                     <MapPin size={11} />
                     {listing.neighbourhood}, {listing.city}
                   </div>
@@ -321,13 +321,13 @@ function SearchContent() {
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-stone-50">
                     <div>
-                      <span className="text-sm font-bold" style={{ color: 'var(--brown-dark)' }}>
-                        ${price.toLocaleString()}<span className="text-xs font-normal text-stone-500">{unit}</span>
+                      <span className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                        ${price.toLocaleString()}<span className="text-xs font-normal text-[#6B645C]">{unit}</span>
                       </span>
                       <div className="text-xs text-stone-400">≈ GH₵ {(price * 15.5).toLocaleString()}</div>
                     </div>
                     <span className="text-xs px-3 py-1.5 rounded-full font-semibold"
-                      style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
                       View
                     </span>
                   </div>
@@ -340,8 +340,8 @@ function SearchContent() {
         {results.length === 0 && (
           <div className="text-center py-20">
             <div className="text-5xl mb-4">🏠</div>
-            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>No properties found</h3>
-            <p className="text-stone-500 mb-6">Try adjusting your filters or search a different region.</p>
+            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No properties found</h3>
+            <p className="text-[#6B645C] mb-6">Try adjusting your filters or search a different region.</p>
             <Button onClick={() => setFilters({ ...filters, mode: '', region: '', bedrooms: '', propertyType: '', verified: false, superhost: false })}>
               Clear all filters
             </Button>

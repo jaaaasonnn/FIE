@@ -43,7 +43,7 @@ export default function GuestMessagesPage() {
   }
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>Messages</h1>
@@ -87,15 +87,15 @@ export default function GuestMessagesPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{conv.hostName}</span>
+                      <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{conv.hostName}</span>
                       <span className="text-xs text-stone-400">{conv.time}</span>
                     </div>
-                    <p className="text-xs text-stone-500 truncate">{conv.listing}</p>
+                    <p className="text-xs text-[#6B645C] truncate">{conv.listing}</p>
                     <p className="text-xs text-stone-400 truncate mt-0.5">{conv.lastMessage}</p>
                   </div>
                   {conv.unread > 0 && (
                     <div className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
                       {conv.unread}
                     </div>
                   )}
@@ -110,10 +110,10 @@ export default function GuestMessagesPage() {
             <div className="p-4 border-b border-stone-100 flex items-center gap-3">
               <img src={activeConv.hostPhoto} alt={activeConv.hostName} className="w-10 h-10 rounded-full object-cover" />
               <div>
-                <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{activeConv.hostName}</p>
-                <p className="text-xs text-stone-500">{activeConv.listing}</p>
+                <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{activeConv.hostName}</p>
+                <p className="text-xs text-[#6B645C]">{activeConv.listing}</p>
               </div>
-              <Link href={`/listings/1`} className="ml-auto text-xs px-3 py-1.5 rounded-full border border-stone-200 text-stone-600 hover:bg-stone-50">
+              <Link href={`/listings/1`} className="ml-auto text-xs px-3 py-1.5 rounded-full border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                 View Listing
               </Link>
             </div>
@@ -150,7 +150,7 @@ export default function GuestMessagesPage() {
               />
               <button type="submit"
                 className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:opacity-90"
-                style={{ backgroundColor: 'var(--amber)' }}>
+                style={{ backgroundColor: 'var(--color-accent)' }}>
                 <Send size={16} style={{ color: '#fff' }} />
               </button>
             </form>

@@ -30,23 +30,23 @@ export default function VerifyIdPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--cream)' }}>
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
         <div className="max-w-md w-full text-center">
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
             style={{ backgroundColor: '#D1FAE5' }}>
             <CheckCircle size={40} style={{ color: '#059669' }} />
           </div>
-          <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--brown-dark)' }}>
+          <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>
             Verification Submitted!
           </h2>
-          <p className="text-stone-600 mb-6 leading-relaxed">
+          <p className="text-[#6B645C] mb-6 leading-relaxed">
             Your ID has been submitted for review. Our team will verify it within 24 hours.
             You can start browsing listings while we review.
           </p>
           <div className="p-4 rounded-xl mb-8 text-left"
             style={{ backgroundColor: '#FBE8BB', border: '1px solid var(--gold)' }}>
-            <p className="text-sm font-medium mb-1" style={{ color: 'var(--brown-dark)' }}>What happens next?</p>
-            <ul className="text-sm text-stone-700 space-y-1">
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>What happens next?</p>
+            <ul className="text-sm text-[#4A4540] space-y-1">
               <li>• Our team reviews your ID (usually within a few hours)</li>
               <li>• You get a ✅ Verified badge on your profile</li>
               <li>• You can then make bookings or list properties</li>
@@ -57,7 +57,7 @@ export default function VerifyIdPage() {
           </Button>
           <button
             onClick={() => router.push('/search')}
-            className="mt-3 w-full py-3 text-sm font-medium text-stone-600 hover:text-stone-900"
+            className="mt-3 w-full py-3 text-sm font-medium text-[#6B645C] hover:text-stone-900"
           >
             Browse listings first →
           </button>
@@ -67,17 +67,17 @@ export default function VerifyIdPage() {
   }
 
   return (
-    <div className="min-h-screen px-4 py-12" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen px-4 py-12" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-10">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
             style={{ backgroundColor: 'var(--brown-dark)' }}>
             <span className="text-2xl">🪪</span>
           </div>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
             Verify Your Identity
           </h1>
-          <p className="text-stone-600">
+          <p className="text-[#6B645C]">
             FieGH requires ID verification to keep the platform safe for everyone in Ghana.
           </p>
         </div>
@@ -93,7 +93,7 @@ export default function VerifyIdPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* ID Type */}
           <div>
-            <p className="text-sm font-medium mb-3" style={{ color: 'var(--brown-dark)' }}>
+            <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
               Select your ID type
             </p>
             <div className="grid grid-cols-1 gap-3">
@@ -105,7 +105,7 @@ export default function VerifyIdPage() {
                   className="flex items-center gap-3 p-4 rounded-xl border-2 text-sm font-medium transition-all text-left"
                   style={
                     idType === value
-                      ? { borderColor: 'var(--amber)', backgroundColor: '#FFF8EE', color: 'var(--brown-dark)' }
+                      ? { borderColor: 'var(--color-accent)', backgroundColor: '#FFF8EE', color: 'var(--color-text-primary)' }
                       : { borderColor: '#E5E7EB', backgroundColor: '#fff', color: '#6B7280' }
                   }
                 >
@@ -121,7 +121,7 @@ export default function VerifyIdPage() {
 
           {/* ID Photo */}
           <div>
-            <p className="text-sm font-medium mb-3" style={{ color: 'var(--brown-dark)' }}>
+            <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
               Upload a photo of your ID
             </p>
             <label
@@ -136,14 +136,14 @@ export default function VerifyIdPage() {
               />
               {idPhoto ? (
                 <>
-                  <CheckCircle size={32} className="mx-auto mb-2" style={{ color: 'var(--amber)' }} />
-                  <p className="text-sm font-medium" style={{ color: 'var(--brown-dark)' }}>{idPhoto.name}</p>
-                  <p className="text-xs text-stone-500 mt-1">Click to change</p>
+                  <CheckCircle size={32} className="mx-auto mb-2" style={{ color: 'var(--color-accent)' }} />
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{idPhoto.name}</p>
+                  <p className="text-xs text-[#6B645C] mt-1">Click to change</p>
                 </>
               ) : (
                 <>
                   <Upload size={32} className="mx-auto mb-2 text-stone-400" />
-                  <p className="text-sm font-medium text-stone-700">Tap to upload ID photo</p>
+                  <p className="text-sm font-medium text-[#4A4540]">Tap to upload ID photo</p>
                   <p className="text-xs text-stone-400 mt-1">JPG, PNG up to 10MB. Must be clear and readable.</p>
                 </>
               )}
@@ -152,10 +152,10 @@ export default function VerifyIdPage() {
 
           {/* Selfie */}
           <div>
-            <p className="text-sm font-medium mb-1" style={{ color: 'var(--brown-dark)' }}>
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
               Take a live selfie (optional but recommended)
             </p>
-            <p className="text-xs text-stone-500 mb-3">
+            <p className="text-xs text-[#6B645C] mb-3">
               A selfie helps match you to your ID and speeds up verification.
             </p>
             <label
@@ -171,13 +171,13 @@ export default function VerifyIdPage() {
               />
               {selfie ? (
                 <>
-                  <CheckCircle size={28} className="mx-auto mb-2" style={{ color: 'var(--amber)' }} />
-                  <p className="text-sm font-medium" style={{ color: 'var(--brown-dark)' }}>Selfie added ✓</p>
+                  <CheckCircle size={28} className="mx-auto mb-2" style={{ color: 'var(--color-accent)' }} />
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Selfie added ✓</p>
                 </>
               ) : (
                 <>
                   <Camera size={28} className="mx-auto mb-2 text-stone-400" />
-                  <p className="text-sm font-medium text-stone-700">Take a selfie</p>
+                  <p className="text-sm font-medium text-[#4A4540]">Take a selfie</p>
                   <p className="text-xs text-stone-400 mt-1">Face forward, good lighting</p>
                 </>
               )}
@@ -191,7 +191,7 @@ export default function VerifyIdPage() {
           <button
             type="button"
             onClick={() => router.push('/')}
-            className="w-full text-center text-sm text-stone-500 hover:text-stone-700"
+            className="w-full text-center text-sm text-[#6B645C] hover:text-[#4A4540]"
           >
             Skip for now (you can verify later)
           </button>

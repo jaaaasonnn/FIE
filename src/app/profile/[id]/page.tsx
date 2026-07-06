@@ -42,7 +42,7 @@ function TrustRing({ score }: { score: number }) {
           strokeDasharray={`${filled} ${circumference - filled}`} strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold" style={{ color: 'var(--brown-dark)' }}>{score}</span>
+        <span className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>{score}</span>
         <span className="text-xs text-stone-400">Trust</span>
       </div>
     </div>
@@ -51,7 +51,7 @@ function TrustRing({ score }: { score: number }) {
 
 export default function ProfilePage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-4xl mx-auto px-4 py-10">
         {/* Profile header */}
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-6 mb-6">
@@ -62,7 +62,7 @@ export default function ProfilePage() {
             <div className="flex-1">
               <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
                 <div>
-                  <h1 className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>
+                  <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
                     {MOCK_PROFILE.name}
                   </h1>
                   <div className="flex items-center gap-2 mt-1">
@@ -74,16 +74,16 @@ export default function ProfilePage() {
                 <TrustRing score={MOCK_PROFILE.trustScore} />
               </div>
 
-              <div className="flex flex-wrap gap-4 text-sm text-stone-500 mb-4">
+              <div className="flex flex-wrap gap-4 text-sm text-[#6B645C] mb-4">
                 <span className="flex items-center gap-1"><Star size={14} className="fill-amber-400 text-amber-400" />{MOCK_PROFILE.avgRating} avg rating</span>
                 <span className="flex items-center gap-1"><Shield size={14} style={{ color: '#2563EB' }} />{MOCK_PROFILE.totalReviews} reviews</span>
                 <span className="flex items-center gap-1"><Calendar size={14} />Member since {MOCK_PROFILE.memberSince}</span>
                 <span className="flex items-center gap-1"><MapPin size={14} />🇬🇭 {MOCK_PROFILE.nationality}</span>
               </div>
 
-              <p className="text-sm text-stone-600 leading-relaxed mb-4">{MOCK_PROFILE.bio}</p>
+              <p className="text-sm text-[#6B645C] leading-relaxed mb-4">{MOCK_PROFILE.bio}</p>
 
-              <div className="grid grid-cols-2 gap-3 text-xs text-stone-600 mb-4">
+              <div className="grid grid-cols-2 gap-3 text-xs text-[#6B645C] mb-4">
                 <div className="p-3 rounded-xl bg-stone-50">
                   <p className="text-stone-400 mb-0.5">Response rate</p>
                   <p className="font-semibold text-sm">{MOCK_PROFILE.responseRate}%</p>
@@ -97,10 +97,10 @@ export default function ProfilePage() {
               <div className="flex gap-3">
                 <Link href="/dashboard/guest/messages"
                   className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold"
-                  style={{ backgroundColor: 'var(--amber)', color: '#fff' }}>
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
                   💬 Message
                 </Link>
-                <button className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm border border-stone-200 text-stone-600 hover:bg-stone-50">
+                <button className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                   <Flag size={14} /> Report
                 </button>
               </div>
@@ -111,7 +111,7 @@ export default function ProfilePage() {
         {/* Listings */}
         {MOCK_PROFILE.role === 'HOST' && (
           <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>
+            <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>
               {MOCK_PROFILE.name.split(' ')[0]}'s Listings
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -124,14 +124,14 @@ export default function ProfilePage() {
                   </div>
                   <div className="p-4 flex items-center justify-between">
                     <div>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{l.title}</p>
+                      <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{l.title}</p>
                       <div className="flex items-center gap-1 mt-1">
                         <Star size={11} className="fill-amber-400 text-amber-400" />
                         <span className="text-xs">{l.rating} ({l.reviews})</span>
                       </div>
                     </div>
-                    <p className="font-bold text-sm" style={{ color: 'var(--brown-dark)' }}>
-                      ${l.price}<span className="text-xs font-normal text-stone-500">{l.unit}</span>
+                    <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                      ${l.price}<span className="text-xs font-normal text-[#6B645C]">{l.unit}</span>
                     </p>
                   </div>
                 </Link>
@@ -142,7 +142,7 @@ export default function ProfilePage() {
 
         {/* Reviews */}
         <div>
-          <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--brown-dark)' }}>
+          <h2 className="text-xl font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>
             Reviews ({MOCK_PROFILE.totalReviews})
           </h2>
           <div className="space-y-4">
@@ -151,10 +151,10 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-                      style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                      style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                       {r.reviewer[0]}
                     </div>
-                    <span className="text-sm font-medium" style={{ color: 'var(--brown-dark)' }}>{r.reviewer}</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{r.reviewer}</span>
                   </div>
                   <div className="flex items-center gap-0.5">
                     {Array.from({ length: r.rating }).map((_, j) => (
@@ -162,7 +162,7 @@ export default function ProfilePage() {
                     ))}
                   </div>
                 </div>
-                <p className="text-sm text-stone-600">{r.comment}</p>
+                <p className="text-sm text-[#6B645C]">{r.comment}</p>
                 <p className="text-xs text-stone-400 mt-2">{r.date}</p>
               </div>
             ))}

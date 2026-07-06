@@ -35,7 +35,7 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Left panel — branding */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden"
@@ -51,10 +51,10 @@ export default function SignInPage() {
         />
         <div className="relative z-10 text-center max-w-sm">
           <Link href="/" className="flex items-center justify-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--gold)' }}>
-              <Home size={24} style={{ color: 'var(--brown-dark)' }} />
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent)' }}>
+              <Home size={24} style={{ color: 'var(--color-text-primary)' }} />
             </div>
-            <span className="text-3xl font-bold" style={{ color: 'var(--gold)' }}>
+            <span className="text-3xl font-bold" style={{ color: 'var(--color-accent)' }}>
               FieGH
             </span>
           </Link>
@@ -65,7 +65,7 @@ export default function SignInPage() {
             Sign in to manage your bookings, messages, and saved properties across Ghana.
           </p>
           <div className="mt-10 p-5 rounded-2xl text-left" style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(245,192,106,0.2)' }}>
-            <p className="text-sm italic mb-2" style={{ color: 'var(--gold)' }}>"Fie" means home in Twi.</p>
+            <p className="text-sm italic mb-2" style={{ color: 'var(--color-accent)' }}>"Fie" means home in Twi.</p>
             <p className="text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>FieGH — Your home in Ghana 🏡</p>
           </div>
         </div>
@@ -77,13 +77,13 @@ export default function SignInPage() {
           {/* Mobile logo */}
           <Link href="/" className="flex items-center gap-2 mb-8 lg:hidden">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brown-dark)' }}>
-              <Home size={16} style={{ color: 'var(--gold)' }} />
+              <Home size={16} style={{ color: 'var(--color-accent)' }} />
             </div>
-            <span className="text-xl font-bold" style={{ color: 'var(--brown-dark)' }}>FieGH</span>
+            <span className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>FieGH</span>
           </Link>
 
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>Sign In</h1>
-          <p className="text-stone-500 mb-8">Enter your phone number or email to continue.</p>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Sign In</h1>
+          <p className="text-[#6B645C] mb-8">Enter your phone number or email to continue.</p>
 
           {error && (
             <div className="p-4 rounded-xl mb-4 text-sm" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>
@@ -114,7 +114,7 @@ export default function SignInPage() {
               <button
                 type="button"
                 onClick={() => setShowPass(!showPass)}
-                className="absolute right-3 top-9 text-stone-400 hover:text-stone-600"
+                className="absolute right-3 top-9 text-stone-400 hover:text-[#6B645C]"
               >
                 {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -123,9 +123,9 @@ export default function SignInPage() {
             <div className="flex items-center justify-between text-sm">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" className="rounded border-stone-300" />
-                <span className="text-stone-600">Remember me</span>
+                <span className="text-[#6B645C]">Remember me</span>
               </label>
-              <Link href="/auth/forgot-password" style={{ color: 'var(--amber)' }} className="hover:underline">
+              <Link href="/auth/forgot-password" style={{ color: 'var(--color-accent)' }} className="hover:underline">
                 Forgot password?
               </Link>
             </div>
@@ -140,22 +140,22 @@ export default function SignInPage() {
               <div className="w-full border-t border-stone-200" />
             </div>
             <div className="relative flex justify-center">
-              <span className="px-3 text-xs text-stone-500 bg-cream" style={{ backgroundColor: 'var(--cream)' }}>or continue with</span>
+              <span className="px-3 text-xs text-[#6B645C] bg-cream" style={{ backgroundColor: 'var(--color-bg)' }}>or continue with</span>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <button className="flex items-center justify-center gap-2 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 transition-all text-sm font-medium text-stone-700">
+            <button className="flex items-center justify-center gap-2 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 transition-all text-sm font-medium text-[#4A4540]">
               <span>📱</span> MTN MoMo OTP
             </button>
-            <button className="flex items-center justify-center gap-2 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 transition-all text-sm font-medium text-stone-700">
+            <button className="flex items-center justify-center gap-2 p-3 rounded-xl border border-stone-200 hover:bg-stone-50 transition-all text-sm font-medium text-[#4A4540]">
               <span>📧</span> Email OTP
             </button>
           </div>
 
-          <p className="text-center mt-8 text-sm text-stone-600">
+          <p className="text-center mt-8 text-sm text-[#6B645C]">
             New to FieGH?{' '}
-            <Link href="/auth/signup" style={{ color: 'var(--amber)' }} className="font-semibold hover:underline">
+            <Link href="/auth/signup" style={{ color: 'var(--color-accent)' }} className="font-semibold hover:underline">
               Create an account
             </Link>
           </p>

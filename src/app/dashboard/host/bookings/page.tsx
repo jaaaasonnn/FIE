@@ -30,18 +30,18 @@ export default function HostBookingsPage() {
   const bookings = filter === 'All' ? ALL_BOOKINGS : ALL_BOOKINGS.filter((b) => b.status === filter)
 
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Calendar size={22} style={{ color: 'var(--gold)' }} />
+            <Calendar size={22} style={{ color: 'var(--color-accent)' }} />
             <div>
               <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>All Bookings</h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>Manage guest reservations</p>
             </div>
           </div>
           <Link href="/dashboard/host" className="text-sm px-4 py-2 rounded-full"
-            style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--gold)', border: '1px solid rgba(245,192,106,0.3)' }}>
+            style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
             ← Dashboard
           </Link>
         </div>
@@ -69,12 +69,12 @@ export default function HostBookingsPage() {
                   <div className="flex items-start gap-4">
                     {/* Guest avatar */}
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                      style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                      style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                       {b.guest[0]}
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h3 className="font-bold text-sm" style={{ color: 'var(--brown-dark)' }}>{b.guest}</h3>
+                        <h3 className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>{b.guest}</h3>
                         {b.verified && (
                           <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>✅ Verified</span>
                         )}
@@ -83,7 +83,7 @@ export default function HostBookingsPage() {
                           Trust: {b.trustScore}/100
                         </span>
                       </div>
-                      <p className="text-xs text-stone-500 mb-1">{b.listing} · {MODE_LABELS[b.mode]}</p>
+                      <p className="text-xs text-[#6B645C] mb-1">{b.listing} · {MODE_LABELS[b.mode]}</p>
                       <p className="text-xs text-stone-400">
                         {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
                         {' → '}
@@ -99,7 +99,7 @@ export default function HostBookingsPage() {
                       style={{ backgroundColor: s.bg, color: s.color }}>
                       {s.label}
                     </span>
-                    <p className="font-bold text-sm" style={{ color: 'var(--brown-dark)' }}>
+                    <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                       ${b.total.toLocaleString()}
                       <span className="text-xs font-normal text-stone-400 block">
                         Net: ${(b.total * 0.92).toFixed(0)} after commission
@@ -129,7 +129,7 @@ export default function HostBookingsPage() {
                     </button>
                   )}
                   <Link href="/dashboard/host/messages"
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-stone-600 hover:bg-stone-50">
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                     <MessageSquare size={13} /> Message Guest
                   </Link>
                   {b.status === 'COMPLETED' && (
@@ -146,7 +146,7 @@ export default function HostBookingsPage() {
           {bookings.length === 0 && (
             <div className="text-center py-16">
               <div className="text-4xl mb-3">📋</div>
-              <p className="font-semibold" style={{ color: 'var(--brown-dark)' }}>No {filter.toLowerCase()} bookings</p>
+              <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No {filter.toLowerCase()} bookings</p>
             </div>
           )}
         </div>

@@ -24,7 +24,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 
 export default function HostDashboardPage() {
   return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Header */}
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-6xl mx-auto">
@@ -47,7 +47,7 @@ export default function HostDashboardPage() {
             </div>
             <Link href="/dashboard/host/listings/new"
               className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:opacity-90"
-              style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               <Plus size={16} />
               List Property
             </Link>
@@ -58,7 +58,7 @@ export default function HostDashboardPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={<DollarSign size={18} style={{ color: 'var(--amber)' }} />} label="This Month" value="$3,210" sub="After 8% commission" />
+          <StatCard icon={<DollarSign size={18} style={{ color: 'var(--color-accent)' }} />} label="This Month" value="$3,210" sub="After 8% commission" />
           <StatCard icon={<Calendar size={18} style={{ color: '#2563EB' }} />} label="Active Bookings" value="4" sub="2 arriving this week" />
           <StatCard icon={<Home size={18} style={{ color: '#059669' }} />} label="Active Listings" value="2" />
           <StatCard icon={<Star size={18} style={{ color: '#F59E0B' }} />} label="Avg Rating" value="4.8★" sub="Superhost threshold" />
@@ -87,7 +87,7 @@ export default function HostDashboardPage() {
 
         {/* Pending bookings */}
         <div className="mb-8">
-          <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--brown-dark)' }}>Recent Booking Requests</h2>
+          <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Recent Booking Requests</h2>
           <div className="space-y-3">
             {MOCK_BOOKINGS_HOST.map((b) => {
               const s = STATUS_COLORS[b.status]
@@ -96,12 +96,12 @@ export default function HostDashboardPage() {
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
-                        style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                        style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                         {b.guest[0]}
                       </div>
                       <div>
-                        <p className="font-semibold text-sm" style={{ color: 'var(--brown-dark)' }}>{b.guest}</p>
-                        <p className="text-xs text-stone-500">{b.listing}</p>
+                        <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{b.guest}</p>
+                        <p className="text-xs text-[#6B645C]">{b.listing}</p>
                         <p className="text-xs text-stone-400">
                           {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
                           {' → '}
@@ -111,7 +111,7 @@ export default function HostDashboardPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <div className="text-right">
-                        <p className="font-bold text-sm" style={{ color: 'var(--brown-dark)' }}>${b.amount.toLocaleString()}</p>
+                        <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>${b.amount.toLocaleString()}</p>
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium"
                           style={{ backgroundColor: s.bg, color: s.color }}>
                           {b.status}
@@ -140,10 +140,10 @@ export default function HostDashboardPage() {
         {/* Active listings */}
         <div>
           <div className="flex items-center justify-between mb-5">
-            <h2 className="text-xl font-bold" style={{ color: 'var(--brown-dark)' }}>Your Listings</h2>
+            <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Your Listings</h2>
             <Link href="/dashboard/host/listings/new"
               className="flex items-center gap-1 text-sm font-semibold"
-              style={{ color: 'var(--amber)' }}>
+              style={{ color: 'var(--color-accent)' }}>
               <Plus size={14} /> Add New
             </Link>
           </div>
@@ -154,13 +154,13 @@ export default function HostDashboardPage() {
                   <img src={l.photo} alt={l.title} className="w-28 h-full object-cover flex-shrink-0" />
                   <div className="p-4 flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-2">
-                      <h4 className="font-semibold text-sm leading-snug" style={{ color: 'var(--brown-dark)' }}>{l.title}</h4>
+                      <h4 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>{l.title}</h4>
                       <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0"
                         style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
                         {l.status}
                       </span>
                     </div>
-                    <div className="flex gap-2 text-xs text-stone-500 mb-3">
+                    <div className="flex gap-2 text-xs text-[#6B645C] mb-3">
                       <span>⭐ {l.rating}</span>
                       <span>·</span>
                       <span>{l.bookings} bookings</span>
@@ -173,7 +173,7 @@ export default function HostDashboardPage() {
                       </Link>
                       <Link href={`/dashboard/host/listings/${l.id}/edit`}
                         className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full"
-                        style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
+                        style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                         Edit
                       </Link>
                     </div>
@@ -184,14 +184,14 @@ export default function HostDashboardPage() {
 
             {/* Add listing CTA */}
             <Link href="/dashboard/host/listings/new"
-              className="border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all hover:border-amber-400 hover:bg-amber-50"
+              className="border-2 border-dashed rounded-2xl p-6 flex flex-col items-center justify-center text-center transition-all hover:border-amber-400 hover:bg-[#FAF5EC]"
               style={{ borderColor: '#D1D5DB' }}>
               <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
                 style={{ backgroundColor: 'var(--gold-light)' }}>
-                <Plus size={20} style={{ color: 'var(--amber)' }} />
+                <Plus size={20} style={{ color: 'var(--color-accent)' }} />
               </div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--brown-dark)' }}>Add a New Property</p>
-              <p className="text-xs text-stone-500 mt-1">List your apartment, house, or villa</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Add a New Property</p>
+              <p className="text-xs text-[#6B645C] mt-1">List your apartment, house, or villa</p>
             </Link>
           </div>
         </div>
