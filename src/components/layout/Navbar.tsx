@@ -17,9 +17,9 @@ export function Navbar() {
             <Image
               src="/logo.png"
               alt="FieGH"
-              width={42}
-              height={42}
-              className="rounded-xl"
+              width={48}
+              height={48}
+              style={{ mixBlendMode: 'screen' }}
               priority
             />
             <div className="flex flex-col leading-tight">

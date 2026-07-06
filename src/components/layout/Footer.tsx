@@ -19,7 +19,7 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-3 mb-5">
-              <Image src="/logo.png" alt="FieGH" width={44} height={44} className="rounded-xl" />
+              <Image src="/logo.png" alt="FieGH" width={48} height={48} style={{ mixBlendMode: 'screen' }} />
               <div className="flex flex-col leading-tight">
                 <span className="text-xl font-bold" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>FieGH</span>
                 <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>GHANA RENTALS</span>
