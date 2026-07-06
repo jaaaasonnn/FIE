@@ -23,10 +23,10 @@ export async function POST(req: Request) {
     const verification = existing
       ? await db.verification.update({
           where: { userId },
-          data: { idType, idPhotoUrl, selfieUrl: selfieUrl || null, status: 'PENDING', reviewedById: null, notes: null },
+          data: { idType, idPhotoUrl, selfieUrl: selfieUrl || null, status: 'PENDING', reviewedById: null, notes: null }
         })
       : await db.verification.create({
-          data: { userId, idType, idPhotoUrl, selfieUrl: selfieUrl || null, status: 'PENDING' },
+          data: { userId, idType, idPhotoUrl, selfieUrl: selfieUrl || null, status: 'PENDING' }
         })
 
     return NextResponse.json({ verification, message: 'Verification submitted. Review usually within 24 hours.' }, { status: 201 })
@@ -49,7 +49,7 @@ export async function GET(req: Request) {
     const verifications = await db.verification.findMany({
       where,
       include: { user: { select: { id: true, name: true, phone: true, email: true, role: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json({ verifications })
@@ -69,7 +69,7 @@ export async function PATCH(req: Request) {
 
     const verification = await db.verification.update({
       where: { id: verificationId },
-      data: { status, reviewedById: reviewedById || null, notes: notes || null },
+      data: { status, reviewedById: reviewedById || null, notes: notes || null }
     })
 
     // If approved, mark user as verified
@@ -79,8 +79,8 @@ export async function PATCH(req: Request) {
         data: {
           isVerified: true,
           // Boost trust score on verification (+40 points)
-          trustScore: { increment: 40 },
-        },
+          trustScore: { increment: 40 }
+        }
       })
     }
 

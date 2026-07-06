@@ -15,11 +15,11 @@ const STATUS_UI: Record<string, { bg: string; color: string; label: string }> = 
   CONFIRMED: { bg: '#D1FAE5', color: '#065F46', label: 'Confirmed ✓' },
   PENDING: { bg: '#FEF3C7', color: '#92400E', label: 'Awaiting Approval' },
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF', label: 'Completed' },
-  CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
+  CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' }
 }
 
 const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term',
+  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term'
 }
 
 const FILTERS = ['All', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']
@@ -36,7 +36,7 @@ export default function HostBookingsPage() {
           <div className="flex items-center gap-3">
             <Calendar size={22} style={{ color: 'var(--gold)' }} />
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>All Bookings</h1>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>All Bookings</h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>Manage guest reservations</p>
             </div>
           </div>
@@ -69,7 +69,7 @@ export default function HostBookingsPage() {
                   <div className="flex items-start gap-4">
                     {/* Guest avatar */}
                     <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0"
-                      style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>
+                      style={{ backgroundColor: 'var(--gold-light)', color: 'var(--brown-dark)' }}>
                       {b.guest[0]}
                     </div>
                     <div className="flex-1">

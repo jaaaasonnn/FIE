@@ -43,13 +43,13 @@ The neighbourhood is walkable to restaurants, supermarkets, and the Accra Mall. 
   host: {
     name: 'Abena Mensah',
     photo: 'https://images.unsplash.com/photo-1531123897727-8f129e1688ce?w=200&q=80',
-    verified: true, superhost: true, reviews: 89, responseRate: 98, joined: 'March 2021',
+    verified: true, superhost: true, reviews: 89, responseRate: 98, joined: 'March 2021'
   },
   recentReviews: [
     { name: 'Kofi A.', rating: 5, comment: 'Absolutely stunning apartment. Very clean, modern and exactly as described. Abena was super responsive.', date: 'December 2024' },
     { name: 'Sarah M.', rating: 5, comment: 'Perfect for our family trip to Accra for December. Generator kicked in during load shedding. Highly recommend!', date: 'November 2024' },
     { name: 'James O.', rating: 4, comment: 'Great location, very comfortable. Would be 5 stars but the pool was being cleaned for 2 days of our stay.', date: 'October 2024' },
-  ],
+  ]
 }
 
 const AMENITY_ICONS: Record<string, React.ReactNode> = {
@@ -58,13 +58,13 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
   'Air Conditioning': <Wind size={16} />,
   'CCTV': <Camera size={16} />,
   'Security Guard': <Shield size={16} />,
-  'Parking': <Car size={16} />,
+  'Parking': <Car size={16} />
 }
 
 const MODE_LABELS: Record<string, { label: string; color: string }> = {
   SHORT_STAY: { label: '🌙 Short Stay', color: 'var(--amber)' },
   TEMP_STAY: { label: '📅 Temporary Stay', color: '#2563EB' },
-  PERMANENT: { label: '🏠 Permanent Rental', color: '#059669' },
+  PERMANENT: { label: '🏠 Permanent Rental', color: '#059669' }
 }
 
 export default function ListingDetailPage() {

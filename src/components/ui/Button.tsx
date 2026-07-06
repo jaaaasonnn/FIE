@@ -16,13 +16,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       secondary: 'text-amber-900 hover:bg-amber-100 focus:ring-amber-400',
       outline: 'border-2 border-amber-600 text-amber-700 hover:bg-amber-50 focus:ring-amber-500',
       ghost: 'text-stone-700 hover:bg-stone-100 focus:ring-stone-300',
-      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+      danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
     }
 
     const sizes = {
       sm: 'text-xs px-3 py-1.5',
       md: 'text-sm px-5 py-2.5',
-      lg: 'text-base px-7 py-3.5',
+      lg: 'text-base px-7 py-3.5'
     }
 
     return (

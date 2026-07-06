@@ -89,7 +89,7 @@ export function HostCTASection() {
               style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(245,192,106,0.2)' }}
             >
               <div className="flex items-center justify-between mb-6">
-                <h4 className="font-semibold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+                <h4 className="font-semibold" style={{ color: 'var(--cream)' }}>
                   Host Earnings Preview
                 </h4>
                 <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--gold)' }}>
@@ -120,7 +120,7 @@ export function HostCTASection() {
               <div className="border-t pt-4" style={{ borderColor: 'rgba(245,192,106,0.15)' }}>
                 <div className="flex justify-between items-center">
                   <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>After 8% platform fee</span>
-                  <span className="text-xl font-bold" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+                  <span className="text-xl font-bold" style={{ color: 'var(--gold)' }}>
                     $2,092/mo
                   </span>
                 </div>

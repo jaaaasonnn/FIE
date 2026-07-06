@@ -19,10 +19,11 @@ export function Navbar() {
               alt="FieGH"
               width={48}
               height={48}
+              style={{ width: 48, height: 'auto' }}
               priority
             />
             <div className="flex flex-col leading-tight">
-              <span className="text-[1.35rem] font-bold tracking-wide" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>
+              <span className="text-[1.35rem] font-bold tracking-wide" style={{ color: 'var(--gold)' }}>
                 FieGH
               </span>
               <span className="text-[10px] tracking-widest uppercase hidden sm:block" style={{ color: 'rgba(240,184,78,0.5)', letterSpacing: '0.18em' }}>Ghana Rentals</span>

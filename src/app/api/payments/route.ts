@@ -12,7 +12,7 @@ export async function POST(req: Request) {
 
     const booking = await db.booking.findUnique({
       where: { id: bookingId },
-      include: { guest: true },
+      include: { guest: true }
     })
 
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -25,14 +25,14 @@ export async function POST(req: Request) {
       email: email || booking.guest.email || 'guest@fiegh.com',
       reference: `FIE-${bookingId}-${Date.now()}`,
       callback_url: `${process.env.NEXTAUTH_URL}/api/payments/verify`,
-      metadata: { bookingId, method, momoNetwork, momoNumber },
+      metadata: { bookingId, method, momoNetwork, momoNumber }
     }
 
     if (method === 'MOMO') {
       paystackPayload.channel = 'mobile_money'
       paystackPayload.mobile_money = {
         phone: momoNumber,
-        provider: momoNetwork?.toLowerCase(),
+        provider: momoNetwork?.toLowerCase()
       }
     }
 
@@ -46,8 +46,8 @@ export async function POST(req: Request) {
         momoNetwork: momoNetwork || null,
         momoNumber: momoNumber || null,
         status: 'PENDING',
-        gatewayReference: paystackPayload.reference as string,
-      },
+        gatewayReference: paystackPayload.reference as string
+      }
     })
 
     // In production: make actual Paystack API call
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       payment,
       authorizationUrl,
       reference: paystackPayload.reference,
-      message: 'Payment initiated. Complete payment on Paystack.',
+      message: 'Payment initiated. Complete payment on Paystack.'
     })
   } catch (error) {
     console.error('Payment POST error:', error)
@@ -83,7 +83,7 @@ export async function PUT(req: Request) {
 
     const payment = await db.payment.findFirst({
       where: { gatewayReference: reference },
-      include: { booking: true },
+      include: { booking: true }
     })
 
     if (!payment) return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
@@ -94,15 +94,15 @@ export async function PUT(req: Request) {
 
     await db.payment.update({
       where: { id: payment.id },
-      data: { status: newPaymentStatus },
+      data: { status: newPaymentStatus }
     })
 
     await db.booking.update({
       where: { id: payment.bookingId },
       data: {
         status: newBookingStatus,
-        paymentStatus: newPaymentStatusOnBooking,
-      },
+        paymentStatus: newPaymentStatusOnBooking
+      }
     })
 
     return NextResponse.json({ success: true })

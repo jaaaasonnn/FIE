@@ -13,7 +13,7 @@ const MOCK_PAYOUTS = [
 const STATUS_UI: Record<string, { bg: string; color: string; label: string; icon: React.ReactNode }> = {
   COMPLETED: { bg: '#D1FAE5', color: '#065F46', label: 'Paid Out', icon: <CheckCircle size={13} /> },
   PROCESSING: { bg: '#FEF3C7', color: '#92400E', label: 'Processing', icon: <Clock size={13} /> },
-  PENDING: { bg: '#F3F4F6', color: '#6B7280', label: 'Pending', icon: <Clock size={13} /> },
+  PENDING: { bg: '#F3F4F6', color: '#6B7280', label: 'Pending', icon: <Clock size={13} /> }
 }
 
 export default function HostPayoutsPage() {
@@ -28,7 +28,7 @@ export default function HostPayoutsPage() {
           <div className="flex items-center gap-3">
             <DollarSign size={22} style={{ color: 'var(--gold)' }} />
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>Payouts</h1>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>Payouts</h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>Your earnings from FieGH</p>
             </div>
           </div>
@@ -50,7 +50,7 @@ export default function HostPayoutsPage() {
           ].map(({ label, value, sub, color }) => (
             <div key={label} className="bg-white p-4 rounded-2xl border border-stone-100 text-center">
               <p className="text-xs text-stone-500 mb-1">{label}</p>
-              <p className="text-lg font-bold" style={{ color, fontFamily: 'Playfair Display, serif' }}>{value}</p>
+              <p className="text-lg font-bold" style={{ color }}>{value}</p>
               <p className="text-xs text-stone-400 mt-0.5">{sub}</p>
             </div>
           ))}

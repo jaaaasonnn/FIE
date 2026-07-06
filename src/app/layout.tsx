@@ -12,12 +12,12 @@ export const metadata: Metadata = {
     title: 'FieGH — Your Home in Ghana 🇬🇭',
     description: 'Premium property rentals across Ghana. Short stays, monthly lets, and long-term leases.',
     type: 'website',
-    locale: 'en_GH',
-  },
+    locale: 'en_GH'
+  }
 }
 
 export default function RootLayout({
-  children,
+  children
 }: {
   children: React.ReactNode
 }) {

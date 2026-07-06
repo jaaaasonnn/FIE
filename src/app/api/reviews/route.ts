@@ -17,9 +17,9 @@ export async function GET(req: Request) {
       where,
       include: {
         reviewer: { select: { id: true, name: true, profilePhoto: true } },
-        reviewee: { select: { id: true, name: true, profilePhoto: true } },
+        reviewee: { select: { id: true, name: true, profilePhoto: true } }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     })
 
     const avgRating = reviews.length
@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
     // Check no duplicate review
     const existing = await db.review.findFirst({
-      where: { bookingId, reviewerId, type },
+      where: { bookingId, reviewerId, type }
     })
     if (existing) return NextResponse.json({ error: 'You have already reviewed this booking' }, { status: 409 })
 
@@ -59,19 +59,19 @@ export async function POST(req: Request) {
         bookingId, listingId: listingId || null,
         reviewerId, revieweeId, rating, comment, type,
         isPublished: false, // will be published after both parties review or after 14 days
-      },
+      }
     })
 
     // Check if both reviews are in — if so, publish both
     const otherType = type === 'GUEST_TO_HOST' ? 'HOST_TO_GUEST' : 'GUEST_TO_HOST'
     const otherReview = await db.review.findFirst({
-      where: { bookingId, type: otherType },
+      where: { bookingId, type: otherType }
     })
 
     if (otherReview) {
       await db.review.updateMany({
         where: { bookingId },
-        data: { isPublished: true },
+        data: { isPublished: true }
       })
       // Update listing avg rating
       if (listingId) {
@@ -79,12 +79,12 @@ export async function POST(req: Request) {
         const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length
         await db.listing.update({
           where: { id: listingId },
-          data: { avgRating: parseFloat(avg.toFixed(2)), reviewCount: allReviews.length },
+          data: { avgRating: parseFloat(avg.toFixed(2)), reviewCount: allReviews.length }
         })
       }
       // Check Superhost eligibility
       const hostReviews = await db.review.findMany({
-        where: { revieweeId, type: 'GUEST_TO_HOST', isPublished: true },
+        where: { revieweeId, type: 'GUEST_TO_HOST', isPublished: true }
       })
       if (hostReviews.length >= 10) {
         const hostAvg = hostReviews.reduce((s, r) => s + r.rating, 0) / hostReviews.length
@@ -107,7 +107,7 @@ export async function PATCH(req: Request) {
     const { reviewId, hostReply } = await req.json()
     const updated = await db.review.update({
       where: { id: reviewId },
-      data: { hostReply },
+      data: { hostReply }
     })
     return NextResponse.json({ review: updated })
   } catch (error) {

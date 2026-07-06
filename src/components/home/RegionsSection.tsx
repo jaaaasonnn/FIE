@@ -32,7 +32,7 @@ export function RegionsSection() {
               const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
               if (heading) tl.to(heading, { x: 0, opacity: 1, duration: 0.7 })
               tl.to(entry.target.querySelectorAll('.region-card'), {
-                y: 0, opacity: 1, stagger: 0.08, duration: 0.65,
+                y: 0, opacity: 1, stagger: 0.08, duration: 0.65
               }, '-=0.3')
             })
             observer.unobserve(entry.target)

@@ -27,7 +27,7 @@ const MOCK_LISTING = {
   minStayNights: '2',
   damageDeposit: '200',
   welcomeMessage: 'Welcome! The gate code is 2024#. WiFi: FieGH_EastLegon / Password: Welcome2024!',
-  isActive: true,
+  isActive: true
 }
 
 export default function EditListingPage() {
@@ -58,7 +58,7 @@ export default function EditListingPage() {
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
         <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
               Edit Listing
             </h1>
             <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>
@@ -140,7 +140,7 @@ export default function EditListingPage() {
                     style={{
                       borderColor: form.rentalModes.includes(key) ? 'var(--amber)' : '#E5E7EB',
                       backgroundColor: form.rentalModes.includes(key) ? '#FFF8EE' : '#fff',
-                      color: form.rentalModes.includes(key) ? 'var(--amber)' : '#6B7280',
+                      color: form.rentalModes.includes(key) ? 'var(--amber)' : '#6B7280'
                     }}>
                     {label}
                   </button>
@@ -178,7 +178,7 @@ export default function EditListingPage() {
                   style={{
                     borderColor: form.amenities.includes(a) ? 'var(--amber)' : '#E5E7EB',
                     backgroundColor: form.amenities.includes(a) ? '#FFF8EE' : '#fff',
-                    color: form.amenities.includes(a) ? 'var(--amber)' : '#374151',
+                    color: form.amenities.includes(a) ? 'var(--amber)' : '#374151'
                   }}>
                   {form.amenities.includes(a) ? <CheckSquare size={13} /> : <Square size={13} className="text-stone-300" />}
                   {a}

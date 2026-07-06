@@ -10,7 +10,7 @@ const FAQS = [
       { q: 'What does "Fie" mean?', a: '"Fie" (pronounced fee-yeh) means "home" in Twi, one of Ghana\'s most widely spoken languages. FieGH = Your Home in Ghana.' },
       { q: 'What regions does FieGH cover?', a: 'FieGH covers all 16 regions of Ghana including Greater Accra, Ashanti, Western, Central, Eastern, Volta, Northern, Upper East, Upper West, Brong-Ahafo, Oti, Savannah, Bono East, Ahafo, North East, and Western North.' },
       { q: 'Is FieGH only for Ghanaians?', a: 'No! FieGH is for anyone looking to rent in Ghana — locals, diaspora, expats, tourists, and business travellers. We accept international payments via card.' },
-    ],
+    ]
   },
   {
     category: 'Payments',
@@ -20,7 +20,7 @@ const FAQS = [
       { q: 'What currencies are accepted?', a: 'Prices are listed in USD and shown in GHS (Ghana Cedis) for reference. MoMo payments are converted using the current exchange rate set by our admin team weekly.' },
       { q: 'Can I pay in Ghana Cedis?', a: 'Yes. When paying via MoMo, the amount is charged in GHS at the current exchange rate shown at checkout.' },
       { q: 'Why can\'t I pay outside the app?', a: 'For your protection. Cash and direct bank transfers have no protection. If you pay outside FieGH, we cannot help you recover funds in case of a scam. Always book and pay through the app.' },
-    ],
+    ]
   },
   {
     category: 'Bookings',
@@ -29,7 +29,7 @@ const FAQS = [
       { q: 'What is Instant Book?', a: 'Instant Book means your booking is confirmed automatically without waiting for host approval. Not all listings have this — some hosts prefer to approve guests manually.' },
       { q: 'What happens if the property doesn\'t match the listing?', a: 'You have 24 hours after check-in to raise a dispute. Our team will review the case and may issue a partial or full refund depending on the findings.' },
       { q: 'Can I cancel my booking?', a: 'Yes, depending on the cancellation policy set by the host (Flexible, Moderate, or Strict). You\'ll see the policy clearly on the listing page before booking. Flexible allows full refunds if cancelled 24+ hours before check-in.' },
-    ],
+    ]
   },
   {
     category: 'Verification',
@@ -37,7 +37,7 @@ const FAQS = [
       { q: 'Why do I need to verify my identity?', a: 'Ghana\'s rental market has historically suffered from fraud. ID verification helps us ensure every guest and host on FieGH is a real, accountable person. It protects everyone.' },
       { q: 'What ID is accepted?', a: 'We accept Ghana Card (NIA), Passport, and Voter ID. Hosts outside Ghana can use their national passport.' },
       { q: 'How long does verification take?', a: 'Usually within a few hours. Sometimes up to 24 hours. You\'ll be notified by SMS and in-app once approved.' },
-    ],
+    ]
   },
   {
     category: 'Hosting',
@@ -46,7 +46,7 @@ const FAQS = [
       { q: 'What is Superhost status?', a: 'Superhost is automatically awarded to hosts with a 4.8+ average rating and at least 10 completed reviews. It shows as a gold badge on your profile and listings, and increases your bookings.' },
       { q: 'How do I get paid?', a: 'You get paid 24 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). You\'ll see your net payout (after 8% commission) clearly in your dashboard.' },
       { q: 'For permanent rentals, how do I collect advance payment?', a: 'Set your advance payment requirement (e.g. 6 months) when creating the listing. FieGH clearly shows this to tenants before they apply. The advance amount is collected through the platform on acceptance.' },
-    ],
+    ]
   },
 ]
 
@@ -57,7 +57,7 @@ export default function FAQPage() {
     <div style={{ backgroundColor: 'var(--cream)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-16 px-4">
         <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--cream)' }}>
             Frequently Asked Questions
           </h1>
           <p style={{ color: 'rgba(250,247,242,0.65)' }}>Everything you need to know about FieGH 🇬🇭</p>
@@ -86,7 +86,7 @@ export default function FAQPage() {
                         className="flex-shrink-0 transition-transform"
                         style={{
                           color: 'var(--amber)',
-                          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                          transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
                         }}
                       />
                     </button>
@@ -103,7 +103,7 @@ export default function FAQPage() {
         ))}
 
         <div className="text-center mt-12 p-8 rounded-2xl" style={{ backgroundColor: 'var(--brown-dark)' }}>
-          <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
             Still have questions?
           </h3>
           <p className="text-sm mb-5" style={{ color: 'rgba(250,247,242,0.6)' }}>

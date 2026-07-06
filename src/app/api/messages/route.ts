@@ -11,7 +11,7 @@ export async function GET(req: Request) {
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 })
 
     const where: Record<string, unknown> = {
-      OR: [{ senderId: userId }, { receiverId: userId }],
+      OR: [{ senderId: userId }, { receiverId: userId }]
     }
     if (bookingId) where.bookingId = bookingId
     if (otherUserId) {
@@ -25,9 +25,9 @@ export async function GET(req: Request) {
       where,
       include: {
         sender: { select: { id: true, name: true, profilePhoto: true } },
-        receiver: { select: { id: true, name: true, profilePhoto: true } },
+        receiver: { select: { id: true, name: true, profilePhoto: true } }
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'asc' }
     })
 
     return NextResponse.json({ messages })
@@ -49,15 +49,15 @@ export async function POST(req: Request) {
     const contactPattern = /(\+?233|\b0[2-5]\d{8}\b|whatsapp|@gmail|@yahoo|pay me direct)/i
     if (contactPattern.test(content)) {
       return NextResponse.json({
-        error: 'Message flagged: Please do not share contact details or request off-platform payments. All payments must go through FieGH.',
+        error: 'Message flagged: Please do not share contact details or request off-platform payments. All payments must go through FieGH.'
       }, { status: 400 })
     }
 
     const message = await db.message.create({
       data: { senderId, receiverId, bookingId: bookingId || null, content: content.trim() },
       include: {
-        sender: { select: { id: true, name: true, profilePhoto: true } },
-      },
+        sender: { select: { id: true, name: true, profilePhoto: true } }
+      }
     })
 
     return NextResponse.json({ message }, { status: 201 })
@@ -74,7 +74,7 @@ export async function PATCH(req: Request) {
 
     await db.message.updateMany({
       where: { receiverId, senderId, isRead: false },
-      data: { isRead: true },
+      data: { isRead: true }
     })
 
     return NextResponse.json({ success: true })

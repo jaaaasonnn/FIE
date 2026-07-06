@@ -15,12 +15,12 @@ export function showToast(message: string, type: 'success' | 'error' | 'info' = 
   const colors = {
     success: { bg: '#D1FAE5', text: '#065F46', border: '#6EE7B7' },
     error: { bg: '#FEE2E2', text: '#991B1B', border: '#FCA5A5' },
-    info: { bg: '#FBE8BB', text: '#92400E', border: '#F5C06A' },
+    info: { bg: '#FBE8BB', text: '#92400E', border: '#F5C06A' }
   }
   const c = colors[type]
   toast.style.cssText = `
     background:${c.bg}; color:${c.text}; border:1px solid ${c.border};
-    padding:12px 16px; border-radius:10px; font-size:14px; font-family:'DM Sans',sans-serif;
+    padding:12px 16px; border-radius:10px; font-size:14px;
     box-shadow:0 4px 12px rgba(0,0,0,0.12); pointer-events:auto;
     transform:translateX(100px); opacity:0; transition:all 0.3s ease;
     max-width:320px; line-height:1.4;

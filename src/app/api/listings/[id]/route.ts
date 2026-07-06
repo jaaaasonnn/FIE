@@ -8,17 +8,17 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       include: {
         host: {
-          select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true, createdAt: true },
+          select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true, createdAt: true }
         },
         reviews: {
           include: {
-            reviewer: { select: { id: true, name: true, profilePhoto: true } },
+            reviewer: { select: { id: true, name: true, profilePhoto: true } }
           },
           orderBy: { createdAt: 'desc' },
-          take: 10,
+          take: 10
         },
-        blockedDates: { select: { date: true } },
-      },
+        blockedDates: { select: { date: true } }
+      }
     })
 
     if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
@@ -30,8 +30,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         rentalModes: JSON.parse(listing.rentalModes || '[]'),
         photos: JSON.parse(listing.photos || '[]'),
         rules: listing.rules ? JSON.parse(listing.rules) : [],
-        blockedDates: listing.blockedDates.map((d: { date: Date }) => d.date),
-      },
+        blockedDates: listing.blockedDates.map((d: { date: Date }) => d.date)
+      }
     })
   } catch (error) {
     console.error('Listing GET error:', error)
@@ -54,8 +54,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         amenities: body.amenities ? JSON.stringify(body.amenities) : undefined,
         rentalModes: body.rentalModes ? JSON.stringify(body.rentalModes) : undefined,
         photos: body.photos ? JSON.stringify(body.photos) : undefined,
-        rules: body.rules ? JSON.stringify(body.rules) : undefined,
-      },
+        rules: body.rules ? JSON.stringify(body.rules) : undefined
+      }
     })
 
     return NextResponse.json({ listing: updated })

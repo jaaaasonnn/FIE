@@ -38,8 +38,8 @@ export async function POST(req: Request) {
         passwordHash,
         role: role || 'GUEST',
         businessName: businessName || null,
-        nationality: nationality || 'Ghanaian',
-      },
+        nationality: nationality || 'Ghanaian'
+      }
     })
 
     const { passwordHash: _, ...userWithoutPassword } = user

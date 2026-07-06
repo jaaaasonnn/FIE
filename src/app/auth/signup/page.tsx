@@ -16,7 +16,7 @@ function SignUpForm() {
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({
     name: '', email: '', phone: '', password: '', confirmPassword: '',
-    businessName: '', nationality: 'Ghanaian',
+    businessName: '', nationality: 'Ghanaian'
   })
   const [showPass, setShowPass] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -42,7 +42,7 @@ function SignUpForm() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, role }),
+        body: JSON.stringify({ ...form, role })
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sign up failed')
@@ -66,9 +66,9 @@ function SignUpForm() {
             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--gold)' }}>
               <Home size={24} style={{ color: 'var(--brown-dark)' }} />
             </div>
-            <span className="text-3xl font-bold" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>FieGH</span>
+            <span className="text-3xl font-bold" style={{ color: 'var(--gold)' }}>FieGH</span>
           </Link>
-          <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--cream)' }}>
             Join FieGH 🇬🇭
           </h2>
           <p className="text-base leading-relaxed mb-8" style={{ color: 'rgba(250,247,242,0.6)' }}>
@@ -90,7 +90,7 @@ function SignUpForm() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brown-dark)' }}>
               <Home size={16} style={{ color: 'var(--gold)' }} />
             </div>
-            <span className="text-xl font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>FieGH</span>
+            <span className="text-xl font-bold" style={{ color: 'var(--brown-dark)' }}>FieGH</span>
           </Link>
 
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>Create Account</h1>

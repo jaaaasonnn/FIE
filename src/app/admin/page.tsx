@@ -35,7 +35,7 @@ export default function AdminPage() {
       <div className="hidden lg:flex flex-col w-56 flex-shrink-0 py-6 px-3"
         style={{ backgroundColor: 'var(--brown-dark)', minHeight: '100vh' }}>
         <div className="px-3 mb-8">
-          <h2 className="font-bold text-lg" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+          <h2 className="font-bold text-lg" style={{ color: 'var(--gold)' }}>
             FieGH Admin
           </h2>
           <p className="text-xs mt-1" style={{ color: 'rgba(250,247,242,0.4)' }}>Super Admin Panel</p>
@@ -47,7 +47,7 @@ export default function AdminPage() {
               style={{
                 backgroundColor: activeTab === tab ? 'rgba(245,192,106,0.2)' : 'transparent',
                 color: activeTab === tab ? 'var(--gold)' : 'rgba(250,247,242,0.6)',
-                fontWeight: activeTab === tab ? 600 : 400,
+                fontWeight: activeTab === tab ? 600 : 400
               }}>
               {tab}
             </button>
@@ -74,7 +74,7 @@ export default function AdminPage() {
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>
                 {activeTab}
               </h1>
               <p className="text-sm text-stone-500 mt-0.5">FieGH Platform Administration 🇬🇭</p>

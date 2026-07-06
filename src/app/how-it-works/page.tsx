@@ -27,7 +27,7 @@ export default function HowItWorksPage() {
           <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--gold)' }}>
             Simple & Transparent
           </p>
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h1 className="text-4xl sm:text-5xl font-bold mb-4" style={{ color: 'var(--cream)' }}>
             How FieGH Works 🇬🇭
           </h1>
           <p className="text-base" style={{ color: 'rgba(250,247,242,0.7)' }}>
@@ -51,7 +51,7 @@ export default function HowItWorksPage() {
               <div key={num} className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
-                    style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+                    style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--gold)' }}>
                     {num}
                   </div>
                   <span className="text-2xl">{icon}</span>
@@ -77,7 +77,7 @@ export default function HowItWorksPage() {
               <div key={num} className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
-                    style={{ backgroundColor: '#065F46', color: '#6EE7B7', fontFamily: 'Playfair Display, serif' }}>
+                    style={{ backgroundColor: '#065F46', color: '#6EE7B7' }}>
                     {num}
                   </div>
                   <span className="text-2xl">{icon}</span>
@@ -99,7 +99,7 @@ export default function HowItWorksPage() {
               { label: 'Damage Deposit', value: 'Optional', desc: 'Set by host. Collected at booking, held in escrow, returned within 48 hours of check-out unless a dispute is raised.', color: '#2563EB' },
             ].map(({ label, value, desc, color }) => (
               <div key={label} className="text-center p-5 rounded-2xl" style={{ backgroundColor: '#F9FAFB' }}>
-                <p className="text-3xl font-bold mb-1" style={{ color, fontFamily: 'Playfair Display, serif' }}>{value}</p>
+                <p className="text-3xl font-bold mb-1" style={{ color }}>{value}</p>
                 <p className="font-semibold mb-2" style={{ color: 'var(--brown-dark)' }}>{label}</p>
                 <p className="text-xs text-stone-500 leading-relaxed">{desc}</p>
               </div>

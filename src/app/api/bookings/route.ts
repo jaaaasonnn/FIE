@@ -7,7 +7,7 @@ export async function POST(req: Request) {
     const body = await req.json()
     const {
       listingId, guestId, rentalMode,
-      checkIn, checkOut, nightsOrMonths, specialRequests,
+      checkIn, checkOut, nightsOrMonths, specialRequests
     } = body
 
     if (!listingId || !guestId || !rentalMode || !checkIn || !checkOut) {
@@ -16,7 +16,7 @@ export async function POST(req: Request) {
 
     const listing = await db.listing.findUnique({
       where: { id: listingId },
-      include: { host: true },
+      include: { host: true }
     })
 
     if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
@@ -32,8 +32,8 @@ export async function POST(req: Request) {
         status: { notIn: ['CANCELLED'] },
         OR: [
           { checkIn: { lt: checkOutDate }, checkOut: { gt: checkInDate } },
-        ],
-      },
+        ]
+      }
     })
 
     if (conflict) {
@@ -66,8 +66,8 @@ export async function POST(req: Request) {
         totalPrice: total + damageDeposit,
         status: listing.instantBook ? 'CONFIRMED' : 'PENDING',
         paymentStatus: 'UNPAID',
-        specialRequests: specialRequests || null,
-      },
+        specialRequests: specialRequests || null
+      }
     })
 
     // Block dates for confirmed instant bookings
@@ -104,13 +104,13 @@ export async function GET(req: Request) {
       where,
       include: {
         listing: {
-          select: { id: true, title: true, photos: true, city: true, neighbourhood: true },
+          select: { id: true, title: true, photos: true, city: true, neighbourhood: true }
         },
         guest: { select: { id: true, name: true, profilePhoto: true, trustScore: true, isVerified: true } },
         host: { select: { id: true, name: true, profilePhoto: true } },
-        payments: true,
+        payments: true
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json({ bookings })

@@ -40,7 +40,7 @@ export function HeroSection() {
         .to(subtitleRef.current, { y: 0, opacity: 1, duration: 0.8 }, '-=0.6')
         .to(searchRef.current, { y: 0, opacity: 1, duration: 0.8 }, '-=0.5')
         .to(Array.from(statsRef.current?.children || []), {
-          y: 0, opacity: 1, stagger: 0.15, duration: 0.6,
+          y: 0, opacity: 1, stagger: 0.15, duration: 0.6
         }, '-=0.3')
 
       // Parallax on scroll
@@ -53,7 +53,7 @@ export function HeroSection() {
           if (heroRef.current) {
             heroRef.current.style.backgroundPositionY = `${self.progress * 30}%`
           }
-        },
+        }
       })
     })
 
@@ -75,7 +75,7 @@ export function HeroSection() {
       style={{
         backgroundImage: `url('https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1600&q=80')`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center 40%',
+        backgroundPosition: 'center 40%'
       }}
     >
       {/* Dark overlay */}
@@ -98,7 +98,7 @@ export function HeroSection() {
         <h1
           ref={titleRef}
           className="text-5xl sm:text-6xl lg:text-7xl font-bold mb-6 leading-tight"
-          style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}
+          style={{ color: 'var(--cream)' }}
         >
           Find Your{' '}
           <span className="text-shimmer">Fie</span>
@@ -152,7 +152,7 @@ export function HeroSection() {
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 className="w-full text-sm border-none outline-none bg-transparent py-3"
-                style={{ color: region ? 'var(--brown-dark)' : '#9CA3AF', fontFamily: 'DM Sans, sans-serif' }}
+                style={{ color: region ? 'var(--brown-dark)' : '#9CA3AF' }}
               >
                 <option value="">All regions in Ghana</option>
                 {GHANA_REGIONS.map((r) => (
@@ -170,7 +170,7 @@ export function HeroSection() {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 className="w-full text-sm border-none outline-none bg-transparent py-3"
-                style={{ color: date ? 'var(--brown-dark)' : '#9CA3AF', fontFamily: 'DM Sans, sans-serif' }}
+                style={{ color: date ? 'var(--brown-dark)' : '#9CA3AF' }}
                 placeholder="Move-in date"
               />
             </div>
@@ -195,7 +195,7 @@ export function HeroSection() {
             { num: '4.8★', label: 'Avg Rating' },
           ].map(({ num, label }) => (
             <div key={label} className="text-center px-4 border-r last:border-r-0" style={{ borderColor: 'rgba(245,192,106,0.2)' }}>
-              <div className="text-3xl font-bold" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+              <div className="text-3xl font-bold" style={{ color: 'var(--gold)' }}>
                 {num}
               </div>
               <div className="text-xs tracking-wide mt-0.5" style={{ color: 'rgba(250,247,242,0.55)' }}>{label}</div>

@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     const normalizedId = isPhone ? normalizePhone(identifier) : identifier
 
     const user = await db.user.findFirst({
-      where: isPhone ? { phone: normalizedId } : { email: normalizedId },
+      where: isPhone ? { phone: normalizedId } : { email: normalizedId }
     })
 
     if (!user || !user.passwordHash) {
@@ -32,14 +32,14 @@ export async function POST(req: Request) {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
 
     await db.session.create({
-      data: { userId: user.id, token, expiresAt },
+      data: { userId: user.id, token, expiresAt }
     })
 
     const { passwordHash: _, ...userWithoutPassword } = user
 
     const response = NextResponse.json({
       user: userWithoutPassword,
-      message: 'Signed in successfully',
+      message: 'Signed in successfully'
     })
 
     response.cookies.set('fiegh_session', token, {
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       expires: expiresAt,
-      path: '/',
+      path: '/'
     })
 
     return response

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 @import "tailwindcss";
 
@@ -26,21 +26,36 @@ html {
 body {
   background-color: var(--cream);
   color: var(--brown-dark);
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
-h1, h2, h3, h4, h5 {
-  font-family: 'Playfair Display', serif;
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--brown-dark);
+  font-weight: 700;
 }
 
-.font-serif {
-  font-family: 'Playfair Display', serif;
+/* Type scale */
+h1 { font-weight: 800; letter-spacing: -0.03em; }
+h2 { font-weight: 700; letter-spacing: -0.02em; }
+h3 { font-weight: 700; letter-spacing: -0.01em; }
+h4 { font-weight: 600; }
+
+/* All-caps / badge labels */
+.label-caps {
+  font-weight: 600;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
-.font-sans {
-  font-family: 'DM Sans', sans-serif;
+.font-serif { font-family: 'Plus Jakarta Sans', sans-serif; }
+.font-sans  { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+input, select, textarea, button {
+  font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
 /* Scrollbar */

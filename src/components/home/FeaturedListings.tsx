@@ -19,7 +19,7 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=75',
     modes: ['SHORT_STAY', 'TEMP_STAY'],
     verified: true, superhost: true,
-    amenities: ['WiFi', 'Pool', 'AC', 'Generator'],
+    amenities: ['WiFi', 'Pool', 'AC', 'Generator']
   },
   {
     id: '2',
@@ -34,7 +34,7 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=75',
     modes: ['SHORT_STAY'],
     verified: true, superhost: false,
-    amenities: ['WiFi', 'AC', 'Security'],
+    amenities: ['WiFi', 'AC', 'Security']
   },
   {
     id: '3',
@@ -49,7 +49,7 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',
     modes: ['TEMP_STAY', 'PERMANENT'],
     verified: true, superhost: false,
-    amenities: ['WiFi', 'Generator', 'Parking', 'Boys Quarters'],
+    amenities: ['WiFi', 'Generator', 'Parking', 'Boys Quarters']
   },
   {
     id: '4',
@@ -64,7 +64,7 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75',
     modes: ['SHORT_STAY', 'TEMP_STAY'],
     verified: true, superhost: true,
-    amenities: ['Pool', 'WiFi', 'AC', 'Garden', 'Gym'],
+    amenities: ['Pool', 'WiFi', 'AC', 'Garden', 'Gym']
   },
   {
     id: '5',
@@ -79,7 +79,7 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&q=75',
     modes: ['TEMP_STAY', 'PERMANENT'],
     verified: true, superhost: false,
-    amenities: ['WiFi', 'AC', 'CCTV', 'Parking'],
+    amenities: ['WiFi', 'AC', 'CCTV', 'Parking']
   },
   {
     id: '6',
@@ -94,14 +94,14 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75',
     modes: ['SHORT_STAY'],
     verified: false, superhost: false,
-    amenities: ['WiFi', 'AC'],
+    amenities: ['WiFi', 'AC']
   },
 ]
 
 const MODE_LABELS: Record<string, { label: string; color: 'gold' | 'blue' | 'green' }> = {
   SHORT_STAY: { label: '🌙 Short Stay', color: 'gold' },
   TEMP_STAY: { label: '📅 Monthly', color: 'blue' },
-  PERMANENT: { label: '🏠 Long-Term', color: 'green' },
+  PERMANENT: { label: '🏠 Long-Term', color: 'green' }
 }
 
 export function FeaturedListings() {
@@ -121,7 +121,7 @@ export function FeaturedListings() {
               const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
               if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
               tl.to(entry.target.querySelectorAll('.listing-card'), {
-                y: 0, opacity: 1, scale: 1, stagger: 0.12, duration: 0.7,
+                y: 0, opacity: 1, scale: 1, stagger: 0.12, duration: 0.7
               }, '-=0.2')
             })
             observer.unobserve(entry.target)

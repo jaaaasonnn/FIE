@@ -12,11 +12,11 @@ export async function GET(req: Request) {
       include: {
         listing: {
           include: {
-            host: { select: { id: true, name: true, isVerified: true, isSuperhost: true } },
-          },
-        },
+            host: { select: { id: true, name: true, isVerified: true, isSuperhost: true } }
+          }
+        }
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'desc' }
     })
 
     return NextResponse.json({ wishlists })
@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
     // Toggle: if already wishlisted, remove it
     const existing = await db.wishlist.findUnique({
-      where: { userId_listingId: { userId, listingId } },
+      where: { userId_listingId: { userId, listingId } }
     })
 
     if (existing) {

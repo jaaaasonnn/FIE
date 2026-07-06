@@ -11,7 +11,7 @@ const MOCK_WISHLIST = [
 ]
 
 const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term',
+  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term'
 }
 
 export default function WishlistPage() {
@@ -28,7 +28,7 @@ export default function WishlistPage() {
           <div className="flex items-center gap-3">
             <Heart size={22} style={{ color: '#EF4444' }} className="fill-red-500" />
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
                 Your Wishlist
               </h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>

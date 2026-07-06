@@ -35,7 +35,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
                 : 'border-stone-200 focus:ring-amber-200 focus:border-amber-400',
               className
             )}
-            style={{ fontFamily: 'DM Sans, sans-serif' }}
+            style={{ }}
             {...props}
           />
         </div>
@@ -71,7 +71,7 @@ export function Select({ label, error, options, className, ...props }: SelectPro
             : 'border-stone-200 focus:ring-amber-200 focus:border-amber-400',
           className
         )}
-        style={{ fontFamily: 'DM Sans, sans-serif' }}
+        style={{ }}
         {...props}
       >
         {options.map((o) => (
@@ -104,7 +104,7 @@ export function Textarea({
             : 'border-stone-200 focus:ring-amber-200 focus:border-amber-400',
           className
         )}
-        style={{ fontFamily: 'DM Sans, sans-serif' }}
+        style={{ }}
         {...props}
       />
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}

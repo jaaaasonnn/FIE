@@ -13,7 +13,7 @@ const modes = [
     desc: "Perfect for Detty December, business trips, or holiday escapes. Book for 1 night or a few weeks with instant confirmation.",
     href: '/search?mode=SHORT_STAY',
     color: 'var(--amber)',
-    bg: '#FFF8EE',
+    bg: '#FFF8EE'
   },
   {
     icon: CalendarDays,
@@ -24,7 +24,7 @@ const modes = [
     href: '/search?mode=TEMP_STAY',
     color: '#2563EB',
     bg: '#EFF6FF',
-    featured: true,
+    featured: true
   },
   {
     icon: Key,
@@ -34,7 +34,7 @@ const modes = [
     desc: "Long-term tenancy agreements with clear advance payment terms upfront. No surprises — everything agreed before you move in.",
     href: '/search?mode=PERMANENT',
     color: '#059669',
-    bg: '#F0FDF4',
+    bg: '#F0FDF4'
   },
 ]
 

@@ -15,14 +15,14 @@ const MOCK_RESULTS = [
     bedrooms: 3, bathrooms: 2, maxGuests: 6, priceNightly: 120, priceMonthly: 2200, priceAnnual: 24000,
     rating: 4.9, reviews: 47, photo: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500&q=70',
     modes: ['SHORT_STAY', 'TEMP_STAY'], verified: true, superhost: true,
-    amenities: ['WiFi', 'Pool', 'Air Conditioning', 'Generator/Inverter', 'Parking', 'CCTV'],
+    amenities: ['WiFi', 'Pool', 'Air Conditioning', 'Generator/Inverter', 'Parking', 'CCTV']
   },
   {
     id: '2', title: 'Modern Studio in Cantonments', type: 'Studio',
     region: 'Greater Accra', city: 'Accra', neighbourhood: 'Cantonments',
     bedrooms: 1, bathrooms: 1, maxGuests: 2, priceNightly: 65, priceMonthly: 900,
     rating: 4.8, reviews: 23, photo: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=500&q=70',
-    modes: ['SHORT_STAY'], verified: true, superhost: false, amenities: ['WiFi', 'Air Conditioning', 'CCTV'],
+    modes: ['SHORT_STAY'], verified: true, superhost: false, amenities: ['WiFi', 'Air Conditioning', 'CCTV']
   },
   {
     id: '3', title: 'Spacious 4BR House, Airport Hills', type: 'House',
@@ -30,7 +30,7 @@ const MOCK_RESULTS = [
     bedrooms: 4, bathrooms: 3, maxGuests: 8, priceMonthly: 1800, priceAnnual: 19200,
     rating: 4.7, reviews: 12, photo: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=500&q=70',
     modes: ['TEMP_STAY', 'PERMANENT'], verified: true, superhost: false,
-    amenities: ['WiFi', 'Generator/Inverter', 'Parking', 'Boys Quarters', 'CCTV'],
+    amenities: ['WiFi', 'Generator/Inverter', 'Parking', 'Boys Quarters', 'CCTV']
   },
   {
     id: '4', title: 'Cosy Villa in Kumasi (Nhyiaeso)', type: 'Villa',
@@ -38,7 +38,7 @@ const MOCK_RESULTS = [
     bedrooms: 5, bathrooms: 4, maxGuests: 10, priceNightly: 200, priceMonthly: 3500,
     rating: 5.0, reviews: 8, photo: 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=500&q=70',
     modes: ['SHORT_STAY', 'TEMP_STAY'], verified: true, superhost: true,
-    amenities: ['Swimming Pool', 'WiFi', 'Air Conditioning', 'Garden', 'Gym'],
+    amenities: ['Swimming Pool', 'WiFi', 'Air Conditioning', 'Garden', 'Gym']
   },
   {
     id: '5', title: 'Furnished 2BR Apartment, Labone', type: 'Apartment',
@@ -46,14 +46,14 @@ const MOCK_RESULTS = [
     bedrooms: 2, bathrooms: 2, maxGuests: 4, priceMonthly: 950, priceAnnual: 10200,
     rating: 4.6, reviews: 31, photo: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=500&q=70',
     modes: ['TEMP_STAY', 'PERMANENT'], verified: true, superhost: false,
-    amenities: ['WiFi', 'Air Conditioning', 'CCTV', 'Parking'],
+    amenities: ['WiFi', 'Air Conditioning', 'CCTV', 'Parking']
   },
   {
     id: '6', title: 'Private Guestroom, Osu Oxford Street', type: 'Guestroom',
     region: 'Greater Accra', city: 'Accra', neighbourhood: 'Osu',
     bedrooms: 1, bathrooms: 1, maxGuests: 2, priceNightly: 38, priceMonthly: 550,
     rating: 4.7, reviews: 55, photo: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=500&q=70',
-    modes: ['SHORT_STAY'], verified: false, superhost: false, amenities: ['WiFi', 'Air Conditioning'],
+    modes: ['SHORT_STAY'], verified: false, superhost: false, amenities: ['WiFi', 'Air Conditioning']
   },
   {
     id: '7', title: 'Serviced Apartment, Ridge', type: 'Serviced apartment',
@@ -61,7 +61,7 @@ const MOCK_RESULTS = [
     bedrooms: 2, bathrooms: 2, maxGuests: 4, priceNightly: 95, priceMonthly: 1400,
     rating: 4.5, reviews: 19, photo: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=500&q=70',
     modes: ['SHORT_STAY', 'TEMP_STAY'], verified: true, superhost: false,
-    amenities: ['WiFi', 'Air Conditioning', 'Swimming Pool', 'Gym', 'CCTV', 'Security Guard'],
+    amenities: ['WiFi', 'Air Conditioning', 'Swimming Pool', 'Gym', 'CCTV', 'Security Guard']
   },
   {
     id: '8', title: 'Entire Compound House, Tema', type: 'Entire compound',
@@ -69,14 +69,14 @@ const MOCK_RESULTS = [
     bedrooms: 6, bathrooms: 4, maxGuests: 15, priceAnnual: 16000, priceMonthly: 1400,
     rating: 4.4, reviews: 6, photo: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=500&q=70',
     modes: ['PERMANENT'], verified: true, superhost: false,
-    amenities: ['Generator/Inverter', 'Water Storage Tank', 'Parking', 'Boys Quarters', 'Borehole Water'],
+    amenities: ['Generator/Inverter', 'Water Storage Tank', 'Parking', 'Boys Quarters', 'Borehole Water']
   },
 ]
 
 const MODE_LABELS: Record<string, string> = {
   SHORT_STAY: '🌙 Short Stay',
   TEMP_STAY: '📅 Monthly',
-  PERMANENT: '🏠 Long-Term',
+  PERMANENT: '🏠 Long-Term'
 }
 
 const SORT_OPTIONS = [
@@ -98,7 +98,7 @@ function SearchContent() {
     bedrooms: '', propertyType: '',
     verified: false, superhost: false,
     sort: 'newest',
-    amenities: [] as string[],
+    amenities: [] as string[]
   })
 
   const results = MOCK_RESULTS.filter((l) => {
@@ -133,7 +133,7 @@ function SearchContent() {
               <input
                 placeholder="Search by city, neighbourhood..."
                 className="flex-1 text-sm bg-transparent border-none outline-none"
-                style={{ fontFamily: 'DM Sans, sans-serif' }}
+                style={{ }}
               />
             </div>
 
@@ -162,7 +162,7 @@ function SearchContent() {
               style={{
                 borderColor: showFilters ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: showFilters ? '#FFF8EE' : '#fff',
-                color: showFilters ? 'var(--amber)' : '#374151',
+                color: showFilters ? 'var(--amber)' : '#374151'
               }}
             >
               <SlidersHorizontal size={16} />

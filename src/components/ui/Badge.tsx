@@ -13,7 +13,7 @@ export function Badge({ children, variant = 'gold', className }: BadgeProps) {
     red: 'bg-red-100 text-red-800 border border-red-200',
     blue: 'bg-blue-100 text-blue-800 border border-blue-200',
     purple: 'bg-purple-100 text-purple-800 border border-purple-200',
-    gray: 'bg-stone-100 text-stone-700 border border-stone-200',
+    gray: 'bg-stone-100 text-stone-700 border border-stone-200'
   }
 
   return (

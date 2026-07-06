@@ -27,20 +27,20 @@ export default function NewListingPage() {
     instantBook: false,
     minStayNights: '1',
     damageDeposit: '',
-    welcomeMessage: '',
+    welcomeMessage: ''
   })
 
   function toggleMode(m: string) {
     setForm((f) => ({
       ...f,
-      rentalModes: f.rentalModes.includes(m) ? f.rentalModes.filter((x) => x !== m) : [...f.rentalModes, m],
+      rentalModes: f.rentalModes.includes(m) ? f.rentalModes.filter((x) => x !== m) : [...f.rentalModes, m]
     }))
   }
 
   function toggleAmenity(a: string) {
     setForm((f) => ({
       ...f,
-      amenities: f.amenities.includes(a) ? f.amenities.filter((x) => x !== a) : [...f.amenities, a],
+      amenities: f.amenities.includes(a) ? f.amenities.filter((x) => x !== a) : [...f.amenities, a]
     }))
   }
 
@@ -100,7 +100,7 @@ export default function NewListingPage() {
               className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
               style={{
                 borderColor: form.rentalModes.includes(key) ? 'var(--amber)' : '#E5E7EB',
-                backgroundColor: form.rentalModes.includes(key) ? '#FFF8EE' : '#fff',
+                backgroundColor: form.rentalModes.includes(key) ? '#FFF8EE' : '#fff'
               }}>
               <span className="text-2xl">{icon}</span>
               <div className="flex-1">
@@ -155,7 +155,7 @@ export default function NewListingPage() {
               style={{
                 borderColor: form.cancellationPolicy === p ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: form.cancellationPolicy === p ? '#FFF8EE' : '#fff',
-                color: form.cancellationPolicy === p ? 'var(--amber)' : '#6B7280',
+                color: form.cancellationPolicy === p ? 'var(--amber)' : '#6B7280'
               }}>
               {p}
             </button>
@@ -195,7 +195,7 @@ export default function NewListingPage() {
               style={{
                 borderColor: form.amenities.includes(a) ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: form.amenities.includes(a) ? '#FFF8EE' : '#fff',
-                color: form.amenities.includes(a) ? 'var(--amber)' : '#374151',
+                color: form.amenities.includes(a) ? 'var(--amber)' : '#374151'
               }}>
               {form.amenities.includes(a) ? <CheckSquare size={14} /> : <Square size={14} className="text-stone-300" />}
               {a}
@@ -216,7 +216,7 @@ export default function NewListingPage() {
                 style={{
                   borderColor: active ? '#FCA5A5' : '#E5E7EB',
                   backgroundColor: active ? '#FEE2E2' : '#fff',
-                  color: active ? '#991B1B' : '#374151',
+                  color: active ? '#991B1B' : '#374151'
                 }}>
                 {active ? '✗' : '+'} {r}
               </button>
@@ -298,7 +298,7 @@ export default function NewListingPage() {
                 onClick={() => i < step && setStep(i)}
                 style={{
                   backgroundColor: i <= step ? 'var(--brown-dark)' : '#E5E7EB',
-                  color: i <= step ? 'var(--gold)' : '#9CA3AF',
+                  color: i <= step ? 'var(--gold)' : '#9CA3AF'
                 }}>
                 {i < step ? '✓' : i + 1}
               </div>

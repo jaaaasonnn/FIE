@@ -35,12 +35,12 @@ export async function GET(req: Request) {
         where,
         include: {
           host: {
-            select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true },
-          },
+            select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true }
+          }
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
-        take: limit,
+        take: limit
       }),
       db.listing.count({ where }),
     ])
@@ -50,7 +50,7 @@ export async function GET(req: Request) {
       amenities: JSON.parse(l.amenities || '[]'),
       rentalModes: JSON.parse(l.rentalModes || '[]'),
       photos: JSON.parse(l.photos || '[]'),
-      rules: l.rules ? JSON.parse(l.rules) : [],
+      rules: l.rules ? JSON.parse(l.rules) : []
     }))
 
     return NextResponse.json({ listings: parsed, total, page, pages: Math.ceil(total / limit) })
@@ -67,7 +67,7 @@ export async function POST(req: Request) {
       hostId, title, description, propertyType, region, city, neighbourhood,
       lat, lng, bedrooms, bathrooms, maxGuests, rentalModes, priceNightly,
       priceMonthly, priceAnnual, advanceMonthsRequired, amenities, rules,
-      cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage,
+      cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage
     } = body
 
     if (!hostId || !title || !region || !city || !bedrooms || !propertyType) {
@@ -99,8 +99,8 @@ export async function POST(req: Request) {
         minStayNights: minStayNights ? parseInt(minStayNights) : 1,
         damageDeposit: damageDeposit ? parseFloat(damageDeposit) : null,
         welcomeMessage: welcomeMessage || null,
-        isActive: !isFlagged,
-      },
+        isActive: !isFlagged
+      }
     })
 
     return NextResponse.json({ listing, flagged: isFlagged }, { status: 201 })

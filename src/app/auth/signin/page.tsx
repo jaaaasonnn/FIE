@@ -22,7 +22,7 @@ export default function SignInPage() {
       const res = await fetch('/api/auth/signin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(form)
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Sign in failed')
@@ -46,7 +46,7 @@ export default function SignInPage() {
           style={{
             backgroundImage: `url('https://images.unsplash.com/photo-1529516548873-9ce57c8f155e?w=800&q=60')`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundPosition: 'center'
           }}
         />
         <div className="relative z-10 text-center max-w-sm">
@@ -54,11 +54,11 @@ export default function SignInPage() {
             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--gold)' }}>
               <Home size={24} style={{ color: 'var(--brown-dark)' }} />
             </div>
-            <span className="text-3xl font-bold" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>
+            <span className="text-3xl font-bold" style={{ color: 'var(--gold)' }}>
               FieGH
             </span>
           </Link>
-          <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--cream)' }}>
             Welcome back 🇬🇭
           </h2>
           <p className="text-base leading-relaxed" style={{ color: 'rgba(250,247,242,0.6)' }}>
@@ -79,7 +79,7 @@ export default function SignInPage() {
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--brown-dark)' }}>
               <Home size={16} style={{ color: 'var(--gold)' }} />
             </div>
-            <span className="text-xl font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>FieGH</span>
+            <span className="text-xl font-bold" style={{ color: 'var(--brown-dark)' }}>FieGH</span>
           </Link>
 
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>Sign In</h1>

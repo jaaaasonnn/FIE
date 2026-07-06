@@ -12,7 +12,7 @@ const MOCK_BOOKING = {
   total: 1275.2,
   status: 'CONFIRMED',
   ref: 'FIE-2024-B001',
-  welcomeMessage: 'Welcome! The gate code is 2024#. Your room is on the 3rd floor. WiFi: FieGH_EastLegon / Password: Welcome2024!',
+  welcomeMessage: 'Welcome! The gate code is 2024#. Your room is on the 3rd floor. WiFi: FieGH_EastLegon / Password: Welcome2024!'
 }
 
 export default function BookingConfirmationPage() {
@@ -24,7 +24,7 @@ export default function BookingConfirmationPage() {
             style={{ backgroundColor: '#D1FAE5' }}>
             <CheckCircle size={32} style={{ color: '#059669' }} />
           </div>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
             Booking Confirmed! 🎉
           </h1>
           <p style={{ color: 'rgba(250,247,242,0.7)' }}>Ref: {MOCK_BOOKING.ref}</p>

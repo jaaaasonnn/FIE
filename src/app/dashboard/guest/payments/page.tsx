@@ -11,12 +11,12 @@ const STATUS_UI: Record<string, { icon: React.ReactNode; bg: string; color: stri
   SUCCESS: { icon: <CheckCircle size={14} />, bg: '#D1FAE5', color: '#065F46', label: 'Paid' },
   PENDING: { icon: <Clock size={14} />, bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
   FAILED: { icon: <XCircle size={14} />, bg: '#FEE2E2', color: '#991B1B', label: 'Failed' },
-  REFUNDED: { icon: <CheckCircle size={14} />, bg: '#DBEAFE', color: '#1E40AF', label: 'Refunded' },
+  REFUNDED: { icon: <CheckCircle size={14} />, bg: '#DBEAFE', color: '#1E40AF', label: 'Refunded' }
 }
 
 const METHOD_ICONS: Record<string, string> = {
   'MTN MoMo': '📱', 'Vodafone Cash': '📱', 'AirtelTigo Money': '📱',
-  'Visa Card': '💳', 'Mastercard': '💳',
+  'Visa Card': '💳', 'Mastercard': '💳'
 }
 
 export default function GuestPaymentsPage() {
@@ -29,7 +29,7 @@ export default function GuestPaymentsPage() {
           <div className="flex items-center gap-3">
             <CreditCard size={22} style={{ color: 'var(--gold)' }} />
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
                 Payment History
               </h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>
@@ -60,16 +60,16 @@ export default function GuestPaymentsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
           <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
             <p className="text-xs text-stone-500 mb-1">Total Spent</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>${total.toLocaleString()}</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>${total.toLocaleString()}</p>
             <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * 15.5).toLocaleString()}</p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
             <p className="text-xs text-stone-500 mb-1">Transactions</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>{MOCK_PAYMENTS.length}</p>
+            <p className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>{MOCK_PAYMENTS.length}</p>
           </div>
           <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
             <p className="text-xs text-stone-500 mb-1">Refunds Received</p>
-            <p className="text-2xl font-bold" style={{ color: '#2563EB', fontFamily: 'Playfair Display, serif' }}>
+            <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
               ${MOCK_PAYMENTS.filter((p) => p.status === 'REFUNDED').reduce((s, p) => s + p.amount, 0).toLocaleString()}
             </p>
           </div>

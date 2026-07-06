@@ -19,9 +19,9 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" className="flex items-center gap-3 mb-5">
-              <Image src="/logo.png" alt="FieGH" width={48} height={48} />
+              <Image src="/logo.png" alt="FieGH" width={48} height={48} style={{ width: 48, height: 'auto' }} />
               <div className="flex flex-col leading-tight">
-                <span className="text-xl font-bold" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>FieGH</span>
+                <span className="text-xl font-bold" style={{ color: 'var(--gold)' }}>FieGH</span>
                 <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>GHANA RENTALS</span>
               </div>
             </Link>
@@ -36,7 +36,7 @@ export function Footer() {
 
           {/* Explore */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)' }}>
               Explore
             </h4>
             <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
@@ -56,7 +56,7 @@ export function Footer() {
 
           {/* Hosting */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)' }}>
               Hosting
             </h4>
             <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
@@ -75,7 +75,7 @@ export function Footer() {
 
           {/* Support */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)', fontFamily: 'Playfair Display, serif' }}>
+            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--gold)' }}>
               Support
             </h4>
             <ul className="space-y-2 text-sm mb-6" style={{ color: 'rgba(250,247,242,0.7)' }}>

@@ -25,7 +25,7 @@ const MOCK_PROFILE = {
     { reviewer: 'Kofi A.', rating: 5, comment: 'Abena is an exceptional host. Very responsive and made our stay perfect!', date: 'Dec 2024' },
     { reviewer: 'Sarah M.', rating: 5, comment: 'Beautiful apartment, Abena was super helpful. Will definitely book again.', date: 'Nov 2024' },
     { reviewer: 'James O.', rating: 4, comment: 'Great host, property matched the listing. Minor issue was sorted quickly.', date: 'Oct 2024' },
-  ],
+  ]
 }
 
 function TrustRing({ score }: { score: number }) {
@@ -42,7 +42,7 @@ function TrustRing({ score }: { score: number }) {
           strokeDasharray={`${filled} ${circumference - filled}`} strokeLinecap="round" />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-lg font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>{score}</span>
+        <span className="text-lg font-bold" style={{ color: 'var(--brown-dark)' }}>{score}</span>
         <span className="text-xs text-stone-400">Trust</span>
       </div>
     </div>
@@ -62,7 +62,7 @@ export default function ProfilePage() {
             <div className="flex-1">
               <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
                 <div>
-                  <h1 className="text-2xl font-bold" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>
+                  <h1 className="text-2xl font-bold" style={{ color: 'var(--brown-dark)' }}>
                     {MOCK_PROFILE.name}
                   </h1>
                   <div className="flex items-center gap-2 mt-1">

@@ -31,7 +31,7 @@ export function HowItWorksPreview() {
               if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
               if (line) tl.to(line, { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, '-=0.2')
               tl.to(entry.target.querySelectorAll('.step-item'), {
-                y: 0, opacity: 1, stagger: 0.18, duration: 0.7,
+                y: 0, opacity: 1, stagger: 0.18, duration: 0.7
               }, '-=0.5')
             })
             observer.unobserve(entry.target)
@@ -70,8 +70,7 @@ export function HowItWorksPreview() {
                 style={{
                   backgroundColor: 'var(--brown-dark)',
                   color: 'var(--gold)',
-                  fontFamily: 'Playfair Display, serif',
-                  boxShadow: '0 8px 24px rgba(26,18,8,0.2)',
+                  boxShadow: '0 8px 24px rgba(26,18,8,0.2)'
                 }}
               >
                 {num}

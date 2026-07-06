@@ -19,7 +19,7 @@ const MOCK_BOOKING = {
   serviceFee: 115.2,
   damageDeposit: 200,
   total: 1275.2,
-  photo: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=300&q=70',
+  photo: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=300&q=70'
 }
 
 const MOMO_NETWORKS = [
@@ -65,7 +65,7 @@ export default function CheckoutPage() {
             style={{ backgroundColor: '#D1FAE5' }}>
             <CheckCircle size={48} style={{ color: '#059669' }} />
           </div>
-          <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>
+          <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--brown-dark)' }}>
             Booking Confirmed! 🎉
           </h2>
           <p className="text-stone-600 mb-2">
@@ -112,7 +112,7 @@ export default function CheckoutPage() {
     <div className="min-h-screen" style={{ backgroundColor: 'var(--cream)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
             Complete Your Booking
           </h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(250,247,242,0.6)' }}>
@@ -140,7 +140,7 @@ export default function CheckoutPage() {
                       style={{
                         borderColor: payMethod === val ? 'var(--amber)' : '#E5E7EB',
                         backgroundColor: payMethod === val ? '#FFF8EE' : '#fff',
-                        color: payMethod === val ? 'var(--amber)' : '#374151',
+                        color: payMethod === val ? 'var(--amber)' : '#374151'
                       }}>
                       {icon} {label}
                     </button>
@@ -161,7 +161,7 @@ export default function CheckoutPage() {
                           className="w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all"
                           style={{
                             borderColor: momoNetwork === id ? 'var(--amber)' : '#E5E7EB',
-                            backgroundColor: momoNetwork === id ? '#FFF8EE' : '#fff',
+                            backgroundColor: momoNetwork === id ? '#FFF8EE' : '#fff'
                           }}>
                           <span className="text-xl">{logo}</span>
                           <span className="text-sm font-medium" style={{ color: 'var(--brown-dark)' }}>{label}</span>
@@ -178,7 +178,7 @@ export default function CheckoutPage() {
                       value={momoNumber}
                       onChange={(e) => setMomoNumber(e.target.value)}
                       className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
-                      style={{ fontFamily: 'DM Sans, sans-serif' }}
+                      style={{ }}
                     />
                     <p className="text-xs text-stone-400 mt-1">A payment prompt will be sent to this number</p>
                   </div>

@@ -25,7 +25,7 @@ export async function GET(req: Request) {
         totalUsers, totalListings, totalBookings,
         totalRevenue: totalRevenue._sum.amount || 0,
         platformRevenue,
-        pendingVerifications, openDisputes,
+        pendingVerifications, openDisputes
       })
     }
 
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       const { disputeId, resolution } = data
       await db.dispute.update({
         where: { id: disputeId },
-        data: { status: 'RESOLVED', resolution },
+        data: { status: 'RESOLVED', resolution }
       })
       return NextResponse.json({ success: true })
     }

@@ -19,7 +19,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   CONFIRMED: { bg: '#D1FAE5', color: '#065F46' },
   PENDING: { bg: '#FEF3C7', color: '#92400E' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B' },
-  COMPLETED: { bg: '#DBEAFE', color: '#1E40AF' },
+  COMPLETED: { bg: '#DBEAFE', color: '#1E40AF' }
 }
 
 export default function HostDashboardPage() {
@@ -35,7 +35,7 @@ export default function HostDashboardPage() {
                   alt="Host" className="w-full h-full object-cover" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+                <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
                   Abena's Dashboard 🏡
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
@@ -77,7 +77,7 @@ export default function HostDashboardPage() {
               style={{
                 borderColor: primary ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: primary ? 'var(--amber)' : '#fff',
-                color: primary ? '#fff' : '#374151',
+                color: primary ? '#fff' : '#374151'
               }}>
               <Icon size={16} />
               {label}

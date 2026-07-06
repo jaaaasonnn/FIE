@@ -8,25 +8,25 @@ const trust = [
     icon: BadgeCheck,
     title: 'ID Verified Hosts',
     desc: 'Every host goes through Ghana Card, Passport, or Voter ID verification before listing a property.',
-    color: '#2563EB',
+    color: '#2563EB'
   },
   {
     icon: Shield,
     title: 'Escrow Protection',
     desc: 'Your payment is held securely until check-in is confirmed. Raise a dispute within 24 hours if anything is wrong.',
-    color: '#059669',
+    color: '#059669'
   },
   {
     icon: CreditCard,
     title: 'MoMo & Card Payments',
     desc: 'Pay with MTN MoMo, Vodafone Cash, AirtelTigo Money, or Visa/Mastercard via Paystack.',
-    color: 'var(--amber)',
+    color: 'var(--amber)'
   },
   {
     icon: MessageSquare,
     title: 'In-App Messaging',
     desc: 'Chat directly with your host before booking. No need to share phone numbers until you\'re ready.',
-    color: '#7C3AED',
+    color: '#7C3AED'
   },
 ]
 
@@ -47,7 +47,7 @@ export function TrustSection() {
               const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
               if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
               tl.to(entry.target.querySelectorAll('.trust-card'), {
-                y: 0, opacity: 1, stagger: 0.15, duration: 0.75,
+                y: 0, opacity: 1, stagger: 0.15, duration: 0.75
               }, '-=0.2')
             })
             observer.unobserve(entry.target)

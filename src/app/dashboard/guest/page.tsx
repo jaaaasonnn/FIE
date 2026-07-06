@@ -14,13 +14,13 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
   CONFIRMED: { bg: '#D1FAE5', color: '#065F46', label: 'Confirmed ✓' },
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF', label: 'Completed' },
   PENDING: { bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
-  CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
+  CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' }
 }
 
 const MODE_LABELS: Record<string, string> = {
   SHORT_STAY: '🌙 Short Stay',
   TEMP_STAY: '📅 Monthly',
-  PERMANENT: '🏠 Long-Term',
+  PERMANENT: '🏠 Long-Term'
 }
 
 export default function GuestDashboardPage() {
@@ -31,11 +31,11 @@ export default function GuestDashboardPage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0"
-              style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>
+              style={{ backgroundColor: 'var(--gold)', color: 'var(--brown-dark)' }}>
               K
             </div>
             <div>
-              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
                 Welcome back, Kwame 👋
               </h1>
               <div className="flex items-center gap-3 mt-1">
@@ -78,7 +78,7 @@ export default function GuestDashboardPage() {
               style={{
                 borderColor: active ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: active ? '#FFF8EE' : '#fff',
-                color: active ? 'var(--amber)' : '#374151',
+                color: active ? 'var(--amber)' : '#374151'
               }}>
               <Icon size={16} />
               {label}

@@ -12,7 +12,7 @@ const MOCK_CONVS = [
       { id: 'm1', from: 'guest', text: 'Hi Abena! Quick question — is there parking available?', time: '3h ago' },
       { id: 'm2', from: 'host', text: 'Yes, there is secure parking for 2 cars inside the compound.', time: '2h ago' },
       { id: 'm3', from: 'guest', text: 'Brilliant! Thank you!', time: '2h ago' },
-    ],
+    ]
   },
   {
     id: 'c2', guestName: 'Ama Boateng', guestPhoto: null,
@@ -20,7 +20,7 @@ const MOCK_CONVS = [
     messages: [
       { id: 'm1', from: 'guest', text: 'Hello, I submitted a rental application. When can I come to view?', time: '1d ago' },
       { id: 'm2', from: 'guest', text: 'When can I come to view the apartment?', time: '1d ago' },
-    ],
+    ]
   },
 ]
 
@@ -46,7 +46,7 @@ export default function HostMessagesPage() {
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)', fontFamily: 'Playfair Display, serif' }}>Messages</h1>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>Messages</h1>
             <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>Chat with your guests</p>
           </div>
           <Link href="/dashboard/host" className="text-sm px-4 py-2 rounded-full"
@@ -63,7 +63,7 @@ export default function HostMessagesPage() {
             <div className="p-4 border-b border-stone-100">
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-50">
                 <Search size={14} className="text-stone-400" />
-                <input placeholder="Search guests..." className="flex-1 text-sm bg-transparent border-none outline-none" style={{ fontFamily: 'DM Sans, sans-serif' }} />
+                <input placeholder="Search guests..." className="flex-1 text-sm bg-transparent border-none outline-none" style={{ }} />
               </div>
             </div>
             <div className="overflow-y-auto flex-1">
@@ -131,7 +131,7 @@ export default function HostMessagesPage() {
                 onChange={(e) => setNewMsg(e.target.value)}
                 placeholder="Type a message to your guest..."
                 className="flex-1 px-4 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400"
-                style={{ fontFamily: 'DM Sans, sans-serif' }}
+                style={{ }}
               />
               <button type="submit"
                 className="w-10 h-10 rounded-xl flex items-center justify-center"

@@ -5,7 +5,7 @@ export default function NotFoundPage() {
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--cream)' }}>
       <div className="max-w-md w-full text-center">
         <div className="text-8xl mb-6">🏠</div>
-        <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--brown-dark)', fontFamily: 'Playfair Display, serif' }}>
+        <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--brown-dark)' }}>
           Page Not Found
         </h1>
         <p className="text-stone-600 mb-8">
