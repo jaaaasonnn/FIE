@@ -3,14 +3,16 @@
 @import "tailwindcss";
 
 :root {
-  --brown-dark: #1A1208;
-  --gold: #F5C06A;
+  --brown-dark: #080400;
+  --gold: #F0B84E;
   --amber: #C8873F;
   --cream: #FAF7F2;
-  --brown-mid: #3D2B1A;
-  --brown-light: #7A5C3E;
+  --brown-mid: #1A0E04;
+  --brown-light: #5C3D1E;
   --gold-light: #FBE8BB;
   --amber-dark: #9C5F1F;
+  --surface-dark: #110A02;
+  --border-gold: rgba(240,184,78,0.18);
 }
 
 * {
@@ -60,20 +62,34 @@ h1, h2, h3, h4, h5 {
 
 /* Card hover */
 .listing-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 .listing-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px rgba(26, 18, 8, 0.15);
+  transform: translateY(-5px);
+  box-shadow: 0 24px 48px rgba(8, 4, 0, 0.18);
+}
+
+/* Glass surface for dark sections */
+.glass-dark {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border-gold);
+  backdrop-filter: blur(8px);
+}
+
+/* Refined gold divider */
+.gold-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.35;
 }
 
 /* Gradient overlay for hero images */
 .hero-overlay {
   background: linear-gradient(
     to bottom,
-    rgba(26, 18, 8, 0.1) 0%,
-    rgba(26, 18, 8, 0.5) 60%,
-    rgba(26, 18, 8, 0.85) 100%
+    rgba(8, 4, 0, 0.15) 0%,
+    rgba(8, 4, 0, 0.55) 60%,
+    rgba(8, 4, 0, 0.92) 100%
   );
 }
 

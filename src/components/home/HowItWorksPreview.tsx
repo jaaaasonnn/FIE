@@ -20,7 +20,7 @@ export function HowItWorksPreview() {
 
     steps?.forEach((el) => { (el as HTMLElement).style.opacity = '0'; (el as HTMLElement).style.transform = 'translateY(40px)' })
     if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateY(30px)' }
-    if (line) { (line as HTMLElement).style.scaleX = '0'; (line as HTMLElement).style.transformOrigin = 'left' }
+    if (line) { (line as HTMLElement).style.transform = 'scaleX(0)'; (line as HTMLElement).style.transformOrigin = 'left' }
 
     const observer = new IntersectionObserver(
       (entries) => {

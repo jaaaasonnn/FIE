@@ -119,7 +119,7 @@ export function HeroSection() {
         <div ref={searchRef} className="max-w-3xl mx-auto">
           {/* Mode tabs */}
           <div className="flex gap-1 p-1 rounded-full mb-3 inline-flex mx-auto"
-            style={{ backgroundColor: 'rgba(26,18,8,0.6)', backdropFilter: 'blur(8px)', border: '1px solid rgba(245,192,106,0.3)' }}>
+            style={{ backgroundColor: 'rgba(8,4,0,0.72)', backdropFilter: 'blur(12px)', border: '1px solid rgba(240,184,78,0.28)' }}>
             {[
               { val: 'SHORT_STAY', label: '🌙 Short Stay' },
               { val: 'TEMP_STAY', label: '📅 Monthly' },

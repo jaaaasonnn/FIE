@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import { Home, Mail, Phone, MapPin } from 'lucide-react'
+import Image from 'next/image'
+import { Mail, Phone, MapPin } from 'lucide-react'
 
 export function Footer() {
   return (
     <footer style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--cream)' }}>
       {/* Warning banner */}
-      <div className="bg-amber-900/40 border-b border-amber/20">
+      <div style={{ backgroundColor: 'rgba(200,135,63,0.12)', borderBottom: '1px solid rgba(240,184,78,0.15)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <p className="text-center text-sm" style={{ color: 'var(--gold-light)' }}>
             🛡️ Never pay outside the app. FieGH does not support direct bank transfers or cash payments.
@@ -13,17 +14,16 @@ export function Footer() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--gold)' }}>
-                <Home size={18} style={{ color: 'var(--brown-dark)' }} />
+            <Link href="/" className="flex items-center gap-3 mb-5">
+              <Image src="/logo.png" alt="FieGH" width={44} height={44} className="rounded-xl" />
+              <div className="flex flex-col leading-tight">
+                <span className="text-xl font-bold" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>FieGH</span>
+                <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>GHANA RENTALS</span>
               </div>
-              <span className="text-xl font-bold" style={{ fontFamily: 'Playfair Display, serif', color: 'var(--gold)' }}>
-                FieGH
-              </span>
             </Link>
             <p className="text-sm mb-4" style={{ color: 'rgba(250,247,242,0.65)', lineHeight: '1.6' }}>
               "Fie" means "home" in Twi. 🇬🇭<br />
@@ -107,7 +107,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: '1px solid rgba(240,184,78,0.12)' }}>
           <p className="text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
             © {new Date().getFullYear()} FieGH. Made with ❤️ in Ghana.
           </p>
