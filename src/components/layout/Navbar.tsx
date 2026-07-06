@@ -19,7 +19,6 @@ export function Navbar() {
               alt="FieGH"
               width={48}
               height={48}
-              style={{ mixBlendMode: 'screen' }}
               priority
             />
             <div className="flex flex-col leading-tight">
