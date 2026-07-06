@@ -2,15 +2,13 @@
 
 import { useEffect, useRef } from 'react'
 import Link from 'next/link'
-import { Star, MapPin, Bed, Bath, Users } from 'lucide-react'
-import { Badge, VerifiedBadge } from '@/components/ui/Badge'
+import { Star, MapPin, Bed, Bath, Users, Heart } from 'lucide-react'
 
 const MOCK_LISTINGS = [
   {
     id: '1',
     title: 'Luxury 3BR Apartment in East Legon',
     type: 'Apartment',
-    region: 'Greater Accra',
     city: 'Accra',
     neighbourhood: 'East Legon',
     bedrooms: 3, bathrooms: 2, maxGuests: 6,
@@ -19,13 +17,11 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=600&q=75',
     modes: ['SHORT_STAY', 'TEMP_STAY'],
     verified: true, superhost: true,
-    amenities: ['WiFi', 'Pool', 'AC', 'Generator']
   },
   {
     id: '2',
     title: 'Modern Studio in Cantonments',
     type: 'Studio',
-    region: 'Greater Accra',
     city: 'Accra',
     neighbourhood: 'Cantonments',
     bedrooms: 1, bathrooms: 1, maxGuests: 2,
@@ -34,13 +30,11 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=600&q=75',
     modes: ['SHORT_STAY'],
     verified: true, superhost: false,
-    amenities: ['WiFi', 'AC', 'Security']
   },
   {
     id: '3',
     title: 'Spacious 4BR House, Airport Hills',
     type: 'House',
-    region: 'Greater Accra',
     city: 'Accra',
     neighbourhood: 'Airport Hills',
     bedrooms: 4, bathrooms: 3, maxGuests: 8,
@@ -49,13 +43,11 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',
     modes: ['TEMP_STAY', 'PERMANENT'],
     verified: true, superhost: false,
-    amenities: ['WiFi', 'Generator', 'Parking', 'Boys Quarters']
   },
   {
     id: '4',
     title: 'Cosy Villa in Kumasi (Nhyiaeso)',
     type: 'Villa',
-    region: 'Ashanti',
     city: 'Kumasi',
     neighbourhood: 'Nhyiaeso',
     bedrooms: 5, bathrooms: 4, maxGuests: 10,
@@ -64,13 +56,11 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=600&q=75',
     modes: ['SHORT_STAY', 'TEMP_STAY'],
     verified: true, superhost: true,
-    amenities: ['Pool', 'WiFi', 'AC', 'Garden', 'Gym']
   },
   {
     id: '5',
     title: 'Furnished 2BR Apartment, Labone',
     type: 'Apartment',
-    region: 'Greater Accra',
     city: 'Accra',
     neighbourhood: 'Labone',
     bedrooms: 2, bathrooms: 2, maxGuests: 4,
@@ -79,13 +69,11 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=600&q=75',
     modes: ['TEMP_STAY', 'PERMANENT'],
     verified: true, superhost: false,
-    amenities: ['WiFi', 'AC', 'CCTV', 'Parking']
   },
   {
     id: '6',
     title: 'Private Guestroom, Osu',
     type: 'Guestroom',
-    region: 'Greater Accra',
     city: 'Accra',
     neighbourhood: 'Osu',
     bedrooms: 1, bathrooms: 1, maxGuests: 2,
@@ -94,24 +82,31 @@ const MOCK_LISTINGS = [
     photo: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600&q=75',
     modes: ['SHORT_STAY'],
     verified: false, superhost: false,
-    amenities: ['WiFi', 'AC']
   },
 ]
 
-const MODE_LABELS: Record<string, { label: string; color: 'gold' | 'blue' | 'green' }> = {
-  SHORT_STAY: { label: '🌙 Short Stay', color: 'gold' },
-  TEMP_STAY: { label: '📅 Monthly', color: 'blue' },
-  PERMANENT: { label: '🏠 Long-Term', color: 'green' }
+const MODE_LABELS: Record<string, string> = {
+  SHORT_STAY: '🌙 Short Stay',
+  TEMP_STAY:  '📅 Monthly',
+  PERMANENT:  '🏠 Long-Term',
 }
+
+const GHS_RATE = 15.5
 
 export function FeaturedListings() {
   const sectionRef = useRef<HTMLElement>(null)
 
   useEffect(() => {
-    const cards = sectionRef.current?.querySelectorAll('.listing-card')
+    const cards   = sectionRef.current?.querySelectorAll('.listing-card')
     const heading = sectionRef.current?.querySelector('.listing-heading')
-    cards?.forEach((el) => { (el as HTMLElement).style.opacity = '0'; (el as HTMLElement).style.transform = 'translateY(50px) scale(0.97)' })
-    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateY(30px)' }
+    cards?.forEach((el) => {
+      (el as HTMLElement).style.opacity = '0'
+      ;(el as HTMLElement).style.transform = 'translateY(48px) scale(0.97)'
+    })
+    if (heading) {
+      (heading as HTMLElement).style.opacity = '0'
+      ;(heading as HTMLElement).style.transform = 'translateY(28px)'
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -121,25 +116,30 @@ export function FeaturedListings() {
               const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
               if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
               tl.to(entry.target.querySelectorAll('.listing-card'), {
-                y: 0, opacity: 1, scale: 1, stagger: 0.12, duration: 0.7
+                y: 0, opacity: 1, scale: 1, stagger: 0.1, duration: 0.65,
               }, '-=0.2')
             })
             observer.unobserve(entry.target)
           }
         })
       },
-      { threshold: 0.05 }
+      { threshold: 0.05 },
     )
     if (sectionRef.current) observer.observe(sectionRef.current)
     return () => observer.disconnect()
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4 bg-[var(--color-bg)]">
+    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-7xl mx-auto">
+
+        {/* Heading row */}
         <div className="listing-heading flex items-end justify-between mb-10">
           <div>
-            <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
+            <p
+              className="text-xs font-semibold uppercase tracking-widest mb-2"
+              style={{ color: 'var(--color-accent)', letterSpacing: '0.1em' }}
+            >
               Hand-picked for you
             </p>
             <h2 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
@@ -148,102 +148,184 @@ export function FeaturedListings() {
           </div>
           <Link
             href="/search"
-            className="hidden sm:flex items-center gap-1 text-sm font-semibold hover:gap-2 transition-all"
+            className="hidden sm:flex items-center gap-1 text-sm font-semibold transition-all hover:gap-2"
             style={{ color: 'var(--color-accent)' }}
           >
             View all <span>→</span>
           </Link>
         </div>
 
+        {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MOCK_LISTINGS.map((listing) => (
-            <Link key={listing.id} href={`/listings/${listing.id}`} className="listing-card group block bg-white rounded-2xl overflow-hidden border border-stone-100 shadow-sm">
-              {/* Photo */}
-              <div className="relative h-52 overflow-hidden">
-                <img
-                  src={listing.photo}
-                  alt={listing.title}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
-                {/* Mode badges */}
-                <div className="absolute top-3 left-3 flex gap-1">
-                  {listing.modes.slice(0, 2).map((m) => (
+          {MOCK_LISTINGS.map((l) => {
+            const price    = l.priceNightly ?? l.priceMonthly ?? 0
+            const unit     = l.priceNightly ? '/night' : '/mo'
+            const ghsPrice = Math.round(price * GHS_RATE).toLocaleString()
+
+            return (
+              // ── Entire card is a single clickable link ──────────────────
+              <Link
+                key={l.id}
+                href={`/listings/${l.id}`}
+                className="listing-card group block rounded-2xl overflow-hidden"
+                style={{
+                  backgroundColor: 'var(--color-bg-card)',
+                  border: '1px solid var(--color-border)',
+                  boxShadow: '0 2px 8px rgba(31,27,22,0.06)',
+                  textDecoration: 'none',
+                }}
+              >
+                {/* ── Image ─────────────────────────────────────────────── */}
+                <div className="relative h-52 overflow-hidden bg-stone-100">
+                  <img
+                    src={l.photo}
+                    alt={l.title}
+                    className="listing-card-img w-full h-full object-cover transition-transform duration-500"
+                    loading="lazy"
+                  />
+
+                  {/* Mode pill — top-left, single pill only */}
+                  {l.modes[0] && (
                     <span
-                      key={m}
-                      className="text-xs px-2 py-1 rounded-full font-medium"
-                      style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--color-accent)', backdropFilter: 'blur(4px)' }}
+                      className="absolute top-3 left-3 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                      style={{
+                        backgroundColor: 'rgba(0,0,0,0.52)',
+                        color: '#fff',
+                        backdropFilter: 'blur(6px)',
+                        letterSpacing: '0.01em',
+                      }}
                     >
-                      {MODE_LABELS[m]?.label}
-                    </span>
-                  ))}
-                </div>
-                {/* Heart */}
-                <button className="absolute top-3 right-3 w-8 h-8 bg-white/80 rounded-full flex items-center justify-center hover:bg-white transition-all">
-                  <span className="text-sm">♡</span>
-                </button>
-              </div>
-
-              {/* Body */}
-              <div className="p-4">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <h3 className="font-semibold text-sm leading-snug flex-1" style={{ color: 'var(--color-text-primary)' }}>
-                    {listing.title}
-                  </h3>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <Star size={12} className="fill-amber-400 text-amber-400" />
-                    <span className="text-xs font-medium">{listing.rating}</span>
-                    <span className="text-xs text-stone-400">({listing.reviews})</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 text-xs text-[#6B645C] mb-3">
-                  <MapPin size={12} />
-                  {listing.neighbourhood}, {listing.city}
-                </div>
-
-                <div className="flex items-center gap-3 text-xs text-[#6B645C] mb-4">
-                  <span className="flex items-center gap-1"><Bed size={12} />{listing.bedrooms}bd</span>
-                  <span className="flex items-center gap-1"><Bath size={12} />{listing.bathrooms}ba</span>
-                  <span className="flex items-center gap-1"><Users size={12} />Up to {listing.maxGuests}</span>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {listing.verified && <VerifiedBadge />}
-                  {listing.superhost && <Badge variant="gold">⭐ Superhost</Badge>}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="px-4 pb-4 flex items-center justify-between">
-                <div>
-                  {listing.priceNightly && (
-                    <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                      ${listing.priceNightly}
-                      <span className="text-xs font-normal text-[#6B645C]">/night</span>
+                      {MODE_LABELS[l.modes[0]]}
                     </span>
                   )}
-                  {listing.priceMonthly && !listing.priceNightly && (
-                    <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                      ${listing.priceMonthly}
-                      <span className="text-xs font-normal text-[#6B645C]">/month</span>
-                    </span>
-                  )}
-                  <div className="text-xs text-stone-400">
-                    ≈ GH₵ {((listing.priceNightly || listing.priceMonthly || 0) * 15.5).toLocaleString()}
-                  </div>
+
+                  {/* Heart — top-right */}
+                  <button
+                    onClick={(e) => e.preventDefault()}
+                    className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(4px)' }}
+                    aria-label="Save listing"
+                  >
+                    <Heart size={14} style={{ color: 'var(--color-text-secondary)' }} />
+                  </button>
                 </div>
-                <button
-                  className="text-xs px-4 py-2 rounded-full font-semibold transition-all hover:opacity-90"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+
+                {/* ── Body ──────────────────────────────────────────────── */}
+                <div className="p-4 pb-0">
+                  {/* Title row + rating */}
+                  <div className="flex items-start justify-between gap-3 mb-1">
+                    <h3
+                      className="font-semibold text-sm leading-snug flex-1 line-clamp-2"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      {l.title}
+                    </h3>
+                    {/* Rating — top-right of text area */}
+                    <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+                      <Star size={11} className="fill-[#C9932E] text-[#C9932E]" />
+                      <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                        {l.rating}
+                      </span>
+                      <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                        ({l.reviews})
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Location */}
+                  <div
+                    className="flex items-center gap-1 text-xs mb-2.5"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    <MapPin size={11} className="flex-shrink-0" />
+                    {l.neighbourhood}, {l.city}
+                  </div>
+
+                  {/* Specs */}
+                  <div
+                    className="flex items-center gap-3 text-xs mb-3"
+                    style={{ color: 'var(--color-text-muted)' }}
+                  >
+                    <span className="flex items-center gap-1"><Bed size={11} />{l.bedrooms} bd</span>
+                    <span className="flex items-center gap-1"><Bath size={11} />{l.bathrooms} ba</span>
+                    <span className="flex items-center gap-1"><Users size={11} />Up to {l.maxGuests}</span>
+                  </div>
+
+                  {/* Compact trust badges — inline, subtle, secondary info */}
+                  {(l.verified || l.superhost) && (
+                    <div className="flex items-center gap-1.5 mb-3">
+                      {l.verified && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: '#EBF0F7',
+                            color: '#3A5A8A',
+                            border: '1px solid #C8D8ED',
+                          }}
+                        >
+                          ✓ Verified
+                        </span>
+                      )}
+                      {l.superhost && (
+                        <span
+                          className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          style={{
+                            backgroundColor: 'var(--color-accent-subtle)',
+                            color: '#8A5E10',
+                            border: '1px solid #E5D0A8',
+                          }}
+                        >
+                          ⭐ Superhost
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Price footer ───────────────────────────────────────── */}
+                <div
+                  className="px-4 py-3 mt-1 flex items-end justify-between"
+                  style={{ borderTop: '1px solid var(--color-border)' }}
                 >
-                  View
-                </button>
-              </div>
-            </Link>
-          ))}
+                  {/* Price — bottom-left */}
+                  <div>
+                    <div className="flex items-baseline gap-1">
+                      <span
+                        className="text-base font-bold"
+                        style={{ color: 'var(--color-text-primary)' }}
+                      >
+                        ${price.toLocaleString()}
+                      </span>
+                      <span
+                        className="text-xs font-normal"
+                        style={{ color: 'var(--color-text-secondary)' }}
+                      >
+                        {unit}
+                      </span>
+                    </div>
+                    {/* GH₵ conversion — smaller, lighter, secondary */}
+                    <div
+                      className="text-[11px] mt-0.5"
+                      style={{ color: 'var(--color-text-muted)' }}
+                    >
+                      ≈ GH₵ {ghsPrice}
+                    </div>
+                  </div>
+
+                  {/* Subtle "tap to view" affordance — no button, just a caret */}
+                  <span
+                    className="text-xs font-semibold flex items-center gap-0.5 transition-all group-hover:gap-1.5"
+                    style={{ color: 'var(--color-accent)' }}
+                  >
+                    View <span className="text-sm">→</span>
+                  </span>
+                </div>
+              </Link>
+            )
+          })}
         </div>
 
+        {/* Mobile view-all CTA */}
         <div className="text-center mt-8 sm:hidden">
           <Link
             href="/search"

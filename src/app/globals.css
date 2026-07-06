@@ -91,11 +91,15 @@ input, select, textarea, button {
 
 /* ─── Cards ─────────────────────────────────────────────────────── */
 .listing-card {
-  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  will-change: transform;
 }
 .listing-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 24px 48px rgba(31,27,22,0.12);
+  transform: scale(1.015);
+  box-shadow: 0 16px 40px rgba(31,27,22,0.13);
+}
+.listing-card:hover .listing-card-img {
+  transform: scale(1.06);
 }
 
 /* Glass surface (dark sections) */
