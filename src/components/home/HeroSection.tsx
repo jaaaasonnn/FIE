@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Search, MapPin, Calendar } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
 import { GHANA_REGIONS } from '@/lib/utils'
 
 // Shared radius token — used on pill, toggle, search card, search button
@@ -25,9 +27,9 @@ export function HeroSection() {
   const searchRef  = useRef<HTMLDivElement>(null)
   const statsRef   = useRef<HTMLDivElement>(null)
 
-  const [mode, setMode]     = useState('SHORT_STAY')
-  const [region, setRegion] = useState('')
-  const [date, setDate]     = useState('')
+  const [mode, setMode]         = useState('SHORT_STAY')
+  const [region, setRegion]     = useState('')
+  const [startDate, setStartDate] = useState<Date | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -67,8 +69,8 @@ export function HeroSection() {
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     const params = new URLSearchParams({ mode })
-    if (region) params.set('region', region)
-    if (date)   params.set('checkIn', date)
+    if (region)    params.set('region', region)
+    if (startDate) params.set('checkIn', startDate.toISOString().split('T')[0])
     router.push(`/search?${params.toString()}`)
   }
 
@@ -171,13 +173,17 @@ export function HeroSection() {
             }}
           >
             {/* Region */}
-            <div className="flex items-center gap-2 flex-1 px-3">
+            <div className="flex items-center gap-2 flex-1 px-3" style={{ minHeight: '52px' }}>
               <MapPin size={17} style={{ color: 'var(--color-accent)' }} className="flex-shrink-0" />
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
-                className="w-full text-sm border-none outline-none bg-transparent py-3"
-                style={{ color: region ? 'var(--color-text-primary)' : '#9CA3AF' }}
+                className="w-full text-sm border-none outline-none bg-transparent"
+                style={{
+                  color: region ? 'var(--color-text-primary)' : '#9CA3AF',
+                  height: '52px',
+                  cursor: 'pointer',
+                }}
               >
                 <option value="">All regions in Ghana</option>
                 {GHANA_REGIONS.map((r) => (
@@ -186,31 +192,37 @@ export function HeroSection() {
               </select>
             </div>
 
-            <div className="hidden sm:block w-px my-3" style={{ backgroundColor: 'var(--color-border)' }} />
+            <div className="hidden sm:block w-px my-2" style={{ backgroundColor: 'var(--color-border)' }} />
 
-            {/* Date */}
-            <div className="flex items-center gap-2 px-3 sm:w-48">
+            {/* Date picker */}
+            <div className="flex items-center gap-2 px-3 sm:w-52 hero-datepicker" style={{ minHeight: '52px' }}>
               <Calendar size={17} style={{ color: 'var(--color-accent)' }} className="flex-shrink-0" />
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full text-sm border-none outline-none bg-transparent py-3"
-                style={{ color: date ? 'var(--color-text-primary)' : '#9CA3AF' }}
-                placeholder="Move-in date"
+              <DatePicker
+                selected={startDate}
+                onChange={(d: Date | null) => setStartDate(d)}
+                placeholderText="Move-in date"
+                minDate={new Date()}
+                dateFormat="dd MMM yyyy"
+                className="w-full text-sm border-none outline-none bg-transparent py-3 cursor-pointer"
+                calendarClassName="fiegh-cal"
+                showPopperArrow={false}
+                popperPlacement="bottom-start"
               />
             </div>
 
-            {/* Search CTA — same 20px radius as card */}
+            {/* Search CTA */}
             <button
               type="submit"
-              className="flex items-center justify-center gap-2 px-6 py-3 font-semibold text-sm transition-all hover:brightness-110 active:scale-95"
+              className="flex items-center justify-center gap-2 px-6 font-semibold text-sm transition-all active:scale-95 group"
               style={{
                 backgroundColor: 'var(--color-accent)',
                 color: '#fff',
                 borderRadius: R.card,
                 minWidth: '120px',
+                height: '52px',
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-accent-hover)')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'var(--color-accent)')}
             >
               <Search size={16} />
               Search
