@@ -134,10 +134,11 @@ export async function GET(req: Request) {
               id: true, title: true, photos: true, city: true,
               neighbourhood: true, hostId: true,
               cancellationPolicy: true, instantBook: true,
+              welcomeMessage: true,
             },
           },
           guest:    { select: { id: true, name: true, email: true, phone: true, profilePhoto: true } },
-          host:     { select: { id: true, name: true, profilePhoto: true } },
+          host:     { select: { id: true, name: true, profilePhoto: true, phone: true } },
           payments: true,
         },
       })
