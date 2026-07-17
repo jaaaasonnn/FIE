@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { validateGhanaPhone } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -44,6 +45,14 @@ const MODE_UNIT: Record<string, string> = {
 export default function CheckoutPage() {
   const { id: bookingId } = useParams<{ id: string }>()
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
+
+  // Client-side auth guard (belt-and-suspenders — middleware also redirects)
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace(`/login?redirect=/checkout/${bookingId}`)
+    }
+  }, [authLoading, user, bookingId, router])
 
   // Booking data
   const [booking,      setBooking]      = useState<BookingData | null>(null)

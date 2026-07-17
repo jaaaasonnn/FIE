@@ -3,10 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Calendar, CheckCircle, Clock, XCircle, MessageSquare } from 'lucide-react'
-
-// TODO: Replace TEMP_HOST_ID with the real auth session user ID once authentication is wired in.
-// Temporary host: Abena Mensah (Superhost, East Legon & Cantonments listings)
-const TEMP_HOST_ID = 'seed_7ed5b7598978d3383867'
+import { useAuth } from '@/context/AuthContext'
 
 type ApiBooking = {
   id: string
@@ -43,17 +40,19 @@ const MODE_LABELS: Record<string, string> = {
 const FILTERS = ['All', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']
 
 export default function HostBookingsPage() {
+  const { user } = useAuth()
   const [allBookings, setAllBookings] = useState<ApiBooking[]>([])
   const [loading, setLoading]         = useState(true)
   const [filter, setFilter]           = useState('All')
 
   useEffect(() => {
-    fetch(`/api/bookings?hostId=${TEMP_HOST_ID}`)
+    if (!user) return
+    fetch(`/api/bookings?hostId=${user.id}`)
       .then((r) => r.json())
       .then((data) => setAllBookings(Array.isArray(data.bookings) ? data.bookings : []))
       .catch(() => setAllBookings([]))
       .finally(() => setLoading(false))
-  }, [])
+  }, [user])
 
   const bookings = filter === 'All' ? allBookings : allBookings.filter((b) => b.status === filter)
 

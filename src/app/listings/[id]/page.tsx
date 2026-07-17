@@ -12,6 +12,7 @@ import {
 import Link from 'next/link'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { useAuth } from '@/context/AuthContext'
 
 // ── API types ────────────────────────────────────────────────────────────────
 type ApiListing = {
@@ -86,6 +87,7 @@ const dpInputStyle: React.CSSProperties = {
 export default function ListingDetailPage() {
   const { id: listingId } = useParams<{ id: string }>()
   const router = useRouter()
+  const { user } = useAuth()
 
   // Listing data
   const [listing,    setListing]    = useState<ApiListing | null>(null)
@@ -211,8 +213,7 @@ export default function ListingDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listingId,
-          // TODO: replace with real auth session user ID once auth is wired in
-          guestId:        'seed_4a71dd569ffe8ed130b9', // Kofi Asante (demo guest)
+          guestId:        user!.id,
           rentalMode:     selectedMode,
           checkIn:        checkIn!.toISOString(),
           checkOut:       effectiveCheckOut!.toISOString(),
@@ -673,17 +674,27 @@ export default function ListingDetailPage() {
                 </div>
               )}
 
-              {/* Book button */}
-              <button onClick={handleBook} disabled={bookLoading || availLoading}
-                className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mb-3"
-                style={{
-                  backgroundColor: bookLoading ? '#D4A94E' : 'var(--color-accent)',
-                  color: '#fff', cursor: bookLoading ? 'not-allowed' : 'pointer', opacity: availLoading ? 0.7 : 1,
-                }}>
-                {bookLoading
-                  ? <><Loader2 size={16} className="animate-spin" /> Creating booking…</>
-                  : listing.instantBook ? '⚡ Instant Book' : 'Request to Book'}
-              </button>
+              {/* Book button — requires login */}
+              {user ? (
+                <button onClick={handleBook} disabled={bookLoading || availLoading}
+                  className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mb-3"
+                  style={{
+                    backgroundColor: bookLoading ? '#D4A94E' : 'var(--color-accent)',
+                    color: '#fff', cursor: bookLoading ? 'not-allowed' : 'pointer', opacity: availLoading ? 0.7 : 1,
+                  }}>
+                  {bookLoading
+                    ? <><Loader2 size={16} className="animate-spin" /> Creating booking…</>
+                    : listing.instantBook ? '⚡ Instant Book' : 'Request to Book'}
+                </button>
+              ) : (
+                <Link
+                  href={`/login?redirect=/listings/${listingId}`}
+                  className="w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center mb-3 transition-all hover:opacity-90"
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                >
+                  Log in to Book
+                </Link>
+              )}
 
               {selectedMode === 'PERMANENT' && (
                 <Button variant="outline" size="lg" className="w-full mb-3">Submit Rental Application</Button>
