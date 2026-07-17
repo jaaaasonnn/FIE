@@ -2,15 +2,15 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Middleware runs at the Edge — no Prisma/Node.js available.
+ * Proxy runs before routes are rendered (Next.js 16 equivalent of middleware).
  * Strategy: check for the presence of the session cookie.
- *   • Cookie present  → allow through (the route handler / client validates fully)
+ *   • Cookie present  → allow through (full validation happens in the route handler)
  *   • Cookie absent   → redirect to /login?redirect=<original-path>
  *
  * Protected prefixes: /dashboard, /checkout
  * Public: everything else (homepage, /search, /listings/*, /login, /api/*)
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
   const session = request.cookies.get('fiegh_session')
 
@@ -24,6 +24,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  // Only run middleware on routes that need protection
   matcher: ['/dashboard/:path*', '/checkout/:path*'],
 }
