@@ -22,8 +22,8 @@ export type AuthUser = {
   isSuperhost: boolean
 }
 
-type SignInResult  = { error?: string }
-type SignUpResult  = { error?: string }
+type SignInResult  = { error?: string; user?: AuthUser }
+type SignUpResult  = { error?: string; user?: AuthUser }
 
 export type SignUpData = {
   name: string
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json()
     if (!res.ok) return { error: data.error ?? 'Sign in failed' }
     setUser(data.user)
-    return {}
+    return { user: data.user as AuthUser }
   }, [])
 
   const signUp = useCallback(async (signUpData: SignUpData): Promise<SignUpResult> => {
@@ -83,7 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Auto sign-in immediately after successful registration
     const loginId = signUpData.email ?? signUpData.phone ?? ''
-    return signIn(loginId, signUpData.password)
+    const signInResult = await signIn(loginId, signUpData.password)
+    return { error: signInResult.error, user: signInResult.user }
   }, [signIn])
 
   const signOut = useCallback(async () => {

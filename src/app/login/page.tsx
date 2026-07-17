@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -16,6 +16,9 @@ export default function LoginPage() {
   const { user, loading: authLoading, signIn, signUp } = useAuth()
 
   const [tab, setTab] = useState<Tab>('login')
+  // Track whether the page load found an already-authenticated user
+  // so the useEffect doesn't fight with our post-form navigation
+  const mountedWithUser = useRef(false)
 
   // ── Login state ──────────────────────────────────────────────────────────
   const [loginId,  setLoginId]  = useState('')
@@ -34,12 +37,17 @@ export default function LoginPage() {
   const [signupErr, setSignupErr] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
 
-  // If already logged in, redirect away
+  // If the user was ALREADY logged in when this page loaded, redirect away.
+  // We deliberately do NOT use the `redirect` param here for form submissions —
+  // each handler (handleLogin / handleSignup) manages its own destination so
+  // that sign-up always lands on the dashboard, never on a stale redirect URL.
   useEffect(() => {
-    if (!authLoading && user) {
-      router.replace(redirect || (user.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'))
+    if (authLoading) return
+    if (user && !mountedWithUser.current) {
+      mountedWithUser.current = true
+      router.replace(user.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
     }
-  }, [authLoading, user, redirect, router])
+  }, [authLoading, user, router])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -51,7 +59,10 @@ export default function LoginPage() {
     const result = await signIn(loginId, loginPw)
     setLoginBusy(false)
     if (result.error) { setLoginErr(result.error); return }
-    // Redirect handled by the useEffect above once user state updates
+    // For sign-in, honour the redirect param so users land back where they came from.
+    // Only follow internal paths (must start with /) to prevent open-redirect.
+    const dest = (redirect && redirect.startsWith('/')) ? redirect : (result.user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
+    router.replace(dest)
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -65,6 +76,9 @@ export default function LoginPage() {
     const result = await signUp({ name: name.trim(), email: email.trim(), password, role })
     setSignupBusy(false)
     if (result.error) { setSignupErr(result.error); return }
+    // For sign-up, ALWAYS go to the role-based dashboard — never follow the redirect
+    // param, because a new user has no prior destination to return to.
+    router.replace(role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
   }
 
   if (authLoading) return null // Avoid flash before session check completes
