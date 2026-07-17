@@ -211,7 +211,8 @@ export default function ListingDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           listingId,
-          guestId:        'guest-demo-id',
+          // TODO: replace with real auth session user ID once auth is wired in
+          guestId:        'seed_4a71dd569ffe8ed130b9', // Kofi Asante (demo guest)
           rentalMode:     selectedMode,
           checkIn:        checkIn!.toISOString(),
           checkOut:       effectiveCheckOut!.toISOString(),

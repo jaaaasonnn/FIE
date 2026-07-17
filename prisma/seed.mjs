@@ -22,9 +22,10 @@ function stableId(key) {
   return 'seed_' + createHash('md5').update(key).digest('hex').slice(0, 20)
 }
 
-const HOST_ABENA  = stableId('host-abena-mensah')
-const HOST_KWESI  = stableId('host-kwesi-boateng')
-const HOST_AKOSUA = stableId('host-akosua-darko')
+const HOST_ABENA   = stableId('host-abena-mensah')
+const HOST_KWESI   = stableId('host-kwesi-boateng')
+const HOST_AKOSUA  = stableId('host-akosua-darko')
+const GUEST_KOFI   = stableId('guest-kofi-asante')   // demo guest for booking tests
 
 // ── Hosts ────────────────────────────────────────────────────────────────────
 const HOSTS = [
@@ -306,6 +307,22 @@ async function main() {
     await db.listing.deleteMany()
     await db.user.deleteMany({ where: { email: { endsWith: '@fiegh.demo' } } })
   }
+
+  // ── Seed demo guest ────────────────────────────────────────────────────
+  console.log('👤 Seeding demo guest…')
+  await db.user.upsert({
+    where:  { id: GUEST_KOFI },
+    update: {},
+    create: {
+      id:         GUEST_KOFI,
+      name:       'Kofi Asante',
+      email:      'kofi@fiegh.demo',
+      phone:      '+233245550001',
+      role:       'GUEST',
+      trustScore: 72,
+      isVerified: false,
+    },
+  })
 
   // ── Seed hosts ─────────────────────────────────────────────────────────
   console.log('👤 Seeding hosts…')
