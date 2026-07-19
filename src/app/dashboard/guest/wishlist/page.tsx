@@ -1,24 +1,102 @@
 'use client'
 
 import Link from 'next/link'
-import { Heart, MapPin, Star, Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { Heart, MapPin, Star, Trash2, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/context/AuthContext'
 
-const MOCK_WISHLIST = [
-  { id: '1', title: 'Luxury 3BR Apartment in East Legon', city: 'Accra', neighbourhood: 'East Legon', priceNightly: 120, rating: 4.9, reviews: 47, photo: 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&q=70', modes: ['SHORT_STAY', 'TEMP_STAY'], superhost: true },
-  { id: '4', title: 'Cosy Villa in Kumasi (Nhyiaeso)', city: 'Kumasi', neighbourhood: 'Nhyiaeso', priceNightly: 200, rating: 5.0, reviews: 8, photo: 'https://images.unsplash.com/photo-1582268611958-ebfd161ef9cf?w=400&q=70', modes: ['SHORT_STAY'], superhost: true },
-  { id: '7', title: 'Serviced Apartment, Ridge', city: 'Accra', neighbourhood: 'Ridge', priceNightly: 95, rating: 4.5, reviews: 19, photo: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&q=70', modes: ['SHORT_STAY', 'TEMP_STAY'], superhost: false },
-]
+type WishlistItem = {
+  id: string
+  wishlistId: string
+  title: string
+  city: string
+  neighbourhood: string | null
+  priceNightly: number | null
+  rating: number
+  reviews: number
+  photo: string
+  modes: string[]
+  superhost: boolean
+}
 
 const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term'
+  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term',
+}
+
+function parseJsonArray(value: unknown): string[] {
+  if (Array.isArray(value)) return value as string[]
+  if (typeof value === 'string') {
+    try { return JSON.parse(value) as string[] } catch { return [] }
+  }
+  return []
+}
+
+function firstPhoto(photos: unknown): string {
+  const arr = parseJsonArray(photos)
+  return arr[0] ?? ''
 }
 
 export default function WishlistPage() {
-  const [items, setItems] = useState(MOCK_WISHLIST)
+  const { user, loading: authLoading } = useAuth()
+  const [items, setItems] = useState<WishlistItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  function remove(id: string) {
-    setItems((prev) => prev.filter((i) => i.id !== id))
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      setItems([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    fetch(`/api/wishlists?userId=${user.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const rows = Array.isArray(data.wishlists) ? data.wishlists : []
+        setItems(rows.map((w: {
+          id: string
+          listing: {
+            id: string
+            title: string
+            city: string
+            neighbourhood: string | null
+            priceNightly: number | null
+            avgRating: number
+            reviewCount: number
+            photos: string
+            rentalModes: string
+            host: { isSuperhost: boolean }
+          }
+        }) => ({
+          id:             w.listing.id,
+          wishlistId:     w.id,
+          title:          w.listing.title,
+          city:           w.listing.city,
+          neighbourhood:  w.listing.neighbourhood,
+          priceNightly:   w.listing.priceNightly,
+          rating:         w.listing.avgRating ?? 0,
+          reviews:        w.listing.reviewCount ?? 0,
+          photo:          firstPhoto(w.listing.photos),
+          modes:          parseJsonArray(w.listing.rentalModes),
+          superhost:      w.listing.host?.isSuperhost ?? false,
+        })))
+      })
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }, [user, authLoading])
+
+  async function remove(listingId: string) {
+    if (!user) return
+    setItems((prev) => prev.filter((i) => i.id !== listingId))
+    try {
+      await fetch('/api/wishlists', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: user.id, listingId }),
+      })
+    } catch {
+      // Optimistic remove already applied; refetch would be overkill for this UI
+    }
   }
 
   return (
@@ -32,7 +110,9 @@ export default function WishlistPage() {
                 Your Wishlist
               </h1>
               <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>
-                {items.length} saved {items.length === 1 ? 'property' : 'properties'}
+                {loading || authLoading
+                  ? 'Loading…'
+                  : `${items.length} saved ${items.length === 1 ? 'property' : 'properties'}`}
               </p>
             </div>
           </div>
@@ -56,7 +136,12 @@ export default function WishlistPage() {
           ))}
         </div>
 
-        {items.length === 0 ? (
+        {loading || authLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading wishlist…</p>
+          </div>
+        ) : items.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-4">💔</div>
             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No saved properties yet</h3>
@@ -81,13 +166,15 @@ export default function WishlistPage() {
 
                 <Link href={`/listings/${listing.id}`}>
                   <div className="relative h-48 overflow-hidden">
-                    <img src={listing.photo} alt={listing.title}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                    {listing.photo && (
+                      <img src={listing.photo} alt={listing.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                    )}
                     <div className="absolute top-3 left-3 flex gap-1">
                       {listing.modes.slice(0, 1).map((m) => (
                         <span key={m} className="text-xs px-2 py-0.5 rounded-full font-medium"
                           style={{ backgroundColor: 'rgba(26,18,8,0.75)', color: 'var(--color-accent)' }}>
-                          {MODE_LABELS[m]}
+                          {MODE_LABELS[m] ?? m}
                         </span>
                       ))}
                     </div>
@@ -101,14 +188,16 @@ export default function WishlistPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-xs text-[#6B645C] mb-3">
-                      <MapPin size={11} />{listing.neighbourhood}, {listing.city}
+                      <MapPin size={11} />{listing.neighbourhood ? `${listing.neighbourhood}, ` : ''}{listing.city}
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                          ${listing.priceNightly}<span className="text-xs font-normal text-[#6B645C]">/night</span>
+                          ${listing.priceNightly ?? '—'}<span className="text-xs font-normal text-[#6B645C]">/night</span>
                         </span>
-                        <div className="text-xs text-stone-400">≈ GH₵ {(listing.priceNightly * 15.5).toLocaleString()}</div>
+                        {listing.priceNightly != null && (
+                          <div className="text-xs text-stone-400">≈ GH₵ {(listing.priceNightly * 15.5).toLocaleString()}</div>
+                        )}
                       </div>
                       {listing.superhost && (
                         <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FBE8BB', color: '#92400E' }}>⭐ Superhost</span>

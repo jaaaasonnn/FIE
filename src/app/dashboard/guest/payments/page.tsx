@@ -1,26 +1,69 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CreditCard, CheckCircle, Clock, XCircle, Download } from 'lucide-react'
+import { CreditCard, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
-const MOCK_PAYMENTS = [
-  { id: 'p1', booking: 'Luxury 3BR Apt, East Legon', date: '2024-12-15', amount: 1210, currency: 'USD', method: 'MTN MoMo', status: 'SUCCESS', ref: 'FIE-b1-1702685400000', type: 'Booking Payment' },
-  { id: 'p2', booking: 'Furnished 2BR, Labone', date: '2024-11-01', amount: 2850, currency: 'USD', method: 'Visa Card', status: 'SUCCESS', ref: 'FIE-b2-1698825600000', type: 'Booking Payment' },
-  { id: 'p3', booking: 'Furnished 2BR, Labone', date: '2024-11-01', amount: 200, currency: 'USD', method: 'Visa Card', status: 'REFUNDED', ref: 'FIE-dep-1698825601000', type: 'Damage Deposit (Refunded)' },
-]
-
-const STATUS_UI: Record<string, { icon: React.ReactNode; bg: string; color: string; label: string }> = {
-  SUCCESS: { icon: <CheckCircle size={14} />, bg: '#D1FAE5', color: '#065F46', label: 'Paid' },
-  PENDING: { icon: <Clock size={14} />, bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
-  FAILED: { icon: <XCircle size={14} />, bg: '#FEE2E2', color: '#991B1B', label: 'Failed' },
-  REFUNDED: { icon: <CheckCircle size={14} />, bg: '#DBEAFE', color: '#1E40AF', label: 'Refunded' }
+type ApiPayment = {
+  id: string
+  amount: number
+  currency: string
+  method: string
+  momoNetwork: string | null
+  status: string
+  gatewayReference: string | null
+  createdAt: string
+  booking: {
+    id: string
+    listing: { id: string; title: string }
+  }
 }
 
-const METHOD_ICONS: Record<string, string> = {
-  'MTN MoMo': '📱', 'Vodafone Cash': '📱', 'AirtelTigo Money': '📱',
-  'Visa Card': '💳', 'Mastercard': '💳'
+const STATUS_UI: Record<string, { icon: React.ReactNode; bg: string; color: string; label: string }> = {
+  SUCCESS:  { icon: <CheckCircle size={14} />, bg: '#D1FAE5', color: '#065F46', label: 'Paid' },
+  PENDING:  { icon: <Clock size={14} />,       bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
+  FAILED:   { icon: <XCircle size={14} />,     bg: '#FEE2E2', color: '#991B1B', label: 'Failed' },
+  REFUNDED: { icon: <CheckCircle size={14} />, bg: '#DBEAFE', color: '#1E40AF', label: 'Refunded' },
+}
+
+function methodLabel(method: string, momoNetwork: string | null): string {
+  if (method === 'MOMO') {
+    if (momoNetwork === 'MTN') return 'MTN MoMo'
+    if (momoNetwork === 'VODAFONE') return 'Vodafone Cash'
+    if (momoNetwork === 'AIRTELTIGO') return 'AirtelTigo Money'
+    return 'Mobile Money'
+  }
+  if (method === 'CARD') return 'Visa Card'
+  return method
+}
+
+function methodIcon(method: string): string {
+  return method === 'MOMO' ? '📱' : method === 'CARD' ? '💳' : '💰'
 }
 
 export default function GuestPaymentsPage() {
-  const total = MOCK_PAYMENTS.filter((p) => p.status === 'SUCCESS').reduce((s, p) => s + p.amount, 0)
+  const { user, loading: authLoading } = useAuth()
+  const [payments, setPayments] = useState<ApiPayment[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      setPayments([])
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    fetch(`/api/payments?guestId=${user.id}`)
+      .then((r) => r.json())
+      .then((data) => setPayments(Array.isArray(data.payments) ? data.payments : []))
+      .catch(() => setPayments([]))
+      .finally(() => setLoading(false))
+  }, [user, authLoading])
+
+  const total = payments.filter((p) => p.status === 'SUCCESS').reduce((s, p) => s + p.amount, 0)
+  const refunds = payments.filter((p) => p.status === 'REFUNDED').reduce((s, p) => s + p.amount, 0)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -56,70 +99,94 @@ export default function GuestPaymentsPage() {
           ))}
         </div>
 
-        {/* Summary card */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-          <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
-            <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${total.toLocaleString()}</p>
-            <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * 15.5).toLocaleString()}</p>
+        {loading || authLoading ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-3">
+            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading payments…</p>
           </div>
-          <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
-            <p className="text-xs text-[#6B645C] mb-1">Transactions</p>
-            <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{MOCK_PAYMENTS.length}</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
-            <p className="text-xs text-[#6B645C] mb-1">Refunds Received</p>
-            <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
-              ${MOCK_PAYMENTS.filter((p) => p.status === 'REFUNDED').reduce((s, p) => s + p.amount, 0).toLocaleString()}
-            </p>
-          </div>
-        </div>
+        ) : (
+          <>
+            {/* Summary card */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
+                <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
+                <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${total.toLocaleString()}</p>
+                <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * 15.5).toLocaleString()}</p>
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
+                <p className="text-xs text-[#6B645C] mb-1">Transactions</p>
+                <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{payments.length}</p>
+              </div>
+              <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
+                <p className="text-xs text-[#6B645C] mb-1">Refunds Received</p>
+                <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
+                  ${refunds.toLocaleString()}
+                </p>
+              </div>
+            </div>
 
-        {/* Transactions list */}
-        <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-stone-100">
-            <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>All Transactions</h3>
-          </div>
-          <div className="divide-y divide-stone-50">
-            {MOCK_PAYMENTS.map((p) => {
-              const s = STATUS_UI[p.status]
-              return (
-                <div key={p.id} className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-stone-50 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
-                      style={{ backgroundColor: '#F9FAFB' }}>
-                      {METHOD_ICONS[p.method] || '💰'}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{p.type}</p>
-                      <p className="text-xs text-[#6B645C]">{p.booking}</p>
-                      <p className="text-xs text-stone-400">{p.method} · {new Date(p.date).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-sm" style={{ color: p.status === 'REFUNDED' ? '#2563EB' : 'var(--brown-dark)' }}>
-                      {p.status === 'REFUNDED' ? '+' : ''} ${p.amount.toLocaleString()}
-                    </p>
-                    <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1"
-                      style={{ backgroundColor: s.bg, color: s.color }}>
-                      {s.icon} {s.label}
-                    </span>
-                  </div>
+            {/* Transactions list */}
+            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+              <div className="px-5 py-4 border-b border-stone-100">
+                <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>All Transactions</h3>
+              </div>
+              {payments.length === 0 ? (
+                <div className="text-center py-16 px-4">
+                  <div className="text-4xl mb-3">💳</div>
+                  <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No payments yet</p>
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                    Payments from your bookings will show up here.
+                  </p>
                 </div>
-              )
-            })}
-          </div>
-        </div>
+              ) : (
+                <div className="divide-y divide-stone-50">
+                  {payments.map((p) => {
+                    const s = STATUS_UI[p.status] ?? STATUS_UI.PENDING
+                    const method = methodLabel(p.method, p.momoNetwork)
+                    return (
+                      <div key={p.id} className="px-5 py-4 flex items-center justify-between gap-4 hover:bg-stone-50 transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                            style={{ backgroundColor: '#F9FAFB' }}>
+                            {methodIcon(p.method)}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                              {p.status === 'REFUNDED' ? 'Damage Deposit (Refunded)' : 'Booking Payment'}
+                            </p>
+                            <p className="text-xs text-[#6B645C]">{p.booking.listing.title}</p>
+                            <p className="text-xs text-stone-400">
+                              {method} · {new Date(p.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="font-bold text-sm" style={{ color: p.status === 'REFUNDED' ? '#2563EB' : 'var(--brown-dark)' }}>
+                            {p.status === 'REFUNDED' ? '+' : ''} ${p.amount.toLocaleString()}
+                          </p>
+                          <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1"
+                            style={{ backgroundColor: s.bg, color: s.color }}>
+                            {s.icon} {s.label}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
 
-        {/* Security notice */}
-        <div className="mt-6 p-4 rounded-2xl flex items-start gap-3"
-          style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
-          <span className="text-lg">🛡️</span>
-          <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-            All payments are processed securely via <strong>Paystack</strong>. FieGH never asks you to pay outside the app.
-            If you spot an unfamiliar transaction, contact <strong>support@fiegh.com</strong> immediately.
-          </p>
-        </div>
+            {/* Security notice */}
+            <div className="mt-6 p-4 rounded-2xl flex items-start gap-3"
+              style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
+              <span className="text-lg">🛡️</span>
+              <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                All payments are processed securely via <strong>Paystack</strong>. FieGH never asks you to pay outside the app.
+                If you spot an unfamiliar transaction, contact <strong>support@fiegh.com</strong> immediately.
+              </p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

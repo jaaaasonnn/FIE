@@ -24,10 +24,16 @@ export async function GET(req: Request) {
     const messages = await db.message.findMany({
       where,
       include: {
-        sender: { select: { id: true, name: true, profilePhoto: true } },
-        receiver: { select: { id: true, name: true, profilePhoto: true } }
+        sender:   { select: { id: true, name: true, profilePhoto: true } },
+        receiver: { select: { id: true, name: true, profilePhoto: true } },
+        booking:  {
+          select: {
+            id: true,
+            listing: { select: { id: true, title: true } },
+          },
+        },
       },
-      orderBy: { createdAt: 'asc' }
+      orderBy: { createdAt: 'asc' },
     })
 
     return NextResponse.json({ messages })

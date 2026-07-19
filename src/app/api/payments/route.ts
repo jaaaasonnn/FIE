@@ -3,6 +3,45 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 
 /**
+ * GET /api/payments?guestId=…
+ * Returns payment records for the logged-in guest (session must match guestId).
+ */
+export async function GET(req: Request) {
+  try {
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const guestId = new URL(req.url).searchParams.get('guestId')
+    if (!guestId) {
+      return NextResponse.json({ error: 'guestId required' }, { status: 400 })
+    }
+    if (guestId !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const payments = await db.payment.findMany({
+      where: { booking: { guestId } },
+      include: {
+        booking: {
+          select: {
+            id: true,
+            listing: { select: { id: true, title: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+
+    return NextResponse.json({ payments })
+  } catch (error) {
+    console.error('Payments GET error:', error)
+    return NextResponse.json({ error: 'Failed to fetch payments' }, { status: 500 })
+  }
+}
+
+/**
  * POST /api/payments — Initialize a real Paystack transaction.
  *
  * Body: { bookingId: string, method: "MOMO" | "CARD" }
@@ -32,7 +71,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'method must be MOMO or CARD' }, { status: 400 })
     }
 
-    const secret = process.env.PAYSTACK_SECRET_KEY
+    // Server-only diagnostics — never include the full key (or this log) in the response body.
+    const secretEnvName = 'PAYSTACK_SECRET_KEY'
+    const secret = process.env[secretEnvName]
+    const keyPrefix = secret
+      ? secret.slice(0, secret.indexOf('_', 3) + 1) || secret.slice(0, 8) // e.g. "sk_test_" / "pk_test_"
+      : '(undefined)'
+    console.log(
+      `[Paystack] Initialize Transaction using env=${secretEnvName} keyPrefix=${keyPrefix}`,
+    )
+    if (secret?.startsWith('pk_')) {
+      console.error(
+        `[Paystack] WRONG KEY TYPE: ${secretEnvName} starts with pk_ (public key). ` +
+          'Initialize Transaction requires the secret key (sk_test_ / sk_live_).',
+      )
+    }
+
     if (!secret || secret.startsWith('your_') || !secret.startsWith('sk_')) {
       return NextResponse.json(
         { error: 'Paystack is not configured. Set PAYSTACK_SECRET_KEY in .env.' },
@@ -128,19 +182,40 @@ export async function POST(req: Request) {
       body: JSON.stringify(paystackPayload),
     })
 
-    const paystackJson = await paystackRes.json() as {
+    // Read as text first so we can log Paystack's exact raw body on failure
+    const paystackRaw = await paystackRes.text()
+    let paystackJson: {
       status: boolean
       message: string
       data?: { authorization_url: string; access_code: string; reference: string }
     }
+    try {
+      paystackJson = JSON.parse(paystackRaw)
+    } catch {
+      console.error('[Paystack] Initialize Transaction non-JSON response:', {
+        httpStatus: paystackRes.status,
+        rawBody:    paystackRaw,
+      })
+      await db.$transaction([
+        db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
+        db.booking.update({ where: { id: bookingId }, data: { paymentReference: null } }),
+      ])
+      return NextResponse.json(
+        { error: 'Unexpected response from Paystack.' },
+        { status: 502 },
+      )
+    }
 
     if (!paystackRes.ok || !paystackJson.status || !paystackJson.data?.authorization_url) {
+      // Server-only: full Paystack error object — never forwarded to the browser as-is
+      console.error('[Paystack] Initialize Transaction failed — raw response body:', paystackRaw)
+      console.error('[Paystack] Initialize Transaction failed — parsed object:', paystackJson)
+
       // Roll back the pending payment so the guest can retry cleanly
       await db.$transaction([
         db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
         db.booking.update({ where: { id: bookingId }, data: { paymentReference: null } }),
       ])
-      console.error('Paystack initialize failed:', paystackJson)
       return NextResponse.json(
         { error: paystackJson.message || 'Failed to initialize Paystack payment.' },
         { status: 502 },
