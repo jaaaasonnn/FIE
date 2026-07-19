@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 
 export type SessionUser = {
@@ -9,6 +10,14 @@ export type SessionUser = {
   profilePhoto: string | null
   isVerified: boolean
   isSuperhost: boolean
+}
+
+/** Convenience helper for Route Handlers — reads the fiegh_session cookie. */
+export async function getSessionUser(): Promise<SessionUser | null> {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('fiegh_session')?.value
+  if (!token) return null
+  return getUserFromToken(token)
 }
 
 /**
