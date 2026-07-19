@@ -98,6 +98,7 @@ export default function ListingDetailPage() {
   const [photoIdx,     setPhotoIdx]     = useState(0)
   const [selectedMode, setSelectedMode] = useState('')
   const [wishlisted,   setWishlisted]   = useState(false)
+  const [wishBusy,     setWishBusy]     = useState(false)
   const [months,       setMonths]       = useState(1)
 
   // Date state
@@ -144,6 +145,46 @@ export default function ListingDetailPage() {
   }, [listingId])
 
   useEffect(() => { fetchAvailability() }, [fetchAvailability])
+
+  // ── Sync heart with real wishlist status ───────────────────────────────
+  useEffect(() => {
+    if (!user || !listingId) {
+      setWishlisted(false)
+      return
+    }
+    fetch(`/api/wishlists?userId=${user.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const rows = Array.isArray(data.wishlists) ? data.wishlists : []
+        setWishlisted(rows.some((w: { listingId: string }) => w.listingId === listingId))
+      })
+      .catch(() => setWishlisted(false))
+  }, [user, listingId])
+
+  async function toggleWishlist() {
+    if (!user) {
+      router.push(`/login?redirect=/listings/${listingId}`)
+      return
+    }
+    if (wishBusy) return
+    setWishBusy(true)
+    const prev = wishlisted
+    setWishlisted(!prev)
+    try {
+      const res  = await fetch('/api/wishlists', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: user.id, listingId }),
+      })
+      const data = await res.json()
+      if (!res.ok) setWishlisted(prev)
+      else setWishlisted(!!data.wishlisted)
+    } catch {
+      setWishlisted(prev)
+    } finally {
+      setWishBusy(false)
+    }
+  }
 
   const excludeIntervals = bookedRanges.map((r) => ({ start: new Date(r.start), end: new Date(r.end) }))
 
@@ -277,9 +318,10 @@ export default function ListingDetailPage() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} /></button>
-            <button onClick={() => setWishlisted(!wishlisted)}
+            <button onClick={toggleWishlist} disabled={wishBusy}
               className="p-2 rounded-full hover:bg-stone-100 transition-all"
-              style={{ color: wishlisted ? '#EF4444' : '#6B7280' }}>
+              style={{ color: wishlisted ? '#EF4444' : '#6B7280' }}
+              aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
               <Heart size={18} className={wishlisted ? 'fill-red-500' : ''} />
             </button>
             <button className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Flag size={16} /></button>

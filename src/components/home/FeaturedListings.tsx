@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Star, MapPin, Bed, Bath, Users, Heart } from 'lucide-react'
+import { useAuth } from '@/context/AuthContext'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -54,9 +56,13 @@ function SkeletonCard() {
 }
 
 export function FeaturedListings() {
+  const router = useRouter()
+  const { user } = useAuth()
   const sectionRef = useRef<HTMLElement>(null)
   const [listings, setListings] = useState<ApiListing[]>([])
   const [loading,  setLoading]  = useState(true)
+  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set())
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   // ── Fetch featured listings from the real DB ─────────────────────────
   useEffect(() => {
@@ -66,6 +72,75 @@ export function FeaturedListings() {
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
+
+  // ── Load which featured listings are already wishlisted ──────────────
+  useEffect(() => {
+    if (!user) {
+      setWishlistedIds(new Set())
+      return
+    }
+    fetch(`/api/wishlists?userId=${user.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const ids = new Set<string>(
+          (Array.isArray(data.wishlists) ? data.wishlists : []).map(
+            (w: { listingId: string }) => w.listingId,
+          ),
+        )
+        setWishlistedIds(ids)
+      })
+      .catch(() => setWishlistedIds(new Set()))
+  }, [user])
+
+  async function toggleWishlist(e: React.MouseEvent, listingId: string) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!user) {
+      router.push('/login?redirect=/')
+      return
+    }
+    if (busyId) return
+    setBusyId(listingId)
+    const was = wishlistedIds.has(listingId)
+    setWishlistedIds((prev) => {
+      const next = new Set(prev)
+      if (was) next.delete(listingId)
+      else next.add(listingId)
+      return next
+    })
+    try {
+      const res  = await fetch('/api/wishlists', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ userId: user.id, listingId }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setWishlistedIds((prev) => {
+          const next = new Set(prev)
+          if (was) next.add(listingId)
+          else next.delete(listingId)
+          return next
+        })
+      } else {
+        setWishlistedIds((prev) => {
+          const next = new Set(prev)
+          if (data.wishlisted) next.add(listingId)
+          else next.delete(listingId)
+          return next
+        })
+      }
+    } catch {
+      setWishlistedIds((prev) => {
+        const next = new Set(prev)
+        if (was) next.add(listingId)
+        else next.delete(listingId)
+        return next
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
 
   // ── GSAP scroll animation (runs after data loads) ─────────────────────
   useEffect(() => {
@@ -161,11 +236,17 @@ export function FeaturedListings() {
                           {MODE_LABELS[l.rentalModes[0]]}
                         </span>
                       )}
-                      <button onClick={(e) => e.preventDefault()}
+                      <button
+                        onClick={(e) => toggleWishlist(e, l.id)}
+                        disabled={busyId === l.id}
                         className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
                         style={{ backgroundColor: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(4px)' }}
-                        aria-label="Save listing">
-                        <Heart size={14} style={{ color: 'var(--color-text-secondary)' }} />
+                        aria-label={wishlistedIds.has(l.id) ? 'Remove from wishlist' : 'Save listing'}>
+                        <Heart
+                          size={14}
+                          className={wishlistedIds.has(l.id) ? 'fill-red-500' : ''}
+                          style={{ color: wishlistedIds.has(l.id) ? '#EF4444' : 'var(--color-text-secondary)' }}
+                        />
                       </button>
                     </div>
 
