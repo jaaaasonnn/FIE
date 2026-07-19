@@ -15,10 +15,17 @@ export async function GET(req: Request) {
     const verified = searchParams.get('verified') === 'true'
     const superhost = searchParams.get('superhost') === 'true'
     const featured = searchParams.get('featured') === 'true'
+    const hostId = searchParams.get('hostId')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
     const where: Record<string, unknown> = { isActive: true }
+
+    // Host dashboard: filter by owner and include inactive listings
+    if (hostId) {
+      where.hostId = hostId
+      delete where.isActive
+    }
 
     if (region) where.region = region
     if (city) where.city = { contains: city }
