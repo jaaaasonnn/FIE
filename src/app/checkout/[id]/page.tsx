@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { validateGhanaPhone } from '@/lib/utils'
@@ -43,8 +43,17 @@ const MODE_UNIT: Record<string, string> = {
 }
 
 export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutPageInner />
+    </Suspense>
+  )
+}
+
+function CheckoutPageInner() {
   const { id: bookingId } = useParams<{ id: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
   // Client-side auth guard (belt-and-suspenders — middleware also redirects)
@@ -102,6 +111,18 @@ export default function CheckoutPage() {
     load()
   }, [bookingId])
 
+  // ── Handle return from Paystack (after /api/payments/verify redirects back) ──
+  useEffect(() => {
+    const paymentResult = searchParams.get('payment')
+    if (paymentResult === 'success') {
+      setSuccess(true)
+    } else if (paymentResult === 'failed') {
+      setError('Payment was not completed. Please try again.')
+    } else if (paymentResult === 'error') {
+      setError('We could not confirm your payment. If you were charged, contact support.')
+    }
+  }, [searchParams])
+
   // ── Handle payment submission ─────────────────────────────────────────
   async function handlePay(e: React.FormEvent) {
     e.preventDefault()
@@ -143,10 +164,13 @@ export default function CheckoutPage() {
         return
       }
 
-      // In production: redirect to Paystack checkout
-      // window.location.href = data.authorizationUrl
-      // For now, simulate success
-      setSuccess(true)
+      if (!data.authorizationUrl) {
+        setError('Payment could not be started. Please try again.')
+        return
+      }
+
+      // Send the guest to Paystack's hosted checkout to actually pay.
+      window.location.href = data.authorizationUrl
     } catch {
       setError('Network error. Please check your connection and try again.')
     } finally {

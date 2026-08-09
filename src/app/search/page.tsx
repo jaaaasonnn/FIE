@@ -87,6 +87,7 @@ function SearchContent() {
   const [loading,       setLoading]       = useState(true)
 
   const [filters, setFilters] = useState({
+    query:        '',
     mode:         params.get('mode')   || '',
     region:       params.get('region') || '',
     minPrice:     '',
@@ -115,6 +116,17 @@ function SearchContent() {
       const res  = await fetch(`/api/listings?${q}`)
       const data = await res.json()
       let results: ApiListing[] = data.listings ?? []
+
+      // Client-side free-text search (title, city, neighbourhood, region) — not in API yet
+      if (filters.query.trim()) {
+        const needle = filters.query.trim().toLowerCase()
+        results = results.filter((l) =>
+          l.title.toLowerCase().includes(needle) ||
+          l.city.toLowerCase().includes(needle) ||
+          l.region.toLowerCase().includes(needle) ||
+          (l.neighbourhood?.toLowerCase().includes(needle) ?? false),
+        )
+      }
 
       // Client-side price filter (min/max) — not in API yet
       if (filters.minPrice) {
@@ -187,9 +199,22 @@ function SearchContent() {
               <Search size={15} style={{ color: 'var(--color-text-muted)' }} className="flex-shrink-0" />
               <input
                 placeholder="Search by city, neighbourhood..."
+                value={filters.query}
+                onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
                 className="flex-1 text-sm bg-transparent border-none outline-none"
                 style={{ color: 'var(--color-text-primary)' }}
               />
+              {filters.query && (
+                <button
+                  type="button"
+                  onClick={() => setFilters((f) => ({ ...f, query: '' }))}
+                  className="flex-shrink-0"
+                  style={{ color: 'var(--color-text-muted)' }}
+                  aria-label="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             {/* Mode pills — desktop */}
@@ -321,7 +346,7 @@ function SearchContent() {
               <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No properties found</h3>
               <p className="mb-6" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters.</p>
               <Button onClick={() => setFilters({
-                mode: '', region: '', minPrice: '', maxPrice: '',
+                query: '', mode: '', region: '', minPrice: '', maxPrice: '',
                 bedrooms: '', propertyType: '', verified: false,
                 superhost: false, sort: 'newest', amenities: [],
               })}>
