@@ -20,6 +20,7 @@ export type AuthUser = {
   profilePhoto: string | null
   isVerified: boolean
   isSuperhost: boolean
+  trustScore: number
 }
 
 type SignInResult  = { error?: string; user?: AuthUser }
@@ -31,6 +32,8 @@ export type SignUpData = {
   phone?: string
   password: string
   role: 'GUEST' | 'HOST'
+  businessName?: string
+  nationality?: string
 }
 
 type AuthContextType = {
