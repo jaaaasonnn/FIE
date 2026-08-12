@@ -12,6 +12,7 @@ import {
 import Link from 'next/link'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 
 // ── API types ────────────────────────────────────────────────────────────────
@@ -80,7 +81,7 @@ const dpInputStyle: React.CSSProperties = {
   width: '100%', fontSize: 12, padding: '10px 12px', borderRadius: 12,
   border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)',
   color: 'var(--color-text-primary)', outline: 'none', cursor: 'pointer',
-  fontFamily: "'Plus Jakarta Sans', sans-serif",
+  fontFamily: "var(--font-sans)",
 }
 
 // ── Page component ────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ export default function ListingDetailPage() {
   const [photoIdx,     setPhotoIdx]     = useState(0)
   const [selectedMode, setSelectedMode] = useState('')
   const [wishlisted,   setWishlisted]   = useState(false)
+  const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
   const [wishBusy,     setWishBusy]     = useState(false)
   const [months,       setMonths]       = useState(1)
 
@@ -331,16 +333,21 @@ export default function ListingDetailPage() {
         {/* Photo gallery */}
         {photos.length > 0 && (
           <>
-            <div className="relative rounded-2xl overflow-hidden mb-8 aspect-[16/9] sm:aspect-[16/7] bg-stone-200">
+            <div
+              className="relative rounded-2xl overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/9] bg-stone-200"
+              style={{ boxShadow: '0 8px 28px rgba(31, 27, 22, 0.1)' }}
+            >
               <img src={photos[photoIdx]} alt={listing.title} className="w-full h-full object-cover" />
               {photos.length > 1 && (
                 <>
                   <button onClick={() => setPhotoIdx((p) => (p - 1 + photos.length) % photos.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-all"
+                    style={{ boxShadow: '0 4px 14px rgba(31, 27, 22, 0.12)' }}>
                     <ChevronLeft size={20} />
                   </button>
                   <button onClick={() => setPhotoIdx((p) => (p + 1) % photos.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center shadow-lg hover:bg-white transition-all">
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-all"
+                    style={{ boxShadow: '0 4px 14px rgba(31, 27, 22, 0.12)' }}>
                     <ChevronRight size={20} />
                   </button>
                 </>
@@ -370,14 +377,13 @@ export default function ListingDetailPage() {
         )}
 
         {/* Main content grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
 
           {/* ── Left: listing details ──────────────────────────────── */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-10">
 
             {/* Quick facts */}
-            <div className="grid grid-cols-3 gap-4 p-5 rounded-2xl border"
-              style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
+            <div className="soft-panel grid grid-cols-3 gap-4 p-6">
               {[
                 { icon: <Bed   size={20} />, val: `${listing.bedrooms} Bedrooms` },
                 { icon: <Bath  size={20} />, val: `${listing.bathrooms} Bathrooms` },
@@ -395,10 +401,13 @@ export default function ListingDetailPage() {
               <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Available Rental Options</h3>
               <div className="space-y-3">
                 {listing.rentalModes.map((m) => (
-                  <div key={m} className="p-4 rounded-xl border transition-colors"
+                  <div key={m} className="p-4 rounded-xl transition-all duration-200"
                     style={{
-                      borderColor:     selectedMode === m ? 'var(--color-accent)' : 'var(--color-border)',
+                      border: selectedMode === m
+                        ? '1.5px solid var(--color-accent)'
+                        : '1px solid rgba(232, 225, 214, 0.55)',
                       backgroundColor: selectedMode === m ? 'var(--color-accent-subtle)' : 'var(--color-bg-card)',
+                      boxShadow: selectedMode === m ? '0 4px 14px rgba(201, 147, 46, 0.12)' : 'none',
                     }}>
                     <div className="flex items-center justify-between">
                       <div>
@@ -479,12 +488,17 @@ export default function ListingDetailPage() {
             )}
 
             {/* Host card */}
-            <div className="p-5 rounded-2xl border"
-              style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
+            <div className="soft-panel p-6">
               <h3 className="text-lg font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Meet your Host</h3>
               <div className="flex items-start gap-4">
                 {listing.host.profilePhoto
-                  ? <img src={listing.host.profilePhoto} alt={listing.host.name} className="w-16 h-16 rounded-full object-cover flex-shrink-0" />
+                  ? <>
+                      <img src={listing.host.profilePhoto} alt={listing.host.name}
+                        onClick={() => setHostPhotoOpen(true)}
+                        className="w-16 h-16 rounded-full object-cover flex-shrink-0 cursor-pointer" />
+                      <PhotoLightbox src={listing.host.profilePhoto} alt={listing.host.name}
+                        open={hostPhotoOpen} onOpenChange={setHostPhotoOpen} />
+                    </>
                   : <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0"
                       style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent)' }}>
                       {listing.host.name[0]}
@@ -505,11 +519,27 @@ export default function ListingDetailPage() {
                   </div>
                 </div>
               </div>
-              <Link href={`/messages/new?hostId=${listing.host.id}`}
-                className="mt-4 flex items-center justify-center gap-2 w-full py-3 rounded-xl border text-sm font-medium transition-all hover:bg-stone-50"
-                style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>
-                💬 Message Host
-              </Link>
+              {user?.id === listing.host.id ? (
+                <p className="mt-4 text-center text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  This is your listing
+                </p>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const dest = `/dashboard/guest/messages?hostId=${encodeURIComponent(listing.host.id)}&listingId=${encodeURIComponent(listing.id)}`
+                    if (!user) {
+                      router.push(`/login?redirect=${encodeURIComponent(dest)}`)
+                      return
+                    }
+                    router.push(dest)
+                  }}
+                  className="mt-5 flex items-center justify-center gap-2 w-full py-3 rounded-full text-sm font-semibold transition-all hover:opacity-90"
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                >
+                  Message Host
+                </button>
+              )}
             </div>
 
             {/* Reviews */}
@@ -526,8 +556,7 @@ export default function ListingDetailPage() {
               {listing.reviews.length > 0 ? (
                 <div className="space-y-4">
                   {listing.reviews.map((r) => (
-                    <div key={r.id} className="p-4 rounded-xl border"
-                      style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
+                    <div key={r.id} className="soft-panel p-5">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
@@ -550,8 +579,8 @@ export default function ListingDetailPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm italic" style={{ color: 'var(--color-text-muted)' }}>
-                  No reviews yet — be the first to stay here!
+                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  No reviews yet — be the first guest to leave one after your stay.
                 </p>
               )}
             </div>
@@ -559,8 +588,7 @@ export default function ListingDetailPage() {
 
           {/* ── Right: booking widget ─────────────────────────────── */}
           <div className="lg:col-span-1">
-            <div className="sticky top-24 p-5 rounded-2xl border shadow-lg"
-              style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
+            <div className="soft-panel-lg sticky top-20 p-6">
 
               {/* Mode selector */}
               <div className="flex gap-1 p-1 rounded-xl mb-5" style={{ backgroundColor: 'var(--color-bg)' }}>

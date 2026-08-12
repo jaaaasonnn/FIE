@@ -46,9 +46,9 @@ export function RegionsSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4 bg-[var(--color-bg)]">
+    <section ref={sectionRef} className="py-24 px-4 bg-[var(--color-bg)]">
       <div className="max-w-7xl mx-auto">
-        <div className="region-heading flex items-end justify-between mb-10">
+        <div className="region-heading flex items-end justify-between mb-12">
           <div>
             <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
               16 Regions
@@ -62,17 +62,18 @@ export function RegionsSection() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
           {regions.map(({ name, city, img, count }) => (
             <Link
               key={name}
               href={`/search?region=${encodeURIComponent(name)}`}
               className="region-card group relative rounded-2xl overflow-hidden aspect-[3/4] block"
+              style={{ boxShadow: '0 4px 16px rgba(31, 27, 22, 0.08)' }}
             >
               <img
                 src={img}
                 alt={name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
                 loading="lazy"
               />
               <div className="absolute inset-0 hero-overlay" />

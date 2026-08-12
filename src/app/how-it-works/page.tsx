@@ -6,11 +6,11 @@ const guestSteps = [
   { num: '03', icon: '💬', title: 'Message the Host', desc: 'Chat with the host directly in-app before booking. Ask questions, confirm details, get the welcome message.' },
   { num: '04', icon: '📅', title: 'Book & Pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Funds are held in escrow — not released to host until check-in.' },
   { num: '05', icon: '🔑', title: 'Move In', desc: 'After confirmation, you get the full property address and host contact. Raise any dispute within 24 hours of check-in if the property doesn\'t match.' },
-  { num: '06', icon: '⭐', title: 'Review Your Stay', desc: 'After check-out, rate your experience. Reviews build trust across the Ghana rental community.' },
+  { num: '06', icon: '⭐', title: 'Review Your Stay', desc: 'After check-out, rate your experience. Reviews build trust across the FieGH community.' },
 ]
 
 const hostSteps = [
-  { num: '01', icon: '📝', title: 'Create Your Account', desc: 'Sign up with your Ghana phone number or email. Add your Ghana Card, Passport, or Voter ID to get the Verified Host badge.' },
+  { num: '01', icon: '📝', title: 'Create Your Account', desc: 'Sign up with your phone number or email. Add your Ghana Card, Passport, or Voter ID to get the Verified Host badge.' },
   { num: '02', icon: '🏡', title: 'List Your Property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
   { num: '03', icon: '⚡', title: 'Set Your Preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
   { num: '04', icon: '📲', title: 'Receive Bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For permanent rentals, review tenant applications before approving.' },
@@ -28,10 +28,10 @@ export default function HowItWorksPage() {
             Simple & Transparent
           </p>
           <h1 className="text-4xl sm:text-5xl font-bold mb-4" style={{ color: 'var(--cream)' }}>
-            How FieGH Works 🇬🇭
+            How FieGH Works
           </h1>
           <p className="text-base" style={{ color: 'rgba(250,247,242,0.7)' }}>
-            Whether you're renting or hosting, we've made it simple, safe, and built for Ghana.
+            Whether you&apos;re renting or hosting, we&apos;ve made it simple, safe, and rooted in trust.
           </p>
         </div>
       </div>

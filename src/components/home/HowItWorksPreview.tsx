@@ -7,7 +7,7 @@ const steps = [
   { num: '01', title: 'Search & Filter', desc: 'Choose your rental mode, region, dates and budget. Browse verified listings.' },
   { num: '02', title: 'Book & Pay Safely', desc: 'Instant Book or send a request. Pay via MoMo or card — funds held in escrow.' },
   { num: '03', title: 'Move In', desc: 'Get your confirmation with address and host contact. Payment releases to host on arrival.' },
-  { num: '04', title: 'Review', desc: 'After your stay, rate your experience. Build trust in the Ghana rental community.' },
+  { num: '04', title: 'Review', desc: 'After your stay, rate your experience. Build trust in the FieGH community.' },
 ]
 
 export function HowItWorksPreview() {

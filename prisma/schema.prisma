@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -15,6 +16,7 @@ model User {
   passwordHash  String?
   role          String   @default("GUEST") // GUEST | HOST | ADMIN
   profilePhoto  String?
+  bio           String?
   nationality   String?
   businessName  String?
   trustScore    Int      @default(0)
@@ -85,6 +87,7 @@ model Listing {
   reviews   Review[]
   wishlists Wishlist[]
   blockedDates BlockedDate[]
+  messages  Message[]
 }
 
 model BlockedDate {
@@ -109,7 +112,7 @@ model Booking {
   serviceFee      Float
   damageDeposit   Float    @default(0)
   totalPrice      Float
-  status          String   @default("PENDING") // PENDING | CONFIRMED | CANCELLED | COMPLETED | DISPUTED
+  status          String   @default("PENDING") // PENDING | CONFIRMED | DECLINED | CANCELLED | COMPLETED | DISPUTED
   paymentStatus    String   @default("UNPAID") // UNPAID | PAID | REFUNDED | RELEASED
   paymentReference String?  // Paystack reference stored on booking for fast webhook lookup
   specialRequests  String?
@@ -196,6 +199,7 @@ model Message {
   senderId   String
   receiverId String
   bookingId  String?
+  listingId  String?
   content    String
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
@@ -203,6 +207,7 @@ model Message {
   sender   User     @relation("SentMessages", fields: [senderId], references: [id])
   receiver User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
   booking  Booking? @relation(fields: [bookingId], references: [id])
+  listing  Listing? @relation(fields: [listingId], references: [id])
 }
 
 model Dispute {

@@ -31,19 +31,21 @@ const STATUS_UI: Record<string, { bg: string; color: string; label: string }> = 
   PENDING:   { bg: '#FEF3C7', color: '#92400E', label: 'Awaiting Approval' },
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF', label: 'Completed' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
+  DECLINED:  { bg: '#FEE2E2', color: '#991B1B', label: 'Declined' },
 }
 
 const MODE_LABELS: Record<string, string> = {
   SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term',
 }
 
-const FILTERS = ['All', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']
+const FILTERS = ['All', 'PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'DECLINED']
 
 export default function HostBookingsPage() {
   const { user } = useAuth()
   const [allBookings, setAllBookings] = useState<ApiBooking[]>([])
   const [loading, setLoading]         = useState(true)
   const [filter, setFilter]           = useState('All')
+  const [respondingId, setRespondingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -55,6 +57,24 @@ export default function HostBookingsPage() {
   }, [user])
 
   const bookings = filter === 'All' ? allBookings : allBookings.filter((b) => b.status === filter)
+
+  async function handleRespond(bookingId: string, action: 'accept' | 'decline') {
+    setRespondingId(bookingId)
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Failed to ${action} booking`)
+      setAllBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: data.booking.status } : b)))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : `Failed to ${action} booking`)
+    } finally {
+      setRespondingId(null)
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -96,7 +116,7 @@ export default function HostBookingsPage() {
         {loading && (
           <div className="space-y-4">
             {[1, 2, 3].map((n) => (
-              <div key={n} className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 animate-pulse">
+              <div key={n} className="soft-panel p-5 animate-pulse">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 rounded-full bg-stone-100 flex-shrink-0" />
                   <div className="flex-1 space-y-2">
@@ -117,7 +137,7 @@ export default function HostBookingsPage() {
               const s         = STATUS_UI[b.status] ?? STATUS_UI['PENDING']
               const trustScore = b.guest.trustScore ?? 0
               return (
-                <div key={b.id} className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5">
+                <div key={b.id} className="soft-panel p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                     <div className="flex items-start gap-4">
                       {/* Guest avatar */}
@@ -165,21 +185,17 @@ export default function HostBookingsPage() {
                   <div className="flex gap-2 mt-4 pt-4 border-t border-stone-50 flex-wrap">
                     {b.status === 'PENDING' && (
                       <>
-                        <button className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
+                        <button onClick={() => handleRespond(b.id, 'accept')} disabled={respondingId === b.id}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold disabled:opacity-50"
                           style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
                           <CheckCircle size={13} /> Accept Booking
                         </button>
-                        <button className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
+                        <button onClick={() => handleRespond(b.id, 'decline')} disabled={respondingId === b.id}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold disabled:opacity-50"
                           style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
                           <XCircle size={13} /> Decline
                         </button>
                       </>
-                    )}
-                    {b.status === 'CONFIRMED' && (
-                      <button className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
-                        style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-                        Cancel Booking
-                      </button>
                     )}
                     <Link href="/dashboard/host/messages"
                       className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
@@ -198,13 +214,12 @@ export default function HostBookingsPage() {
 
             {bookings.length === 0 && (
               <div className="text-center py-16">
-                <div className="text-4xl mb-3">📋</div>
                 <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
                   {filter === 'All' ? 'No bookings yet' : `No ${filter.toLowerCase()} bookings`}
                 </p>
                 {filter === 'All' && (
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                    When guests book your listings, they'll appear here.
+                  <p className="text-sm mt-1 max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+                    Bookings for your homes will gather here once guests start arriving.
                   </p>
                 )}
               </div>

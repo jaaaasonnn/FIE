@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-
 @import "tailwindcss";
 
 /* ─── Canonical palette ─────────────────────────────────────────── */
@@ -19,6 +17,9 @@
   /* Dark section surface (footer, hero overlays, host-cta) */
   --color-surface-dark:   #0F0B05;
   --color-surface-dark-2: #1C1309;
+
+  /* Typography — Manrope via next/font (--font-manrope on <html>) */
+  --font-sans: var(--font-manrope), 'Manrope', system-ui, sans-serif;
 
   /* Legacy aliases — existing components keep working unchanged */
   --brown-dark:    var(--color-surface-dark);
@@ -41,35 +42,54 @@ html { scroll-behavior: smooth; }
 body {
   background-color: var(--color-bg);
   color: var(--color-text-primary);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;
+  font-size: 0.9375rem; /* 15px — Manrope reads slightly wider than Jakarta at 16px */
+  line-height: 1.55;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ─── Type scale ────────────────────────────────────────────────── */
+/* ─── Type scale (tuned for Manrope’s geometric proportions) ───── */
 h1, h2, h3, h4, h5, h6 {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-sans);
   color: var(--color-text-primary);
   font-weight: 700;
+  line-height: 1.15;
 }
 
-h1 { font-weight: 800; letter-spacing: -0.03em; }
-h2 { font-weight: 700; letter-spacing: -0.02em; }
-h3 { font-weight: 700; letter-spacing: -0.01em; }
-h4 { font-weight: 600; }
+/* Manrope is a touch wider at display sizes — tighten tracking vs Jakarta */
+h1 { font-weight: 800; letter-spacing: -0.04em; line-height: 1.05; }
+h2 { font-weight: 700; letter-spacing: -0.03em; }
+h3 { font-weight: 700; letter-spacing: -0.02em; }
+h4 { font-weight: 600; letter-spacing: -0.015em; }
+
+/* Large Tailwind display sizes (hero, section titles) */
+.text-5xl, .text-6xl, .text-7xl {
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+.text-4xl {
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.text-3xl {
+  letter-spacing: -0.025em;
+}
 
 .label-caps {
   font-weight: 600;
-  font-size: 0.7rem;
-  letter-spacing: 0.12em;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.font-serif { font-family: 'Plus Jakarta Sans', sans-serif; }
-.font-sans  { font-family: 'Plus Jakarta Sans', sans-serif; }
+.font-serif { font-family: var(--font-sans); }
+.font-sans  { font-family: var(--font-sans); }
 
 input, select, textarea, button {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-sans);
+  letter-spacing: -0.011em;
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────── */
@@ -89,17 +109,32 @@ input, select, textarea, button {
 .border-gold  { border-color: var(--color-accent); }
 .border-amber { border-color: var(--color-accent); }
 
-/* ─── Cards ─────────────────────────────────────────────────────── */
+/* ─── Cards — soft, Airbnb-like presence ────────────────────────── */
 .listing-card {
-  transition: transform 0.22s ease, box-shadow 0.22s ease;
+  transition: box-shadow 0.28s ease, transform 0.28s ease;
   will-change: transform;
+  box-shadow: 0 4px 18px rgba(31, 27, 22, 0.06);
 }
 .listing-card:hover {
-  transform: scale(1.015);
-  box-shadow: 0 16px 40px rgba(31,27,22,0.13);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(31, 27, 22, 0.1);
 }
 .listing-card:hover .listing-card-img {
-  transform: scale(1.06);
+  transform: scale(1.04);
+}
+
+/* Soft surface panels (listing detail, dashboards) */
+.soft-panel {
+  background-color: var(--color-bg-card);
+  border-radius: 1rem;
+  box-shadow: 0 4px 18px rgba(31, 27, 22, 0.06);
+  border: 1px solid rgba(232, 225, 214, 0.5);
+}
+.soft-panel-lg {
+  background-color: var(--color-bg-card);
+  border-radius: 1.25rem;
+  box-shadow: 0 8px 28px rgba(31, 27, 22, 0.08);
+  border: 1px solid rgba(232, 225, 214, 0.45);
 }
 
 /* Glass surface (dark sections) */
@@ -173,7 +208,7 @@ input, select, textarea, button {
 }
 .hero-datepicker .react-datepicker__input-container input {
   width: 100%;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: var(--font-sans);
   color: var(--color-text-primary);
 }
 .hero-datepicker .react-datepicker__input-container input::placeholder {
@@ -182,7 +217,7 @@ input, select, textarea, button {
 
 /* Popup panel */
 .fiegh-cal {
-  font-family: 'Plus Jakarta Sans', sans-serif !important;
+  font-family: var(--font-sans) !important;
   background: var(--color-bg-card) !important;
   border: 1px solid var(--color-border) !important;
   border-radius: 16px !important;
@@ -269,3 +304,17 @@ input, select, textarea, button {
 .fiegh-cal .react-datepicker__day--outside-month {
   opacity: 0.3 !important;
 }
+
+/* ─── Photo lightbox ─────────────────────────────────────────────── */
+@keyframes lightboxOverlayIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes lightboxContentIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.lightbox-overlay[data-state='open']   { animation: lightboxOverlayIn 0.15s ease-out; }
+.lightbox-overlay[data-state='closed'] { animation: lightboxOverlayIn 0.15s ease-in reverse; }
+.lightbox-content[data-state='open']   { animation: lightboxContentIn 0.15s ease-out; }
+.lightbox-content[data-state='closed'] { animation: lightboxContentIn 0.15s ease-in reverse; }

@@ -7,8 +7,9 @@ import type { NextRequest } from 'next/server'
  *   • Cookie present  → allow through (full validation happens in the route handler)
  *   • Cookie absent   → redirect to /login?redirect=<original-path>
  *
- * Protected prefixes: /dashboard, /checkout
+ * Protected prefixes: /dashboard, /checkout, /admin
  * Public: everything else (homepage, /search, /listings/*, /login, /api/*)
+ * Role checks (e.g. ADMIN) happen in page/API handlers — proxy only checks session cookie.
  */
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -24,5 +25,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/checkout/:path*'],
+  matcher: ['/dashboard/:path*', '/checkout/:path*', '/admin', '/admin/:path*'],
 }

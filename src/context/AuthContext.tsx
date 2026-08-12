@@ -18,6 +18,7 @@ export type AuthUser = {
   phone: string | null
   role: string           // GUEST | HOST | ADMIN
   profilePhoto: string | null
+  trustScore: number
   isVerified: boolean
   isSuperhost: boolean
 }
@@ -39,6 +40,7 @@ type AuthContextType = {
   signIn:  (identifier: string, password: string) => Promise<SignInResult>
   signUp:  (data: SignUpData) => Promise<SignUpResult>
   signOut: () => Promise<void>
+  updateUser: (patch: Partial<AuthUser>) => void
 }
 
 // ── Context ──────────────────────────────────────────────────────────────────
@@ -92,8 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null)
   }, [])
 
+  // Merge a partial update into the current user — used after a successful
+  // profile edit so the navbar/session state reflects changes immediately.
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser((prev) => (prev ? { ...prev, ...patch } : prev))
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

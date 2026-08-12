@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Home, Calendar, DollarSign, Star, Users, Eye, Loader2 } from 'lucide-react'
+import { useSearchParams } from 'next/navigation'
+import { Plus, Home, Calendar, DollarSign, Star, Users, Eye, Loader2, CheckCircle } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
+import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 
 type ApiListing = {
@@ -35,6 +37,7 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   CONFIRMED: { bg: '#D1FAE5', color: '#065F46' },
   PENDING:   { bg: '#FEF3C7', color: '#92400E' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B' },
+  DECLINED:  { bg: '#FEE2E2', color: '#991B1B' },
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF' },
 }
 
@@ -51,9 +54,13 @@ function firstPhoto(photos: unknown): string {
 
 export default function HostDashboardPage() {
   const { user, loading: authLoading } = useAuth()
+  const searchParams = useSearchParams()
+  const createdId = searchParams.get('created')
   const [listings, setListings] = useState<ApiListing[]>([])
   const [bookings, setBookings] = useState<ApiBooking[]>([])
   const [loading, setLoading] = useState(true)
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [respondingId, setRespondingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (authLoading) return
@@ -89,10 +96,28 @@ export default function HostDashboardPage() {
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
   const monthEarnings = bookings
-    .filter((b) => b.status !== 'CANCELLED' && new Date(b.checkIn) >= monthStart)
+    .filter((b) => b.status !== 'CANCELLED' && b.status !== 'DECLINED' && new Date(b.checkIn) >= monthStart)
     .reduce((s, b) => s + b.totalPrice * 0.92, 0)
 
   const firstName = user?.name?.split(' ')[0] ?? 'Host'
+
+  async function handleRespond(bookingId: string, action: 'accept' | 'decline') {
+    setRespondingId(bookingId)
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Failed to ${action} booking`)
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: data.booking.status } : b)))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : `Failed to ${action} booking`)
+    } finally {
+      setRespondingId(null)
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -104,7 +129,13 @@ export default function HostDashboardPage() {
               <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
                 style={{ backgroundColor: 'var(--gold-light)' }}>
                 {user?.profilePhoto ? (
-                  <img src={user.profilePhoto} alt={user.name ?? 'Host'} className="w-full h-full object-cover" />
+                  <>
+                    <img src={user.profilePhoto} alt={user.name ?? 'Host'}
+                      onClick={() => setLightboxOpen(true)}
+                      className="w-full h-full object-cover cursor-pointer" />
+                    <PhotoLightbox src={user.profilePhoto} alt={user.name ?? 'Host'}
+                      open={lightboxOpen} onOpenChange={setLightboxOpen} />
+                  </>
                 ) : (
                   <span className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
                     {(user?.name ?? 'H')[0].toUpperCase()}
@@ -135,6 +166,27 @@ export default function HostDashboardPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {createdId && (
+          <div
+            className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"
+            style={{ backgroundColor: '#D1FAE5', border: '1px solid #6EE7B7', color: '#065F46' }}
+            role="status"
+          >
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <CheckCircle size={18} />
+              Listing created successfully.
+            </div>
+            <div className="flex items-center gap-3 text-sm font-semibold">
+              <Link href={`/listings/${createdId}`} className="underline underline-offset-2">
+                View listing
+              </Link>
+              <Link href={`/dashboard/host/listings/${createdId}/edit`} className="underline underline-offset-2">
+                Edit
+              </Link>
+            </div>
+          </div>
+        )}
+
         {loading || authLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
@@ -194,11 +246,13 @@ export default function HostDashboardPage() {
             <div className="mb-8">
               <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Recent Booking Requests</h2>
               {recentBookings.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-stone-100 p-10 text-center">
-                  <div className="text-4xl mb-3">📋</div>
-                  <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No booking requests yet</p>
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                    When guests book your listings, they&apos;ll show up here.
+                <div
+                  className="bg-white rounded-2xl p-10 text-center"
+                  style={{ boxShadow: '0 4px 18px rgba(31, 27, 22, 0.06)' }}
+                >
+                  <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No requests yet</p>
+                  <p className="text-sm mt-1 max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+                    When someone wants to stay at your place, you&apos;ll see it here first.
                   </p>
                 </div>
               ) : (
@@ -207,7 +261,7 @@ export default function HostDashboardPage() {
                     const s = STATUS_COLORS[b.status] ?? STATUS_COLORS.PENDING
                     const guestName = b.guest?.name ?? 'Guest'
                     return (
-                      <div key={b.id} className="bg-white rounded-2xl border border-stone-100 p-4 shadow-sm">
+                      <div key={b.id} className="soft-panel p-4">
                         <div className="flex items-center justify-between gap-3 flex-wrap">
                           <div className="flex items-center gap-3">
                             <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm"
@@ -236,11 +290,13 @@ export default function HostDashboardPage() {
                             </div>
                             {b.status === 'PENDING' && (
                               <div className="flex gap-2">
-                                <button className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                                <button onClick={() => handleRespond(b.id, 'accept')} disabled={respondingId === b.id}
+                                  className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-50"
                                   style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
                                   Accept
                                 </button>
-                                <button className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                                <button onClick={() => handleRespond(b.id, 'decline')} disabled={respondingId === b.id}
+                                  className="px-3 py-1.5 rounded-full text-xs font-semibold disabled:opacity-50"
                                   style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
                                   Decline
                                 </button>
@@ -269,7 +325,7 @@ export default function HostDashboardPage() {
                 {listings.map((l) => {
                   const photo = firstPhoto(l.photos)
                   return (
-                    <div key={l.id} className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+                    <div key={l.id} className="soft-panel overflow-hidden">
                       <div className="flex">
                         {photo ? (
                           <img src={photo} alt={l.title} className="w-28 h-full min-h-[120px] object-cover flex-shrink-0" />

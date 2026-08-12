@@ -8,6 +8,7 @@ export type SessionUser = {
   phone: string | null
   role: string           // GUEST | HOST | ADMIN
   profilePhoto: string | null
+  trustScore: number
   isVerified: boolean
   isSuperhost: boolean
 }
@@ -42,6 +43,7 @@ export async function getUserFromToken(token: string): Promise<SessionUser | nul
           phone:        true,
           role:         true,
           profilePhoto: true,
+          trustScore:   true,
           isVerified:   true,
           isSuperhost:  true,
         },

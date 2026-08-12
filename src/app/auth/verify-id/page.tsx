@@ -78,7 +78,7 @@ export default function VerifyIdPage() {
             Verify Your Identity
           </h1>
           <p className="text-[#6B645C]">
-            FieGH requires ID verification to keep the platform safe for everyone in Ghana.
+            FieGH requires ID verification to keep the platform safe for everyone.
           </p>
         </div>
 

@@ -108,16 +108,16 @@ export default function GuestPaymentsPage() {
           <>
             {/* Summary card */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
+              <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${total.toLocaleString()}</p>
                 <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * 15.5).toLocaleString()}</p>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
+              <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Transactions</p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{payments.length}</p>
               </div>
-              <div className="bg-white p-5 rounded-2xl border border-stone-100 text-center">
+              <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Refunds Received</p>
                 <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
                   ${refunds.toLocaleString()}
@@ -126,16 +126,15 @@ export default function GuestPaymentsPage() {
             </div>
 
             {/* Transactions list */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-stone-100">
+            <div className="soft-panel overflow-hidden">
+              <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(232, 225, 214, 0.55)' }}>
                 <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>All Transactions</h3>
               </div>
               {payments.length === 0 ? (
                 <div className="text-center py-16 px-4">
-                  <div className="text-4xl mb-3">💳</div>
                   <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No payments yet</p>
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                    Payments from your bookings will show up here.
+                  <p className="text-sm mt-1 max-w-xs mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+                    When you book a stay, your receipts will show up here.
                   </p>
                 </div>
               ) : (

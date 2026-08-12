@@ -6,13 +6,17 @@ import { Upload, CheckSquare, Square } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
 
 const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Photos', 'Review']
 
 export default function NewListingPage() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [stepError, setStepError] = useState('')
   const router = useRouter()
+  const { user, loading: authLoading } = useAuth()
 
   const [form, setForm] = useState({
     title: '', description: '', propertyType: '',
@@ -44,10 +48,112 @@ export default function NewListingPage() {
     }))
   }
 
+  function validateStep(s: number): string | null {
+    if (s === 0) {
+      if (!form.title.trim()) return 'Please enter a property title.'
+      if (!form.propertyType) return 'Please select a property type.'
+    }
+    if (s === 1) {
+      if (!form.region) return 'Please select a region.'
+      if (!form.city.trim()) return 'Please enter a city / town.'
+    }
+    if (s === 2) {
+      if (form.rentalModes.length === 0) return 'Select at least one rental mode.'
+      if (form.rentalModes.includes('SHORT_STAY') && !form.priceNightly) {
+        return 'Enter a nightly price for Short Stay.'
+      }
+      if (form.rentalModes.includes('TEMP_STAY') && !form.priceMonthly) {
+        return 'Enter a monthly price for Temporary Stay.'
+      }
+      if (form.rentalModes.includes('PERMANENT') && !form.priceAnnual) {
+        return 'Enter an annual rent for Permanent Rental.'
+      }
+    }
+    return null
+  }
+
+  function handleContinue() {
+    const msg = validateStep(step)
+    if (msg) {
+      setStepError(msg)
+      return
+    }
+    setStepError('')
+    setStep(step + 1)
+  }
+
   async function handleSubmit() {
+    setError('')
+    setStepError('')
+
+    for (let s = 0; s <= 2; s++) {
+      const msg = validateStep(s)
+      if (msg) {
+        setStep(s)
+        setStepError(msg)
+        setError(msg)
+        return
+      }
+    }
+
+    if (authLoading) {
+      setError('Still checking your session — please wait a moment and try again.')
+      return
+    }
+    if (!user) {
+      setError('You must be signed in to create a listing.')
+      router.push('/login?redirect=/dashboard/host/listings/new')
+      return
+    }
+
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1500))
-    router.push('/dashboard/host')
+    try {
+      const res = await fetch('/api/listings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: form.title.trim(),
+          description: form.description,
+          propertyType: form.propertyType,
+          region: form.region,
+          city: form.city.trim(),
+          neighbourhood: form.neighbourhood || null,
+          bedrooms: parseInt(form.bedrooms, 10),
+          bathrooms: parseInt(form.bathrooms, 10),
+          maxGuests: parseInt(form.maxGuests, 10),
+          rentalModes: form.rentalModes,
+          priceNightly: form.priceNightly || null,
+          priceMonthly: form.priceMonthly || null,
+          priceAnnual: form.priceAnnual || null,
+          advanceMonthsRequired: form.advanceMonthsRequired || null,
+          amenities: form.amenities,
+          rules: form.rules,
+          cancellationPolicy: form.cancellationPolicy,
+          instantBook: form.instantBook,
+          minStayNights: parseInt(form.minStayNights, 10) || 1,
+          damageDeposit: form.damageDeposit || null,
+          welcomeMessage: form.welcomeMessage || null,
+        }),
+      })
+
+      const data = await res.json().catch(() => ({}))
+
+      if (!res.ok) {
+        setError(data.error || `Could not create listing (${res.status}). Please try again.`)
+        return
+      }
+
+      const listingId = data.listing?.id
+      if (listingId) {
+        router.push(`/dashboard/host?created=${listingId}`)
+      } else {
+        router.push('/dashboard/host')
+      }
+    } catch {
+      setError('Network error. Please check your connection and try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const step0 = (
@@ -249,7 +355,7 @@ export default function NewListingPage() {
 
   const step5 = (
     <div className="space-y-4">
-      <div className="p-5 rounded-2xl bg-white border border-stone-100">
+      <div className="soft-panel p-5">
         <h4 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Listing Summary</h4>
         <div className="space-y-3 text-sm">
           {[
@@ -287,7 +393,7 @@ export default function NewListingPage() {
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-2xl mx-auto px-4 py-10">
         <h1 className="text-2xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>List Your Property</h1>
-        <p className="text-[#6B645C] text-sm mb-8">Fill in the details to get your property live on FieGH 🇬🇭</p>
+        <p className="text-[#6B645C] text-sm mb-8">Fill in the details to get your property live on FieGH.</p>
 
         {/* Progress */}
         <div className="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
@@ -312,24 +418,44 @@ export default function NewListingPage() {
         </div>
 
         {/* Step content */}
-        <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm mb-6">
+        <div className="soft-panel p-6 mb-6">
           <h3 className="text-lg font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>
             Step {step + 1}: {STEPS[step]}
           </h3>
           {stepContent[step]}
         </div>
 
+        {(stepError || error) && (
+          <div
+            className="mb-4 rounded-xl px-4 py-3 text-sm font-medium"
+            style={{ backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}
+            role="alert"
+          >
+            {error || stepError}
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="flex justify-between">
-          <Button variant="outline" onClick={() => step > 0 && setStep(step - 1)} disabled={step === 0}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (step > 0) {
+                setStepError('')
+                setError('')
+                setStep(step - 1)
+              }
+            }}
+            disabled={step === 0 || loading}
+          >
             ← Back
           </Button>
           {step < STEPS.length - 1 ? (
-            <Button onClick={() => setStep(step + 1)}>
+            <Button onClick={handleContinue}>
               Continue →
             </Button>
           ) : (
-            <Button onClick={handleSubmit} loading={loading}>
+            <Button onClick={handleSubmit} loading={loading} disabled={authLoading || loading}>
               Submit Listing 🏡
             </Button>
           )}

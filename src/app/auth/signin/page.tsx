@@ -62,11 +62,11 @@ export default function SignInPage() {
             Welcome back 🇬🇭
           </h2>
           <p className="text-base leading-relaxed" style={{ color: 'rgba(250,247,242,0.6)' }}>
-            Sign in to manage your bookings, messages, and saved properties across Ghana.
+            Sign in to manage your bookings, messages, and saved homes.
           </p>
           <div className="mt-10 p-5 rounded-2xl text-left" style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(245,192,106,0.2)' }}>
-            <p className="text-sm italic mb-2" style={{ color: 'var(--color-accent)' }}>"Fie" means home in Twi.</p>
-            <p className="text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>FieGH — Your home in Ghana 🏡</p>
+            <p className="text-sm italic mb-2" style={{ color: 'var(--color-accent)' }}>&ldquo;Fie&rdquo; means home in Twi.</p>
+            <p className="text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>FieGH — Find your fie 🏡</p>
           </div>
         </div>
       </div>

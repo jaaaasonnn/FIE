@@ -7,9 +7,9 @@ const FAQS = [
   {
     category: 'General',
     questions: [
-      { q: 'What does "Fie" mean?', a: '"Fie" (pronounced fee-yeh) means "home" in Twi, one of Ghana\'s most widely spoken languages. FieGH = Your Home in Ghana.' },
-      { q: 'What regions does FieGH cover?', a: 'FieGH covers all 16 regions of Ghana including Greater Accra, Ashanti, Western, Central, Eastern, Volta, Northern, Upper East, Upper West, Brong-Ahafo, Oti, Savannah, Bono East, Ahafo, North East, and Western North.' },
-      { q: 'Is FieGH only for Ghanaians?', a: 'No! FieGH is for anyone looking to rent in Ghana — locals, diaspora, expats, tourists, and business travellers. We accept international payments via card.' },
+      { q: 'What does "Fie" mean?', a: '"Fie" (pronounced fee-yeh) means "home" in Twi, one of Ghana\'s most widely spoken languages. FieGH helps you find yours — with Ghanaian hospitality at the heart of the experience.' },
+      { q: 'What regions does FieGH cover?', a: 'We currently operate across all 16 regions of Ghana, including Greater Accra, Ashanti, Western, Central, Eastern, Volta, Northern, Upper East, Upper West, Brong-Ahafo, Oti, Savannah, Bono East, Ahafo, North East, and Western North.' },
+      { q: 'Is FieGH only for Ghanaians?', a: 'No! FieGH is for anyone looking for a stay or a longer rental — locals, diaspora, expats, tourists, and business travellers. We accept international payments via card.' },
     ]
   },
   {
@@ -60,7 +60,7 @@ export default function FAQPage() {
           <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--cream)' }}>
             Frequently Asked Questions
           </h1>
-          <p style={{ color: 'rgba(250,247,242,0.65)' }}>Everything you need to know about FieGH 🇬🇭</p>
+          <p style={{ color: 'rgba(250,247,242,0.65)' }}>Everything you need to know about FieGH</p>
         </div>
       </div>
 

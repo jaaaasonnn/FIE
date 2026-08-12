@@ -22,15 +22,15 @@ export function Footer() {
               <Image src="/logo.png" alt="FieGH" width={48} height={48} style={{ width: 48, height: 'auto' }} />
               <div className="flex flex-col leading-tight">
                 <span className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>FieGH</span>
-                <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>GHANA RENTALS</span>
+                <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>FIND YOUR FIE</span>
               </div>
             </Link>
             <p className="text-sm mb-4" style={{ color: 'rgba(250,247,242,0.65)', lineHeight: '1.6' }}>
-              "Fie" means "home" in Twi. 🇬🇭<br />
-              Ghana's premier rental marketplace connecting guests and hosts across all 16 regions.
+              &ldquo;Fie&rdquo; means &ldquo;home&rdquo; in Twi. 🇬🇭<br />
+              A rental marketplace with Ghanaian roots — connecting guests and hosts for short stays, monthly lets, and long-term homes.
             </p>
             <p className="text-xs italic" style={{ color: 'var(--color-accent)' }}>
-              "Your home in Ghana"
+              &ldquo;Find your fie&rdquo;
             </p>
           </div>
 

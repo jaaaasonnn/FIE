@@ -143,18 +143,22 @@ export default function WishlistPage() {
           </div>
         ) : items.length === 0 ? (
           <div className="text-center py-20">
-            <div className="text-5xl mb-4">💔</div>
-            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No saved properties yet</h3>
-            <p className="text-[#6B645C] mb-6">Tap the ♡ on any listing to save it here.</p>
+            <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Nothing saved yet</h3>
+            <p className="text-[#6B645C] mb-6 max-w-sm mx-auto">
+              Tap the heart on a home you love — it&apos;ll wait for you here.
+            </p>
             <Link href="/search" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
               style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
-              Browse Properties
+              Explore homes
             </Link>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {items.map((listing) => (
-              <div key={listing.id} className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden group relative">
+              <div
+                key={listing.id}
+                className="listing-card bg-white rounded-2xl overflow-hidden group relative"
+              >
                 {/* Remove button */}
                 <button
                   onClick={() => remove(listing.id)}

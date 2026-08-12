@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield } from 'lucide-react'
+import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 
 type BookingData = {
   id: string
@@ -35,6 +36,7 @@ export default function BookingConfirmationPage() {
   const { id } = useParams<{ id: string }>()
   const [booking, setBooking] = useState<BookingData | null>(null)
   const [loading, setLoading] = useState(true)
+  const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -144,7 +146,13 @@ export default function BookingConfirmationPage() {
           <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Your Host</h3>
           <div className="flex items-center gap-4 mb-4">
             {booking.host.profilePhoto
-              ? <img src={booking.host.profilePhoto} alt={booking.host.name} className="w-14 h-14 rounded-full object-cover" />
+              ? <>
+                  <img src={booking.host.profilePhoto} alt={booking.host.name}
+                    onClick={() => setHostPhotoOpen(true)}
+                    className="w-14 h-14 rounded-full object-cover cursor-pointer" />
+                  <PhotoLightbox src={booking.host.profilePhoto} alt={booking.host.name}
+                    open={hostPhotoOpen} onOpenChange={setHostPhotoOpen} />
+                </>
               : <div className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0"
                   style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                   {booking.host.name[0]}

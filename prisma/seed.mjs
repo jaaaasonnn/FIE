@@ -1,20 +1,27 @@
 /**
  * prisma/seed.mjs
  *
- * Inserts the 8 canonical demo listings (3 hosts) into the dev SQLite DB.
+ * Inserts demo hosts, guests, admins, verifications, and listings.
  *
  * Run with:
  *   npm run db:seed
  *
- * Safe to re-run — skips if listings already exist unless you pass --force:
+ * Always upserts panel test users (admins + extra guests) even if listings exist.
+ * Skips listings if any already exist unless you pass --force:
  *   npm run db:seed -- --force
+ *
+ * All @fiegh.demo accounts share password: Demo1234!
  */
 
 import { PrismaClient } from '@prisma/client'
 import { createHash }   from 'node:crypto'
+import bcrypt           from 'bcryptjs'
 
 const db    = new PrismaClient()
 const force = process.argv.includes('--force')
+
+/** Shared demo password for every @fiegh.demo account */
+const DEMO_PASSWORD = 'Demo1234!'
 
 // ── Deterministic CUID-like IDs so links stay stable across re-seeds ────────
 // We derive stable IDs from a short key so the URLs in the app never break.
@@ -25,7 +32,80 @@ function stableId(key) {
 const HOST_ABENA   = stableId('host-abena-mensah')
 const HOST_KWESI   = stableId('host-kwesi-boateng')
 const HOST_AKOSUA  = stableId('host-akosua-darko')
-const GUEST_KOFI   = stableId('guest-kofi-asante')   // demo guest for booking tests
+const GUEST_KOFI   = stableId('guest-kofi-asante')
+const ADMIN_AMA    = stableId('admin-ama-owusu')
+const ADMIN_YAW    = stableId('admin-yaw-mensah')
+const GUEST_EFUA   = stableId('guest-efua-adjei')
+const GUEST_KOJO   = stableId('guest-kojo-appiah')
+const HOST_NANA    = stableId('host-nana-serwaa')
+
+// ── Admins (for /admin panel testing) ───────────────────────────────────────
+const ADMINS = [
+  {
+    id:           ADMIN_AMA,
+    name:         'Ama Owusu',
+    email:        'admin@fiegh.demo',
+    phone:        '+233241000100',
+    role:         'ADMIN',
+    profilePhoto: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&q=80',
+    isVerified:   true,
+    isSuperhost:  false,
+    trustScore:   100,
+    businessName: 'FieGH Platform Ops',
+  },
+  {
+    id:           ADMIN_YAW,
+    name:         'Yaw Mensah',
+    email:        'admin2@fiegh.demo',
+    phone:        '+233241000101',
+    role:         'ADMIN',
+    profilePhoto: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80',
+    isVerified:   true,
+    isSuperhost:  false,
+    trustScore:   100,
+    businessName: 'FieGH Trust & Safety',
+  },
+]
+
+// ── Extra guests / hosts for a fuller Users tab ─────────────────────────────
+const EXTRA_USERS = [
+  {
+    id:           GUEST_EFUA,
+    name:         'Efua Adjei',
+    email:        'efua@fiegh.demo',
+    phone:        '+233245550002',
+    role:         'GUEST',
+    profilePhoto: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&q=80',
+    isVerified:   false,
+    isSuperhost:  false,
+    trustScore:   45,
+    businessName: null,
+  },
+  {
+    id:           GUEST_KOJO,
+    name:         'Kojo Appiah',
+    email:        'kojo@fiegh.demo',
+    phone:        '+233245550003',
+    role:         'GUEST',
+    profilePhoto: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80',
+    isVerified:   true,
+    isSuperhost:  false,
+    trustScore:   68,
+    businessName: null,
+  },
+  {
+    id:           HOST_NANA,
+    name:         'Nana Serwaa',
+    email:        'nana@fiegh.demo',
+    phone:        '+233241000004',
+    role:         'HOST',
+    profilePhoto: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80',
+    isVerified:   false,
+    isSuperhost:  false,
+    trustScore:   55,
+    businessName: 'Serwaa Homes Accra',
+  },
+]
 
 // ── Hosts ────────────────────────────────────────────────────────────────────
 const HOSTS = [
@@ -292,59 +372,130 @@ The neighbourhood is walkable to restaurants, supermarkets, and the Accra Mall. 
   },
 ]
 
+async function upsertUser(user, passwordHash) {
+  const data = {
+    name:         user.name,
+    email:        user.email,
+    phone:        user.phone,
+    role:         user.role,
+    profilePhoto: user.profilePhoto ?? null,
+    isVerified:   user.isVerified ?? false,
+    isSuperhost:  user.isSuperhost ?? false,
+    trustScore:   user.trustScore ?? 0,
+    businessName: user.businessName ?? null,
+    passwordHash,
+  }
+  await db.user.upsert({
+    where:  { id: user.id },
+    update: data,
+    create: { id: user.id, ...data },
+  })
+}
+
+async function seedPanelUsers(passwordHash) {
+  console.log('🛡  Seeding admins + extra users for panel testing…')
+
+  for (const admin of ADMINS) {
+    await upsertUser(admin, passwordHash)
+  }
+  console.log(`   ✓ ${ADMINS.length} admins`)
+
+  for (const user of EXTRA_USERS) {
+    await upsertUser(user, passwordHash)
+  }
+  console.log(`   ✓ ${EXTRA_USERS.length} extra guests/hosts`)
+
+  // Demo guest + hosts get real login passwords too
+  await upsertUser({
+    id: GUEST_KOFI,
+    name: 'Kofi Asante',
+    email: 'kofi@fiegh.demo',
+    phone: '+233245550001',
+    role: 'GUEST',
+    trustScore: 72,
+    isVerified: false,
+  }, passwordHash)
+
+  for (const host of HOSTS) {
+    await upsertUser(host, passwordHash)
+  }
+  console.log(`   ✓ ${HOSTS.length} listing hosts + demo guest`)
+
+  // Pending / mixed verifications so Verifications tab has data
+  const verifications = [
+    {
+      id:         stableId('verif-efua'),
+      userId:     GUEST_EFUA,
+      idType:     'GHANA_CARD',
+      idPhotoUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&q=80',
+      status:     'PENDING',
+    },
+    {
+      id:         stableId('verif-nana'),
+      userId:     HOST_NANA,
+      idType:     'PASSPORT',
+      idPhotoUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80',
+      status:     'PENDING',
+    },
+    {
+      id:         stableId('verif-kofi'),
+      userId:     GUEST_KOFI,
+      idType:     'VOTER_ID',
+      idPhotoUrl: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&q=80',
+      status:     'PENDING',
+    },
+    {
+      id:         stableId('verif-kojo'),
+      userId:     GUEST_KOJO,
+      idType:     'GHANA_CARD',
+      idPhotoUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&q=80',
+      status:     'APPROVED',
+    },
+  ]
+
+  for (const v of verifications) {
+    await db.verification.upsert({
+      where:  { userId: v.userId },
+      update: { idType: v.idType, idPhotoUrl: v.idPhotoUrl, status: v.status },
+      create: v,
+    })
+  }
+  console.log(`   ✓ ${verifications.length} verification rows`)
+
+  // Ensure exchange rate exists for Settings / Overview
+  const rateCount = await db.exchangeRate.count()
+  if (rateCount === 0) {
+    await db.exchangeRate.create({
+      data: { usdToGhs: 15.5, updatedBy: ADMIN_AMA },
+    })
+    console.log('   ✓ default exchange rate (15.5)')
+  }
+}
+
 async function main() {
-  // ── Guard ──────────────────────────────────────────────────────────────
+  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12)
+
+  // Always refresh panel test accounts (safe if listings already exist)
+  await seedPanelUsers(passwordHash)
+
+  // ── Guard listings ─────────────────────────────────────────────────────
   if (!force) {
     const count = await db.listing.count()
     if (count > 0) {
-      console.log(`⏭  ${count} listing(s) already in DB — skipping seed.`)
-      console.log('   Pass --force to wipe and re-seed: npm run db:seed -- --force')
+      console.log(`\n⏭  ${count} listing(s) already in DB — skipping listing seed.`)
+      console.log('   Pass --force to wipe and re-seed listings: npm run db:seed -- --force')
+      printLoginHints()
       return
     }
   } else {
-    console.log('🗑  --force: wiping existing listings, blocked dates, and seed users…')
+    console.log('\n🗑  --force: wiping existing listings, blocked dates, and seed users…')
+    await db.verification.deleteMany({ where: { user: { email: { endsWith: '@fiegh.demo' } } } })
     await db.blockedDate.deleteMany()
     await db.listing.deleteMany()
     await db.user.deleteMany({ where: { email: { endsWith: '@fiegh.demo' } } })
+    // Re-seed users after wipe
+    await seedPanelUsers(passwordHash)
   }
-
-  // ── Seed demo guest ────────────────────────────────────────────────────
-  console.log('👤 Seeding demo guest…')
-  await db.user.upsert({
-    where:  { id: GUEST_KOFI },
-    update: {},
-    create: {
-      id:         GUEST_KOFI,
-      name:       'Kofi Asante',
-      email:      'kofi@fiegh.demo',
-      phone:      '+233245550001',
-      role:       'GUEST',
-      trustScore: 72,
-      isVerified: false,
-    },
-  })
-
-  // ── Seed hosts ─────────────────────────────────────────────────────────
-  console.log('👤 Seeding hosts…')
-  for (const host of HOSTS) {
-    await db.user.upsert({
-      where:  { id: host.id },
-      update: {},
-      create: {
-        id:           host.id,
-        name:         host.name,
-        email:        host.email,
-        phone:        host.phone,
-        role:         host.role,
-        profilePhoto: host.profilePhoto,
-        isVerified:   host.isVerified,
-        isSuperhost:  host.isSuperhost,
-        trustScore:   host.trustScore,
-        passwordHash: '$2a$10$demohashdemohashdemohasXXXXXXXX', // placeholder, not a real hash
-      },
-    })
-  }
-  console.log(`   ✓ ${HOSTS.length} hosts upserted`)
 
   // ── Seed listings ──────────────────────────────────────────────────────
   console.log('🏠 Seeding listings…')
@@ -395,6 +546,17 @@ async function main() {
   console.log(`   ${HOSTS.length} hosts  |  ${LISTINGS.length} listings`)
   console.log('\n   Listing IDs (stable across re-seeds):')
   for (const l of LISTINGS) console.log(`   ${l.id}  →  ${l.title}`)
+  printLoginHints()
+}
+
+function printLoginHints() {
+  console.log('\n🔑 Demo logins (password for all: Demo1234!)')
+  console.log('   ADMIN  admin@fiegh.demo   →  /admin')
+  console.log('   ADMIN  admin2@fiegh.demo  →  /admin')
+  console.log('   HOST   abena@fiegh.demo')
+  console.log('   GUEST  kofi@fiegh.demo')
+  console.log('   GUEST  efua@fiegh.demo   (pending verification)')
+  console.log('   HOST   nana@fiegh.demo   (pending verification)')
 }
 
 main()
