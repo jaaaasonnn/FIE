@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { validateGhanaPhone } from '@/lib/utils'
 import { Suspense } from 'react'
+import { useAuth } from '@/context/AuthContext'
 
 function SignUpForm() {
   const params = useSearchParams()
@@ -22,6 +23,7 @@ function SignUpForm() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const router = useRouter()
+  const { signUp } = useAuth()
 
   function validate() {
     const e: Record<string, string> = {}
@@ -39,13 +41,21 @@ function SignUpForm() {
     if (!validate()) return
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/signup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, role })
+      // signUp() both creates the account AND signs in, so AuthContext's
+      // `user` (and the session cookie) reflect THIS new account rather
+      // than leaving the visitor logged in as whoever (or nobody) they
+      // were before.
+      const result = await signUp({
+        name: form.name,
+        email: form.email || undefined,
+        phone: form.phone || undefined,
+        password: form.password,
+        role,
+        businessName: form.businessName || undefined,
+        nationality: form.nationality,
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Sign up failed')
+      if (result.error) throw new Error(result.error)
+
       router.push('/auth/verify-id')
     } catch (err: unknown) {
       setErrors({ form: err instanceof Error ? err.message : 'Sign up failed' })

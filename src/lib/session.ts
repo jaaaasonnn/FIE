@@ -10,6 +10,7 @@ export type SessionUser = {
   profilePhoto: string | null
   isVerified: boolean
   isSuperhost: boolean
+  trustScore: number
 }
 
 /** Convenience helper for Route Handlers — reads the fiegh_session cookie. */
@@ -44,6 +45,7 @@ export async function getUserFromToken(token: string): Promise<SessionUser | nul
           profilePhoto: true,
           isVerified:   true,
           isSuperhost:  true,
+          trustScore:   true,
         },
       },
     },
