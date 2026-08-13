@@ -82,7 +82,7 @@ function SignUpForm() {
             Join FieGH 🇬🇭
           </h2>
           <p className="text-base leading-relaxed mb-8" style={{ color: 'rgba(250,247,242,0.6)' }}>
-            Ghana's premier rental platform. Find your perfect home or start earning from your property today.
+            Find your perfect home — or start earning from your property — with a platform rooted in Ghanaian hospitality.
           </p>
           {['Free to join', 'Ghana Card verification', 'MoMo & card payments', 'Escrow protection'].map((f) => (
             <div key={f} className="flex items-center gap-3 mb-3">
@@ -104,7 +104,7 @@ function SignUpForm() {
           </Link>
 
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Create Account</h1>
-          <p className="text-[#6B645C] mb-6">Join thousands of Ghanaians on FieGH.</p>
+          <p className="text-[#6B645C] mb-6">Join guests and hosts finding their fie on FieGH.</p>
 
           {/* Role toggle */}
           <div className="flex gap-2 p-1 rounded-2xl mb-6" style={{ backgroundColor: '#F0EAE0' }}>

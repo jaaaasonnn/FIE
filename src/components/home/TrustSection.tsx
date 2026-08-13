@@ -61,26 +61,30 @@ export function TrustSection() {
   }, [])
 
   return (
-    <section ref={ref} className="py-20 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
+    <section ref={ref} className="py-24 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="trust-heading text-center mb-12">
+        <div className="trust-heading text-center mb-14">
           <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--color-accent)' }}>
-            Built for Ghana
+            Built on trust
           </p>
           <h2 className="text-4xl font-bold" style={{ color: 'var(--cream)' }}>
             Rent with Confidence
           </h2>
           <p className="mt-4 text-sm max-w-xl mx-auto" style={{ color: 'rgba(250,247,242,0.6)' }}>
-            FieGH was built around Ghanaian culture, trust systems, and payment infrastructure.
+            FieGH grew from Ghanaian culture, trust systems, and payment infrastructure — and that warmth shapes how we host.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {trust.map(({ icon: Icon, title, desc, color }) => (
             <div
               key={title}
-              className="trust-card p-6 rounded-2xl border"
-              style={{ backgroundColor: 'rgba(255,255,255,0.04)', borderColor: 'rgba(245,192,106,0.15)' }}
+              className="trust-card p-7 rounded-2xl"
+              style={{
+                backgroundColor: 'rgba(255,255,255,0.04)',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                border: '1px solid rgba(245,192,106,0.1)',
+              }}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"

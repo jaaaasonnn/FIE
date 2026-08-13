@@ -4,6 +4,14 @@ import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Moon, CalendarDays, Key } from 'lucide-react'
 
+/** Shared warm gold family — cohesive with page accent (#C9932E / cream) */
+const BRAND = {
+  accent: 'var(--color-accent)',
+  accentSoft: 'var(--color-accent-subtle)',
+  cream: '#F7F0E4',
+  creamSoft: '#FAF7F2',
+}
+
 const modes = [
   {
     icon: Moon,
@@ -12,19 +20,19 @@ const modes = [
     subtitle: 'Nightly & weekly',
     desc: "Perfect for Detty December, business trips, or holiday escapes. Book for 1 night or a few weeks with instant confirmation.",
     href: '/search?mode=SHORT_STAY',
-    color: 'var(--color-accent)',
-    bg: 'var(--color-accent-subtle)'
+    color: BRAND.accent,
+    bg: BRAND.cream,
   },
   {
     icon: CalendarDays,
     emoji: '📅',
     title: 'Temporary Stay',
     subtitle: '1 to 11 months',
-    desc: "Relocating for work? Visiting family from the diaspora? Monthly furnished rentals across Ghana with flexible lease terms.",
+    desc: "Relocating for work? Visiting family from the diaspora? Monthly furnished rentals with flexible lease terms.",
     href: '/search?mode=TEMP_STAY',
-    color: '#2563EB',
-    bg: '#EFF6FF',
-    featured: true
+    color: BRAND.accent,
+    bg: BRAND.accentSoft,
+    featured: true,
   },
   {
     icon: Key,
@@ -33,8 +41,8 @@ const modes = [
     subtitle: '12+ months lease',
     desc: "Long-term tenancy agreements with clear advance payment terms upfront. No surprises — everything agreed before you move in.",
     href: '/search?mode=PERMANENT',
-    color: '#059669',
-    bg: '#F0FDF4'
+    color: BRAND.accent,
+    bg: BRAND.creamSoft,
   },
 ]
 
@@ -70,9 +78,9 @@ export function RentalModeSection() {
   }, [])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <section ref={sectionRef} className="py-24 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="mode-heading text-center mb-14">
+        <div className="mode-heading text-center mb-16">
           <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--color-accent)' }}>
             What are you looking for?
           </p>
@@ -80,18 +88,21 @@ export function RentalModeSection() {
             Three Ways to Rent
           </h2>
           <p className="text-[#6B645C] mt-4 max-w-xl mx-auto">
-            Whether you need a place for a night or a year, FieGH has the right option for you.
+            Whether you need a place for a night or a year, there&apos;s a calm path to the right home.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {modes.map((m) => {
             const Icon = m.icon
             return (
               <Link key={m.title} href={m.href} className="mode-card group block">
                 <div
-                  className="relative rounded-2xl p-7 h-full transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border border-transparent hover:border-stone-100"
-                  style={{ backgroundColor: m.bg }}
+                  className="relative rounded-2xl p-8 h-full transition-all duration-300 ease-out hover:-translate-y-0.5"
+                  style={{
+                    backgroundColor: m.bg,
+                    boxShadow: '0 4px 18px rgba(31, 27, 22, 0.05)',
+                  }}
                 >
                   {m.featured && (
                     <div
@@ -104,7 +115,10 @@ export function RentalModeSection() {
 
                   <div
                     className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 text-2xl"
-                    style={{ backgroundColor: `${m.color}15` }}
+                    style={{
+                      backgroundColor: 'rgba(201, 147, 46, 0.12)',
+                      border: '1px solid rgba(201, 147, 46, 0.18)',
+                    }}
                   >
                     {m.emoji}
                   </div>

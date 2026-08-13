@@ -111,7 +111,7 @@ function PriceMarker({
     <button
       onClick={onClick}
       style={{
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
+        fontFamily: "var(--font-sans)",
         fontSize: '12px',
         fontWeight: 600,
         padding: '5px 10px',
@@ -141,7 +141,7 @@ function ClusterMarker({
     <button
       onClick={onClick}
       style={{
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
+        fontFamily: "var(--font-sans)",
         fontSize: '12px',
         fontWeight: 700,
         padding: '6px 12px',
@@ -177,7 +177,7 @@ function PopupCard({
         overflow: 'hidden',
         backgroundColor: '#fff',
         boxShadow: '0 12px 40px rgba(31,27,22,0.18)',
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
+        fontFamily: "var(--font-sans)",
       }}
     >
       {/* Photo */}

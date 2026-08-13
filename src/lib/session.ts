@@ -8,9 +8,9 @@ export type SessionUser = {
   phone: string | null
   role: string           // GUEST | HOST | ADMIN
   profilePhoto: string | null
+  trustScore: number
   isVerified: boolean
   isSuperhost: boolean
-  trustScore: number
 }
 
 /** Convenience helper for Route Handlers — reads the fiegh_session cookie. */
@@ -43,9 +43,9 @@ export async function getUserFromToken(token: string): Promise<SessionUser | nul
           phone:        true,
           role:         true,
           profilePhoto: true,
+          trustScore:   true,
           isVerified:   true,
           isSuperhost:  true,
-          trustScore:   true,
         },
       },
     },

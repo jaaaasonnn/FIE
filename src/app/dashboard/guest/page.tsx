@@ -3,29 +3,31 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, Heart, MessageSquare, Star, CreditCard, Shield, TrendingUp, Loader2 } from 'lucide-react'
+import { Calendar, Heart, MessageSquare, Star, CreditCard, Bell, Shield, TrendingUp, Loader2 } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
+import { VerifiedBadge } from '@/components/ui/Badge'
+import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
+import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/messages'
 
-type Booking = {
-  id:         string
-  checkIn:    string
-  checkOut:   string
-  status:     string
+type ApiBooking = {
+  id: string
+  checkIn: string
+  checkOut: string
+  createdAt: string
+  updatedAt: string
+  status: string
   totalPrice: number
   rentalMode: string
-  listing: {
-    id:     string
-    title:  string
-    photos: string
-  }
+  listing: { id: string; title: string; photos: string; city: string; neighbourhood: string | null }
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
   CONFIRMED: { bg: '#D1FAE5', color: '#065F46', label: 'Confirmed ✓' },
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF', label: 'Completed' },
-  PENDING:   { bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
+  PENDING: { bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
+  DECLINED: { bg: '#FEE2E2', color: '#991B1B', label: 'Declined' },
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -34,11 +36,50 @@ const MODE_LABELS: Record<string, string> = {
   PERMANENT:  '🏠 Long-Term',
 }
 
-function getFirstPhoto(photosJson: string): string {
+function firstPhoto(photos: string): string {
   try {
-    const arr = JSON.parse(photosJson)
-    return Array.isArray(arr) ? arr[0] : photosJson
-  } catch { return photosJson }
+    const arr = JSON.parse(photos)
+    return Array.isArray(arr) ? arr[0] ?? '' : ''
+  } catch { return '' }
+}
+
+type ActivityItem = { id: string; message: string; time: string; read: boolean; at: number }
+
+// Synthesized from real bookings + real unread message counts — no dedicated
+// notifications table exists (or is needed) for this simple a feed.
+function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userId: string): ActivityItem[] {
+  const items: ActivityItem[] = []
+
+  for (const b of bookings) {
+    const title = b.listing?.title ?? 'your listing'
+    let message: string | null = null
+    if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed ✓`
+    else if (b.status === 'CANCELLED') message = `Your booking at ${title} was cancelled`
+    else if (b.status === 'DECLINED') message = `Your booking request at ${title} was declined`
+    else if (b.status === 'COMPLETED') message = `Your stay at ${title} is complete — leave a review!`
+    if (!message) continue
+    items.push({
+      id: `booking-${b.id}`,
+      message,
+      time: formatRelativeTime(b.updatedAt),
+      read: true, // booking status changes have no read/unread tracking
+      at: new Date(b.updatedAt).getTime(),
+    })
+  }
+
+  const conversations = groupConversations(messages, userId)
+  for (const c of conversations) {
+    if (c.unread === 0) continue
+    items.push({
+      id: `message-${c.id}`,
+      message: `New message from ${c.otherName}`,
+      time: c.time,
+      read: false,
+      at: c.lastAt,
+    })
+  }
+
+  return items.sort((a, b) => b.at - a.at).slice(0, 5)
 }
 
 export default function GuestDashboardPage() {
@@ -49,37 +90,38 @@ export default function GuestDashboardPage() {
     if (!authLoading && !user) router.replace('/login?redirect=/dashboard/guest')
   }, [authLoading, user, router])
 
-  const [bookings,     setBookings]     = useState<Booking[]>([])
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [bookings, setBookings] = useState<ApiBooking[]>([])
   const [wishlistCount, setWishlistCount] = useState(0)
-  const [reviewCount,   setReviewCount]   = useState(0)
-  const [dataLoading,  setDataLoading]  = useState(true)
+  const [reviewsGivenCount, setReviewsGivenCount] = useState(0)
+  const [activity, setActivity] = useState<ActivityItem[]>([])
+  const [dataLoading, setDataLoading] = useState(true)
+  const [cancellingId, setCancellingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
-    let cancelled = false
-
-    async function load() {
-      try {
-        const [bookingsRes, wishlistRes, reviewsRes] = await Promise.all([
-          fetch(`/api/bookings?guestId=${user!.id}`),
-          fetch(`/api/wishlists?userId=${user!.id}`),
-          fetch(`/api/reviews?reviewerId=${user!.id}`),
-        ])
-        const [bookingsData, wishlistData, reviewsData] = await Promise.all([
-          bookingsRes.json(), wishlistRes.json(), reviewsRes.json(),
-        ])
-        if (cancelled) return
-        setBookings(bookingsData.bookings ?? [])
-        setWishlistCount(wishlistData.wishlists?.length ?? 0)
-        setReviewCount(reviewsData.total ?? 0)
-      } catch {
-        // Keep whatever we already have on error
-      } finally {
-        if (!cancelled) setDataLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
+    setDataLoading(true)
+    Promise.all([
+      fetch(`/api/bookings?guestId=${user.id}`).then((r) => r.json()),
+      fetch(`/api/wishlists?userId=${user.id}`).then((r) => r.json()),
+      fetch(`/api/reviews?reviewerId=${user.id}`).then((r) => r.json()),
+      fetch('/api/messages').then((r) => r.json()),
+    ])
+      .then(([bData, wData, rData, mData]) => {
+        const bookingRows: ApiBooking[] = Array.isArray(bData.bookings) ? bData.bookings : []
+        const messageRows: ApiMessage[] = Array.isArray(mData.messages) ? mData.messages : []
+        setBookings(bookingRows)
+        setWishlistCount(Array.isArray(wData.wishlists) ? wData.wishlists.length : 0)
+        setReviewsGivenCount(typeof rData.total === 'number' ? rData.total : 0)
+        setActivity(buildActivityFeed(bookingRows, messageRows, user.id))
+      })
+      .catch(() => {
+        setBookings([])
+        setWishlistCount(0)
+        setReviewsGivenCount(0)
+        setActivity([])
+      })
+      .finally(() => setDataLoading(false))
   }, [user])
 
   if (authLoading || !user) {
@@ -91,8 +133,26 @@ export default function GuestDashboardPage() {
   }
 
   const firstName      = user.name?.split(' ')[0] ?? 'there'
-  const avatarInitial  = user.name?.[0]?.toUpperCase() ?? '?'
   const completedCount = bookings.filter((b) => b.status === 'COMPLETED').length
+
+  async function handleCancel(bookingId: string) {
+    if (!confirm('Cancel this booking? This cannot be undone.')) return
+    setCancellingId(bookingId)
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to cancel booking')
+      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: data.booking.status } : b)))
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Failed to cancel booking')
+    } finally {
+      setCancellingId(null)
+    }
+  }
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -100,9 +160,19 @@ export default function GuestDashboardPage() {
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0"
+            <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-xl font-bold flex-shrink-0"
               style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-              {avatarInitial}
+              {user.profilePhoto ? (
+                <>
+                  <img src={user.profilePhoto} alt={user.name ?? 'Guest'}
+                    onClick={() => setLightboxOpen(true)}
+                    className="w-full h-full object-cover cursor-pointer" />
+                  <PhotoLightbox src={user.profilePhoto} alt={user.name ?? 'Guest'}
+                    open={lightboxOpen} onOpenChange={setLightboxOpen} />
+                </>
+              ) : (
+                (user.name ?? 'G')[0].toUpperCase()
+              )}
             </div>
             <div>
               <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
@@ -110,7 +180,9 @@ export default function GuestDashboardPage() {
               </h1>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>Guest Account</span>
-                {!user.isVerified && (
+                {user.isVerified ? (
+                  <VerifiedBadge />
+                ) : (
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
                     ⏳ Verification Pending
                   </span>
@@ -133,10 +205,16 @@ export default function GuestDashboardPage() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Bookings" value={String(bookings.length)} sub={`${completedCount} completed`} />
-          <StatCard icon={<Heart size={18} style={{ color: '#EF4444' }} />} label="Saved Properties" value={String(wishlistCount)} />
-          <StatCard icon={<Star size={18} style={{ color: '#F59E0B' }} />} label="Reviews Given" value={String(reviewCount)} />
-          <StatCard icon={<TrendingUp size={18} style={{ color: '#059669' }} />} label="Trust Score" value={`${user.trustScore ?? 0}/100`} sub={user.isVerified ? undefined : 'ID verify to boost'} />
+          <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />}
+            label="Total Bookings" value={dataLoading ? '—' : bookings.length}
+            sub={dataLoading ? undefined : `${completedCount} completed`} />
+          <StatCard icon={<Heart size={18} style={{ color: '#EF4444' }} />}
+            label="Saved Properties" value={dataLoading ? '—' : wishlistCount} />
+          <StatCard icon={<Star size={18} style={{ color: '#F59E0B' }} />}
+            label="Reviews Given" value={dataLoading ? '—' : reviewsGivenCount} />
+          <StatCard icon={<TrendingUp size={18} style={{ color: '#059669' }} />}
+            label="Trust Score" value={`${user.trustScore ?? 0}/100`}
+            sub={user.isVerified ? undefined : 'ID verify to boost'} />
         </div>
 
         {/* Nav links */}
@@ -186,28 +264,48 @@ export default function GuestDashboardPage() {
           <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Your Bookings</h2>
 
           {dataLoading ? (
-            <div className="flex justify-center py-12">
-              <Loader2 size={24} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+            <div className="space-y-4">
+              {[1, 2].map((n) => (
+                <div key={n} className="soft-panel p-4 animate-pulse flex gap-4">
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-stone-100 flex-shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-stone-100 rounded w-2/3" />
+                    <div className="h-3 bg-stone-100 rounded w-1/3" />
+                    <div className="h-3 bg-stone-100 rounded w-1/2" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : bookings.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-2xl border border-stone-100">
-              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>You haven&apos;t made any bookings yet.</p>
-              <Link href="/search" className="inline-block mt-3 text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
-                Start exploring →
+            <div className="bg-white rounded-2xl p-10 text-center" style={{ boxShadow: '0 4px 18px rgba(31, 27, 22, 0.06)' }}>
+              <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No bookings yet</p>
+              <p className="text-sm mt-1 max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+                When you book a stay, it&apos;ll show up here.
+              </p>
+              <Link href="/search" className="inline-block mt-4 px-5 py-2.5 rounded-full text-sm font-semibold"
+                style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                Browse listings
               </Link>
             </div>
           ) : (
             <div className="space-y-4">
               {bookings.map((b) => {
                 const s = STATUS_STYLES[b.status] ?? STATUS_STYLES.PENDING
+                const photo = firstPhoto(b.listing?.photos ?? '[]')
                 return (
-                  <div key={b.id} className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
+                  <div key={b.id} className="soft-panel overflow-hidden">
                     <div className="flex gap-4 p-4">
-                      <img src={getFirstPhoto(b.listing.photos)} alt={b.listing.title}
-                        className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover flex-shrink-0" />
+                      {photo ? (
+                        <img src={photo} alt={b.listing?.title}
+                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-stone-100 flex-shrink-0" />
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>{b.listing.title}</h3>
+                          <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>
+                            {b.listing?.title}
+                          </h3>
                           <span className="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0"
                             style={{ backgroundColor: s.bg, color: s.color }}>
                             {s.label}
@@ -226,15 +324,53 @@ export default function GuestDashboardPage() {
                       </div>
                     </div>
                     <div className="px-4 pb-4 flex gap-2">
-                      <Link href={`/listings/${b.listing.id}`}
+                      <Link href={`/listings/${b.listing?.id}`}
                         className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
                         style={{ borderColor: '#E5E7EB', color: '#374151' }}>
                         View Listing
                       </Link>
+                      {b.status === 'CONFIRMED' && (
+                        <button onClick={() => handleCancel(b.id)} disabled={cancellingId === b.id}
+                          className="text-xs px-4 py-2 rounded-full font-medium disabled:opacity-50"
+                          style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+                          {cancellingId === b.id ? 'Cancelling…' : 'Cancel'}
+                        </button>
+                      )}
+                      {b.status === 'COMPLETED' && (
+                        <button className="text-xs px-4 py-2 rounded-full font-medium"
+                          style={{ backgroundColor: '#FFF8EE', color: 'var(--color-accent)' }}>
+                          Leave Review
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
               })}
+            </div>
+          )}
+        </div>
+
+        {/* Notifications */}
+        <div className="soft-panel p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Bell size={18} style={{ color: 'var(--color-accent)' }} />
+            <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Recent Notifications</h3>
+          </div>
+          {activity.length === 0 ? (
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Nothing new right now.</p>
+          ) : (
+            <div className="space-y-3">
+              {activity.map(({ id, message, time, read }) => (
+                <div key={id} className="flex items-start gap-3 p-3 rounded-xl"
+                  style={{ backgroundColor: read ? 'transparent' : '#FFF8EE' }}>
+                  {!read && <div className="w-2 h-2 rounded-full mt-1.5 flex-shrink-0" style={{ backgroundColor: 'var(--color-accent)' }} />}
+                  {read && <div className="w-2 h-2 flex-shrink-0" />}
+                  <div>
+                    <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{message}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">{time}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>

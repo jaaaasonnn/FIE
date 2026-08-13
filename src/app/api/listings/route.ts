@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import type { ListingSearchParams } from '@/types'
+import { getSessionUser } from '@/lib/session'
 
 export async function GET(req: Request) {
   try {
@@ -68,51 +68,94 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  console.log('[POST /api/listings] request received')
+
   try {
+    const user = await getSessionUser()
+    if (!user) {
+      console.log('[POST /api/listings] rejected — no session')
+      return NextResponse.json({ error: 'You must be signed in to create a listing' }, { status: 401 })
+    }
+
     const body = await req.json()
     const {
-      hostId, title, description, propertyType, region, city, neighbourhood,
+      title, description, propertyType, region, city, neighbourhood,
       lat, lng, bedrooms, bathrooms, maxGuests, rentalModes, priceNightly,
       priceMonthly, priceAnnual, advanceMonthsRequired, amenities, rules,
-      cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage
+      cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage,
     } = body
 
-    if (!hostId || !title || !region || !city || !bedrooms || !propertyType) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    // Always use the authenticated user as host — never trust client hostId
+    const hostId = user.id
+
+    if (!title?.trim() || !region || !city?.trim() || !propertyType || bedrooms == null || bedrooms === '') {
+      console.log('[POST /api/listings] rejected — missing required fields', {
+        hostId,
+        hasTitle: !!title?.trim(),
+        hasRegion: !!region,
+        hasCity: !!city?.trim(),
+        hasPropertyType: !!propertyType,
+        bedrooms,
+      })
+      return NextResponse.json(
+        { error: 'Missing required fields: title, property type, region, city, and bedrooms are required' },
+        { status: 400 },
+      )
+    }
+
+    const beds = parseInt(String(bedrooms), 10)
+    const baths = parseInt(String(bathrooms ?? 1), 10)
+    const guests = parseInt(String(maxGuests ?? 2), 10)
+    if (Number.isNaN(beds) || beds < 1) {
+      return NextResponse.json({ error: 'Bedrooms must be a valid number' }, { status: 400 })
     }
 
     // Auto-flag listings with contact details in description
     const contactPattern = /(\+?233|\b0[2-5]\d{8}\b|\b\d{10}\b|@gmail|@yahoo|whatsapp)/i
     const isFlagged = contactPattern.test(description || '')
 
+    console.log('[POST /api/listings] creating listing for host', hostId, { title, region, city, propertyType })
+
     const listing = await db.listing.create({
       data: {
-        hostId, title, description: description || '',
-        propertyType, region, city,
+        hostId,
+        title: title.trim(),
+        description: description || '',
+        propertyType,
+        region,
+        city: city.trim(),
         neighbourhood: neighbourhood || null,
-        lat: lat || null, lng: lng || null,
-        bedrooms: parseInt(bedrooms), bathrooms: parseInt(bathrooms),
-        maxGuests: parseInt(maxGuests),
+        lat: lat ?? null,
+        lng: lng ?? null,
+        bedrooms: beds,
+        bathrooms: Number.isNaN(baths) ? 1 : baths,
+        maxGuests: Number.isNaN(guests) ? 2 : guests,
         rentalModes: JSON.stringify(rentalModes || []),
-        priceNightly: priceNightly ? parseFloat(priceNightly) : null,
-        priceMonthly: priceMonthly ? parseFloat(priceMonthly) : null,
-        priceAnnual: priceAnnual ? parseFloat(priceAnnual) : null,
-        advanceMonthsRequired: advanceMonthsRequired ? parseInt(advanceMonthsRequired) : null,
+        priceNightly: priceNightly ? parseFloat(String(priceNightly)) : null,
+        priceMonthly: priceMonthly ? parseFloat(String(priceMonthly)) : null,
+        priceAnnual: priceAnnual ? parseFloat(String(priceAnnual)) : null,
+        advanceMonthsRequired: advanceMonthsRequired ? parseInt(String(advanceMonthsRequired), 10) : null,
         amenities: JSON.stringify(amenities || []),
         rules: JSON.stringify(rules || []),
         photos: JSON.stringify([]),
         cancellationPolicy: cancellationPolicy || 'FLEXIBLE',
-        instantBook: instantBook || false,
-        minStayNights: minStayNights ? parseInt(minStayNights) : 1,
-        damageDeposit: damageDeposit ? parseFloat(damageDeposit) : null,
+        instantBook: !!instantBook,
+        minStayNights: minStayNights ? parseInt(String(minStayNights), 10) : 1,
+        damageDeposit: damageDeposit ? parseFloat(String(damageDeposit)) : null,
         welcomeMessage: welcomeMessage || null,
-        isActive: !isFlagged
-      }
+        isActive: !isFlagged,
+      },
     })
 
+    // Promote guests to HOST so the host dashboard treats them as owners
+    if (user.role === 'GUEST') {
+      await db.user.update({ where: { id: user.id }, data: { role: 'HOST' } })
+    }
+
+    console.log('[POST /api/listings] created', listing.id, isFlagged ? '(flagged inactive)' : '')
     return NextResponse.json({ listing, flagged: isFlagged }, { status: 201 })
   } catch (error) {
-    console.error('Listing POST error:', error)
+    console.error('[POST /api/listings] error:', error)
     return NextResponse.json({ error: 'Failed to create listing' }, { status: 500 })
   }
 }

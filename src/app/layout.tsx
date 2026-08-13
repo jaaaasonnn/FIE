@@ -1,17 +1,25 @@
 import type { Metadata } from 'next'
+import { Manrope } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { Toaster } from '@/components/ui/Toaster'
 import { AuthProvider } from '@/context/AuthContext'
 
+const manrope = Manrope({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800'],
+  display: 'swap',
+  variable: '--font-manrope',
+})
+
 export const metadata: Metadata = {
-  title: 'FieGH — Your Home in Ghana 🇬🇭',
-  description: 'Find your perfect short stay, temporary or permanent rental across all 16 regions of Ghana. FieGH connects guests and hosts for premium Ghanaian living.',
-  keywords: 'Ghana rental, Accra apartments, short stay Ghana, monthly rental Kumasi, FieGH, fie means home Twi',
+  title: 'FieGH — Find your fie',
+  description: 'Short stays, monthly lets, and long-term leases — with Ghanaian roots and warm hospitality. Find your perfect home or start hosting on FieGH.',
+  keywords: 'FieGH, rental, Accra apartments, short stay, monthly rental, Kumasi, fie means home Twi, Ghanaian hospitality',
   openGraph: {
-    title: 'FieGH — Your Home in Ghana 🇬🇭',
-    description: 'Premium property rentals across Ghana. Short stays, monthly lets, and long-term leases.',
+    title: 'FieGH — Find your fie',
+    description: 'Premium short stays, monthly lets, and long-term leases. Homes with Ghanaian roots.',
     type: 'website',
     locale: 'en_GH'
   }
@@ -23,8 +31,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={manrope.variable}>
+      <body className={manrope.className}>
         <AuthProvider>
           <Navbar />
           <main className="min-h-screen">

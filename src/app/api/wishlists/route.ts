@@ -28,7 +28,12 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const { userId, listingId } = await req.json()
-    if (!userId || !listingId) return NextResponse.json({ error: 'userId and listingId required' }, { status: 400 })
+    console.log('[Wishlist POST] called', { userId, listingId })
+
+    if (!userId || !listingId) {
+      console.log('[Wishlist POST] rejected — missing userId or listingId')
+      return NextResponse.json({ error: 'userId and listingId required' }, { status: 400 })
+    }
 
     // Toggle: if already wishlisted, remove it
     const existing = await db.wishlist.findUnique({
@@ -37,13 +42,15 @@ export async function POST(req: Request) {
 
     if (existing) {
       await db.wishlist.delete({ where: { userId_listingId: { userId, listingId } } })
+      console.log('[Wishlist POST] removed', { userId, listingId, wishlisted: false })
       return NextResponse.json({ wishlisted: false })
     }
 
     await db.wishlist.create({ data: { userId, listingId } })
+    console.log('[Wishlist POST] created', { userId, listingId, wishlisted: true })
     return NextResponse.json({ wishlisted: true }, { status: 201 })
   } catch (error) {
-    console.error('Wishlist POST error:', error)
+    console.error('[Wishlist POST] error:', error)
     return NextResponse.json({ error: 'Failed to update wishlist' }, { status: 500 })
   }
 }

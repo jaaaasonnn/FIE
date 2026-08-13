@@ -105,18 +105,17 @@ export function HeroSection() {
             backdropFilter: 'blur(8px)',
           }}
         >
-          🇬🇭 Ghana&apos;s Premier Rental Platform
+          Homes with Ghanaian roots
         </div>
 
         {/* ── Headline — weight 800, "Fie" in accent ── */}
         <h1
           ref={titleRef}
-          className="text-5xl sm:text-6xl lg:text-7xl mb-6 leading-[1.05] tracking-tight"
-          style={{ color: '#fff', fontWeight: 800 }}
+          className="text-[2.75rem] sm:text-[3.35rem] lg:text-[4.15rem] mb-6 leading-[1.05]"
+          style={{ color: '#fff', fontWeight: 800, letterSpacing: '-0.045em' }}
         >
           Find Your{' '}
           <span className="text-shimmer">Fie</span>
-          {' '}in Ghana
         </h1>
 
         {/* ── Subtitle ── */}
@@ -126,7 +125,7 @@ export function HeroSection() {
           style={{ color: 'rgba(255,255,255,0.82)', fontWeight: 400 }}
         >
           Short stays, monthly lets, and long-term leases — all in one place.
-          From Accra to Kumasi, Takoradi to Tamale.
+          Live today from Accra to Kumasi, Takoradi to Tamale.
         </p>
 
         {/* ── Search card ── */}
@@ -185,7 +184,7 @@ export function HeroSection() {
                   cursor: 'pointer',
                 }}
               >
-                <option value="">All regions in Ghana</option>
+                <option value="">All regions</option>
                 {GHANA_REGIONS.map((r) => (
                   <option key={r} value={r}>{r}</option>
                 ))}

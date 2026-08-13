@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin'
 
 export async function GET(req: Request) {
+  const { error } = await requireAdmin()
+  if (error) return error
+
   try {
     const { searchParams } = new URL(req.url)
     const type = searchParams.get('type')
@@ -42,6 +46,9 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
+  const { error } = await requireAdmin()
+  if (error) return error
+
   try {
     const { type, ...data } = await req.json()
 

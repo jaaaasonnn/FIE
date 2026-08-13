@@ -38,15 +38,20 @@ const GHS_RATE = 15.5
 // ── Skeleton card ────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="rounded-2xl overflow-hidden animate-pulse"
-      style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
-      <div className="h-52" style={{ backgroundColor: '#E8E2D9' }} />
-      <div className="p-4 space-y-3">
+    <div
+      className="rounded-2xl overflow-hidden animate-pulse"
+      style={{
+        backgroundColor: 'var(--color-bg-card)',
+        boxShadow: '0 4px 18px rgba(31, 27, 22, 0.06)',
+      }}
+    >
+      <div className="h-56" style={{ backgroundColor: '#E8E2D9' }} />
+      <div className="p-5 space-y-3">
         <div className="h-3.5 rounded-full w-4/5" style={{ backgroundColor: '#E8E2D9' }} />
         <div className="h-3 rounded-full w-1/2"  style={{ backgroundColor: '#EDE8E1' }} />
         <div className="h-3 rounded-full w-1/3"  style={{ backgroundColor: '#EDE8E1' }} />
-        <div className="pt-3 mt-1 border-t flex justify-between items-center"
-          style={{ borderColor: 'var(--color-border)' }}>
+        <div className="pt-3 mt-1 flex justify-between items-center"
+          style={{ borderTop: '1px solid rgba(232, 225, 214, 0.6)' }}>
           <div className="h-4 rounded-full w-20" style={{ backgroundColor: '#E8E2D9' }} />
           <div className="h-3 rounded-full w-12" style={{ backgroundColor: '#EDE8E1' }} />
         </div>
@@ -180,11 +185,11 @@ export function FeaturedListings() {
   }, [loading, listings])
 
   return (
-    <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
+    <section ref={sectionRef} className="py-24 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-7xl mx-auto">
 
         {/* Heading row */}
-        <div className="listing-heading flex items-end justify-between mb-10">
+        <div className="listing-heading flex items-end justify-between mb-12">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest mb-2"
               style={{ color: 'var(--color-accent)', letterSpacing: '0.1em' }}>
@@ -202,9 +207,25 @@ export function FeaturedListings() {
         </div>
 
         {/* Grid — skeleton while loading */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
           {loading
             ? Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
+            : listings.length === 0
+            ? (
+              <div className="col-span-full text-center py-16 px-4">
+                <p className="text-lg font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+                  No featured homes just yet
+                </p>
+                <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
+                  Browse all available places — something lovely is waiting.
+                </p>
+                <Link href="/search"
+                  className="inline-flex px-6 py-3 rounded-full text-sm font-semibold"
+                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                  Explore homes
+                </Link>
+              </div>
+            )
             : listings.map((l) => {
                 const price    = l.priceNightly ?? l.priceMonthly ?? 0
                 const unit     = l.priceNightly ? '/night' : '/mo'
@@ -218,29 +239,27 @@ export function FeaturedListings() {
                     className="listing-card group block rounded-2xl overflow-hidden"
                     style={{
                       backgroundColor: 'var(--color-bg-card)',
-                      border:          '1px solid var(--color-border)',
-                      boxShadow:       '0 2px 8px rgba(31,27,22,0.06)',
                       textDecoration:  'none',
                     }}
                   >
-                    {/* Image */}
-                    <div className="relative h-52 overflow-hidden bg-stone-100">
+                    {/* Image — taller, photo-forward */}
+                    <div className="relative h-56 overflow-hidden bg-stone-100">
                       {photo && (
                         <img src={photo} alt={l.title}
-                          className="listing-card-img w-full h-full object-cover transition-transform duration-500"
+                          className="listing-card-img w-full h-full object-cover transition-transform duration-500 ease-out"
                           loading="lazy" />
                       )}
                       {l.rentalModes?.[0] && (
                         <span className="absolute top-3 left-3 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                          style={{ backgroundColor: 'rgba(0,0,0,0.52)', color: '#fff', backdropFilter: 'blur(6px)' }}>
+                          style={{ backgroundColor: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(6px)' }}>
                           {MODE_LABELS[l.rentalModes[0]]}
                         </span>
                       )}
                       <button
                         onClick={(e) => toggleWishlist(e, l.id)}
                         disabled={busyId === l.id}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(4px)' }}
+                        className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-200 hover:scale-105"
+                        style={{ backgroundColor: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 8px rgba(31,27,22,0.1)' }}
                         aria-label={wishlistedIds.has(l.id) ? 'Remove from wishlist' : 'Save listing'}>
                         <Heart
                           size={14}
@@ -251,8 +270,8 @@ export function FeaturedListings() {
                     </div>
 
                     {/* Body */}
-                    <div className="p-4 pb-0">
-                      <div className="flex items-start justify-between gap-3 mb-1">
+                    <div className="p-5 pb-0">
+                      <div className="flex items-start justify-between gap-3 mb-1.5">
                         <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2"
                           style={{ color: 'var(--color-text-primary)' }}>
                           {l.title}
@@ -268,7 +287,7 @@ export function FeaturedListings() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-1 text-xs mb-2.5"
+                      <div className="flex items-center gap-1 text-xs mb-3"
                         style={{ color: 'var(--color-text-secondary)' }}>
                         <MapPin size={11} className="flex-shrink-0" />
                         {l.neighbourhood}, {l.city}
@@ -285,14 +304,14 @@ export function FeaturedListings() {
                         <div className="flex items-center gap-1.5 mb-3">
                           {l.host.isVerified && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: '#EBF0F7', color: '#3A5A8A', border: '1px solid #C8D8ED' }}>
-                              ✓ Verified
+                              style={{ backgroundColor: '#EBF0F7', color: '#3A5A8A' }}>
+                              Verified
                             </span>
                           )}
                           {l.host.isSuperhost && (
                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: 'var(--color-accent-subtle)', color: '#8A5E10', border: '1px solid #E5D0A8' }}>
-                              ⭐ Superhost
+                              style={{ backgroundColor: 'var(--color-accent-subtle)', color: '#8A5E10' }}>
+                              Superhost
                             </span>
                           )}
                         </div>
@@ -300,8 +319,8 @@ export function FeaturedListings() {
                     </div>
 
                     {/* Price footer */}
-                    <div className="px-4 py-3 mt-1 flex items-end justify-between"
-                      style={{ borderTop: '1px solid var(--color-border)' }}>
+                    <div className="px-5 py-4 mt-1 flex items-end justify-between"
+                      style={{ borderTop: '1px solid rgba(232, 225, 214, 0.55)' }}>
                       <div>
                         <div className="flex items-baseline gap-1">
                           <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>

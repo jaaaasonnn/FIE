@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { calculateFees } from '@/lib/utils'
 
@@ -30,17 +31,18 @@ export async function POST(req: Request) {
     const checkOutDate = new Date(checkOut)
 
     // ── Atomic conflict check + create ──────────────────────────────────
-    // Wrapped in a Prisma interactive transaction so both the read and the
-    // write happen in a single serialised operation. On SQLite this prevents
-    // the TOCTOU race condition; on PostgreSQL you'd also add
-    // { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }.
+    // Serializable isolation is required on Postgres — unlike SQLite (single
+    // writer, transactions are serialised for free), Postgres's default
+    // READ COMMITTED would let two concurrent requests for overlapping dates
+    // both pass the conflict check before either commits, double-booking
+    // the listing. This forces Postgres to abort one of them instead.
     let booking
     try {
       booking = await db.$transaction(async (tx) => {
         const conflict = await tx.booking.findFirst({
           where: {
             listingId,
-            status: { notIn: ['CANCELLED'] },
+            status: { notIn: ['CANCELLED', 'DECLINED'] },
             OR: [
               { checkIn: { lt: checkOutDate }, checkOut: { gt: checkInDate } },
             ],
@@ -97,10 +99,13 @@ export async function POST(req: Request) {
         }
 
         return newBooking
-      })
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
     } catch (txErr) {
       const code = (txErr as NodeJS.ErrnoException).code ?? (txErr as Error).message
-      if (code === 'DATE_CONFLICT') {
+      // Postgres also raises P2034 when Serializable isolation detects a
+      // write conflict and aborts the transaction — treat it the same as an
+      // explicit date conflict rather than a generic 500.
+      if (code === 'DATE_CONFLICT' || code === 'P2034') {
         return NextResponse.json(
           { error: 'These dates are no longer available. Please choose different dates.' },
           { status: 409 },

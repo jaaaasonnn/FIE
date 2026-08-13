@@ -219,7 +219,7 @@ export default function EditListingPage() {
 
         <form onSubmit={handleSave} className="space-y-6">
           {/* Basic info */}
-          <div className="bg-white rounded-2xl border border-stone-100 p-6">
+          <div className="soft-panel p-6">
             <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Basic Information</h3>
             <div className="space-y-4">
               <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
@@ -244,7 +244,7 @@ export default function EditListingPage() {
           </div>
 
           {/* Location */}
-          <div className="bg-white rounded-2xl border border-stone-100 p-6">
+          <div className="soft-panel p-6">
             <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Location</h3>
             <div className="space-y-4">
               <Select label="Region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })}
@@ -257,7 +257,7 @@ export default function EditListingPage() {
           </div>
 
           {/* Pricing */}
-          <div className="bg-white rounded-2xl border border-stone-100 p-6">
+          <div className="soft-panel p-6">
             <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Rental Modes & Pricing</h3>
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2">
@@ -300,7 +300,7 @@ export default function EditListingPage() {
           </div>
 
           {/* Amenities */}
-          <div className="bg-white rounded-2xl border border-stone-100 p-6">
+          <div className="soft-panel p-6">
             <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Amenities</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {AMENITIES_LIST.map((a) => (
@@ -319,7 +319,7 @@ export default function EditListingPage() {
           </div>
 
           {/* Welcome message & settings */}
-          <div className="bg-white rounded-2xl border border-stone-100 p-6">
+          <div className="soft-panel p-6">
             <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Settings</h3>
             <div className="space-y-4">
               <Textarea label="Automated Welcome Message" value={form.welcomeMessage} onChange={(e) => setForm({ ...form, welcomeMessage: e.target.value })}

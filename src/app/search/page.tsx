@@ -378,8 +378,6 @@ function SearchContent() {
                     className="listing-card group flex gap-3 rounded-2xl p-3"
                     style={{
                       backgroundColor: 'var(--color-bg-card)',
-                      border:          '1px solid var(--color-border)',
-                      boxShadow:       '0 1px 6px rgba(31,27,22,0.06)',
                       textDecoration:  'none',
                     }}>
                     {/* Thumbnail */}

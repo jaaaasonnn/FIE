@@ -123,7 +123,7 @@ export default function HostPayoutsPage() {
                   color: '#059669',
                 },
               ].map(({ label, value, sub, color }) => (
-                <div key={label} className="bg-white p-4 rounded-2xl border border-stone-100 text-center">
+                <div key={label} className="soft-panel p-4 text-center">
                   <p className="text-xs text-[#6B645C] mb-1">{label}</p>
                   <p className="text-lg font-bold" style={{ color }}>{value}</p>
                   <p className="text-xs text-stone-400 mt-0.5">{sub}</p>
@@ -132,7 +132,7 @@ export default function HostPayoutsPage() {
             </div>
 
             {/* Payout method */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm p-5 mb-6">
+            <div className="soft-panel p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Payout Method</h3>
                 <button onClick={() => setAddingMethod(!addingMethod)}
@@ -194,16 +194,16 @@ export default function HostPayoutsPage() {
             </div>
 
             {/* Payout history */}
-            <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
-              <div className="px-5 py-4 border-b border-stone-100">
+            <div className="soft-panel overflow-hidden">
+              <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(232, 225, 214, 0.55)' }}>
                 <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Payout History</h3>
               </div>
               {payouts.length === 0 ? (
                 <div className="text-center py-16 px-4">
                   <div className="text-4xl mb-3">💸</div>
                   <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No payouts yet</p>
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                    Earnings from completed guest stays will appear here.
+                  <p className="text-sm mt-1 max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
+                    After a guest checks in, your earnings will show up here.
                   </p>
                 </div>
               ) : (
