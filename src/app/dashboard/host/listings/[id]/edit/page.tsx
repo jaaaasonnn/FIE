@@ -6,6 +6,7 @@ import { CheckSquare, Square, Eye, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
+import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST } from '@/lib/utils'
 
 type FormState = {
@@ -46,6 +47,7 @@ export default function EditListingPage() {
   const router = useRouter()
 
   const [form,      setForm]      = useState<FormState>(EMPTY_FORM)
+  const [photos,    setPhotos]    = useState<string[]>([])
   const [fetching,  setFetching]  = useState(true)
   const [fetchError, setFetchError] = useState('')
   const [loading,   setLoading]   = useState(false)
@@ -90,6 +92,7 @@ export default function EditListingPage() {
           welcomeMessage:         l.welcomeMessage       ?? '',
           isActive:               l.isActive             ?? true,
         })
+        setPhotos(parseJson(l.photos))
       })
       .catch(() => setFetchError('Failed to load listing. Please try again.'))
       .finally(() => setFetching(false))
@@ -297,6 +300,12 @@ export default function EditListingPage() {
               )}
               <Input label="Damage Deposit ($, optional)" type="number" value={form.damageDeposit} onChange={(e) => setForm({ ...form, damageDeposit: e.target.value })} />
             </div>
+          </div>
+
+          {/* Photos */}
+          <div className="soft-panel p-6">
+            <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Photos</h3>
+            <ListingPhotoManager listingId={params.id} photos={photos} onPhotosChange={setPhotos} />
           </div>
 
           {/* Amenities */}

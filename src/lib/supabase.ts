@@ -20,3 +20,4 @@ export const supabaseAdmin = createClient(
 )
 
 export const AVATARS_BUCKET = 'avatars'
+export const LISTING_PHOTOS_BUCKET = 'listing-photos'

@@ -2,20 +2,28 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, CheckSquare, Square } from 'lucide-react'
+import { CheckSquare, Square } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
+import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
 const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Photos', 'Review']
+
+// Index of the Photos step — the listing gets created right before this
+// step so photo uploads have a real listingId to attach to, rather than
+// holding raw files in memory for the whole wizard.
+const PHOTOS_STEP = 4
 
 export default function NewListingPage() {
   const [step, setStep] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [stepError, setStepError] = useState('')
+  const [listingId, setListingId] = useState<string | null>(null)
+  const [photos, setPhotos] = useState<string[]>([])
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
 
@@ -34,6 +42,34 @@ export default function NewListingPage() {
     damageDeposit: '',
     welcomeMessage: ''
   })
+
+  // Shared by the early create (right before the Photos step) and the
+  // final publish (Review step) — same fields, just POST vs PATCH.
+  function buildListingPayload() {
+    return {
+      title: form.title.trim(),
+      description: form.description,
+      propertyType: form.propertyType,
+      region: form.region,
+      city: form.city.trim(),
+      neighbourhood: form.neighbourhood || null,
+      bedrooms: parseInt(form.bedrooms, 10),
+      bathrooms: parseInt(form.bathrooms, 10),
+      maxGuests: parseInt(form.maxGuests, 10),
+      rentalModes: form.rentalModes,
+      priceNightly: form.priceNightly ? parseFloat(form.priceNightly) : null,
+      priceMonthly: form.priceMonthly ? parseFloat(form.priceMonthly) : null,
+      priceAnnual: form.priceAnnual ? parseFloat(form.priceAnnual) : null,
+      advanceMonthsRequired: form.advanceMonthsRequired ? parseInt(form.advanceMonthsRequired, 10) : null,
+      amenities: form.amenities,
+      rules: form.rules,
+      cancellationPolicy: form.cancellationPolicy,
+      instantBook: form.instantBook,
+      minStayNights: parseInt(form.minStayNights, 10) || 1,
+      damageDeposit: form.damageDeposit ? parseFloat(form.damageDeposit) : null,
+      welcomeMessage: form.welcomeMessage || null,
+    }
+  }
 
   function toggleMode(m: string) {
     setForm((f) => ({
@@ -73,13 +109,50 @@ export default function NewListingPage() {
     return null
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     const msg = validateStep(step)
     if (msg) {
       setStepError(msg)
       return
     }
     setStepError('')
+
+    // Create the listing right before the Photos step so uploads have a
+    // real listingId to attach to, instead of holding raw files in memory
+    // for the rest of the wizard. Starts inactive — it won't show up in
+    // search until the host reaches the end and publishes it.
+    if (step === PHOTOS_STEP - 1 && !listingId) {
+      if (authLoading) {
+        setStepError('Still checking your session — please wait a moment and try again.')
+        return
+      }
+      if (!user) {
+        setStepError('You must be signed in to create a listing.')
+        router.push('/login?redirect=/dashboard/host/listings/new')
+        return
+      }
+
+      setLoading(true)
+      try {
+        const res = await fetch('/api/listings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...buildListingPayload(), isActive: false }),
+        })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          setStepError(data.error || `Could not save your progress (${res.status}). Please try again.`)
+          return
+        }
+        setListingId(data.listing.id)
+      } catch {
+        setStepError('Network error. Please check your connection and try again.')
+        return
+      } finally {
+        setLoading(false)
+      }
+    }
+
     setStep(step + 1)
   }
 
@@ -109,44 +182,30 @@ export default function NewListingPage() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/listings', {
-        method: 'POST',
+      // The listing was already created (as a draft) before the Photos
+      // step in the common case — publishing just updates it with the
+      // latest form values and flips it active, rather than creating a
+      // second listing. listingId can still be null here if that earlier
+      // create somehow never ran (e.g. the host jumped straight to this
+      // step some other way), so fall back to a fresh create.
+      const url    = listingId ? `/api/listings/${listingId}` : '/api/listings'
+      const method = listingId ? 'PATCH' : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: form.title.trim(),
-          description: form.description,
-          propertyType: form.propertyType,
-          region: form.region,
-          city: form.city.trim(),
-          neighbourhood: form.neighbourhood || null,
-          bedrooms: parseInt(form.bedrooms, 10),
-          bathrooms: parseInt(form.bathrooms, 10),
-          maxGuests: parseInt(form.maxGuests, 10),
-          rentalModes: form.rentalModes,
-          priceNightly: form.priceNightly || null,
-          priceMonthly: form.priceMonthly || null,
-          priceAnnual: form.priceAnnual || null,
-          advanceMonthsRequired: form.advanceMonthsRequired || null,
-          amenities: form.amenities,
-          rules: form.rules,
-          cancellationPolicy: form.cancellationPolicy,
-          instantBook: form.instantBook,
-          minStayNights: parseInt(form.minStayNights, 10) || 1,
-          damageDeposit: form.damageDeposit || null,
-          welcomeMessage: form.welcomeMessage || null,
-        }),
+        body: JSON.stringify({ ...buildListingPayload(), isActive: true }),
       })
 
       const data = await res.json().catch(() => ({}))
 
       if (!res.ok) {
-        setError(data.error || `Could not create listing (${res.status}). Please try again.`)
+        setError(data.error || `Could not publish your listing (${res.status}). Please try again.`)
         return
       }
 
-      const listingId = data.listing?.id
-      if (listingId) {
-        router.push(`/dashboard/host?created=${listingId}`)
+      const finalId = data.listing?.id ?? listingId
+      if (finalId) {
+        router.push(`/dashboard/host?created=${finalId}`)
       } else {
         router.push('/dashboard/host')
       }
@@ -337,21 +396,10 @@ export default function NewListingPage() {
     </div>
   )
 
-  const step4 = (
-    <div className="space-y-4">
-      <p className="text-sm text-[#6B645C]">Upload up to 12 photos. First photo is your cover image.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <label key={i} className="aspect-square rounded-2xl border-2 border-dashed flex flex-col items-center justify-center cursor-pointer transition-all hover:border-amber-400"
-            style={{ borderColor: '#D1D5DB', backgroundColor: '#F9FAFB' }}>
-            <input type="file" accept="image/*" className="hidden" />
-            <Upload size={24} className="text-stone-400 mb-2" />
-            <span className="text-xs text-stone-400">{i === 0 ? 'Cover photo' : `Photo ${i + 1}`}</span>
-          </label>
-        ))}
-      </div>
-      <p className="text-xs text-[#6B645C]">JPG or PNG, max 10MB each. Use bright, well-lit photos for better bookings.</p>
-    </div>
+  const step4 = listingId ? (
+    <ListingPhotoManager listingId={listingId} photos={photos} onPhotosChange={setPhotos} />
+  ) : (
+    <p className="text-sm text-[#6B645C]">Saving your progress…</p>
   )
 
   const step5 = (
@@ -365,6 +413,7 @@ export default function NewListingPage() {
             ['Location', [form.neighbourhood, form.city, form.region].filter(Boolean).join(', ') || '—'],
             ['Bedrooms', `${form.bedrooms} beds, ${form.bathrooms} baths, max ${form.maxGuests} guests`],
             ['Rental Modes', form.rentalModes.join(', ') || '—'],
+            ['Photos', `${photos.length} uploaded`],
             ['Nightly Price', form.priceNightly ? `$${form.priceNightly}` : '—'],
             ['Monthly Price', form.priceMonthly ? `$${form.priceMonthly}` : '—'],
             ['Annual Price', form.priceAnnual ? `$${form.priceAnnual}` : '—'],

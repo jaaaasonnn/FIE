@@ -83,6 +83,7 @@ export async function POST(req: Request) {
       lat, lng, bedrooms, bathrooms, maxGuests, rentalModes, priceNightly,
       priceMonthly, priceAnnual, advanceMonthsRequired, amenities, rules,
       cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage,
+      isActive: requestedIsActive,
     } = body
 
     // Always use the authenticated user as host — never trust client hostId
@@ -143,7 +144,11 @@ export async function POST(req: Request) {
         minStayNights: minStayNights ? parseInt(String(minStayNights), 10) : 1,
         damageDeposit: damageDeposit ? parseFloat(String(damageDeposit)) : null,
         welcomeMessage: welcomeMessage || null,
-        isActive: !isFlagged,
+        // A client can request staying inactive (used by the "new listing"
+        // wizard, which creates the record as a draft before its Photos
+        // step) but can never force itself active — the content-flag check
+        // still applies either way.
+        isActive: requestedIsActive === false ? false : !isFlagged,
       },
     })
 
