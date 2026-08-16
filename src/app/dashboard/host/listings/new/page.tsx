@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Upload, CheckSquare, Square } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
+import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 
@@ -396,7 +397,7 @@ export default function NewListingPage() {
         <p className="text-[#6B645C] text-sm mb-8">Fill in the details to get your property live on FieGH.</p>
 
         {/* Progress */}
-        <div className="flex items-center gap-1 mb-8 overflow-x-auto pb-2">
+        <ScrollHintRow className="mb-8" rowClassName="items-center gap-1 pb-2" fadeColor="var(--color-bg)" activeIndex={step}>
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-1 flex-shrink-0">
               <div
@@ -415,7 +416,7 @@ export default function NewListingPage() {
               {i < STEPS.length - 1 && <div className="w-6 h-px mx-1" style={{ backgroundColor: '#E5E7EB' }} />}
             </div>
           ))}
-        </div>
+        </ScrollHintRow>
 
         {/* Step content */}
         <div className="soft-panel p-6 mb-6">

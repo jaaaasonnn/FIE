@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Calendar, CheckCircle, Clock, XCircle, MessageSquare } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 
 type ApiBooking = {
   id: string
@@ -96,7 +97,7 @@ export default function HostBookingsPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Status filter tabs */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+        <ScrollHintRow className="mb-6" rowClassName="gap-2 pb-1" fadeColor="var(--color-bg)">
           {FILTERS.map((f) => (
             <button key={f} onClick={() => setFilter(f)}
               className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all"
@@ -110,7 +111,7 @@ export default function HostBookingsPage() {
                 : `${f.charAt(0) + f.slice(1).toLowerCase()} (${allBookings.filter((b) => b.status === f).length})`}
             </button>
           ))}
-        </div>
+        </ScrollHintRow>
 
         {/* Loading skeleton */}
         {loading && (

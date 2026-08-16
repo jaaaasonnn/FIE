@@ -4,9 +4,10 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Home, Calendar, DollarSign, Shield, AlertTriangle,
-  CheckCircle, XCircle, Globe, Star, Loader2, ChevronLeft, ChevronRight,
+  CheckCircle, XCircle, Globe, Star, Loader2,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
+import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { useAuth } from '@/context/AuthContext'
 
 const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Reviews', 'Settings']
@@ -63,33 +64,6 @@ export default function AdminPage() {
   const [listings, setListings] = useState<AdminListing[]>([])
   const [tabLoading, setTabLoading] = useState(false)
   const [forbidden, setForbidden] = useState(false)
-
-  // Mobile tab strip scroll affordance — shows a chevron on whichever edge(s)
-  // still have more tabs to reveal, since the strip holds all 8 tabs but
-  // only ~4-5 fit on a 375-414px screen at once.
-  //
-  // Uses a callback ref (not useRef + a mount-only effect) because this bar
-  // only enters the DOM once the authLoading/forbidden gates above resolve —
-  // a plain useEffect(..., []) would fire while the ref was still null.
-  const [mobileTabsEl, setMobileTabsEl] = useState<HTMLDivElement | null>(null)
-  const [canScrollLeft, setCanScrollLeft] = useState(false)
-  const [canScrollRight, setCanScrollRight] = useState(false)
-
-  useEffect(() => {
-    const el = mobileTabsEl
-    if (!el) return
-    const update = () => {
-      setCanScrollLeft(el.scrollLeft > 4)
-      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4)
-    }
-    update()
-    el.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
-    return () => {
-      el.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
-    }
-  }, [mobileTabsEl])
 
   // Role gate
   useEffect(() => {
@@ -221,33 +195,15 @@ export default function AdminPage() {
       {/* Mobile tabs */}
       <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t"
         style={{ backgroundColor: 'var(--brown-dark)', borderColor: 'rgba(245,192,106,0.2)' }}>
-        <div className="relative">
-          <div ref={setMobileTabsEl} className="flex overflow-x-auto">
-            {TABS.map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className="flex-shrink-0 px-4 py-3 text-xs transition-all"
-                style={{ color: activeTab === tab ? 'var(--gold)' : 'rgba(250,247,242,0.5)' }}>
-                {tab}
-              </button>
-            ))}
-          </div>
-          {/* Scroll hints — only shown on whichever edge(s) still hide tabs.
-              A same-color fade alone is invisible against this bar's own
-              background, so a gold chevron carries the actual "more here"
-              signal; the gradient just softens the tab text under it. */}
-          {canScrollLeft && (
-            <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-10 flex items-center justify-start pl-1"
-              style={{ background: 'linear-gradient(to right, var(--brown-dark) 40%, transparent)' }}>
-              <ChevronLeft size={14} style={{ color: 'var(--gold)' }} />
-            </div>
-          )}
-          {canScrollRight && (
-            <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 flex items-center justify-end pr-1"
-              style={{ background: 'linear-gradient(to left, var(--brown-dark) 40%, transparent)' }}>
-              <ChevronRight size={14} style={{ color: 'var(--gold)' }} />
-            </div>
-          )}
-        </div>
+        <ScrollHintRow fadeColor="var(--brown-dark)">
+          {TABS.map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className="flex-shrink-0 px-4 py-3 text-xs transition-all"
+              style={{ color: activeTab === tab ? 'var(--gold)' : 'rgba(250,247,242,0.5)' }}>
+              {tab}
+            </button>
+          ))}
+        </ScrollHintRow>
       </div>
 
       {/* Main content */}
