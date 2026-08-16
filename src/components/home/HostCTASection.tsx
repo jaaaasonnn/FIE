@@ -10,15 +10,24 @@ export function HostCTASection() {
   useEffect(() => {
     const left = sectionRef.current?.querySelector('.cta-left')
     const right = sectionRef.current?.querySelector('.cta-right')
-    if (left) { (left as HTMLElement).style.opacity = '0'; (left as HTMLElement).style.transform = 'translateX(-50px)' }
-    if (right) { (right as HTMLElement).style.opacity = '0'; (right as HTMLElement).style.transform = 'translateX(50px)' }
+    if (!left || !right) return
 
+    // Nothing is hidden or offset until GSAP actually loads — if the dynamic
+    // import is slow/blocked/fails, the section just renders normally (no
+    // animation) instead of getting stuck translated off-screen, which on
+    // narrow viewports caused real horizontal page scroll.
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
             import('gsap').then(({ gsap }) => {
-              gsap.to([left, right], { x: 0, opacity: 1, stagger: 0.15, duration: 0.9, ease: 'power3.out' })
+              gsap.from([left, right], {
+                x: (i) => (i === 0 ? -50 : 50),
+                opacity: 0,
+                stagger: 0.15,
+                duration: 0.9,
+                ease: 'power3.out',
+              })
             })
             observer.unobserve(entry.target)
           }
