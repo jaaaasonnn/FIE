@@ -1,5 +1,34 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/session'
+
+// Fields a host (or admin) may change via this route. Anything else in the
+// request body — hostId, id, avgRating, reviewCount, isFeatured, etc. — is
+// silently ignored rather than being spread straight into the Prisma
+// update. photos is deliberately excluded: it's managed exclusively via
+// /api/listings/[id]/photos now, which handles Storage cleanup that a
+// plain field overwrite here would bypass.
+const EDITABLE_FIELDS = [
+  'title', 'description', 'propertyType', 'region', 'city', 'neighbourhood',
+  'lat', 'lng', 'bedrooms', 'bathrooms', 'maxGuests', 'rentalModes',
+  'priceNightly', 'priceMonthly', 'priceAnnual', 'advanceMonthsRequired',
+  'amenities', 'rules', 'cancellationPolicy', 'instantBook',
+  'minStayNights', 'damageDeposit', 'welcomeMessage', 'isActive',
+] as const
+const JSON_ARRAY_FIELDS = new Set(['rentalModes', 'amenities', 'rules'])
+
+async function requireOwnedListing(id: string) {
+  const user = await getSessionUser()
+  if (!user) return { error: NextResponse.json({ error: 'You must be signed in' }, { status: 401 }) }
+
+  const listing = await db.listing.findUnique({ where: { id } })
+  if (!listing) return { error: NextResponse.json({ error: 'Listing not found' }, { status: 404 }) }
+
+  if (listing.hostId !== user.id && user.role !== 'ADMIN') {
+    return { error: NextResponse.json({ error: 'You can only manage your own listings' }, { status: 403 }) }
+  }
+  return { listing }
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -42,21 +71,18 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const { error } = await requireOwnedListing(id)
+    if (error) return error
+
     const body = await req.json()
 
-    const listing = await db.listing.findUnique({ where: { id } })
-    if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
+    const data: Record<string, unknown> = {}
+    for (const field of EDITABLE_FIELDS) {
+      if (body[field] === undefined) continue
+      data[field] = JSON_ARRAY_FIELDS.has(field) ? JSON.stringify(body[field]) : body[field]
+    }
 
-    const updated = await db.listing.update({
-      where: { id },
-      data: {
-        ...body,
-        amenities: body.amenities ? JSON.stringify(body.amenities) : undefined,
-        rentalModes: body.rentalModes ? JSON.stringify(body.rentalModes) : undefined,
-        photos: body.photos ? JSON.stringify(body.photos) : undefined,
-        rules: body.rules ? JSON.stringify(body.rules) : undefined
-      }
-    })
+    const updated = await db.listing.update({ where: { id }, data })
 
     return NextResponse.json({ listing: updated })
   } catch (error) {
@@ -68,9 +94,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const { error } = await requireOwnedListing(id)
+    if (error) return error
+
     await db.listing.update({ where: { id }, data: { isActive: false } })
     return NextResponse.json({ success: true })
   } catch (error) {
+    console.error('Listing DELETE error:', error)
     return NextResponse.json({ error: 'Failed to delete listing' }, { status: 500 })
   }
 }
