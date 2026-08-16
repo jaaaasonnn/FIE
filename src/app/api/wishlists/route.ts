@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/session'
 
-export async function GET(req: Request) {
+export async function GET(_req: Request) {
   try {
-    const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId')
-    if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 })
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+    }
+    // Ignore any client-supplied userId — a wishlist is only ever the
+    // session user's own, never anyone else's by request.
+    const userId = user.id
 
     const wishlists = await db.wishlist.findMany({
       where: { userId },
@@ -27,12 +32,20 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { userId, listingId } = await req.json()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+    }
+
+    const { listingId } = await req.json()
+    // Always the session user — never a client-supplied userId, which
+    // would let a caller add/remove entries on anyone else's wishlist.
+    const userId = user.id
     console.log('[Wishlist POST] called', { userId, listingId })
 
-    if (!userId || !listingId) {
-      console.log('[Wishlist POST] rejected — missing userId or listingId')
-      return NextResponse.json({ error: 'userId and listingId required' }, { status: 400 })
+    if (!listingId) {
+      console.log('[Wishlist POST] rejected — missing listingId')
+      return NextResponse.json({ error: 'listingId required' }, { status: 400 })
     }
 
     // Toggle: if already wishlisted, remove it

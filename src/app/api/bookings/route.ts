@@ -2,17 +2,27 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { calculateFees } from '@/lib/utils'
+import { getSessionUser } from '@/lib/session'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
   try {
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'You must be signed in to book' }, { status: 401 })
+    }
+
     const body = await req.json()
     const {
-      listingId, guestId, rentalMode,
+      listingId, rentalMode,
       checkIn, checkOut, nightsOrMonths, specialRequests,
     } = body
+    // Always the authenticated session user — never a client-supplied
+    // guestId, which would let a caller create bookings (and occupy real
+    // calendar availability on instant-book listings) as anyone else.
+    const guestId = user.id
 
-    if (!listingId || !guestId || !rentalMode || !checkIn || !checkOut) {
+    if (!listingId || !rentalMode || !checkIn || !checkOut) {
       return NextResponse.json(
         { error: 'Missing required booking fields' },
         { status: 400 },
@@ -129,8 +139,15 @@ export async function GET(req: Request) {
     const guestId = searchParams.get('guestId')
     const hostId  = searchParams.get('hostId')
 
-    // Single booking lookup (used by checkout page)
+    // Single booking lookup (used by checkout page) — includes guest/host
+    // PII (email, phone), so this needs to be scoped to the two parties
+    // on the booking (or an admin), not just anyone who knows the id.
     if (id) {
+      const user = await getSessionUser()
+      if (!user) {
+        return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+      }
+
       const booking = await db.booking.findUnique({
         where: { id },
         include: {
@@ -148,6 +165,11 @@ export async function GET(req: Request) {
         },
       })
       if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+
+      if (user.id !== booking.guestId && user.id !== booking.hostId && user.role !== 'ADMIN') {
+        return NextResponse.json({ error: 'You do not have access to this booking' }, { status: 403 })
+      }
+
       return NextResponse.json({ booking })
     }
 
