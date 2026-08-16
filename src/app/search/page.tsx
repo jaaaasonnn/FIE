@@ -305,10 +305,17 @@ function SearchContent() {
       </div>
 
       {/* Split layout */}
-      <div className="max-w-[1600px] mx-auto flex" style={{ height: 'calc(100vh - 4.25rem - 57px)' }}>
+      {/* The fixed-viewport height + independent inner scroll is a desktop-only
+          pattern (it exists so the map panel can stay pinned while the list
+          scrolls past it). Applying it on mobile — where the map panel is
+          hidden anyway — created two independently-scrollable containers
+          (the page and this panel), and on iOS Safari specifically 100vh
+          doesn't track the address bar's show/hide, so taps could land on
+          the wrong scroll container. Below md, this is just normal page flow. */}
+      <div className="max-w-[1600px] mx-auto flex md:h-[calc(100vh_-_4.25rem_-_57px)]">
 
         {/* LEFT: scrollable listings */}
-        <div className="flex-[58] overflow-y-auto px-4 sm:px-6 py-6">
+        <div className="flex-[58] md:overflow-y-auto px-4 sm:px-6 py-6">
 
           {/* Result count + chips */}
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">

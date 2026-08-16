@@ -141,6 +141,7 @@ input, select, textarea, button {
 .glass-dark {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(201,147,46,0.15);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
