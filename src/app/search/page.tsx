@@ -423,7 +423,7 @@ function SearchContent() {
                         <span className="flex items-center gap-0.5"><Bath size={10} />{l.bathrooms} ba</span>
                       </div>
 
-                      <div className="flex items-end justify-between">
+                      <div className="flex items-end justify-between gap-2 flex-wrap">
                         <div>
                           <span className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
                             ${price.toLocaleString()}
@@ -436,7 +436,7 @@ function SearchContent() {
                           </div>
                         </div>
                         {(l.host?.isVerified || l.host?.isSuperhost) && (
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 flex-shrink-0 ml-auto">
                             {l.host.isVerified  && <VerifiedBadge />}
                             {l.host.isSuperhost && <SuperhostBadge />}
                           </div>
