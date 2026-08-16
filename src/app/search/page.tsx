@@ -194,7 +194,7 @@ function SearchContent() {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3">
           <div className="flex items-center gap-3">
             {/* Search input */}
-            <div className="flex-1 flex items-center gap-2 px-4 py-2.5 rounded-xl"
+            <div className="flex-1 min-w-0 flex items-center gap-2 px-4 py-2.5 rounded-xl"
               style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
               <Search size={15} style={{ color: 'var(--color-text-muted)' }} className="flex-shrink-0" />
               <input
