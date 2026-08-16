@@ -69,6 +69,33 @@ export function calculateFees(basePrice: number) {
   return { basePrice, serviceFee, total, hostPayout }
 }
 
+// Picks whichever price actually applies to a listing, preferring its own
+// rental mode(s) over any one hardcoded field — a listing with only
+// TEMP_STAY/PERMANENT modes has no priceNightly at all, so displaying that
+// field unconditionally (as opposed to falling back through the others)
+// shows a placeholder instead of the listing's real price.
+export function getPrimaryPrice(listing: {
+  priceNightly: number | null
+  priceMonthly: number | null
+  priceAnnual:  number | null
+  rentalModes:  string[]
+}): { price: number | null; unit: string } {
+  if (listing.rentalModes.includes('SHORT_STAY') && listing.priceNightly) {
+    return { price: listing.priceNightly, unit: '/night' }
+  }
+  if (listing.rentalModes.includes('TEMP_STAY') && listing.priceMonthly) {
+    return { price: listing.priceMonthly, unit: '/mo' }
+  }
+  if (listing.rentalModes.includes('PERMANENT') && listing.priceAnnual) {
+    return { price: listing.priceAnnual, unit: '/year' }
+  }
+  // Fallback in case rentalModes and the populated price fields disagree
+  if (listing.priceNightly) return { price: listing.priceNightly, unit: '/night' }
+  if (listing.priceMonthly) return { price: listing.priceMonthly, unit: '/mo' }
+  if (listing.priceAnnual)  return { price: listing.priceAnnual,  unit: '/year' }
+  return { price: null, unit: '' }
+}
+
 export function getDaysArray(start: Date, end: Date): Date[] {
   const arr: Date[] = []
   const dt = new Date(start)

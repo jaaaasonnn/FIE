@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Heart, MapPin, Star, Trash2, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { getPrimaryPrice } from '@/lib/utils'
 
 type WishlistItem = {
   id: string
@@ -11,7 +12,8 @@ type WishlistItem = {
   title: string
   city: string
   neighbourhood: string | null
-  priceNightly: number | null
+  price: number | null
+  priceUnit: string
   rating: number
   reviews: number
   photo: string
@@ -61,25 +63,37 @@ export default function WishlistPage() {
             city: string
             neighbourhood: string | null
             priceNightly: number | null
+            priceMonthly: number | null
+            priceAnnual: number | null
             avgRating: number
             reviewCount: number
             photos: string
             rentalModes: string
             host: { isSuperhost: boolean }
           }
-        }) => ({
-          id:             w.listing.id,
-          wishlistId:     w.id,
-          title:          w.listing.title,
-          city:           w.listing.city,
-          neighbourhood:  w.listing.neighbourhood,
-          priceNightly:   w.listing.priceNightly,
-          rating:         w.listing.avgRating ?? 0,
-          reviews:        w.listing.reviewCount ?? 0,
-          photo:          firstPhoto(w.listing.photos),
-          modes:          parseJsonArray(w.listing.rentalModes),
-          superhost:      w.listing.host?.isSuperhost ?? false,
-        })))
+        }) => {
+          const modes = parseJsonArray(w.listing.rentalModes)
+          const { price, unit } = getPrimaryPrice({
+            priceNightly: w.listing.priceNightly,
+            priceMonthly: w.listing.priceMonthly,
+            priceAnnual:  w.listing.priceAnnual,
+            rentalModes:  modes,
+          })
+          return {
+            id:            w.listing.id,
+            wishlistId:    w.id,
+            title:         w.listing.title,
+            city:          w.listing.city,
+            neighbourhood: w.listing.neighbourhood,
+            price,
+            priceUnit:     unit,
+            rating:        w.listing.avgRating ?? 0,
+            reviews:       w.listing.reviewCount ?? 0,
+            photo:         firstPhoto(w.listing.photos),
+            modes,
+            superhost:     w.listing.host?.isSuperhost ?? false,
+          }
+        }))
       })
       .catch(() => setItems([]))
       .finally(() => setLoading(false))
@@ -197,10 +211,10 @@ export default function WishlistPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                          ${listing.priceNightly ?? '—'}<span className="text-xs font-normal text-[#6B645C]">/night</span>
+                          ${listing.price ?? '—'}<span className="text-xs font-normal text-[#6B645C]">{listing.priceUnit}</span>
                         </span>
-                        {listing.priceNightly != null && (
-                          <div className="text-xs text-stone-400">≈ GH₵ {(listing.priceNightly * 15.5).toLocaleString()}</div>
+                        {listing.price != null && (
+                          <div className="text-xs text-stone-400">≈ GH₵ {(listing.price * 15.5).toLocaleString()}</div>
                         )}
                       </div>
                       {listing.superhost && (
