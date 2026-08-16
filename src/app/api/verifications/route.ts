@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { requireAdmin } from '@/lib/admin'
 
 export async function POST(req: Request) {
   try {
@@ -61,7 +62,10 @@ export async function GET(req: Request) {
 // Admin approve/reject
 export async function PATCH(req: Request) {
   try {
-    const { verificationId, status, reviewedById, notes } = await req.json()
+    const { user, error } = await requireAdmin()
+    if (error) return error
+
+    const { verificationId, status, notes } = await req.json()
 
     if (!['APPROVED', 'REJECTED'].includes(status)) {
       return NextResponse.json({ error: 'Status must be APPROVED or REJECTED' }, { status: 400 })
@@ -69,7 +73,7 @@ export async function PATCH(req: Request) {
 
     const verification = await db.verification.update({
       where: { id: verificationId },
-      data: { status, reviewedById: reviewedById || null, notes: notes || null }
+      data: { status, reviewedById: user.id, notes: notes || null }
     })
 
     // If approved, mark user as verified

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/session'
 
 export async function GET(req: Request) {
   try {
@@ -104,13 +105,27 @@ export async function POST(req: Request) {
 // Host reply to a review
 export async function PATCH(req: Request) {
   try {
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+    }
+
     const { reviewId, hostReply } = await req.json()
+
+    const review = await db.review.findUnique({ where: { id: reviewId } })
+    if (!review) return NextResponse.json({ error: 'Review not found' }, { status: 404 })
+
+    if (review.revieweeId !== user.id) {
+      return NextResponse.json({ error: 'You can only reply to your own reviews' }, { status: 403 })
+    }
+
     const updated = await db.review.update({
       where: { id: reviewId },
       data: { hostReply }
     })
     return NextResponse.json({ review: updated })
   } catch (error) {
+    console.error('Review PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update review' }, { status: 500 })
   }
 }
