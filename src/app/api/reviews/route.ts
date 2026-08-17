@@ -35,10 +35,18 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const { bookingId, listingId, reviewerId, revieweeId, rating, comment, type } = await req.json()
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'You must be signed in to leave a review' }, { status: 401 })
+    }
 
-    if (!bookingId || !reviewerId || !revieweeId || !rating || !comment || !type) {
+    const { bookingId, rating, comment, type } = await req.json()
+
+    if (!bookingId || !rating || !comment || !type) {
       return NextResponse.json({ error: 'Missing required review fields' }, { status: 400 })
+    }
+    if (type !== 'GUEST_TO_HOST' && type !== 'HOST_TO_GUEST') {
+      return NextResponse.json({ error: 'type must be GUEST_TO_HOST or HOST_TO_GUEST' }, { status: 400 })
     }
     if (rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
@@ -49,6 +57,29 @@ export async function POST(req: Request) {
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     if (booking.status !== 'COMPLETED') return NextResponse.json({ error: 'Booking not yet completed' }, { status: 400 })
 
+    // The caller must actually be a party to this booking, on the side the
+    // review type claims — never trust a client-supplied reviewerId, and
+    // for the same reason, derive revieweeId (and listingId) from the
+    // booking itself rather than the request body, so a legitimate
+    // reviewer can't attach their review to an arbitrary third party or
+    // an unrelated listing's rating.
+    let reviewerId: string
+    let revieweeId: string
+    if (type === 'GUEST_TO_HOST') {
+      if (user.id !== booking.guestId) {
+        return NextResponse.json({ error: 'Only the guest on this booking can leave this review' }, { status: 403 })
+      }
+      reviewerId = booking.guestId
+      revieweeId = booking.hostId
+    } else {
+      if (user.id !== booking.hostId) {
+        return NextResponse.json({ error: 'Only the host on this booking can leave this review' }, { status: 403 })
+      }
+      reviewerId = booking.hostId
+      revieweeId = booking.guestId
+    }
+    const listingId = booking.listingId
+
     // Check no duplicate review
     const existing = await db.review.findFirst({
       where: { bookingId, reviewerId, type }
@@ -57,7 +88,7 @@ export async function POST(req: Request) {
 
     const review = await db.review.create({
       data: {
-        bookingId, listingId: listingId || null,
+        bookingId, listingId,
         reviewerId, revieweeId, rating, comment, type,
         isPublished: false, // will be published after both parties review or after 14 days
       }
