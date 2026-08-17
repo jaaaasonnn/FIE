@@ -159,6 +159,7 @@ model Booking {
   messages  Message[]
   dispute   Dispute?
   application RentalApplication?
+  payouts   Payout[]
 }
 
 model RentalApplication {
@@ -204,7 +205,20 @@ model Payout {
   reference     String?
   createdAt     DateTime @default(now())
 
-  host User @relation(fields: [hostId], references: [id])
+  // Transfer tracking — bookingId ties a payout to the specific booking it
+  // pays out for (nullable since a future batched-payout model might cover
+  // several bookings in one Payout row). paystackTransferReference is our
+  // own idempotent key generated before calling Paystack; paystackTransferCode
+  // is Paystack's own transfer_code, only present once the call succeeds.
+  bookingId                 String?
+  paystackTransferCode      String?
+  paystackTransferReference String?  @unique
+  failureReason             String?
+  initiatedAt                DateTime?
+  completedAt                DateTime?
+
+  host    User     @relation(fields: [hostId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
 }
 
 model Review {
