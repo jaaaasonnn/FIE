@@ -7,6 +7,7 @@ import { Calendar, Heart, MessageSquare, Star, CreditCard, Bell, Shield, Trendin
 import { StatCard } from '@/components/ui/Card'
 import { VerifiedBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
+import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { useAuth } from '@/context/AuthContext'
 import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/messages'
 
@@ -20,6 +21,7 @@ type ApiBooking = {
   totalPrice: number
   rentalMode: string
   listing: { id: string; title: string; photos: string; city: string; neighbourhood: string | null }
+  host: { id: string; name: string | null; profilePhoto: string | null }
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
@@ -97,6 +99,8 @@ export default function GuestDashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([])
   const [dataLoading, setDataLoading] = useState(true)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
+  const [reviewModalBookingId, setReviewModalBookingId] = useState<string | null>(null)
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return
@@ -337,10 +341,18 @@ export default function GuestDashboardPage() {
                         </button>
                       )}
                       {b.status === 'COMPLETED' && (
-                        <button className="text-xs px-4 py-2 rounded-full font-medium"
-                          style={{ backgroundColor: '#FFF8EE', color: 'var(--color-accent)' }}>
-                          Leave Review
-                        </button>
+                        reviewedBookingIds.has(b.id) ? (
+                          <span className="text-xs px-4 py-2 rounded-full font-medium"
+                            style={{ backgroundColor: '#F3F4F6', color: '#6B645C' }}>
+                            You&apos;ve already reviewed this stay
+                          </span>
+                        ) : (
+                          <button onClick={() => setReviewModalBookingId(b.id)}
+                            className="text-xs px-4 py-2 rounded-full font-medium"
+                            style={{ backgroundColor: '#FFF8EE', color: 'var(--color-accent)' }}>
+                            Leave Review
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
@@ -375,6 +387,22 @@ export default function GuestDashboardPage() {
           )}
         </div>
       </div>
+
+      {reviewModalBookingId && (() => {
+        const b = bookings.find((bk) => bk.id === reviewModalBookingId)
+        if (!b) return null
+        return (
+          <ReviewModal
+            open={!!reviewModalBookingId}
+            onOpenChange={(o) => { if (!o) setReviewModalBookingId(null) }}
+            bookingId={b.id}
+            type="GUEST_TO_HOST"
+            revieweeName={b.host?.name ?? 'your host'}
+            onSubmitted={(id) => setReviewedBookingIds((prev) => new Set(prev).add(id))}
+            onAlreadyReviewed={(id) => setReviewedBookingIds((prev) => new Set(prev).add(id))}
+          />
+        )
+      })()}
     </div>
   )
 }

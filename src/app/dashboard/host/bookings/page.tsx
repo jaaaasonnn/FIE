@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Calendar, CheckCircle, Clock, XCircle, MessageSquare } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
+import { ReviewModal } from '@/components/reviews/ReviewModal'
 
 type ApiBooking = {
   id: string
@@ -47,6 +48,8 @@ export default function HostBookingsPage() {
   const [loading, setLoading]         = useState(true)
   const [filter, setFilter]           = useState('All')
   const [respondingId, setRespondingId] = useState<string | null>(null)
+  const [reviewModalBookingId, setReviewModalBookingId] = useState<string | null>(null)
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return
@@ -203,10 +206,18 @@ export default function HostBookingsPage() {
                       <MessageSquare size={13} /> Message Guest
                     </Link>
                     {b.status === 'COMPLETED' && (
-                      <button className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
-                        style={{ backgroundColor: '#FBE8BB', color: '#92400E' }}>
-                        Leave Review
-                      </button>
+                      reviewedBookingIds.has(b.id) ? (
+                        <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
+                          style={{ backgroundColor: '#F3F4F6', color: '#6B645C' }}>
+                          You&apos;ve already reviewed this stay
+                        </span>
+                      ) : (
+                        <button onClick={() => setReviewModalBookingId(b.id)}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
+                          style={{ backgroundColor: '#FBE8BB', color: '#92400E' }}>
+                          Leave Review
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -228,6 +239,22 @@ export default function HostBookingsPage() {
           </div>
         )}
       </div>
+
+      {reviewModalBookingId && (() => {
+        const b = allBookings.find((bk) => bk.id === reviewModalBookingId)
+        if (!b) return null
+        return (
+          <ReviewModal
+            open={!!reviewModalBookingId}
+            onOpenChange={(o) => { if (!o) setReviewModalBookingId(null) }}
+            bookingId={b.id}
+            type="HOST_TO_GUEST"
+            revieweeName={b.guest.name ?? 'your guest'}
+            onSubmitted={(id) => setReviewedBookingIds((prev) => new Set(prev).add(id))}
+            onAlreadyReviewed={(id) => setReviewedBookingIds((prev) => new Set(prev).add(id))}
+          />
+        )
+      })()}
     </div>
   )
 }
