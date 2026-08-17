@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { DollarSign, CheckCircle, Clock, Plus, Loader2 } from 'lucide-react'
+import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 type ApiPayout = {
@@ -15,6 +15,26 @@ type ApiPayout = {
   bankName: string | null
   status: string
   reference: string | null
+  createdAt: string
+}
+
+type SavedPayoutMethod = {
+  payoutMethod: string | null
+  payoutMomoNetwork: string | null
+  payoutMomoNumber: string | null
+  payoutBankCode: string | null
+  payoutBankAccountNumber: string | null
+  payoutBankAccountName: string | null
+  payoutMethodVerifiedAt: string | null
+}
+
+type Bank = { name: string; code: string }
+
+type ApiNotification = {
+  id: string
+  type: string
+  title: string
+  body: string
   createdAt: string
 }
 
@@ -36,12 +56,40 @@ function methodLabel(p: ApiPayout): string {
   return p.method
 }
 
+function savedMethodLabel(m: SavedPayoutMethod): string {
+  if (m.payoutMethod === 'MOMO') {
+    const network = m.payoutMomoNetwork === 'MTN' ? 'MTN Mobile Money'
+      : m.payoutMomoNetwork === 'VODAFONE' ? 'Vodafone Cash'
+      : m.payoutMomoNetwork === 'AIRTELTIGO' ? 'AirtelTigo Money' : 'Mobile Money'
+    return `${network} · ${m.payoutMomoNumber ?? ''}`
+  }
+  if (m.payoutMethod === 'BANK_TRANSFER') {
+    const last4 = m.payoutBankAccountNumber?.slice(-4) ?? ''
+    return `Bank account ending ${last4}`
+  }
+  return 'No payout method saved yet'
+}
+
 export default function HostPayoutsPage() {
   const { user, loading: authLoading } = useAuth()
   const [payouts, setPayouts] = useState<ApiPayout[]>([])
   const [loading, setLoading] = useState(true)
   const [addingMethod, setAddingMethod] = useState(false)
-  const [payoutMethod, setPayoutMethod] = useState('MOMO')
+
+  const [savedMethod, setSavedMethod] = useState<SavedPayoutMethod | null>(null)
+  const [banks, setBanks] = useState<Bank[]>([])
+  const [notifications, setNotifications] = useState<ApiNotification[]>([])
+
+  const [formMethod, setFormMethod] = useState<'MOMO' | 'BANK'>('MOMO')
+  const [momoNetwork, setMomoNetwork] = useState('')
+  const [momoNumber, setMomoNumber] = useState('')
+  const [bankCode, setBankCode] = useState('')
+  const [bankAccountNumber, setBankAccountNumber] = useState('')
+  const [password, setPassword] = useState('')
+
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
+  const [saveSuccess, setSaveSuccess] = useState('')
 
   useEffect(() => {
     if (authLoading) return
@@ -56,7 +104,86 @@ export default function HostPayoutsPage() {
       .then((data) => setPayouts(Array.isArray(data.payouts) ? data.payouts : []))
       .catch(() => setPayouts([]))
       .finally(() => setLoading(false))
+
+    fetch('/api/users/me/payout-method')
+      .then((r) => r.json())
+      .then((data) => { if (data.payoutMethod) setSavedMethod(data.payoutMethod) })
+      .catch(() => {})
+
+    fetch('/api/notifications')
+      .then((r) => r.json())
+      .then((data) => setNotifications(Array.isArray(data.notifications) ? data.notifications : []))
+      .catch(() => {})
   }, [user, authLoading])
+
+  useEffect(() => {
+    if (formMethod !== 'BANK' || banks.length > 0) return
+    fetch('/api/payout-banks')
+      .then((r) => r.json())
+      .then((data) => setBanks(Array.isArray(data.banks) ? data.banks : []))
+      .catch(() => {})
+  }, [formMethod, banks.length])
+
+  async function dismissNotification(id: string) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id))
+    try {
+      await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+    } catch {
+      // Optimistic dismiss already applied
+    }
+  }
+
+  async function handleSaveMethod() {
+    setSaveError('')
+    setSaveSuccess('')
+
+    if (!password) {
+      setSaveError('Please re-enter your password to confirm this change.')
+      return
+    }
+    if (formMethod === 'MOMO' && (!momoNetwork || !momoNumber)) {
+      setSaveError('Select a mobile money network and enter your number.')
+      return
+    }
+    if (formMethod === 'BANK' && (!bankCode || !bankAccountNumber)) {
+      setSaveError('Select a bank and enter your account number.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await fetch('/api/users/me/payout-method', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          password,
+          payoutMethod: formMethod === 'MOMO' ? 'MOMO' : 'BANK_TRANSFER',
+          payoutMomoNetwork: formMethod === 'MOMO' ? momoNetwork : undefined,
+          payoutMomoNumber: formMethod === 'MOMO' ? momoNumber : undefined,
+          payoutBankCode: formMethod === 'BANK' ? bankCode : undefined,
+          payoutBankAccountNumber: formMethod === 'BANK' ? bankAccountNumber : undefined,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setSaveError(data.error || 'Failed to save payout method.')
+        return
+      }
+      setSavedMethod(data.payoutMethod)
+      setSaveSuccess(`Payout method saved — verified as ${data.payoutMethod.payoutBankAccountName}.`)
+      setAddingMethod(false)
+      setPassword('')
+      setMomoNetwork(''); setMomoNumber(''); setBankCode(''); setBankAccountNumber('')
+    } catch {
+      setSaveError('Network error. Please check your connection and try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const completed = payouts.filter((p) => p.status === 'COMPLETED')
   const totalEarned = completed.reduce((s, p) => s + p.amount, 0)
@@ -88,6 +215,20 @@ export default function HostPayoutsPage() {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
+        {notifications.map((n) => (
+          <div key={n.id} className="mb-4 p-4 rounded-xl flex items-start gap-3"
+            style={{ backgroundColor: '#FEF3C7', border: '1px solid #F59E0B' }}>
+            <AlertTriangle size={18} style={{ color: '#92400E', flexShrink: 0, marginTop: 2 }} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: '#92400E' }}>{n.title}</p>
+              <p className="text-sm mt-0.5" style={{ color: '#92400E' }}>{n.body}</p>
+            </div>
+            <button onClick={() => dismissNotification(n.id)} aria-label="Dismiss">
+              <X size={16} style={{ color: '#92400E' }} />
+            </button>
+          </div>
+        ))}
+
         {loading || authLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
@@ -135,59 +276,89 @@ export default function HostPayoutsPage() {
             <div className="soft-panel p-5 mb-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Payout Method</h3>
-                <button onClick={() => setAddingMethod(!addingMethod)}
+                <button onClick={() => { setAddingMethod(!addingMethod); setSaveError(''); setSaveSuccess('') }}
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-medium"
                   style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
                   <Plus size={12} /> Add / Change
                 </button>
               </div>
 
+              {saveSuccess && (
+                <div className="mb-4 p-3 rounded-xl text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
+                  ✅ {saveSuccess}
+                </div>
+              )}
+
               <div className="flex items-center gap-3 p-3 rounded-xl"
                 style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
-                <span className="text-2xl">📱</span>
+                <span className="text-2xl">{savedMethod?.payoutMethod === 'BANK_TRANSFER' ? '🏦' : '📱'}</span>
                 <div>
-                  <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>MTN Mobile Money</p>
+                  <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                    {savedMethod?.payoutMethod ? savedMethodLabel(savedMethod) : 'No payout method saved yet'}
+                  </p>
                   <p className="text-xs text-[#6B645C]">
-                    {user?.phone ? `${user.phone} · Primary` : 'Add a MoMo number to receive payouts'}
+                    {savedMethod?.payoutMethodVerifiedAt
+                      ? `Verified as ${savedMethod.payoutBankAccountName}`
+                      : 'Add a payout method to receive earnings'}
                   </p>
                 </div>
-                <span className="ml-auto text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>Active</span>
+                {savedMethod?.payoutMethodVerifiedAt && (
+                  <span className="ml-auto text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>Active</span>
+                )}
               </div>
 
               {addingMethod && (
                 <div className="mt-4 pt-4 border-t border-stone-100 space-y-3">
                   <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Add Payout Method</p>
                   <div className="flex gap-2">
-                    {['MOMO', 'BANK'].map((m) => (
-                      <button key={m} onClick={() => setPayoutMethod(m)}
+                    {(['MOMO', 'BANK'] as const).map((m) => (
+                      <button key={m} onClick={() => setFormMethod(m)}
                         className="flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all"
-                        style={{ borderColor: payoutMethod === m ? 'var(--amber)' : '#E5E7EB', backgroundColor: payoutMethod === m ? '#FFF8EE' : '#fff', color: payoutMethod === m ? 'var(--amber)' : '#6B7280' }}>
+                        style={{ borderColor: formMethod === m ? 'var(--amber)' : '#E5E7EB', backgroundColor: formMethod === m ? '#FFF8EE' : '#fff', color: formMethod === m ? 'var(--amber)' : '#6B7280' }}>
                         {m === 'MOMO' ? '📱 MoMo' : '🏦 Bank'}
                       </button>
                     ))}
                   </div>
-                  {payoutMethod === 'MOMO' && (
+                  {formMethod === 'MOMO' && (
                     <div className="space-y-3">
-                      <select className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400">
+                      <select value={momoNetwork} onChange={(e) => setMomoNetwork(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400">
                         <option value="">Select MoMo Network</option>
                         <option value="MTN">MTN Mobile Money</option>
                         <option value="VODAFONE">Vodafone Cash</option>
                         <option value="AIRTELTIGO">AirtelTigo Money</option>
                       </select>
-                      <input placeholder="MoMo number (e.g. 0241234567)"
+                      <input value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)}
+                        placeholder="MoMo number (e.g. 0241234567)"
                         className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
                     </div>
                   )}
-                  {payoutMethod === 'BANK' && (
+                  {formMethod === 'BANK' && (
                     <div className="space-y-3">
-                      <input placeholder="Bank name (e.g. GCB Bank, Ecobank)" className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
-                      <input placeholder="Account number" className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
-                      <input placeholder="Account name (as on bank record)" className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                      <select value={bankCode} onChange={(e) => setBankCode(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400">
+                        <option value="">{banks.length ? 'Select your bank' : 'Loading banks…'}</option>
+                        {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
+                      </select>
+                      <input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)}
+                        placeholder="Account number"
+                        className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
                     </div>
                   )}
-                  <button className="w-full py-3 rounded-xl text-sm font-semibold"
+                  <div>
+                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Re-enter your password to confirm"
+                      className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
+                    <p className="text-xs text-[#6B645C] mt-1">Required to change where your payouts are sent.</p>
+                  </div>
+                  {saveError && (
+                    <p className="text-xs px-3 py-2 rounded-lg" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>{saveError}</p>
+                  )}
+                  <button onClick={handleSaveMethod} disabled={saving}
+                    className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
                     style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
-                    Save Payout Method
+                    {saving && <Loader2 size={14} className="animate-spin" />}
+                    {saving ? 'Verifying with Paystack…' : 'Save Payout Method'}
                   </button>
                 </div>
               )}

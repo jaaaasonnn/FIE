@@ -22,6 +22,20 @@ model User {
   trustScore    Int      @default(0)
   isVerified    Boolean  @default(false)
   isSuperhost   Boolean  @default(false)
+
+  // Host payout destination — resolved + registered with Paystack before
+  // being trusted. payoutMethodVerifiedAt is null until a successful
+  // resolve+recipient-create; the payout flow should refuse to pay out
+  // against an unverified method.
+  payoutMethod             String?   // MOMO | BANK_TRANSFER
+  payoutMomoNetwork        String?   // MTN | VODAFONE | AIRTELTIGO
+  payoutMomoNumber         String?
+  payoutBankCode           String?
+  payoutBankAccountNumber  String?
+  payoutBankAccountName    String?
+  paystackRecipientCode    String?
+  payoutMethodVerifiedAt   DateTime?
+
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -37,6 +51,24 @@ model User {
   payouts         Payout[]
   wishlists       Wishlist[]
   sessions        Session[]
+  notifications   Notification[]
+}
+
+// Minimal in-app notification — email isn't wired up yet, so this is the
+// real (not stubbed) delivery mechanism for security-sensitive alerts like
+// a payout method change. Deliberately simple: one flat table, no per-type
+// schema, surfaced as a dismissible banner rather than a full notification
+// center.
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String    // e.g. PAYOUT_METHOD_CHANGED
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Session {
