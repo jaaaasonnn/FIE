@@ -105,10 +105,12 @@ export async function POST(req: Request) {
         where: { bookingId },
         data: { isPublished: true }
       })
-      // Update listing avg rating
+      // Update listing avg rating — GUEST_TO_HOST only, same reasoning as
+      // the GET /api/listings/[id] reviews filter: a HOST_TO_GUEST review
+      // rates the guest, not the listing, and shouldn't move its score.
       if (listingId) {
-        const allReviews = await db.review.findMany({ where: { listingId, isPublished: true } })
-        const avg = allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length
+        const allReviews = await db.review.findMany({ where: { listingId, isPublished: true, type: 'GUEST_TO_HOST' } })
+        const avg = allReviews.length ? allReviews.reduce((s, r) => s + r.rating, 0) / allReviews.length : 0
         await db.listing.update({
           where: { id: listingId },
           data: { avgRating: parseFloat(avg.toFixed(2)), reviewCount: allReviews.length }

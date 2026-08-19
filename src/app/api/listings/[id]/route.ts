@@ -40,6 +40,14 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true, createdAt: true }
         },
         reviews: {
+          // Reviews carry the booking's listingId regardless of direction,
+          // so a host's HOST_TO_GUEST review of their guest is tagged with
+          // this same listingId — without this filter it would show up
+          // here as if it were a review of the listing/host. isPublished
+          // also matters: a review sits unpublished until both sides of
+          // the booking have reviewed (or the 14-day auto-publish window
+          // passes), and this relation had no such guard.
+          where: { type: 'GUEST_TO_HOST', isPublished: true },
           include: {
             reviewer: { select: { id: true, name: true, profilePhoto: true } }
           },
