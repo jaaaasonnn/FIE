@@ -1,33 +1,93 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/session'
 import { requireAdmin } from '@/lib/admin'
+import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 
+const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const VALID_ID_TYPES = ['GHANA_CARD', 'PASSPORT', 'VOTER_ID']
+
+// Fixed key per user + document (id-photo / selfie), same overwrite-in-place
+// pattern as the avatars bucket — a resubmission replaces the old file
+// rather than accumulating orphans, and matches Verification.userId being
+// @unique on the model.
+async function uploadDoc(userId: string, field: 'id-photo' | 'selfie', file: File) {
+  const buffer = Buffer.from(await file.arrayBuffer())
+  const path = `${userId}/${field}.jpg`
+  const { error } = await supabaseAdmin.storage
+    .from(VERIFICATION_DOCS_BUCKET)
+    .upload(path, buffer, { contentType: file.type, upsert: true })
+  if (error) throw error
+  return path
+}
+
+/**
+ * POST /api/verifications
+ * Auth required — always submits for the signed-in user; there is no
+ * client-supplied userId anymore. Body: multipart FormData (idType,
+ * idPhoto file, optional selfie file).
+ *
+ * idPhotoUrl/selfieUrl store a private Storage *path*, not a browsable
+ * URL — verification-docs is a private bucket (real ID scans, unlike the
+ * public avatars/listing-photos buckets), so there's no public URL to
+ * store. Admin review signs a short-lived URL per document on read; see
+ * GET /api/admin/verifications.
+ */
 export async function POST(req: Request) {
   try {
-    const { userId, idType, idPhotoUrl, selfieUrl } = await req.json()
-
-    if (!userId || !idType || !idPhotoUrl) {
-      return NextResponse.json({ error: 'userId, idType, and idPhotoUrl are required' }, { status: 400 })
+    const sessionUser = await getSessionUser()
+    if (!sessionUser) {
+      return NextResponse.json({ error: 'You must be signed in to submit verification' }, { status: 401 })
     }
 
-    const validIdTypes = ['GHANA_CARD', 'PASSPORT', 'VOTER_ID']
-    if (!validIdTypes.includes(idType)) {
-      return NextResponse.json({ error: 'Invalid ID type' }, { status: 400 })
+    const form = await req.formData()
+    const idType = form.get('idType')
+    const idPhoto = form.get('idPhoto')
+    const selfie = form.get('selfie')
+
+    if (typeof idType !== 'string' || !VALID_ID_TYPES.includes(idType)) {
+      return NextResponse.json({ error: 'idType must be GHANA_CARD, PASSPORT, or VOTER_ID' }, { status: 400 })
+    }
+    if (!(idPhoto instanceof File)) {
+      return NextResponse.json({ error: 'An ID photo is required' }, { status: 400 })
     }
 
-    // Check for existing pending/approved verification
-    const existing = await db.verification.findUnique({ where: { userId } })
+    const filesToValidate = selfie instanceof File ? [idPhoto, selfie] : [idPhoto]
+    for (const file of filesToValidate) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        return NextResponse.json({ error: 'Photos must be JPG, PNG, or WEBP images' }, { status: 400 })
+      }
+      if (file.size > MAX_DOC_BYTES) {
+        return NextResponse.json({ error: 'Each photo must be 10MB or smaller' }, { status: 400 })
+      }
+    }
+
+    // Check for existing pending/approved verification before touching Storage
+    const existing = await db.verification.findUnique({ where: { userId: sessionUser.id } })
     if (existing?.status === 'APPROVED') {
-      return NextResponse.json({ error: 'User already verified' }, { status: 409 })
+      return NextResponse.json({ error: 'You are already verified' }, { status: 409 })
+    }
+
+    let idPhotoUrl: string
+    let selfieUrl: string | null = null
+    try {
+      idPhotoUrl = await uploadDoc(sessionUser.id, 'id-photo', idPhoto)
+      if (selfie instanceof File) {
+        selfieUrl = await uploadDoc(sessionUser.id, 'selfie', selfie)
+      }
+    } catch (uploadError) {
+      console.error('Verification document upload error:', uploadError)
+      return NextResponse.json({ error: 'Failed to upload document' }, { status: 500 })
     }
 
     const verification = existing
       ? await db.verification.update({
-          where: { userId },
-          data: { idType, idPhotoUrl, selfieUrl: selfieUrl || null, status: 'PENDING', reviewedById: null, notes: null }
+          where: { userId: sessionUser.id },
+          data: { idType, idPhotoUrl, selfieUrl, status: 'PENDING', reviewedById: null, notes: null }
         })
       : await db.verification.create({
-          data: { userId, idType, idPhotoUrl, selfieUrl: selfieUrl || null, status: 'PENDING' }
+          data: { userId: sessionUser.id, idType, idPhotoUrl, selfieUrl, status: 'PENDING' }
         })
 
     return NextResponse.json({ verification, message: 'Verification submitted. Review usually within 24 hours.' }, { status: 201 })
@@ -37,14 +97,31 @@ export async function POST(req: Request) {
   }
 }
 
+/**
+ * GET /api/verifications
+ * Auth required. Non-admin callers only ever see their own verification
+ * record — this previously took an arbitrary `userId` query param with no
+ * auth check at all, which leaked every user's name/phone/email/ID-photo
+ * reference to anyone. Admins (already served by /api/admin/verifications
+ * for the review queue) additionally may filter by an explicit userId.
+ */
 export async function GET(req: Request) {
   try {
+    const sessionUser = await getSessionUser()
+    if (!sessionUser) {
+      return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
-    const userId = searchParams.get('userId')
     const status = searchParams.get('status')
 
     const where: Record<string, unknown> = {}
-    if (userId) where.userId = userId
+    if (sessionUser.role === 'ADMIN') {
+      const userId = searchParams.get('userId')
+      if (userId) where.userId = userId
+    } else {
+      where.userId = sessionUser.id
+    }
     if (status) where.status = status
 
     const verifications = await db.verification.findMany({

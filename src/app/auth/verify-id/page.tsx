@@ -17,15 +17,30 @@ export default function VerifyIdPage() {
   const [selfie, setSelfie] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!idPhoto) return
     setLoading(true)
-    await new Promise((r) => setTimeout(r, 1500)) // Simulate upload
-    setSubmitted(true)
-    setLoading(false)
+    setError(null)
+    try {
+      const form = new FormData()
+      form.append('idType', idType)
+      form.append('idPhoto', idPhoto)
+      if (selfie) form.append('selfie', selfie)
+
+      const res = await fetch('/api/verifications', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to submit verification')
+
+      setSubmitted(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to submit verification')
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (submitted) {
@@ -183,6 +198,13 @@ export default function VerifyIdPage() {
               )}
             </label>
           </div>
+
+          {error && (
+            <div className="p-3 rounded-xl flex items-start gap-2" style={{ backgroundColor: '#FEE2E2' }}>
+              <AlertCircle size={16} style={{ color: '#991B1B', flexShrink: 0, marginTop: 2 }} />
+              <p className="text-sm" style={{ color: '#991B1B' }}>{error}</p>
+            </div>
+          )}
 
           <Button type="submit" size="lg" className="w-full" loading={loading} disabled={!idPhoto}>
             Submit for Verification

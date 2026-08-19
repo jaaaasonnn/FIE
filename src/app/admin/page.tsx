@@ -26,7 +26,7 @@ type AdminUser = {
 type AdminVerification = {
   id: string
   idType: string
-  idPhotoUrl: string
+  idPhotoUrl: string | null // signed URL, short-lived — see GET /api/admin/verifications
   status: string
   createdAt: string
   user: { id: string; name: string | null; profilePhoto: string | null }
@@ -346,7 +346,7 @@ export default function AdminPage() {
                           <div className="flex items-start justify-between gap-4 flex-wrap">
                             <div className="flex items-start gap-4">
                               {v.user.profilePhoto || v.idPhotoUrl ? (
-                                <img src={v.user.profilePhoto || v.idPhotoUrl} alt={v.user.name ?? ''} className="w-16 h-16 rounded-xl object-cover" />
+                                <img src={v.user.profilePhoto || v.idPhotoUrl || undefined} alt={v.user.name ?? ''} className="w-16 h-16 rounded-xl object-cover" />
                               ) : (
                                 <div className="w-16 h-16 rounded-xl flex items-center justify-center font-bold"
                                   style={{ backgroundColor: 'var(--gold-light)' }}>

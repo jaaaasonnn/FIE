@@ -21,3 +21,9 @@ export const supabaseAdmin = createClient(
 
 export const AVATARS_BUCKET = 'avatars'
 export const LISTING_PHOTOS_BUCKET = 'listing-photos'
+
+// Unlike the two buckets above, this one is private — it holds real
+// government ID scans and selfies, not content meant to be publicly
+// browsable. Never call getPublicUrl() against it; generate a short-lived
+// signed URL per read instead (see GET /api/admin/verifications).
+export const VERIFICATION_DOCS_BUCKET = 'verification-docs'
