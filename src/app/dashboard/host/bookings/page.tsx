@@ -53,9 +53,15 @@ export default function HostBookingsPage() {
 
   useEffect(() => {
     if (!user) return
-    fetch(`/api/bookings?hostId=${user.id}`)
-      .then((r) => r.json())
-      .then((data) => setAllBookings(Array.isArray(data.bookings) ? data.bookings : []))
+    Promise.all([
+      fetch(`/api/bookings?hostId=${user.id}`).then((r) => r.json()),
+      fetch('/api/reviews?mine=true').then((r) => r.json()),
+    ])
+      .then(([bData, mineData]) => {
+        setAllBookings(Array.isArray(bData.bookings) ? bData.bookings : [])
+        const myReviews: Array<{ bookingId: string }> = Array.isArray(mineData.reviews) ? mineData.reviews : []
+        setReviewedBookingIds(new Set(myReviews.map((r) => r.bookingId)))
+      })
       .catch(() => setAllBookings([]))
       .finally(() => setLoading(false))
   }, [user])

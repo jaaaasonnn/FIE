@@ -110,14 +110,17 @@ export default function GuestDashboardPage() {
       fetch(`/api/wishlists?userId=${user.id}`).then((r) => r.json()),
       fetch(`/api/reviews?reviewerId=${user.id}`).then((r) => r.json()),
       fetch('/api/messages').then((r) => r.json()),
+      fetch('/api/reviews?mine=true').then((r) => r.json()),
     ])
-      .then(([bData, wData, rData, mData]) => {
+      .then(([bData, wData, rData, mData, mineData]) => {
         const bookingRows: ApiBooking[] = Array.isArray(bData.bookings) ? bData.bookings : []
         const messageRows: ApiMessage[] = Array.isArray(mData.messages) ? mData.messages : []
+        const myReviews: Array<{ bookingId: string }> = Array.isArray(mineData.reviews) ? mineData.reviews : []
         setBookings(bookingRows)
         setWishlistCount(Array.isArray(wData.wishlists) ? wData.wishlists.length : 0)
         setReviewsGivenCount(typeof rData.total === 'number' ? rData.total : 0)
         setActivity(buildActivityFeed(bookingRows, messageRows, user.id))
+        setReviewedBookingIds(new Set(myReviews.map((r) => r.bookingId)))
       })
       .catch(() => {
         setBookings([])

@@ -5,6 +5,27 @@ import { getSessionUser } from '@/lib/session'
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
+
+    // Authenticated self-lookup — includes the caller's own unpublished
+    // reviews too, since a review sits unpublished until both sides of a
+    // booking have submitted (or the 14-day auto-publish window, not yet
+    // built), so the public isPublished-only query below can't answer
+    // "have I already reviewed this booking" accurately. Scoped strictly
+    // to reviewerId: user.id so it can never return anyone else's pending
+    // review.
+    if (searchParams.get('mine') === 'true') {
+      const user = await getSessionUser()
+      if (!user) {
+        return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+      }
+      const reviews = await db.review.findMany({
+        where: { reviewerId: user.id },
+        select: { id: true, bookingId: true, type: true, rating: true, isPublished: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      })
+      return NextResponse.json({ reviews, total: reviews.length })
+    }
+
     const listingId = searchParams.get('listingId')
     const revieweeId = searchParams.get('revieweeId')
     const reviewerId = searchParams.get('reviewerId')
