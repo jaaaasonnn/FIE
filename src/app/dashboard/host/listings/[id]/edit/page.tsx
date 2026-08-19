@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { CheckSquare, Square, Eye, Trash2 } from 'lucide-react'
+import * as Dialog from '@radix-ui/react-dialog'
+import { CheckSquare, Square, Eye, Trash2, AlertTriangle, X, Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
@@ -54,6 +55,12 @@ export default function EditListingPage() {
   const [saved,     setSaved]     = useState(false)
   const [saveError, setSaveError] = useState('')
 
+  const [hostId, setHostId] = useState('')
+  const [upcomingBookingCount, setUpcomingBookingCount] = useState(0)
+  const [deleteOpen,    setDeleteOpen]    = useState(false)
+  const [deleting,      setDeleting]      = useState(false)
+  const [deleteError,   setDeleteError]   = useState('')
+
   useEffect(() => {
     if (!params.id) return
     fetch(`/api/listings/${params.id}`)
@@ -61,6 +68,7 @@ export default function EditListingPage() {
       .then((data) => {
         const l = data.listing ?? data
         if (!l?.id) { setFetchError('Listing not found.'); return }
+        if (l.hostId) setHostId(l.hostId)
 
         const parseJson = (v: unknown): string[] => {
           if (Array.isArray(v))  return v as string[]
@@ -97,6 +105,38 @@ export default function EditListingPage() {
       .catch(() => setFetchError('Failed to load listing. Please try again.'))
       .finally(() => setFetching(false))
   }, [params.id])
+
+  // Surfaced in the delete-confirmation dialog so a host isn't surprised by
+  // deactivating a listing a guest is actively counting on — doesn't block
+  // the delete, just makes sure they see it before confirming.
+  useEffect(() => {
+    if (!hostId || !params.id) return
+    fetch(`/api/bookings?hostId=${hostId}&listingId=${params.id}`)
+      .then((r) => r.json())
+      .then((data) => {
+        const bookings: Array<{ status: string; checkOut: string }> = Array.isArray(data.bookings) ? data.bookings : []
+        const now = Date.now()
+        const count = bookings.filter((b) =>
+          (b.status === 'CONFIRMED' || b.status === 'PENDING') && new Date(b.checkOut).getTime() >= now
+        ).length
+        setUpcomingBookingCount(count)
+      })
+      .catch(() => setUpcomingBookingCount(0))
+  }, [hostId, params.id])
+
+  async function handleDelete() {
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      const res = await fetch(`/api/listings/${params.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to delete listing')
+      router.push('/dashboard/host')
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete listing')
+      setDeleting(false)
+    }
+  }
 
   function toggleMode(m: string) {
     setForm((f) => ({ ...f, rentalModes: f.rentalModes.includes(m) ? f.rentalModes.filter((x) => x !== m) : [...f.rentalModes, m] }))
@@ -367,12 +407,79 @@ export default function EditListingPage() {
             <button
               type="button"
               className="flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50"
-              onClick={() => router.push('/dashboard/host')}>
+              onClick={() => { setDeleteError(''); setDeleteOpen(true) }}>
               <Trash2 size={15} /> Delete Listing
             </button>
           </div>
         </form>
       </div>
+
+      <Dialog.Root open={deleteOpen} onOpenChange={(o) => { if (!deleting) setDeleteOpen(o) }}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[92vw] max-w-md rounded-2xl bg-white shadow-2xl focus:outline-none"
+            aria-describedby={undefined}
+          >
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-1">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: '#FEE2E2' }}>
+                    <AlertTriangle size={17} style={{ color: '#991B1B' }} />
+                  </div>
+                  <Dialog.Title className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                    Delete this listing?
+                  </Dialog.Title>
+                </div>
+                <Dialog.Close
+                  className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-stone-100 flex-shrink-0"
+                  aria-label="Close"
+                  disabled={deleting}
+                >
+                  <X size={16} style={{ color: 'var(--color-text-secondary)' }} />
+                </Dialog.Close>
+              </div>
+
+              <p className="text-sm mt-3" style={{ color: 'var(--color-text-secondary)' }}>
+                This removes the listing from search and stops it accepting new bookings. This can&apos;t be undone from here.
+              </p>
+
+              {upcomingBookingCount > 0 && (
+                <div className="mt-3 p-3 rounded-xl text-sm" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
+                  This listing has {upcomingBookingCount} upcoming booking{upcomingBookingCount === 1 ? '' : 's'}. {upcomingBookingCount === 1 ? 'It' : 'They'}{' '}
+                  won&apos;t be cancelled, but the listing will disappear from search right away.
+                </div>
+              )}
+
+              {deleteError && (
+                <p className="text-sm mt-3" style={{ color: '#991B1B' }}>{deleteError}</p>
+              )}
+
+              <div className="flex gap-3 mt-5">
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    disabled={deleting}
+                    className="flex-1 px-5 py-2.5 rounded-full text-sm font-semibold border border-stone-200 text-[#374151] hover:bg-stone-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </Dialog.Close>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold text-white disabled:opacity-60"
+                  style={{ backgroundColor: '#B91C1C' }}
+                >
+                  {deleting ? <Loader2 size={16} className="animate-spin" /> : null}
+                  {deleting ? 'Deleting…' : 'Delete Listing'}
+                </button>
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   )
 }

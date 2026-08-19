@@ -135,9 +135,10 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
-    const id      = searchParams.get('id')
-    const guestId = searchParams.get('guestId')
-    const hostId  = searchParams.get('hostId')
+    const id        = searchParams.get('id')
+    const guestId   = searchParams.get('guestId')
+    const hostId    = searchParams.get('hostId')
+    const listingId = searchParams.get('listingId')
 
     // Single booking lookup (used by checkout page) — includes guest/host
     // PII (email, phone), so this needs to be scoped to the two parties
@@ -173,9 +174,27 @@ export async function GET(req: Request) {
       return NextResponse.json({ booking })
     }
 
+    // guestId/hostId are the security boundary here — this list is the
+    // exact kind of thing (names, photos, trust scores, payment rows)
+    // that shouldn't be fetchable for anyone just by knowing their id.
+    if (!guestId && !hostId) {
+      return NextResponse.json({ error: 'guestId or hostId is required' }, { status: 400 })
+    }
+    const user = await getSessionUser()
+    if (!user) {
+      return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
+    }
+    if (guestId && user.id !== guestId && user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'You do not have access to these bookings' }, { status: 403 })
+    }
+    if (hostId && user.id !== hostId && user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'You do not have access to these bookings' }, { status: 403 })
+    }
+
     const where: Record<string, string> = {}
-    if (guestId) where.guestId = guestId
-    if (hostId)  where.hostId  = hostId
+    if (guestId)   where.guestId   = guestId
+    if (hostId)    where.hostId    = hostId
+    if (listingId) where.listingId = listingId
 
     const bookings = await db.booking.findMany({
       where,
