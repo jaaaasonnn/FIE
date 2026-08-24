@@ -70,7 +70,7 @@ function SignUpForm() {
       <div className="hidden lg:flex lg:w-1/2 flex-col items-center justify-center p-12 relative overflow-hidden"
         style={{ backgroundColor: 'var(--brown-dark)' }}>
         <div className="absolute inset-0 opacity-10"
-          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1611116524765-8e7ad0c0b169?w=800&q=60')`, backgroundSize: 'cover' }} />
+          style={{ backgroundImage: `url('https://images.unsplash.com/photo-1740826314917-49275b68c925?w=800&q=60')`, backgroundSize: 'cover' }} />
         <div className="relative z-10 text-center max-w-sm">
           <Link href="/" className="flex items-center justify-center gap-3 mb-8">
             <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--color-accent)' }}>
