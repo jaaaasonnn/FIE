@@ -23,34 +23,17 @@ Built solo by the project owner, working in Cursor on a Mac. Claude Code is used
 
 ## Parked / Unresolved Issues
 
-### Paystack "invalid_key" — HTTP 401 (BLOCKING)
-The real secret key consistently returns HTTP 401 from Paystack's API. Not yet root-caused.
-
-**First step when picking this up again — isolation test:**
-```bash
-curl https://api.paystack.com/transaction/initialize \
-  -H "Authorization: Bearer sk_test_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"email": "test@test.com", "amount": 5000}'
-```
-Replace `sk_test_KEY` with the actual key from `.env`.
-- If this ALSO fails → problem is the Paystack account/key itself, not app code. Check Paystack dashboard (key regenerated? test vs live mismatch? account restrictions?).
-- If this SUCCEEDS → bug is in how the app calls Paystack. Debug the app-side integration next.
-
-Host payout flow is blocked until this resolves.
-
-### Database Migration (BLOCKING for deployment)
-Currently SQLite (local). Needs migration to Supabase before deployment. Supabase is also the planned production auth infrastructure.
+_(none currently — Paystack and Supabase migration below are resolved)_
 
 ## Roadmap
 
-**Phase 1 — Core features**
-1. Resolve Paystack integration (start with isolation test above)
-2. Profile editing flow
-3. Host payout flow (once Paystack resolves)
-4. SQLite → Supabase migration
+**Phase 1 — Core features (DONE)**
+1. ~~Resolve Paystack integration~~ — done: host payout transfer initiation + webhook handling (`7644c08`), SHORT_STAY payout cron (`022659b`)
+2. ~~Profile editing flow~~ — done (`19f6ebb`)
+3. ~~Host payout flow~~ — done: payout method schema/save (`9d3b1fc`), transfer initiation (`7644c08`)
+4. ~~SQLite → Supabase migration~~ — done: `prisma/schema.prisma` datasource is `postgresql`, `.env` has `DATABASE_URL`/`DIRECT_URL`/`SUPABASE_URL`/`SUPABASE_SERVICE_ROLE_KEY`
 
-**Phase 2 — Deploy-readiness**
+**Phase 2 — Deploy-readiness (current focus)**
 5. Hosting setup and environment configuration
 6. Security hardening
 7. Error monitoring
