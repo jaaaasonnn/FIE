@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/admin'
+import { getAutoFetchStatus } from '@/lib/exchangeRate'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -34,8 +35,16 @@ export async function GET(req: Request) {
     }
 
     if (type === 'exchange-rate') {
-      const rate = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
-      return NextResponse.json({ rate: rate?.usdToGhs || 15.5 })
+      const [rate, autoFetchStatus] = await Promise.all([
+        db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } }),
+        getAutoFetchStatus(),
+      ])
+      return NextResponse.json({
+        rate:            rate?.usdToGhs || 15.5,
+        updatedAt:       rate?.updatedAt ?? null,
+        updatedBy:       rate?.updatedBy ?? null,
+        autoFetchStatus,
+      })
     }
 
     return NextResponse.json({ error: 'Invalid type' }, { status: 400 })

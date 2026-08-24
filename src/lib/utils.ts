@@ -65,6 +65,13 @@ export const RENTAL_MODES = {
 export const SERVICE_FEE_RATE = 0.12
 export const PLATFORM_COMMISSION = 0.08
 
+// Applied on top of the raw market rate when the exchange-rate cron stores a
+// freshly-fetched USD→GHS rate (see /api/cron/update-exchange-rate). Rounds
+// slightly in FieGH's favor to absorb FX movement during the up-to-6h window
+// between fetches, so a real charge never settles for less GHS than the
+// USD price implied at the moment the rate was quoted.
+export const EXCHANGE_RATE_BUFFER = 0.01
+
 export function calculateFees(basePrice: number) {
   const serviceFee = basePrice * SERVICE_FEE_RATE
   const total = basePrice + serviceFee

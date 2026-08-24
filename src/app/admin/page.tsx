@@ -9,6 +9,7 @@ import {
 import { StatCard } from '@/components/ui/Card'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { useAuth } from '@/context/AuthContext'
+import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRate'
 
 const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Reviews', 'Settings']
 
@@ -57,6 +58,9 @@ export default function AdminPage() {
   const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState('Overview')
   const [exchangeRate, setExchangeRate] = useState('15.5')
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(null)
+  const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(null)
+  const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(null)
 
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
@@ -77,6 +81,18 @@ export default function AdminPage() {
     }
   }, [user, authLoading, router])
 
+  function applyRateResponse(r: {
+    rate?: number
+    updatedAt?: string | null
+    updatedBy?: string | null
+    autoFetchStatus?: AutoFetchStatus | null
+  }) {
+    if (r.rate != null) setExchangeRate(String(r.rate))
+    setRateUpdatedAt(r.updatedAt ?? null)
+    setRateUpdatedBy(r.updatedBy ?? null)
+    setRateAutoFetchStatus(r.autoFetchStatus ?? null)
+  }
+
   // Load data per tab
   useEffect(() => {
     if (!user || user.role !== 'ADMIN') return
@@ -93,7 +109,7 @@ export default function AdminPage() {
           const s = await statsRes.json()
           const r = await rateRes.json()
           setStats(s)
-          if (r.rate != null) setExchangeRate(String(r.rate))
+          applyRateResponse(r)
         } else if (activeTab === 'Users') {
           const res = await fetch('/api/admin/users')
           if (res.status === 403) { setForbidden(true); return }
@@ -113,7 +129,7 @@ export default function AdminPage() {
           const res = await fetch('/api/admin?type=exchange-rate')
           if (res.status === 403) { setForbidden(true); return }
           const r = await res.json()
-          if (r.rate != null) setExchangeRate(String(r.rate))
+          applyRateResponse(r)
         }
       } catch {
         /* ignore */
@@ -136,6 +152,8 @@ export default function AdminPage() {
       }),
     })
     if (!res.ok) return
+    setRateUpdatedAt(new Date().toISOString())
+    setRateUpdatedBy(user?.id ?? null)
     alert('Exchange rate updated')
   }
 
@@ -441,8 +459,22 @@ export default function AdminPage() {
                       <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Exchange Rate</h3>
                     </div>
                     <p className="text-sm text-[#6B645C] mb-4">
-                      Set the USD to GHS exchange rate used across the platform. Update this weekly.
+                      Auto-fetched from ExchangeRate-API every 6 hours (1% buffer applied). Set a
+                      value here to override it manually — the next automatic fetch will replace it.
                     </p>
+
+                    {rateAutoFetchStatus && !rateAutoFetchStatus.ok && (
+                      <div className="mb-4 p-3 rounded-xl flex items-start gap-2"
+                        style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5' }}>
+                        <AlertTriangle size={16} style={{ color: '#991B1B', flexShrink: 0, marginTop: 2 }} />
+                        <p className="text-xs" style={{ color: '#991B1B' }}>
+                          Last automatic fetch failed at {new Date(rateAutoFetchStatus.at).toLocaleString()}:{' '}
+                          {rateAutoFetchStatus.error}. Still using the rate below — nothing is broken,
+                          but the automation needs a look if this keeps happening.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex gap-3 items-end">
                       <div className="flex-1">
                         <label className="text-xs text-[#6B645C] block mb-1">1 USD = ? GHS</label>
@@ -461,6 +493,13 @@ export default function AdminPage() {
                     </div>
                     <p className="text-xs text-stone-400 mt-2">
                       Current: $1 = GH₵ {exchangeRate}
+                      {rateUpdatedAt && (
+                        <>
+                          {' · '}
+                          {rateUpdatedBy === AUTO_UPDATED_BY ? 'auto-fetched' : 'manually set'}
+                          {' '}{new Date(rateUpdatedAt).toLocaleString()}
+                        </>
+                      )}
                     </p>
                   </div>
 
