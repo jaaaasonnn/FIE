@@ -25,7 +25,6 @@ export function HeroSection() {
   const titleRef   = useRef<HTMLHeadingElement>(null)
   const subtitleRef = useRef<HTMLParagraphElement>(null)
   const searchRef  = useRef<HTMLDivElement>(null)
-  const statsRef   = useRef<HTMLDivElement>(null)
 
   const [mode, setMode]         = useState('SHORT_STAY')
   const [region, setRegion]     = useState('')
@@ -35,12 +34,6 @@ export function HeroSection() {
   useEffect(() => {
     const els = [titleRef.current, subtitleRef.current, searchRef.current]
     els.forEach((el) => { if (el) { el.style.opacity = '0'; el.style.transform = 'translateY(50px)' } })
-    if (statsRef.current) {
-      Array.from(statsRef.current.children).forEach((el) => {
-        (el as HTMLElement).style.opacity = '0'
-        ;(el as HTMLElement).style.transform = 'translateY(20px)'
-      })
-    }
 
     const af = requestAnimationFrame(async () => {
       const { gsap } = await import('gsap')
@@ -51,7 +44,6 @@ export function HeroSection() {
         .to(titleRef.current,    { y: 0, opacity: 1, duration: 1.1 })
         .to(subtitleRef.current, { y: 0, opacity: 1, duration: 0.8 }, '-=0.6')
         .to(searchRef.current,   { y: 0, opacity: 1, duration: 0.8 }, '-=0.5')
-        .to(Array.from(statsRef.current?.children || []), { y: 0, opacity: 1, stagger: 0.15, duration: 0.6 }, '-=0.3')
 
       ScrollTrigger.create({
         trigger: heroRef.current,
@@ -227,21 +219,6 @@ export function HeroSection() {
               Search
             </button>
           </form>
-        </div>
-
-        {/* ── Stats row ── */}
-        <div ref={statsRef} className="flex flex-wrap items-center justify-center gap-8 mt-10">
-          {[
-            { num: '500+',   label: 'Properties' },
-            { num: '16',     label: 'Regions' },
-            { num: '1,200+', label: 'Happy Guests' },
-            { num: '4.8★',  label: 'Avg Rating' },
-          ].map(({ num, label }) => (
-            <div key={label} className="text-center px-4 border-r last:border-r-0" style={{ borderColor: 'rgba(255,255,255,0.15)' }}>
-              <div className="text-3xl font-bold" style={{ color: 'var(--color-accent)' }}>{num}</div>
-              <div className="text-xs tracking-wider mt-0.5" style={{ color: 'rgba(255,255,255,0.5)', letterSpacing: '0.06em' }}>{label}</div>
-            </div>
-          ))}
         </div>
       </div>
 
