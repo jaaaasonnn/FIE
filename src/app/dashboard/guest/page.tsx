@@ -9,6 +9,7 @@ import { VerifiedBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/messages'
 
 type ApiBooking = {
@@ -86,6 +87,7 @@ function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userI
 
 export default function GuestDashboardPage() {
   const { user, loading: authLoading } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
   const router = useRouter()
 
   useEffect(() => {
@@ -326,7 +328,7 @@ export default function GuestDashboardPage() {
                         </p>
                         <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
                           ${b.totalPrice.toLocaleString()}
-                          <span className="font-normal text-xs text-stone-400 ml-1">≈ GH₵ {(b.totalPrice * 15.5).toLocaleString()}</span>
+                          <span className="font-normal text-xs text-stone-400 ml-1">≈ GH₵ {(b.totalPrice * ghsRate).toLocaleString()}</span>
                         </p>
                       </div>
                     </div>

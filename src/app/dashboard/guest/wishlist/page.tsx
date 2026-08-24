@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { Heart, MapPin, Star, Trash2, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { getPrimaryPrice } from '@/lib/utils'
 
 type WishlistItem = {
@@ -40,6 +41,7 @@ function firstPhoto(photos: unknown): string {
 
 export default function WishlistPage() {
   const { user, loading: authLoading } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
   const [items, setItems] = useState<WishlistItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -214,7 +216,7 @@ export default function WishlistPage() {
                           ${listing.price ?? '—'}<span className="text-xs font-normal text-[#6B645C]">{listing.priceUnit}</span>
                         </span>
                         {listing.price != null && (
-                          <div className="text-xs text-stone-400">≈ GH₵ {(listing.price * 15.5).toLocaleString()}</div>
+                          <div className="text-xs text-stone-400">≈ GH₵ {(listing.price * ghsRate).toLocaleString()}</div>
                         )}
                       </div>
                       {listing.superhost && (

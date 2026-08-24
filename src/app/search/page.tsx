@@ -12,6 +12,7 @@ import { GHANA_REGIONS, PROPERTY_TYPES } from '@/lib/utils'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import type { MapListing } from '@/components/map/ListingsMap'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 // ── Dynamic map import (SSR-off) ─────────────────────────────────────────────
 const ListingsMap = dynamic(
@@ -79,6 +80,7 @@ function getDisplayPrice(l: ApiListing, mode: string) {
 // ── Search UI ────────────────────────────────────────────────────────────────
 function SearchContent() {
   const params = useSearchParams()
+  const { rate: ghsRate } = useExchangeRate()
 
   const [showFilters,   setShowFilters]   = useState(false)
   const [showMapMobile, setShowMapMobile] = useState(false)
@@ -439,7 +441,7 @@ function SearchContent() {
                             {unit}
                           </span>
                           <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                            ≈ GH₵ {(price * 15.5).toLocaleString()}
+                            ≈ GH₵ {(price * ghsRate).toLocaleString()}
                           </div>
                         </div>
                         {(l.host?.isVerified || l.host?.isSuperhost) && (

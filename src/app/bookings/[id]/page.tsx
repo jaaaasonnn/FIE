@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield } from 'lucide-react'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 type BookingData = {
   id: string
@@ -34,6 +35,7 @@ type BookingData = {
 
 export default function BookingConfirmationPage() {
   const { id } = useParams<{ id: string }>()
+  const { rate: ghsRate } = useExchangeRate()
   const [booking, setBooking] = useState<BookingData | null>(null)
   const [loading, setLoading] = useState(true)
   const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
@@ -181,7 +183,7 @@ export default function BookingConfirmationPage() {
             </div>
             <div className="flex justify-between text-[#6B645C]">
               <span>Approx. in GHS</span>
-              <span>GH₵ {(booking.totalPrice * 15.5).toLocaleString()}</span>
+              <span>GH₵ {(booking.totalPrice * ghsRate).toLocaleString()}</span>
             </div>
             <div className="flex justify-between items-center pt-2 border-t border-stone-100">
               <span className="text-[#6B645C]">Payment status</span>

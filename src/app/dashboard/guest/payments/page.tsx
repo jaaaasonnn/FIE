@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { CreditCard, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 type ApiPayment = {
   id: string
@@ -44,6 +45,7 @@ function methodIcon(method: string): string {
 
 export default function GuestPaymentsPage() {
   const { user, loading: authLoading } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
   const [payments, setPayments] = useState<ApiPayment[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -111,7 +113,7 @@ export default function GuestPaymentsPage() {
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${total.toLocaleString()}</p>
-                <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * 15.5).toLocaleString()}</p>
+                <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * ghsRate).toLocaleString()}</p>
               </div>
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Transactions</p>

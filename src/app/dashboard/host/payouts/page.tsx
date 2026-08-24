@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 type ApiPayout = {
   id: string
@@ -72,6 +73,7 @@ function savedMethodLabel(m: SavedPayoutMethod): string {
 
 export default function HostPayoutsPage() {
   const { user, loading: authLoading } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
   const [payouts, setPayouts] = useState<ApiPayout[]>([])
   const [loading, setLoading] = useState(true)
   const [addingMethod, setAddingMethod] = useState(false)
@@ -242,7 +244,7 @@ export default function HostPayoutsPage() {
                 {
                   label: 'Total Earned',
                   value: `$${totalEarned.toLocaleString()}`,
-                  sub: `≈ GH₵ ${(totalEarned * 15.5).toLocaleString()}`,
+                  sub: `≈ GH₵ ${(totalEarned * ghsRate).toLocaleString()}`,
                   color: 'var(--color-accent)',
                 },
                 {

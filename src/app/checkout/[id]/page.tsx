@@ -6,6 +6,7 @@ import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2 } from 'lu
 import { Button } from '@/components/ui/Button'
 import { validateGhanaPhone } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -55,6 +56,7 @@ function CheckoutPageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
 
   // Client-side auth guard (belt-and-suspenders — middleware also redirects)
   useEffect(() => {
@@ -463,7 +465,7 @@ function CheckoutPageInner() {
                     <span>${booking.totalPrice.toFixed(2)}</span>
                   </div>
                   <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    ≈ GH₵ {(booking.totalPrice * 15.5).toLocaleString()}
+                    ≈ GH₵ {(booking.totalPrice * ghsRate).toLocaleString()}
                   </p>
                 </div>
               </div>

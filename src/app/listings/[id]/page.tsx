@@ -14,6 +14,7 @@ import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 // ── API types ────────────────────────────────────────────────────────────────
 type ApiListing = {
@@ -89,6 +90,7 @@ export default function ListingDetailPage() {
   const { id: listingId } = useParams<{ id: string }>()
   const router = useRouter()
   const { user } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
 
   // Listing data
   const [listing,    setListing]    = useState<ApiListing | null>(null)
@@ -635,7 +637,7 @@ export default function ListingDetailPage() {
                   ≈ GH₵ {(
                     (selectedMode === 'SHORT_STAY' ? listing.priceNightly ?? 0
                      : selectedMode === 'TEMP_STAY' ? listing.priceMonthly ?? 0
-                     : listing.priceAnnual ?? 0) * 15.5
+                     : listing.priceAnnual ?? 0) * ghsRate
                   ).toLocaleString()}
                 </p>
               </div>
@@ -732,7 +734,7 @@ export default function ListingDetailPage() {
                     style={{ color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}>
                     <span>Total</span><span>${total.toFixed(0)}</span>
                   </div>
-                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>≈ GH₵ {(total * 15.5).toLocaleString()}</p>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>≈ GH₵ {(total * ghsRate).toLocaleString()}</p>
                 </div>
               )}
 

@@ -18,6 +18,7 @@ import Map, {
   MapMouseEvent,
 } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 import Supercluster from 'supercluster'
 import { Star, X } from 'lucide-react'
 
@@ -61,8 +62,6 @@ type AnyFeature =
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
-const GHS_RATE = 15.5
-
 export const REGION_CENTERS: Record<string, [number, number]> = {
   'Greater Accra': [-0.187, 5.55],
   'Ashanti':       [-1.623, 6.694],
@@ -89,8 +88,8 @@ const MAP_STYLE = `https://api.maptiler.com/maps/positron/style.json?key=${MAPTI
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
-function formatGHS(usdPrice: number): string {
-  const ghs = Math.round(usdPrice * GHS_RATE)
+function formatGHS(usdPrice: number, rate: number): string {
+  const ghs = Math.round(usdPrice * rate)
   if (ghs >= 10000) return `GH₵${(ghs / 1000).toFixed(0)}k`
   if (ghs >= 1000)  return `GH₵${(ghs / 1000).toFixed(1)}k`
   return `GH₵${ghs}`
@@ -165,6 +164,7 @@ function PopupCard({
   listing,
   onClose,
 }: { listing: MapListing; onClose: () => void }) {
+  const { rate } = useExchangeRate()
   const price = getDisplayPrice(listing)
   const unit  = listing.activeMode === 'SHORT_STAY' ? '/night'
               : listing.activeMode === 'PERMANENT'  ? '/year' : '/mo'
@@ -225,7 +225,7 @@ function PopupCard({
             </span>
             <span style={{ fontSize: 11, color: '#6B645C' }}>{unit}</span>
             <div style={{ fontSize: 10, color: '#9C9589', marginTop: 1 }}>
-              ≈ {formatGHS(price)}
+              ≈ {formatGHS(price, rate)}
             </div>
           </div>
 
@@ -263,6 +263,7 @@ interface ListingsMapProps {
 
 export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
   const mapRef = useRef<MapRef>(null)
+  const { rate } = useExchangeRate()
 
   // Determine initial center from region or default to Accra
   const initialCenter = useMemo<ViewState>(() => {
@@ -390,7 +391,7 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
           if (!listing) return null
 
           const usd   = getDisplayPrice(listing)
-          const label = formatGHS(usd)
+          const label = formatGHS(usd, rate)
 
           return (
             <Marker

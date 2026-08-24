@@ -5,7 +5,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export const GHS_RATE = 15.5 // fallback; fetched from DB in production
+// Fallback only — matches the backend's INITIAL_USD_TO_GHS default. Components
+// should read the live rate from useExchangeRate() (@/context/ExchangeRateContext),
+// which starts at this value and updates once /api/exchange-rate resolves.
+export const GHS_RATE = 15.5
 
 export function formatCurrency(usd: number, showGhs = true): string {
   const usdStr = `$${usd.toFixed(2)}`

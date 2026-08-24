@@ -5,6 +5,7 @@ import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
 import { Toaster } from '@/components/ui/Toaster'
 import { AuthProvider } from '@/context/AuthContext'
+import { ExchangeRateProvider } from '@/context/ExchangeRateContext'
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -34,12 +35,14 @@ export default function RootLayout({
     <html lang="en" className={manrope.variable}>
       <body className={manrope.className}>
         <AuthProvider>
-          <Navbar />
-          <main className="min-h-screen">
-            {children}
-          </main>
-          <Footer />
-          <Toaster />
+          <ExchangeRateProvider>
+            <Navbar />
+            <main className="min-h-screen">
+              {children}
+            </main>
+            <Footer />
+            <Toaster />
+          </ExchangeRateProvider>
         </AuthProvider>
       </body>
     </html>

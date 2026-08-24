@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Star, MapPin, Bed, Bath, Users, Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -32,8 +33,6 @@ const MODE_LABELS: Record<string, string> = {
   TEMP_STAY:  '📅 Monthly',
   PERMANENT:  '🏠 Long-Term',
 }
-
-const GHS_RATE = 15.5
 
 // ── Skeleton card ────────────────────────────────────────────────────────────
 function SkeletonCard() {
@@ -63,6 +62,7 @@ function SkeletonCard() {
 export function FeaturedListings() {
   const router = useRouter()
   const { user } = useAuth()
+  const { rate: ghsRate } = useExchangeRate()
   const sectionRef = useRef<HTMLElement>(null)
   const [listings, setListings] = useState<ApiListing[]>([])
   const [loading,  setLoading]  = useState(true)
@@ -229,7 +229,7 @@ export function FeaturedListings() {
             : listings.map((l) => {
                 const price    = l.priceNightly ?? l.priceMonthly ?? 0
                 const unit     = l.priceNightly ? '/night' : '/mo'
-                const ghsPrice = Math.round(price * GHS_RATE).toLocaleString()
+                const ghsPrice = Math.round(price * ghsRate).toLocaleString()
                 const photo    = l.photos?.[0] ?? ''
 
                 return (
