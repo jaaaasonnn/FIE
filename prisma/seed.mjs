@@ -6,9 +6,33 @@
  * Run with:
  *   npm run db:seed
  *
- * Always upserts panel test users (admins + extra guests) even if listings exist.
- * Skips listings if any already exist unless you pass --force:
- *   npm run db:seed -- --force
+ * Safe to run any time, including against an already-seeded DB: every
+ * row here is upserted by a deterministic id (stableId(...) below), so
+ * a normal re-run just syncs this file's current field values (title,
+ * photos, price, etc.) onto the existing rows — no flag needed. It can
+ * never create duplicates or touch a real user/listing, since those
+ * have ordinary cuid ids that a stableId(...) value will never collide
+ * with.
+ *
+ * Optional: npm run db:seed -- --force
+ *   Prunes seed-owned listings/verifications/users first and recreates
+ *   them from scratch. Only useful if you've removed an entry from
+ *   this file and want its now-stale DB row actually gone, rather than
+ *   just left untouched by the upsert above — the normal run doesn't
+ *   need this for ordinary field edits (title, photos, price, ...).
+ *   Scoped strictly to rows whose id starts with the 'seed_' prefix
+ *   that stableId(...) always generates — NOT by e.g. host/user email
+ *   domain, which would also catch real listings/bookings created by
+ *   manually testing the app while logged in as a seed account (this
+ *   DB has several: "Test Create Listing Fix", "Photo Upload Test
+ *   Listing", etc., all with ordinary cuid ids, all owned by seed
+ *   hosts). The id prefix can't have that false-positive problem — it
+ *   only ever matches rows this script itself created — so --force can
+ *   never delete a real listing or user. If a seed listing still has
+ *   real bookings against it, the database's own foreign-key
+ *   constraint (Booking.listingId) refuses the delete rather than
+ *   cascading through and losing that booking data — seeing --force
+ *   fail loudly in that case is the intended behavior, not a bug.
  *
  * All @fiegh.demo accounts share password: Demo1234!
  */
@@ -475,70 +499,63 @@ async function seedPanelUsers(passwordHash) {
 async function main() {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12)
 
-  // Always refresh panel test accounts (safe if listings already exist)
-  await seedPanelUsers(passwordHash)
-
-  // ── Guard listings ─────────────────────────────────────────────────────
-  if (!force) {
-    const count = await db.listing.count()
-    if (count > 0) {
-      console.log(`\n⏭  ${count} listing(s) already in DB — skipping listing seed.`)
-      console.log('   Pass --force to wipe and re-seed listings: npm run db:seed -- --force')
-      printLoginHints()
-      return
-    }
-  } else {
-    console.log('\n🗑  --force: wiping existing listings, blocked dates, and seed users…')
-    await db.verification.deleteMany({ where: { user: { email: { endsWith: '@fiegh.demo' } } } })
-    await db.blockedDate.deleteMany()
-    await db.listing.deleteMany()
-    await db.user.deleteMany({ where: { email: { endsWith: '@fiegh.demo' } } })
-    // Re-seed users after wipe
-    await seedPanelUsers(passwordHash)
+  if (force) {
+    // Scoped to id: startsWith('seed_') only — see the file header for why
+    // that's the marker, not host/user email. BlockedDate rows cascade
+    // automatically (onDelete: Cascade in schema), so no separate call is
+    // needed for those.
+    console.log("\n🗑  --force: pruning seed-owned listings/verifications/users (id starts with 'seed_')…")
+    await db.verification.deleteMany({ where: { userId: { startsWith: 'seed_' } } })
+    await db.listing.deleteMany({ where: { id: { startsWith: 'seed_' } } })
+    await db.user.deleteMany({ where: { id: { startsWith: 'seed_' } } })
   }
+
+  // Always upserts — safe to run any time, including against a DB that
+  // already has these rows (the normal case). Only ever creates/updates
+  // rows whose id is one of this file's own stableId(...) values, so it
+  // can never touch a real user/listing (which have ordinary cuid ids).
+  await seedPanelUsers(passwordHash)
 
   // ── Seed listings ──────────────────────────────────────────────────────
   console.log('🏠 Seeding listings…')
   for (const l of LISTINGS) {
+    // Single field list shared by create and update, so the two can never
+    // drift apart again the way they did before (update only synced 3 of
+    // ~25 fields, silently dropping edits like photo changes).
+    const fields = {
+      hostId:                l.hostId,
+      title:                 l.title,
+      description:           l.description,
+      propertyType:          l.propertyType,
+      region:                l.region,
+      city:                  l.city,
+      neighbourhood:         l.neighbourhood ?? null,
+      lat:                   l.lat ?? null,
+      lng:                   l.lng ?? null,
+      bedrooms:              l.bedrooms,
+      bathrooms:             l.bathrooms,
+      maxGuests:             l.maxGuests,
+      rentalModes:           JSON.stringify(l.rentalModes),
+      priceNightly:          l.priceNightly  ?? null,
+      priceMonthly:          l.priceMonthly  ?? null,
+      priceAnnual:           l.priceAnnual   ?? null,
+      advanceMonthsRequired: l.advanceMonthsRequired ?? null,
+      amenities:             JSON.stringify(l.amenities),
+      rules:                 JSON.stringify(l.rules),
+      photos:                JSON.stringify(l.photos),
+      cancellationPolicy:    l.cancellationPolicy,
+      instantBook:           l.instantBook,
+      minStayNights:         l.minStayNights,
+      damageDeposit:         l.damageDeposit ?? null,
+      avgRating:             l.avgRating,
+      reviewCount:           l.reviewCount,
+      isActive:              true,
+      isFeatured:            l.isFeatured,
+    }
     await db.listing.upsert({
       where:  { id: l.id },
-      update: {
-        avgRating:   l.avgRating,
-        reviewCount: l.reviewCount,
-        isFeatured:  l.isFeatured,
-        photos:      JSON.stringify(l.photos),
-      },
-      create: {
-        id:                   l.id,
-        hostId:               l.hostId,
-        title:                l.title,
-        description:          l.description,
-        propertyType:         l.propertyType,
-        region:               l.region,
-        city:                 l.city,
-        neighbourhood:        l.neighbourhood ?? null,
-        lat:                  l.lat ?? null,
-        lng:                  l.lng ?? null,
-        bedrooms:             l.bedrooms,
-        bathrooms:            l.bathrooms,
-        maxGuests:            l.maxGuests,
-        rentalModes:          JSON.stringify(l.rentalModes),
-        priceNightly:         l.priceNightly  ?? null,
-        priceMonthly:         l.priceMonthly  ?? null,
-        priceAnnual:          l.priceAnnual   ?? null,
-        advanceMonthsRequired: l.advanceMonthsRequired ?? null,
-        amenities:            JSON.stringify(l.amenities),
-        rules:                JSON.stringify(l.rules),
-        photos:               JSON.stringify(l.photos),
-        cancellationPolicy:   l.cancellationPolicy,
-        instantBook:          l.instantBook,
-        minStayNights:        l.minStayNights,
-        damageDeposit:        l.damageDeposit ?? null,
-        avgRating:            l.avgRating,
-        reviewCount:          l.reviewCount,
-        isActive:             true,
-        isFeatured:           l.isFeatured,
-      },
+      update: fields,
+      create: { id: l.id, ...fields },
     })
     console.log(`   ✓ ${l.title}`)
   }
