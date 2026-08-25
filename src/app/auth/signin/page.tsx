@@ -44,7 +44,7 @@ export default function SignInPage() {
         <div
           className="absolute inset-0 opacity-10"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1529516548873-9ce57c8f155e?w=800&q=60')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1740826314917-49275b68c925?w=800&q=60')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center'
           }}

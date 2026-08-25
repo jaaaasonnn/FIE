@@ -71,7 +71,7 @@ export function HeroSection() {
       ref={heroRef}
       className="relative min-h-[92vh] flex items-center justify-center overflow-hidden"
       style={{
-        backgroundImage: `url('https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1600&q=80')`,
+        backgroundImage: `url('https://images.unsplash.com/photo-1680200023508-5289ae3de157?w=1600&q=80')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center 40%',
       }}
