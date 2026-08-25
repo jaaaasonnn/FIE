@@ -75,7 +75,7 @@ export function HostCTASection() {
 
             <div className="flex flex-col sm:flex-row gap-3">
               <Link
-                href="/auth/signup?role=host"
+                href="/login?tab=signup&role=host"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full font-semibold text-sm transition-all hover:opacity-90"
                 style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
               >

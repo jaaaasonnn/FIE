@@ -61,7 +61,7 @@ export function Footer() {
             </h4>
             <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
               {[
-                { href: '/auth/signup?role=host', label: 'Become a Host' },
+                { href: '/login?tab=signup&role=host', label: 'Become a Host' },
                 { href: '/how-it-works#hosts', label: 'How Hosting Works' },
                 { href: '/dashboard/host', label: 'Host Dashboard' },
                 { href: '/faq#hosting', label: 'Hosting FAQ' },

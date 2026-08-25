@@ -158,7 +158,7 @@ export default function EditProfilePage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
         <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Sign in to edit your profile</h1>
-        <Link href="/auth/signin" className="px-6 py-3 rounded-full text-sm font-semibold"
+        <Link href="/login" className="px-6 py-3 rounded-full text-sm font-semibold"
           style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
           Sign in
         </Link>

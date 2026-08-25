@@ -15,7 +15,9 @@ export default function LoginPage() {
   const redirect     = searchParams.get('redirect') ?? ''
   const { user, loading: authLoading, signIn, signUp } = useAuth()
 
-  const [tab, setTab] = useState<Tab>('login')
+  // Lets links land directly on the signup tab (and pre-pick Host), e.g.
+  // "Become a Host" CTAs — /login?tab=signup&role=host
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'signup' ? 'signup' : 'login')
   // Track whether the page load found an already-authenticated user
   // so the useEffect doesn't fight with our post-form navigation
   const mountedWithUser = useRef(false)
@@ -32,7 +34,7 @@ export default function LoginPage() {
   const [email,     setEmail]     = useState('')
   const [password,  setPassword]  = useState('')
   const [confirmPw, setConfirmPw] = useState('')
-  const [role,      setRole]      = useState<'GUEST' | 'HOST'>('GUEST')
+  const [role,      setRole]      = useState<'GUEST' | 'HOST'>(searchParams.get('role') === 'host' ? 'HOST' : 'GUEST')
   const [showPw2,   setShowPw2]   = useState(false)
   const [signupErr, setSignupErr] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)

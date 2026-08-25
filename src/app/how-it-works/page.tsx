@@ -116,7 +116,7 @@ export default function HowItWorksPage() {
               style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
               Find a Property 🔍
             </Link>
-            <Link href="/auth/signup?role=host"
+            <Link href="/login?tab=signup&role=host"
               className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-sm border-2"
               style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}>
               Start Hosting 🏡
