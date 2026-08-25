@@ -4,12 +4,18 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 const regions = [
-  { name: 'Greater Accra', city: 'Accra',       img: 'https://images.unsplash.com/photo-1569880153113-76e33fc52d5f?w=400&q=70' },
-  { name: 'Ashanti',       city: 'Kumasi',      img: 'https://images.unsplash.com/photo-1612686635542-2244ed9f8ddc?w=400&q=70' },
-  { name: 'Western',       city: 'Takoradi',    img: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=400&q=70' },
-  { name: 'Central',       city: 'Cape Coast',  img: 'https://images.unsplash.com/photo-1548013146-72479768bada?w=400&q=70' },
-  { name: 'Eastern',       city: 'Koforidua',   img: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&q=70' },
-  { name: 'Northern',      city: 'Tamale',      img: 'https://images.unsplash.com/photo-1516026672322-bc52d61a55d5?w=400&q=70' },
+  // Aerial Accra cityscape — geotagged "Accra, Ghana"
+  { name: 'Greater Accra', city: 'Accra',       img: 'https://images.unsplash.com/photo-1568025848823-86404cd04ad1?w=400&q=70' },
+  // Aerial Adum, Kumasi — geotagged "Adum, Kumasi, Ghana"
+  { name: 'Ashanti',       city: 'Kumasi',      img: 'https://images.unsplash.com/photo-1506126208421-3345d63a05d8?w=400&q=70' },
+  // Atlantic coastline — geotagged "Takoradi, Ghana"
+  { name: 'Western',       city: 'Takoradi',    img: 'https://images.unsplash.com/photo-1624832040555-d9f92f7be672?w=400&q=70' },
+  // Elmina Castle (Central region, near Cape Coast) — geotagged "Elmina, Ghana"
+  { name: 'Central',       city: 'Cape Coast',  img: 'https://images.unsplash.com/photo-1769297468250-dfdea4662b00?w=400&q=70' },
+  // Aburi hills (Eastern region) — geotagged "Aburi, Ghana"
+  { name: 'Eastern',       city: 'Koforidua',   img: 'https://images.unsplash.com/photo-1670615431202-6a7159da3f6c?w=400&q=70' },
+  // Aerial village — captioned "Drone Image from the Northern Region of Ghana"
+  { name: 'Northern',      city: 'Tamale',      img: 'https://images.unsplash.com/photo-1680199489033-bc336166482b?w=400&q=70' },
 ]
 
 // "Accra" / "Accra & Kumasi" / "Accra, Kumasi & Tamale" — natural join,
