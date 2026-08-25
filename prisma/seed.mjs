@@ -37,11 +37,27 @@
  * All @fiegh.demo accounts share password: Demo1234!
  */
 
-import { PrismaClient } from '@prisma/client'
-import { createHash }   from 'node:crypto'
-import bcrypt           from 'bcryptjs'
+import { PrismaClient }  from '@prisma/client'
+import { createHash }    from 'node:crypto'
+import bcrypt            from 'bcryptjs'
+import { createClient }  from '@supabase/supabase-js'
+import { WebSocket }     from 'ws'
+import sharp              from 'sharp'
+
+// Same polyfill lib/supabase.ts needs — supabase-js spins up a Realtime
+// client internally even though we only use Storage here, and Node 20
+// doesn't provide a global WebSocket constructor.
+if (!globalThis.WebSocket) {
+  globalThis.WebSocket = WebSocket
+}
 
 const db    = new PrismaClient()
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  { auth: { persistSession: false } },
+)
+const VERIFICATION_DOCS_BUCKET = 'verification-docs'
 const force = process.argv.includes('--force')
 
 /** Shared demo password for every @fiegh.demo account */
@@ -396,6 +412,128 @@ The neighbourhood is walkable to restaurants, supermarkets, and the Accra Mall. 
   },
 ]
 
+// ── Synthetic verification-doc mockups ──────────────────────────────────────
+// Plain generated SVGs, not photos of anyone or anything real — clearly
+// watermarked "SAMPLE" so nobody could mistake one for an actual ID scan.
+// Real submissions (POST /api/verifications) store an uploaded photo as a
+// private Storage *path*, not a URL (see uploadDoc() there), and the admin
+// review UI signs a short-lived URL from that path on read (GET
+// /api/admin/verifications) — these have to go through that same upload +
+// path convention to actually render, not just be a plausible-looking URL.
+
+function ghanaCardSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="856" height="540" viewBox="0 0 856 540">
+    <rect width="856" height="540" rx="24" fill="#FAF7F2"/>
+    <rect x="0" y="0" width="856" height="16" fill="#CE1126"/>
+    <rect x="0" y="16" width="856" height="16" fill="#FCD116"/>
+    <rect x="0" y="32" width="856" height="16" fill="#006B3F"/>
+    <rect x="6" y="54" width="844" height="480" rx="18" fill="none" stroke="#C9932E" stroke-width="3"/>
+    <text x="428" y="100" text-anchor="middle" font-family="Georgia, serif" font-size="30" font-weight="700" fill="#1F1B16">REPUBLIC OF GHANA</text>
+    <text x="428" y="128" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="3" fill="#6B645C">NATIONAL IDENTIFICATION CARD (SAMPLE)</text>
+    <rect x="60" y="160" width="170" height="210" rx="8" fill="#E8E2D9" stroke="#C9BBA8" stroke-width="2"/>
+    <circle cx="145" cy="228" r="42" fill="#C9BBA8"/>
+    <path d="M 85 350 Q 145 285 205 350 Z" fill="#C9BBA8"/>
+    <text x="280" y="185" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Surname</text>
+    <text x="280" y="208" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">DEMO</text>
+    <text x="280" y="243" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Names</text>
+    <text x="280" y="266" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">SAMPLE DATA</text>
+    <text x="280" y="301" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Personal ID Number</text>
+    <text x="280" y="324" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">GHA-000000000-0</text>
+    <text x="280" y="359" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Date of Birth</text>
+    <text x="280" y="382" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">01 JAN 1990</text>
+    <g transform="rotate(-18 428 280)" opacity="0.14">
+      <text x="428" y="295" text-anchor="middle" font-family="Arial, sans-serif" font-size="80" font-weight="900" fill="#CE1126">SAMPLE</text>
+    </g>
+    <text x="428" y="512" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#9C9589">Demo data generated for FieGH testing — not a real identity document</text>
+  </svg>`
+}
+
+function voterIdSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="856" height="540" viewBox="0 0 856 540">
+    <rect width="856" height="540" rx="24" fill="#FAF7F2"/>
+    <rect x="0" y="0" width="856" height="16" fill="#CE1126"/>
+    <rect x="0" y="16" width="856" height="16" fill="#FCD116"/>
+    <rect x="0" y="32" width="856" height="16" fill="#006B3F"/>
+    <rect x="6" y="54" width="844" height="480" rx="18" fill="none" stroke="#1F1B16" stroke-width="3"/>
+    <text x="428" y="100" text-anchor="middle" font-family="Georgia, serif" font-size="26" font-weight="700" fill="#1F1B16">ELECTORAL COMMISSION OF GHANA</text>
+    <text x="428" y="128" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" letter-spacing="3" fill="#6B645C">VOTER IDENTIFICATION CARD (SAMPLE)</text>
+    <rect x="60" y="160" width="170" height="210" rx="8" fill="#E8E2D9" stroke="#C9BBA8" stroke-width="2"/>
+    <circle cx="145" cy="228" r="42" fill="#C9BBA8"/>
+    <path d="M 85 350 Q 145 285 205 350 Z" fill="#C9BBA8"/>
+    <text x="280" y="185" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Full Name</text>
+    <text x="280" y="208" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">SAMPLE DEMO VOTER</text>
+    <text x="280" y="243" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Voter ID Number</text>
+    <text x="280" y="266" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">0000000000</text>
+    <text x="280" y="301" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Polling Station Code</text>
+    <text x="280" y="324" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">A00 / 000 / 0000</text>
+    <text x="280" y="359" font-family="Arial, sans-serif" font-size="14" fill="#9C9589">Date of Registration</text>
+    <text x="280" y="382" font-family="Arial, sans-serif" font-size="19" font-weight="700" fill="#1F1B16">01 JAN 2020</text>
+    <g transform="rotate(-18 428 280)" opacity="0.14">
+      <text x="428" y="295" text-anchor="middle" font-family="Arial, sans-serif" font-size="80" font-weight="900" fill="#006B3F">SAMPLE</text>
+    </g>
+    <text x="428" y="512" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#9C9589">Demo data generated for FieGH testing — not a real identity document</text>
+  </svg>`
+}
+
+function passportSvg() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="820" viewBox="0 0 600 820">
+    <rect width="600" height="820" fill="#FAF7F2"/>
+    <rect x="0" y="0" width="600" height="140" fill="#4A0E1F"/>
+    <circle cx="300" cy="60" r="34" fill="none" stroke="#D4AF37" stroke-width="3"/>
+    <text x="300" y="68" text-anchor="middle" font-family="Georgia, serif" font-size="22" font-weight="700" fill="#D4AF37">GH</text>
+    <text x="300" y="112" text-anchor="middle" font-family="Georgia, serif" font-size="24" font-weight="700" fill="#FAF7F2" letter-spacing="4">PASSPORT</text>
+    <text x="300" y="132" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#D4AF37" letter-spacing="2">REPUBLIC OF GHANA — SAMPLE</text>
+    <rect x="40" y="180" width="160" height="200" rx="6" fill="#E8E2D9" stroke="#C9BBA8" stroke-width="2"/>
+    <circle cx="120" cy="245" r="40" fill="#C9BBA8"/>
+    <path d="M 65 360 Q 120 300 175 360 Z" fill="#C9BBA8"/>
+    <text x="220" y="205" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Type / Code</text>
+    <text x="220" y="226" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">P / GHA</text>
+    <text x="220" y="260" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Passport No.</text>
+    <text x="220" y="281" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">G0000000</text>
+    <text x="220" y="315" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Surname / Given Names</text>
+    <text x="220" y="336" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">DEMO / SAMPLE</text>
+    <text x="40" y="410" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Nationality</text>
+    <text x="40" y="431" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">GHANAIAN</text>
+    <text x="220" y="410" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Date of Birth</text>
+    <text x="220" y="431" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">01 JAN 1990</text>
+    <text x="40" y="465" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Date of Issue</text>
+    <text x="40" y="486" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">01 JAN 2020</text>
+    <text x="220" y="465" font-family="Arial, sans-serif" font-size="13" fill="#9C9589">Date of Expiry</text>
+    <text x="220" y="486" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#1F1B16">01 JAN 2030</text>
+    <g transform="rotate(-18 300 550)" opacity="0.14">
+      <text x="300" y="565" text-anchor="middle" font-family="Arial, sans-serif" font-size="70" font-weight="900" fill="#4A0E1F">SAMPLE</text>
+    </g>
+    <text x="300" y="780" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" fill="#9C9589">Demo data generated for FieGH testing — not a real identity document</text>
+  </svg>`
+}
+
+// Uploads each mockup to the same private bucket + path convention real
+// submissions use (`${userId}/id-photo.<ext>`), so idPhotoUrl below is a
+// genuine Storage path the admin review route can sign a URL from — not an
+// external URL, which createSignedUrl() would just silently fail on.
+//
+// Rasterized to PNG rather than uploaded as SVG directly — the bucket
+// enforces the same image/jpeg|png|webp allow-list POST /api/verifications
+// validates against (confirmed by a real 415 from Storage when this tried
+// to upload image/svg+xml), so a hand-authored vector mockup still needs
+// converting before it's a file the bucket will actually accept.
+async function uploadVerificationDocs() {
+  const docs = [
+    { userId: GUEST_EFUA,  svg: ghanaCardSvg() },
+    { userId: GUEST_KOJO,  svg: ghanaCardSvg() },
+    { userId: HOST_NANA,   svg: passportSvg() },
+    { userId: GUEST_KOFI,  svg: voterIdSvg() },
+  ]
+  for (const { userId, svg } of docs) {
+    const png = await sharp(Buffer.from(svg)).png().toBuffer()
+    const { error } = await supabaseAdmin.storage
+      .from(VERIFICATION_DOCS_BUCKET)
+      .upload(`${userId}/id-photo.png`, png, { contentType: 'image/png', upsert: true })
+    if (error) throw error
+  }
+  console.log(`   ✓ ${docs.length} verification doc mockups uploaded`)
+}
+
 async function upsertUser(user, passwordHash) {
   const data = {
     name:         user.name,
@@ -446,33 +584,35 @@ async function seedPanelUsers(passwordHash) {
   console.log(`   ✓ ${HOSTS.length} listing hosts + demo guest`)
 
   // Pending / mixed verifications so Verifications tab has data
+  await uploadVerificationDocs()
+
   const verifications = [
     {
       id:         stableId('verif-efua'),
       userId:     GUEST_EFUA,
       idType:     'GHANA_CARD',
-      idPhotoUrl: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=400&q=80',
+      idPhotoUrl: `${GUEST_EFUA}/id-photo.png`,
       status:     'PENDING',
     },
     {
       id:         stableId('verif-nana'),
       userId:     HOST_NANA,
       idType:     'PASSPORT',
-      idPhotoUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=400&q=80',
+      idPhotoUrl: `${HOST_NANA}/id-photo.png`,
       status:     'PENDING',
     },
     {
       id:         stableId('verif-kofi'),
       userId:     GUEST_KOFI,
       idType:     'VOTER_ID',
-      idPhotoUrl: 'https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&q=80',
+      idPhotoUrl: `${GUEST_KOFI}/id-photo.png`,
       status:     'PENDING',
     },
     {
       id:         stableId('verif-kojo'),
       userId:     GUEST_KOJO,
       idType:     'GHANA_CARD',
-      idPhotoUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&q=80',
+      idPhotoUrl: `${GUEST_KOJO}/id-photo.png`,
       status:     'APPROVED',
     },
   ]

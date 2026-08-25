@@ -363,8 +363,8 @@ export default function AdminPage() {
                         <div key={v.id} className="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm">
                           <div className="flex items-start justify-between gap-4 flex-wrap">
                             <div className="flex items-start gap-4">
-                              {v.user.profilePhoto || v.idPhotoUrl ? (
-                                <img src={v.user.profilePhoto || v.idPhotoUrl || undefined} alt={v.user.name ?? ''} className="w-16 h-16 rounded-xl object-cover" />
+                              {v.user.profilePhoto ? (
+                                <img src={v.user.profilePhoto} alt={v.user.name ?? ''} className="w-16 h-16 rounded-xl object-cover" />
                               ) : (
                                 <div className="w-16 h-16 rounded-xl flex items-center justify-center font-bold"
                                   style={{ backgroundColor: 'var(--gold-light)' }}>
@@ -383,6 +383,26 @@ export default function AdminPage() {
                                   {v.status}
                                 </span>
                               </div>
+                              {/* The actual submitted document — previously this fell back to
+                                  idPhotoUrl only when profilePhoto was absent, which meant an
+                                  admin could never see the ID document at all for any user who
+                                  also had a profile photo set (i.e. almost always). Verification
+                                  review is specifically about checking this image, so it always
+                                  gets its own slot regardless of whether a profile photo exists. */}
+                              {v.idPhotoUrl ? (
+                                <a href={v.idPhotoUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
+                                  <img src={v.idPhotoUrl} alt={`${v.idType.replace('_', ' ')} document`}
+                                    className="w-24 h-16 rounded-lg object-cover border border-stone-200 group-hover:opacity-90" />
+                                  <span className="text-[10px] text-stone-400 group-hover:underline">ID document</span>
+                                </a>
+                              ) : (
+                                <div className="flex flex-col items-center gap-1">
+                                  <div className="w-24 h-16 rounded-lg flex items-center justify-center text-[10px] text-stone-400"
+                                    style={{ backgroundColor: '#F3F0EA', border: '1px dashed #D8D0C2' }}>
+                                    No document
+                                  </div>
+                                </div>
+                              )}
                             </div>
                             {v.status === 'PENDING' && (
                               <div className="flex gap-2">
