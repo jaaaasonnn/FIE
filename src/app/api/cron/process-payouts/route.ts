@@ -21,9 +21,10 @@ const PAYOUT_DELAY_MS = 24 * 60 * 60 * 1000 // 24h after check-in, matches the a
  * bookings are deliberately left untouched by this query.
  *
  * Secured by a shared secret (CRON_SECRET) rather than a user session,
- * since there's no logged-in user driving this — checked via header
- * (x-cron-secret) so it also works for schedulers that only support GET
- * with no custom body.
+ * since there's no logged-in user driving this — checked via the standard
+ * `Authorization: Bearer <CRON_SECRET>` header, which is what Vercel's
+ * native cron feature sends automatically when CRON_SECRET is set as an
+ * env var (see https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs).
  */
 async function processDuePayouts() {
   const cutoff = new Date(Date.now() - PAYOUT_DELAY_MS)
@@ -71,7 +72,7 @@ async function processDuePayouts() {
 function checkAuth(req: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
-  return req.headers.get('x-cron-secret') === secret
+  return req.headers.get('authorization') === `Bearer ${secret}`
 }
 
 export async function GET(req: Request) {

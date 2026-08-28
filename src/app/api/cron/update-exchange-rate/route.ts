@@ -16,8 +16,10 @@ import { updateExchangeRateFromApi } from '@/lib/exchangeRate'
  * cadence this uses ~120 of the free plan's 1,500 requests/month.
  *
  * Secured by a shared secret (CRON_SECRET), same as the other two cron
- * routes — checked via header (x-cron-secret) so it also works for
- * schedulers that only support GET with no custom body.
+ * routes — checked via the standard `Authorization: Bearer <CRON_SECRET>`
+ * header, which is what Vercel's native cron feature sends automatically
+ * when CRON_SECRET is set as an env var (see
+ * https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs).
  *
  * Returns a non-2xx status on failure (in addition to logging and writing
  * the failure to SiteSetting) so an external scheduler with its own
@@ -27,7 +29,7 @@ import { updateExchangeRateFromApi } from '@/lib/exchangeRate'
 function checkAuth(req: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
-  return req.headers.get('x-cron-secret') === secret
+  return req.headers.get('authorization') === `Bearer ${secret}`
 }
 
 async function handle(req: Request) {

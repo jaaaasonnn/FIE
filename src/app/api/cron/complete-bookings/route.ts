@@ -53,7 +53,7 @@ async function completeDueBookings() {
 function checkAuth(req: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
-  return req.headers.get('x-cron-secret') === secret
+  return req.headers.get('authorization') === `Bearer ${secret}`
 }
 
 export async function GET(req: Request) {
