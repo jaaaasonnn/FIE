@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import * as Sentry from '@sentry/nextjs'
 import { updateExchangeRateFromApi } from '@/lib/exchangeRate'
 
 /**
@@ -32,10 +33,23 @@ function checkAuth(req: Request): boolean {
   return req.headers.get('authorization') === `Bearer ${secret}`
 }
 
+// Wrapped in Sentry.withMonitor() rather than relying on automatic Vercel
+// cron detection — that feature only instruments the Pages Router, not
+// App Router route handlers like this one. Schedule here must be kept in
+// sync with vercel.json's entry for this route.
+function runMonitored() {
+  return Sentry.withMonitor('update-exchange-rate-cron', updateExchangeRateFromApi, {
+    schedule: { type: 'crontab', value: '0 */6 * * *' },
+    timezone: 'UTC',
+    checkinMargin: 10,
+    maxRuntime: 3,
+  })
+}
+
 async function handle(req: Request) {
   if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const result = await updateExchangeRateFromApi()
+  const result = await runMonitored()
   if (!result.ok) {
     return NextResponse.json(result, { status: 502 })
   }
