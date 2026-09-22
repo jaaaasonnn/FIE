@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
-import { initiateHostPayout } from '@/lib/payouts'
+import { initiateHostPayout, retryFailedPayouts } from '@/lib/payouts'
 import { PLATFORM_COMMISSION } from '@/lib/utils'
 
 const PAYOUT_DELAY_MS = 24 * 60 * 60 * 1000 // 24h after check-in, matches the app's own copy
@@ -67,7 +67,12 @@ async function processDuePayouts() {
     }
   }
 
-  return { checked: dueBookings.length, results }
+  // Second pass: FAILED payouts eligible for another attempt under the retry
+  // policy in lib/payouts.ts. Running it from this hourly cron (rather than
+  // retrying inline) is what spaces the attempts out.
+  const retried = await retryFailedPayouts()
+
+  return { checked: dueBookings.length, results, retried }
 }
 
 function checkAuth(req: Request): boolean {

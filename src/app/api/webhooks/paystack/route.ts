@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
+import { recordPayoutFailure } from '@/lib/payouts'
 
 /**
  * POST /api/webhooks/paystack
  *
- * Handles transfer.success / transfer.failed (host payouts). Payment
+ * Handles transfer.success / transfer.failed / transfer.reversed (host payouts). Payment
  * confirmation still goes through the browser-redirect flow in
  * /api/payments/verify — this endpoint is new and specific to transfers,
  * which have no browser redirect to hang verification off of.
@@ -38,7 +39,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
 
-  if (event.event === 'transfer.success' || event.event === 'transfer.failed') {
+  if (event.event === 'transfer.success' || event.event === 'transfer.failed' || event.event === 'transfer.reversed') {
     await handleTransferEvent(event.event, event.data ?? {})
   }
   // Any other (recognized-signature) event type is intentionally a no-op —
@@ -48,10 +49,11 @@ export async function POST(req: Request) {
   return NextResponse.json({ received: true })
 }
 
-async function handleTransferEvent(eventType: 'transfer.success' | 'transfer.failed', data: Record<string, unknown>) {
+type TransferEvent = 'transfer.success' | 'transfer.failed' | 'transfer.reversed'
+
+async function handleTransferEvent(eventType: TransferEvent, data: Record<string, unknown>) {
   const transferCode = typeof data.transfer_code === 'string' ? data.transfer_code : undefined
   const reference = typeof data.reference === 'string' ? data.reference : undefined
-  const reason = typeof data.reason === 'string' ? data.reason : undefined
 
   if (!transferCode && !reference) {
     console.warn('[Paystack webhook] transfer event with no transfer_code or reference, ignoring')
@@ -61,8 +63,15 @@ async function handleTransferEvent(eventType: 'transfer.success' | 'transfer.fai
   // transfer_code is Paystack's own id for the transfer and is what we
   // stored at initiation time — the authoritative match. Our own reference
   // is the fallback in case a future event shape ever omits it.
+  // Matching on either also catches a transfer that Paystack DID create even
+  // though our initiate call errored before we saw its transfer_code.
   const payout = await db.payout.findFirst({
-    where: transferCode ? { paystackTransferCode: transferCode } : { paystackTransferReference: reference },
+    where: {
+      OR: [
+        ...(transferCode ? [{ paystackTransferCode: transferCode }] : []),
+        ...(reference ? [{ paystackTransferReference: reference }] : []),
+      ],
+    },
   })
 
   if (!payout) {
@@ -75,12 +84,44 @@ async function handleTransferEvent(eventType: 'transfer.success' | 'transfer.fai
       where: { id: payout.id },
       data: { status: 'COMPLETED', completedAt: new Date(), failureReason: null },
     })
-  } else {
-    await db.payout.update({
-      where: { id: payout.id },
-      data: { status: 'FAILED', failureReason: reason || 'Transfer failed', completedAt: new Date() },
-    })
+    return
   }
+
+  // Paystack redelivers webhooks until it gets a 2xx, so the same failure can
+  // arrive more than once — only the first should count toward the retry
+  // policy (and only the first should alert).
+  if (payout.status !== 'PROCESSING') {
+    console.info('[Paystack webhook] ignoring', eventType, 'for payout', payout.id, 'already', payout.status)
+    return
+  }
+
+  // The "Paystack transfer failed/reversed" prefix is what the retry policy in
+  // lib/payouts.ts keys off; any detail Paystack sends is kept after it (and is
+  // checked for permanent reasons like "Account closed" first).
+  const detail = extractFailureDetail(data)
+  const label = eventType === 'transfer.reversed' ? 'reversed' : 'failed'
+  await recordPayoutFailure(payout.id, `Paystack transfer ${label}${detail ? `: ${detail}` : ''}`, {
+    completedAt: new Date(),
+  })
+}
+
+/**
+ * Note data.reason is NOT a failure reason — it's the narration we sent
+ * when initiating ("FieGH host payout — booking …"). Paystack's docs don't
+ * publish a transfer.failed sample payload; the transfer object carries a
+ * `failures` field (null on success) and some payloads a `gateway_response`,
+ * so both are read defensively.
+ */
+function extractFailureDetail(data: Record<string, unknown>): string | undefined {
+  for (const value of [data.gateway_response, data.failures]) {
+    if (!value) continue
+    if (typeof value === 'string') return value.slice(0, 500)
+    if (typeof value === 'object') {
+      const message = (value as { message?: unknown; reason?: unknown }).message ?? (value as { reason?: unknown }).reason
+      return (typeof message === 'string' ? message : JSON.stringify(value)).slice(0, 500)
+    }
+  }
+  return undefined
 }
 
 function safeCompare(a: string, b: string): boolean {

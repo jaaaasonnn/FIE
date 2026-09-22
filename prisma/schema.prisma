@@ -217,6 +217,15 @@ model Payout {
   initiatedAt                DateTime?
   completedAt                DateTime?
 
+  // Retry policy (see src/lib/payouts.ts). retryCount is how many automatic
+  // retries have been attempted — capped at MAX_PAYOUT_RETRIES so a failing
+  // payout can never loop forever. lastFailedAt drives the delay before the
+  // cron picks it back up. alertedAt is set once the failure has been sent
+  // to Sentry and the payout is out of the retry pool for good.
+  retryCount                Int       @default(0)
+  lastFailedAt              DateTime?
+  alertedAt                 DateTime?
+
   host    User     @relation(fields: [hostId], references: [id])
   booking Booking? @relation(fields: [bookingId], references: [id])
 }

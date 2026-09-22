@@ -7,6 +7,7 @@
     "build": "node node_modules/next/dist/bin/next build",
     "start": "node node_modules/next/dist/bin/next start",
     "lint": "eslint",
+    "test": "node node_modules/vitest/vitest.mjs run",
     "db:seed": "node prisma/seed.mjs",
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio"
@@ -69,6 +70,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^3.2.7"
   }
 }
