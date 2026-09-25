@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useReveal } from '@/hooks/useReveal'
 
 const regions = [
   // Aerial Accra cityscape — geotagged "Accra, Ghana"
@@ -27,7 +28,7 @@ function joinNatural(items: string[]): string {
 }
 
 export function RegionsSection() {
-  const sectionRef = useRef<HTMLElement>(null)
+  const sectionRef = useReveal<HTMLElement>()
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
 
   useEffect(() => {
@@ -37,36 +38,6 @@ export function RegionsSection() {
       .catch(() => setCounts({}))
   }, [])
 
-  useEffect(() => {
-    const cards = sectionRef.current?.querySelectorAll('.region-card')
-    const heading = sectionRef.current?.querySelector('.region-heading')
-    cards?.forEach((el, i) => {
-      (el as HTMLElement).style.opacity = '0'
-      ;(el as HTMLElement).style.transform = i % 2 === 0 ? 'translateY(40px)' : 'translateY(60px)'
-    })
-    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateX(-30px)' }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            import('gsap').then(({ gsap }) => {
-              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-              if (heading) tl.to(heading, { x: 0, opacity: 1, duration: 0.7 })
-              tl.to(entry.target.querySelectorAll('.region-card'), {
-                y: 0, opacity: 1, stagger: 0.08, duration: 0.65
-              }, '-=0.3')
-            })
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.1 }
-    )
-    if (sectionRef.current) observer.observe(sectionRef.current)
-    return () => observer.disconnect()
-  }, [])
-
   const liveCities = counts
     ? regions.filter((r) => (counts[r.name] ?? 0) > 0).map((r) => r.city)
     : []
@@ -74,7 +45,7 @@ export function RegionsSection() {
   return (
     <section ref={sectionRef} className="py-24 px-4 bg-[var(--color-bg)]">
       <div className="max-w-7xl mx-auto">
-        <div className="region-heading flex items-end justify-between mb-12">
+        <div className="reveal-item flex items-end justify-between mb-12">
           <div>
             {liveCities.length > 0 && (
               <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
@@ -82,7 +53,7 @@ export function RegionsSection() {
               </p>
             )}
             <h2 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-              Explore by Region 🇬🇭
+              Explore by Region
             </h2>
           </div>
           <Link href="/search" className="hidden sm:block text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
@@ -91,14 +62,14 @@ export function RegionsSection() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
-          {regions.map(({ name, city, img }) => {
+          {regions.map(({ name, city, img }, i) => {
             const count = counts?.[name] ?? 0
             return (
               <Link
                 key={name}
                 href={`/search?region=${encodeURIComponent(name)}`}
-                className="region-card group relative rounded-2xl overflow-hidden aspect-[3/4] block"
-                style={{ boxShadow: '0 4px 16px rgba(31, 27, 22, 0.08)' }}
+                className="reveal-item group relative rounded-2xl overflow-hidden aspect-[3/4] block"
+                style={{ boxShadow: '0 4px 16px rgba(31, 27, 22, 0.08)', '--i': i + 1 } as React.CSSProperties}
               >
                 <img
                   src={img}

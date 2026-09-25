@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Search, MapPin, Calendar } from 'lucide-react'
+import { useState } from 'react'
+import { Search, MapPin, Calendar, Moon, CalendarDays, Key } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import DatePicker from 'react-datepicker'
 import 'react-datepicker/dist/react-datepicker.css'
@@ -21,42 +21,10 @@ const PILL_BASE: React.CSSProperties = {
 }
 
 export function HeroSection() {
-  const heroRef    = useRef<HTMLDivElement>(null)
-  const titleRef   = useRef<HTMLHeadingElement>(null)
-  const subtitleRef = useRef<HTMLParagraphElement>(null)
-  const searchRef  = useRef<HTMLDivElement>(null)
-
   const [mode, setMode]         = useState('SHORT_STAY')
   const [region, setRegion]     = useState('')
   const [startDate, setStartDate] = useState<Date | null>(null)
   const router = useRouter()
-
-  useEffect(() => {
-    const els = [titleRef.current, subtitleRef.current, searchRef.current]
-    els.forEach((el) => { if (el) { el.style.opacity = '0'; el.style.transform = 'translateY(50px)' } })
-
-    const af = requestAnimationFrame(async () => {
-      const { gsap } = await import('gsap')
-      const { ScrollTrigger } = await import('gsap/ScrollTrigger')
-      gsap.registerPlugin(ScrollTrigger)
-
-      gsap.timeline({ defaults: { ease: 'power3.out' } })
-        .to(titleRef.current,    { y: 0, opacity: 1, duration: 1.1 })
-        .to(subtitleRef.current, { y: 0, opacity: 1, duration: 0.8 }, '-=0.6')
-        .to(searchRef.current,   { y: 0, opacity: 1, duration: 0.8 }, '-=0.5')
-
-      ScrollTrigger.create({
-        trigger: heroRef.current,
-        start: 'top top',
-        end: 'bottom top',
-        scrub: true,
-        onUpdate: (self) => {
-          if (heroRef.current) heroRef.current.style.backgroundPositionY = `${self.progress * 30}%`
-        },
-      })
-    })
-    return () => cancelAnimationFrame(af)
-  }, [])
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -68,7 +36,6 @@ export function HeroSection() {
 
   return (
     <section
-      ref={heroRef}
       className="relative min-h-[92vh] flex items-center justify-center overflow-hidden"
       style={{
         backgroundImage: `url('https://images.unsplash.com/photo-1680200023508-5289ae3de157?w=1600&q=80')`,
@@ -102,9 +69,8 @@ export function HeroSection() {
 
         {/* ── Headline — weight 800, "Fie" in accent ── */}
         <h1
-          ref={titleRef}
-          className="text-[2.75rem] sm:text-[3.35rem] lg:text-[4.15rem] mb-6 leading-[1.05]"
-          style={{ color: '#fff', fontWeight: 800, letterSpacing: '-0.045em' }}
+          className="hero-enter text-[2.75rem] sm:text-[3.35rem] lg:text-[4.15rem] mb-6 leading-[1.05]"
+          style={{ color: '#fff', fontWeight: 800, letterSpacing: '-0.045em', '--i': 0 } as React.CSSProperties}
         >
           Find Your{' '}
           <span className="text-shimmer">Fie</span>
@@ -112,16 +78,15 @@ export function HeroSection() {
 
         {/* ── Subtitle ── */}
         <p
-          ref={subtitleRef}
-          className="text-lg sm:text-xl mb-10 max-w-2xl mx-auto leading-relaxed"
-          style={{ color: 'rgba(255,255,255,0.82)', fontWeight: 400 }}
+          className="hero-enter text-lg sm:text-xl mb-10 max-w-2xl mx-auto leading-relaxed"
+          style={{ color: 'rgba(255,255,255,0.82)', fontWeight: 400, '--i': 1 } as React.CSSProperties}
         >
-          Short stays, monthly lets, and long-term leases — all in one place.
+          Short stays, monthly lets, and long-term leases, all in one place.
           Live today from Accra to Kumasi, Takoradi to Tamale.
         </p>
 
         {/* ── Search card ── */}
-        <div ref={searchRef} className="max-w-3xl mx-auto">
+        <div className="hero-enter max-w-3xl mx-auto" style={{ '--i': 2 } as React.CSSProperties}>
 
           {/* Mode toggle — same pill DNA as the platform tag above */}
           <div
@@ -134,20 +99,23 @@ export function HeroSection() {
             }}
           >
             {[
-              { val: 'SHORT_STAY', label: '🌙 Short Stay' },
-              { val: 'TEMP_STAY',  label: '📅 Monthly' },
-              { val: 'PERMANENT',  label: '🏠 Long-Term' },
-            ].map(({ val, label }) => (
+              { val: 'SHORT_STAY', label: 'Short Stay', icon: Moon },
+              { val: 'TEMP_STAY',  label: 'Monthly',    icon: CalendarDays },
+              { val: 'PERMANENT',  label: 'Long-Term',  icon: Key },
+            ].map(({ val, label, icon: Icon }) => (
               <button
                 key={val}
+                type="button"
                 onClick={() => setMode(val)}
+                aria-pressed={mode === val}
                 style={
                   mode === val
-                    ? { ...PILL_BASE, backgroundColor: 'var(--color-accent)', color: '#fff' }
+                    ? { ...PILL_BASE, backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }
                     : { ...PILL_BASE, backgroundColor: 'transparent', color: 'rgba(255,255,255,0.72)' }
                 }
-                className="transition-all"
+                className="inline-flex items-center gap-1.5 transition-all"
               >
+                <Icon size={13} />
                 {label}
               </button>
             ))}
@@ -207,7 +175,7 @@ export function HeroSection() {
               className="flex items-center justify-center gap-2 px-6 font-semibold text-sm transition-all active:scale-95 group"
               style={{
                 backgroundColor: 'var(--color-accent)',
-                color: '#fff',
+                color: 'var(--color-text-primary)',
                 borderRadius: R.card,
                 minWidth: '120px',
                 height: '52px',

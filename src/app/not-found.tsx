@@ -1,10 +1,13 @@
 import Link from 'next/link'
+import { House } from 'lucide-react'
 
 export default function NotFoundPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-md w-full text-center">
-        <div className="text-8xl mb-6">🏠</div>
+        <div className="w-20 h-20 rounded-2xl flex items-center justify-center mx-auto mb-6" style={{ backgroundColor: 'var(--color-accent-subtle)' }}>
+          <House size={36} style={{ color: 'var(--color-accent)' }} />
+        </div>
         <h1 className="text-4xl font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>
           Page Not Found
         </h1>
@@ -13,8 +16,8 @@ export default function NotFoundPage() {
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/" className="px-7 py-3.5 rounded-full text-sm font-semibold"
-            style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
-            Go Home 🇬🇭
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+            Go Home
           </Link>
           <Link href="/search" className="px-7 py-3.5 rounded-full text-sm font-semibold border-2"
             style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}>

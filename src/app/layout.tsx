@@ -15,11 +15,11 @@ const manrope = Manrope({
 })
 
 export const metadata: Metadata = {
-  title: 'FieGH — Find your fie',
-  description: 'Short stays, monthly lets, and long-term leases — with Ghanaian roots and warm hospitality. Find your perfect home or start hosting on FieGH.',
+  title: 'FieGH | Find your fie',
+  description: 'Short stays, monthly lets, and long-term leases, with Ghanaian roots and warm hospitality. Find your perfect home or start hosting on FieGH.',
   keywords: 'FieGH, rental, Accra apartments, short stay, monthly rental, Kumasi, fie means home Twi, Ghanaian hospitality',
   openGraph: {
-    title: 'FieGH — Find your fie',
+    title: 'FieGH | Find your fie',
     description: 'Premium short stays, monthly lets, and long-term leases. Homes with Ghanaian roots.',
     type: 'website',
     locale: 'en_GH'

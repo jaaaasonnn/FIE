@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Star, MapPin, Bed, Bath, Users, Heart } from 'lucide-react'
+import { Star, MapPin, Bed, Bath, Users, Heart, Moon, CalendarDays, Key, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { useReveal } from '@/hooks/useReveal'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -28,10 +29,10 @@ type ApiListing = {
   }
 }
 
-const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay',
-  TEMP_STAY:  '📅 Monthly',
-  PERMANENT:  '🏠 Long-Term',
+const MODE_LABELS: Record<string, { label: string; icon: LucideIcon }> = {
+  SHORT_STAY: { label: 'Short Stay', icon: Moon },
+  TEMP_STAY:  { label: 'Monthly',    icon: CalendarDays },
+  PERMANENT:  { label: 'Long-Term',  icon: Key },
 }
 
 // ── Skeleton card ────────────────────────────────────────────────────────────
@@ -63,7 +64,7 @@ export function FeaturedListings() {
   const router = useRouter()
   const { user } = useAuth()
   const { rate: ghsRate } = useExchangeRate()
-  const sectionRef = useRef<HTMLElement>(null)
+  const sectionRef = useReveal<HTMLElement>()
   const [listings, setListings] = useState<ApiListing[]>([])
   const [loading,  setLoading]  = useState(true)
   const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set())
@@ -147,49 +148,12 @@ export function FeaturedListings() {
     }
   }
 
-  // ── GSAP scroll animation (runs after data loads) ─────────────────────
-  useEffect(() => {
-    if (loading || listings.length === 0) return
-
-    const cards   = sectionRef.current?.querySelectorAll('.listing-card')
-    const heading = sectionRef.current?.querySelector('.listing-heading')
-
-    cards?.forEach((el) => {
-      ;(el as HTMLElement).style.opacity = '0'
-      ;(el as HTMLElement).style.transform = 'translateY(48px) scale(0.97)'
-    })
-    if (heading) {
-      ;(heading as HTMLElement).style.opacity = '0'
-      ;(heading as HTMLElement).style.transform = 'translateY(28px)'
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            import('gsap').then(({ gsap }) => {
-              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-              if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
-              tl.to(entry.target.querySelectorAll('.listing-card'), {
-                y: 0, opacity: 1, scale: 1, stagger: 0.1, duration: 0.65,
-              }, '-=0.2')
-            })
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.05 },
-    )
-    if (sectionRef.current) observer.observe(sectionRef.current)
-    return () => observer.disconnect()
-  }, [loading, listings])
-
   return (
     <section ref={sectionRef} className="py-24 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-7xl mx-auto">
 
         {/* Heading row */}
-        <div className="listing-heading flex items-end justify-between mb-12">
+        <div className="reveal-item flex items-end justify-between mb-12">
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest mb-2"
               style={{ color: 'var(--color-accent)', letterSpacing: '0.1em' }}>
@@ -217,129 +181,132 @@ export function FeaturedListings() {
                   No featured homes just yet
                 </p>
                 <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-                  Browse all available places — something lovely is waiting.
+                  Browse all available places. Something lovely is waiting.
                 </p>
                 <Link href="/search"
                   className="inline-flex px-6 py-3 rounded-full text-sm font-semibold"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                  style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                   Explore homes
                 </Link>
               </div>
             )
-            : listings.map((l) => {
+            : listings.map((l, i) => {
                 const price    = l.priceNightly ?? l.priceMonthly ?? 0
                 const unit     = l.priceNightly ? '/night' : '/mo'
                 const ghsPrice = Math.round(price * ghsRate).toLocaleString()
                 const photo    = l.photos?.[0] ?? ''
+                const mode     = MODE_LABELS[l.rentalModes?.[0]]
 
                 return (
-                  <Link
-                    key={l.id}
-                    href={`/listings/${l.id}`}
-                    className="listing-card group block rounded-2xl overflow-hidden"
-                    style={{
-                      backgroundColor: 'var(--color-bg-card)',
-                      textDecoration:  'none',
-                    }}
-                  >
-                    {/* Image — taller, photo-forward */}
-                    <div className="relative h-56 overflow-hidden bg-stone-100">
-                      {photo && (
-                        <img src={photo} alt={l.title}
-                          className="listing-card-img w-full h-full object-cover transition-transform duration-500 ease-out"
-                          loading="lazy" />
-                      )}
-                      {l.rentalModes?.[0] && (
-                        <span className="absolute top-3 left-3 text-[11px] font-semibold px-2.5 py-1 rounded-full"
-                          style={{ backgroundColor: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(6px)' }}>
-                          {MODE_LABELS[l.rentalModes[0]]}
+                  <div key={l.id} className="reveal-item" style={{ '--i': i } as React.CSSProperties}>
+                    <Link
+                      href={`/listings/${l.id}`}
+                      className="listing-card group block h-full rounded-2xl overflow-hidden"
+                      style={{
+                        backgroundColor: 'var(--color-bg-card)',
+                        textDecoration:  'none',
+                      }}
+                    >
+                      {/* Image — taller, photo-forward */}
+                      <div className="relative h-56 overflow-hidden bg-stone-100">
+                        {photo && (
+                          <img src={photo} alt={l.title}
+                            className="listing-card-img w-full h-full object-cover transition-transform duration-500 ease-out"
+                            loading="lazy" />
+                        )}
+                        {mode && (
+                          <span className="absolute top-3 left-3 inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full"
+                            style={{ backgroundColor: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(6px)' }}>
+                            <mode.icon size={11} />
+                            {mode.label}
+                          </span>
+                        )}
+                        <button
+                          onClick={(e) => toggleWishlist(e, l.id)}
+                          disabled={busyId === l.id}
+                          className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-200 hover:scale-105"
+                          style={{ backgroundColor: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 8px rgba(31,27,22,0.1)' }}
+                          aria-label={wishlistedIds.has(l.id) ? 'Remove from wishlist' : 'Save listing'}>
+                          <Heart
+                            size={14}
+                            className={wishlistedIds.has(l.id) ? 'fill-red-500' : ''}
+                            style={{ color: wishlistedIds.has(l.id) ? '#EF4444' : 'var(--color-text-secondary)' }}
+                          />
+                        </button>
+                      </div>
+
+                      {/* Body */}
+                      <div className="p-5 pb-0">
+                        <div className="flex items-start justify-between gap-3 mb-1.5">
+                          <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2"
+                            style={{ color: 'var(--color-text-primary)' }}>
+                            {l.title}
+                          </h3>
+                          <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
+                            <Star size={11} className="fill-[#C9932E] text-[#C9932E]" />
+                            <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                              {l.avgRating.toFixed(1)}
+                            </span>
+                            <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
+                              ({l.reviewCount})
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1 text-xs mb-3"
+                          style={{ color: 'var(--color-text-secondary)' }}>
+                          <MapPin size={11} className="flex-shrink-0" />
+                          {l.neighbourhood}, {l.city}
+                        </div>
+
+                        <div className="flex items-center gap-3 text-xs mb-3"
+                          style={{ color: 'var(--color-text-muted)' }}>
+                          <span className="flex items-center gap-1"><Bed   size={11} />{l.bedrooms} bd</span>
+                          <span className="flex items-center gap-1"><Bath  size={11} />{l.bathrooms} ba</span>
+                          <span className="flex items-center gap-1"><Users size={11} />Up to {l.maxGuests}</span>
+                        </div>
+
+                        {(l.host?.isVerified || l.host?.isSuperhost) && (
+                          <div className="flex items-center gap-1.5 mb-3">
+                            {l.host.isVerified && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: '#EBF0F7', color: '#3A5A8A' }}>
+                                Verified
+                              </span>
+                            )}
+                            {l.host.isSuperhost && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: 'var(--color-accent-subtle)', color: '#8A5E10' }}>
+                                Superhost
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Price footer */}
+                      <div className="px-5 py-4 mt-1 flex items-end justify-between"
+                        style={{ borderTop: '1px solid rgba(232, 225, 214, 0.55)' }}>
+                        <div>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                              ${price.toLocaleString()}
+                            </span>
+                            <span className="text-xs font-normal" style={{ color: 'var(--color-text-secondary)' }}>
+                              {unit}
+                            </span>
+                          </div>
+                          <div className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                            ≈ GH₵ {ghsPrice}
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold flex items-center gap-0.5 transition-all group-hover:gap-1.5"
+                          style={{ color: 'var(--color-accent)' }}>
+                          View <span className="text-sm">→</span>
                         </span>
-                      )}
-                      <button
-                        onClick={(e) => toggleWishlist(e, l.id)}
-                        disabled={busyId === l.id}
-                        className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-transform duration-200 hover:scale-105"
-                        style={{ backgroundColor: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 8px rgba(31,27,22,0.1)' }}
-                        aria-label={wishlistedIds.has(l.id) ? 'Remove from wishlist' : 'Save listing'}>
-                        <Heart
-                          size={14}
-                          className={wishlistedIds.has(l.id) ? 'fill-red-500' : ''}
-                          style={{ color: wishlistedIds.has(l.id) ? '#EF4444' : 'var(--color-text-secondary)' }}
-                        />
-                      </button>
-                    </div>
-
-                    {/* Body */}
-                    <div className="p-5 pb-0">
-                      <div className="flex items-start justify-between gap-3 mb-1.5">
-                        <h3 className="font-semibold text-sm leading-snug flex-1 line-clamp-2"
-                          style={{ color: 'var(--color-text-primary)' }}>
-                          {l.title}
-                        </h3>
-                        <div className="flex items-center gap-0.5 flex-shrink-0 mt-0.5">
-                          <Star size={11} className="fill-[#C9932E] text-[#C9932E]" />
-                          <span className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                            {l.avgRating.toFixed(1)}
-                          </span>
-                          <span className="text-[11px]" style={{ color: 'var(--color-text-muted)' }}>
-                            ({l.reviewCount})
-                          </span>
-                        </div>
                       </div>
-
-                      <div className="flex items-center gap-1 text-xs mb-3"
-                        style={{ color: 'var(--color-text-secondary)' }}>
-                        <MapPin size={11} className="flex-shrink-0" />
-                        {l.neighbourhood}, {l.city}
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs mb-3"
-                        style={{ color: 'var(--color-text-muted)' }}>
-                        <span className="flex items-center gap-1"><Bed   size={11} />{l.bedrooms} bd</span>
-                        <span className="flex items-center gap-1"><Bath  size={11} />{l.bathrooms} ba</span>
-                        <span className="flex items-center gap-1"><Users size={11} />Up to {l.maxGuests}</span>
-                      </div>
-
-                      {(l.host?.isVerified || l.host?.isSuperhost) && (
-                        <div className="flex items-center gap-1.5 mb-3">
-                          {l.host.isVerified && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: '#EBF0F7', color: '#3A5A8A' }}>
-                              Verified
-                            </span>
-                          )}
-                          {l.host.isSuperhost && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: 'var(--color-accent-subtle)', color: '#8A5E10' }}>
-                              Superhost
-                            </span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Price footer */}
-                    <div className="px-5 py-4 mt-1 flex items-end justify-between"
-                      style={{ borderTop: '1px solid rgba(232, 225, 214, 0.55)' }}>
-                      <div>
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-base font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                            ${price.toLocaleString()}
-                          </span>
-                          <span className="text-xs font-normal" style={{ color: 'var(--color-text-secondary)' }}>
-                            {unit}
-                          </span>
-                        </div>
-                        <div className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                          ≈ GH₵ {ghsPrice}
-                        </div>
-                      </div>
-                      <span className="text-xs font-semibold flex items-center gap-0.5 transition-all group-hover:gap-1.5"
-                        style={{ color: 'var(--color-accent)' }}>
-                        View <span className="text-sm">→</span>
-                      </span>
-                    </div>
-                  </Link>
+                    </Link>
+                  </div>
                 )
               })}
         </div>
@@ -348,7 +315,7 @@ export function FeaturedListings() {
         <div className="text-center mt-8 sm:hidden">
           <Link href="/search"
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
-            style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
             View All Properties →
           </Link>
         </div>

@@ -1,49 +1,26 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { DollarSign, Calendar, Shield, TrendingUp } from 'lucide-react'
+import { useReveal } from '@/hooks/useReveal'
+import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { PLATFORM_COMMISSION } from '@/lib/utils'
+
+const SAMPLE_EARNINGS = [
+  { label: '2BR Apt, East Legon (Short Stay)', rate: '$80/night', monthly: 1680, nights: 21 },
+  { label: 'Studio, Cantonments (Monthly)',    rate: '$600/mo',   monthly: 600,  nights: null },
+]
+const SAMPLE_NET = SAMPLE_EARNINGS.reduce((sum, item) => sum + item.monthly, 0) * (1 - PLATFORM_COMMISSION)
 
 export function HostCTASection() {
-  const sectionRef = useRef<HTMLElement>(null)
-
-  useEffect(() => {
-    const left = sectionRef.current?.querySelector('.cta-left')
-    const right = sectionRef.current?.querySelector('.cta-right')
-    if (!left || !right) return
-
-    // Nothing is hidden or offset until GSAP actually loads — if the dynamic
-    // import is slow/blocked/fails, the section just renders normally (no
-    // animation) instead of getting stuck translated off-screen, which on
-    // narrow viewports caused real horizontal page scroll.
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            import('gsap').then(({ gsap }) => {
-              gsap.from([left, right], {
-                x: (i) => (i === 0 ? -50 : 50),
-                opacity: 0,
-                stagger: 0.15,
-                duration: 0.9,
-                ease: 'power3.out',
-              })
-            })
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.1 }
-    )
-    if (sectionRef.current) observer.observe(sectionRef.current)
-    return () => observer.disconnect()
-  }, [])
+  const sectionRef = useReveal<HTMLElement>()
+  const { rate: ghsRate } = useExchangeRate()
 
   return (
     <section ref={sectionRef} className="py-20 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
       <div className="max-w-6xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="cta-left">
+          <div className="reveal-item">
             <p className="text-sm font-medium uppercase tracking-widest mb-4" style={{ color: 'var(--color-accent)' }}>
               For Property Owners
             </p>
@@ -53,7 +30,7 @@ export function HostCTASection() {
             </h2>
             <p className="text-base mb-8 leading-relaxed" style={{ color: 'rgba(250,247,242,0.7)' }}>
               List your apartment, house, villa, or guestroom on FieGH and start earning.
-              Choose short stays, monthly lets, or long-term leases — you decide.
+              Choose short stays, monthly lets, or long-term leases. You decide.
             </p>
 
             <div className="grid grid-cols-2 gap-4 mb-8">
@@ -61,7 +38,7 @@ export function HostCTASection() {
                 { icon: DollarSign, label: 'MoMo & Bank Payouts', color: 'var(--color-accent)' },
                 { icon: Calendar, label: 'Full Calendar Control', color: '#60A5FA' },
                 { icon: Shield, label: 'Verified Guest System', color: '#34D399' },
-                { icon: TrendingUp, label: 'Real-Time Analytics', color: '#F472B6' },
+                { icon: TrendingUp, label: 'Earnings & Booking Overview', color: '#F472B6' },
               ].map(({ icon: Icon, label, color }) => (
                 <div key={label} className="flex items-center gap-3">
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -92,7 +69,7 @@ export function HostCTASection() {
           </div>
 
           {/* Earnings preview card */}
-          <div className="cta-right relative">
+          <div className="reveal-item relative" style={{ '--i': 1 } as React.CSSProperties}>
             <div
               className="rounded-2xl p-6"
               style={{ backgroundColor: 'rgba(255,255,255,0.06)', border: '1px solid rgba(245,192,106,0.2)' }}
@@ -107,16 +84,13 @@ export function HostCTASection() {
               </div>
 
               <div className="space-y-4 mb-6">
-                {[
-                  { label: '2BR Apt, East Legon (Short Stay)', rate: '$80/night', monthly: '$1,680', nights: 21 },
-                  { label: 'Studio, Cantonments (Monthly)', rate: '$600/mo', monthly: '$600', nights: null },
-                ].map((item) => (
+                {SAMPLE_EARNINGS.map((item) => (
                   <div key={item.label} className="p-4 rounded-xl" style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}>
                     <p className="text-xs mb-2" style={{ color: 'rgba(250,247,242,0.6)' }}>{item.label}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-sm" style={{ color: 'var(--color-accent)' }}>{item.rate}</span>
                       <span className="text-sm font-bold" style={{ color: 'var(--cream)' }}>
-                        {item.monthly}<span className="text-xs font-normal text-stone-400">/mo</span>
+                        ${item.monthly.toLocaleString()}<span className="text-xs font-normal text-stone-400">/mo</span>
                       </span>
                     </div>
                     {item.nights && (
@@ -128,13 +102,13 @@ export function HostCTASection() {
 
               <div className="border-t pt-4" style={{ borderColor: 'rgba(245,192,106,0.15)' }}>
                 <div className="flex justify-between items-center">
-                  <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>After 8% platform fee</span>
+                  <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>After {PLATFORM_COMMISSION * 100}% platform fee</span>
                   <span className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>
-                    $2,092/mo
+                    ${Math.round(SAMPLE_NET).toLocaleString()}/mo
                   </span>
                 </div>
                 <p className="text-xs mt-1" style={{ color: 'rgba(250,247,242,0.35)' }}>
-                  ≈ GH₵ 32,426/month
+                  ≈ GH₵ {Math.round(SAMPLE_NET * ghsRate).toLocaleString()}/month
                 </p>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Mail, Phone, MapPin } from 'lucide-react'
+import { Mail, Phone, MapPin, ShieldAlert, Lock } from 'lucide-react'
 
 export function Footer() {
   return (
@@ -8,8 +8,9 @@ export function Footer() {
       {/* Warning banner */}
       <div style={{ backgroundColor: 'rgba(200,135,63,0.12)', borderBottom: '1px solid rgba(240,184,78,0.15)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <p className="text-center text-sm" style={{ color: 'var(--color-accent-subtle)' }}>
-            🛡️ Never pay outside the app. FieGH does not support direct bank transfers or cash payments.
+          <p className="flex items-center justify-center gap-2 text-center text-sm" style={{ color: 'var(--color-accent-subtle)' }}>
+            <ShieldAlert size={15} className="flex-shrink-0" />
+            Never pay outside the app. FieGH does not support direct bank transfers or cash payments.
           </p>
         </div>
       </div>
@@ -26,8 +27,8 @@ export function Footer() {
               </div>
             </Link>
             <p className="text-sm mb-4" style={{ color: 'rgba(250,247,242,0.65)', lineHeight: '1.6' }}>
-              &ldquo;Fie&rdquo; means &ldquo;home&rdquo; in Twi. 🇬🇭<br />
-              A rental marketplace with Ghanaian roots — connecting guests and hosts for short stays, monthly lets, and long-term homes.
+              &ldquo;Fie&rdquo; means &ldquo;home&rdquo; in Twi.<br />
+              A rental marketplace with Ghanaian roots, connecting guests and hosts for short stays, monthly lets, and long-term homes.
             </p>
             <p className="text-xs italic" style={{ color: 'var(--color-accent)' }}>
               &ldquo;Find your fie&rdquo;
@@ -93,7 +94,7 @@ export function Footer() {
             <div className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.5)' }}>
               <div className="flex items-center gap-2">
                 <MapPin size={14} style={{ color: 'var(--color-accent)' }} />
-                <span>Accra, Ghana 🇬🇭</span>
+                <span>Accra, Ghana</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={14} style={{ color: 'var(--color-accent)' }} />
@@ -109,10 +110,10 @@ export function Footer() {
 
         <div className="mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: '1px solid rgba(240,184,78,0.12)' }}>
           <p className="text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
-            © {new Date().getFullYear()} FieGH. Made with ❤️ in Ghana.
+            © {new Date().getFullYear()} FieGH. Made in Ghana.
           </p>
           <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
-            <span>Payments by Paystack 🔒</span>
+            <span className="inline-flex items-center gap-1"><Lock size={11} />Payments by Paystack</span>
             <span>•</span>
             <span>MoMo & Card accepted</span>
           </div>

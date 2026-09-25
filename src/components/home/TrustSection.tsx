@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
-import { Shield, CreditCard, MessageSquare, BadgeCheck } from 'lucide-react'
+import { Shield, CreditCard, MessageSquare, BadgeCheck, ShieldAlert } from 'lucide-react'
+import { useReveal } from '@/hooks/useReveal'
 
 const trust = [
   {
@@ -31,39 +31,12 @@ const trust = [
 ]
 
 export function TrustSection() {
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const cards = ref.current?.querySelectorAll('.trust-card')
-    const heading = ref.current?.querySelector('.trust-heading')
-    cards?.forEach((el) => { (el as HTMLElement).style.opacity = '0'; (el as HTMLElement).style.transform = 'translateY(50px)' })
-    if (heading) { (heading as HTMLElement).style.opacity = '0'; (heading as HTMLElement).style.transform = 'translateY(30px)' }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            import('gsap').then(({ gsap }) => {
-              const tl = gsap.timeline({ defaults: { ease: 'power3.out' } })
-              if (heading) tl.to(heading, { y: 0, opacity: 1, duration: 0.7 })
-              tl.to(entry.target.querySelectorAll('.trust-card'), {
-                y: 0, opacity: 1, stagger: 0.15, duration: 0.75
-              }, '-=0.2')
-            })
-            observer.unobserve(entry.target)
-          }
-        })
-      },
-      { threshold: 0.1 }
-    )
-    if (ref.current) observer.observe(ref.current)
-    return () => observer.disconnect()
-  }, [])
+  const ref = useReveal<HTMLElement>()
 
   return (
     <section ref={ref} className="py-24 px-4" style={{ backgroundColor: 'var(--brown-dark)' }}>
       <div className="max-w-6xl mx-auto">
-        <div className="trust-heading text-center mb-14">
+        <div className="reveal-item text-center mb-14">
           <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--color-accent)' }}>
             Built on trust
           </p>
@@ -71,20 +44,21 @@ export function TrustSection() {
             Rent with Confidence
           </h2>
           <p className="mt-4 text-sm max-w-xl mx-auto" style={{ color: 'rgba(250,247,242,0.6)' }}>
-            FieGH grew from Ghanaian culture, trust systems, and payment infrastructure — and that warmth shapes how we host.
+            FieGH grew from Ghanaian culture, trust systems, and payment infrastructure, and that warmth shapes how we host.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {trust.map(({ icon: Icon, title, desc, color }) => (
+          {trust.map(({ icon: Icon, title, desc, color }, i) => (
             <div
               key={title}
-              className="trust-card p-7 rounded-2xl"
+              className="reveal-item p-7 rounded-2xl"
               style={{
+                '--i': i + 1,
                 backgroundColor: 'rgba(255,255,255,0.04)',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
                 border: '1px solid rgba(245,192,106,0.1)',
-              }}
+              } as React.CSSProperties}
             >
               <div
                 className="w-12 h-12 rounded-xl flex items-center justify-center mb-4"
@@ -100,10 +74,10 @@ export function TrustSection() {
 
         {/* Scam warning */}
         <div
-          className="mt-10 p-5 rounded-2xl flex items-start gap-3"
+          className="reveal-item mt-10 p-5 rounded-2xl flex items-start gap-3"
           style={{ backgroundColor: 'rgba(200,135,63,0.15)', border: '1px solid rgba(200,135,63,0.3)' }}
         >
-          <span className="text-xl flex-shrink-0">⚠️</span>
+          <ShieldAlert size={20} className="flex-shrink-0 mt-px" style={{ color: 'var(--color-accent)' }} />
           <p className="text-sm" style={{ color: 'rgba(250,247,242,0.8)' }}>
             <strong style={{ color: 'var(--color-accent)' }}>Stay safe:</strong> Never pay outside the FieGH app.
             FieGH does not support direct bank transfers or cash payments. Report any host asking you
