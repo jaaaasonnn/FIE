@@ -110,7 +110,7 @@ export function Footer() {
 
         <div className="mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: '1px solid rgba(240,184,78,0.12)' }}>
           <p className="text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
-            © {new Date().getFullYear()} FieGH. Made in Ghana.
+            © {new Date().getFullYear()} FieGH. Made with love in Ghana.
           </p>
           <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
             <span className="inline-flex items-center gap-1"><Lock size={11} />Payments by Paystack</span>
