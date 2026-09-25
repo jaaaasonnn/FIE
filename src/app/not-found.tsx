@@ -12,7 +12,7 @@ export default function NotFoundPage() {
           Page Not Found
         </h1>
         <p className="text-[#6B645C] mb-8">
-          Hmm, we couldn't find that page. The property might have been removed or the link is wrong.
+          Hmm, we couldn&apos;t find that page. The property might have been removed or the link is wrong.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link href="/" className="px-7 py-3.5 rounded-full text-sm font-semibold"

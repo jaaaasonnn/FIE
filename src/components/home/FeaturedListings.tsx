@@ -35,6 +35,8 @@ const MODE_LABELS: Record<string, { label: string; icon: LucideIcon }> = {
   PERMANENT:  { label: 'Long-Term',  icon: Key },
 }
 
+const EMPTY_IDS = new Set<string>()
+
 // ── Skeleton card ────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
@@ -67,8 +69,19 @@ export function FeaturedListings() {
   const sectionRef = useReveal<HTMLElement>()
   const [listings, setListings] = useState<ApiListing[]>([])
   const [loading,  setLoading]  = useState(true)
-  const [wishlistedIds, setWishlistedIds] = useState<Set<string>>(new Set())
   const [busyId, setBusyId] = useState<string | null>(null)
+
+  // Saved IDs are tagged with the user they were loaded for, so logging out
+  // (or a late response for a previous user) derives an empty set instead of
+  // needing a reset inside an effect.
+  const [wishlist, setWishlist] = useState<{ userId: string; ids: Set<string> } | null>(null)
+  const wishlistedIds = user && wishlist?.userId === user.id ? wishlist.ids : EMPTY_IDS
+
+  function setWishlistedIds(update: (prev: Set<string>) => Set<string>) {
+    if (!user) return
+    const userId = user.id
+    setWishlist((prev) => ({ userId, ids: update(prev?.userId === userId ? prev.ids : new Set()) }))
+  }
 
   // ── Fetch featured listings from the real DB ─────────────────────────
   useEffect(() => {
@@ -81,11 +94,9 @@ export function FeaturedListings() {
 
   // ── Load which featured listings are already wishlisted ──────────────
   useEffect(() => {
-    if (!user) {
-      setWishlistedIds(new Set())
-      return
-    }
-    fetch(`/api/wishlists?userId=${user.id}`)
+    if (!user) return
+    const userId = user.id
+    fetch(`/api/wishlists?userId=${userId}`)
       .then((r) => r.json())
       .then((data) => {
         const ids = new Set<string>(
@@ -93,9 +104,9 @@ export function FeaturedListings() {
             (w: { listingId: string }) => w.listingId,
           ),
         )
-        setWishlistedIds(ids)
+        setWishlist({ userId, ids })
       })
-      .catch(() => setWishlistedIds(new Set()))
+      .catch(() => setWishlist({ userId, ids: new Set() }))
   }, [user])
 
   async function toggleWishlist(e: React.MouseEvent, listingId: string) {
