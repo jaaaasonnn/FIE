@@ -3,11 +3,11 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node node_modules/next/dist/bin/next dev",
-    "build": "node node_modules/next/dist/bin/next build",
-    "start": "node node_modules/next/dist/bin/next start",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
     "lint": "eslint",
-    "test": "node node_modules/vitest/vitest.mjs run",
+    "test": "vitest run",
     "db:seed": "node prisma/seed.mjs",
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio"
