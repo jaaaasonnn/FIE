@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -9,7 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 
 type Tab = 'login' | 'signup'
 
-export default function LoginPage() {
+function LoginContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const redirect     = searchParams.get('redirect') ?? ''
@@ -83,7 +83,7 @@ export default function LoginPage() {
     router.replace(role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
   }
 
-  if (authLoading) return null // Avoid flash before session check completes
+  if (authLoading) return <LoginFallback /> // Avoid flashing the form before the session check completes
 
   return (
     <div
@@ -344,5 +344,44 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  )
+}
+
+// Used both as the Suspense fallback (useSearchParams() needs one for the page
+// to prerender) and during the auth check, so the page goes skeleton -> form
+// with no blank frame in between.
+function LoginFallback() {
+  return (
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+      style={{ backgroundColor: 'var(--color-bg)' }}
+    >
+      <div className="flex items-center gap-3 mb-8">
+        <Image src="/logo.png" alt="FieGH" width={44} height={44} style={{ width: 36, height: 'auto' }} />
+        <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>FieGH</span>
+      </div>
+      <div
+        className="w-full max-w-md bg-white rounded-3xl shadow-sm border p-8 animate-pulse"
+        style={{ borderColor: 'var(--color-border)' }}
+        aria-busy="true"
+      >
+        <div className="h-11 rounded-2xl mb-8" style={{ backgroundColor: 'var(--color-bg)' }} />
+        <div className="space-y-4">
+          <div className="h-3 w-32 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
+          <div className="h-12 rounded-xl" style={{ backgroundColor: 'var(--color-bg)' }} />
+          <div className="h-3 w-20 rounded-full" style={{ backgroundColor: 'var(--color-border)' }} />
+          <div className="h-12 rounded-xl" style={{ backgroundColor: 'var(--color-bg)' }} />
+          <div className="h-12 rounded-full" style={{ backgroundColor: 'var(--color-accent-subtle)' }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginFallback />}>
+      <LoginContent />
+    </Suspense>
   )
 }
