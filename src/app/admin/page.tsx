@@ -67,18 +67,14 @@ export default function AdminPage() {
   const [verifications, setVerifications] = useState<AdminVerification[]>([])
   const [listings, setListings] = useState<AdminListing[]>([])
   const [tabLoading, setTabLoading] = useState(false)
-  const [forbidden, setForbidden] = useState(false)
+  // 403s from the admin API set this; a non-admin user is derived below
+  const [apiForbidden, setForbidden] = useState(false)
+  const forbidden = apiForbidden || (!authLoading && !!user && user.role !== 'ADMIN')
 
   // Role gate
   useEffect(() => {
     if (authLoading) return
-    if (!user) {
-      router.replace('/login?redirect=/admin')
-      return
-    }
-    if (user.role !== 'ADMIN') {
-      setForbidden(true)
-    }
+    if (!user) router.replace('/login?redirect=/admin')
   }, [user, authLoading, router])
 
   function applyRateResponse(r: {

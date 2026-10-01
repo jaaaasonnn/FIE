@@ -64,26 +64,22 @@ function TrustRing({ score }: { score: number }) {
 export default function ProfilePage() {
   const { id } = useParams<{ id: string }>()
   const { user: sessionUser } = useAuth()
-  const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [notFound, setNotFound] = useState(false)
+  // Result is tagged with the profile id it belongs to; loading/not-found are
+  // derived from it instead of being reset inside the effect.
+  const [result, setResult] = useState<{ id: string; profile: ProfileData | null } | null>(null)
+  const loading  = result?.id !== id
+  const profile  = loading ? null : result.profile
+  const notFound = !loading && !profile
   const [lightboxOpen, setLightboxOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
-    setLoading(true)
-    setNotFound(false)
+    let active = true
     fetch(`/api/users/${id}`)
-      .then(async (r) => {
-        if (r.status === 404) { setNotFound(true); return null }
-        return r.json()
-      })
-      .then((data) => {
-        if (!data?.user) { setNotFound(true); return }
-        setProfile(data.user)
-      })
-      .catch(() => setNotFound(true))
-      .finally(() => setLoading(false))
+      .then((r) => (r.status === 404 ? null : r.json()))
+      .then((data) => { if (active) setResult({ id, profile: data?.user ?? null }) })
+      .catch(() => { if (active) setResult({ id, profile: null }) })
+    return () => { active = false }
   }, [id])
 
   if (loading) {

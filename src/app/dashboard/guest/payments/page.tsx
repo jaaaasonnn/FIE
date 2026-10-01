@@ -46,22 +46,24 @@ function methodIcon(method: string): string {
 export default function GuestPaymentsPage() {
   const { user, loading: authLoading } = useAuth()
   const { rate: ghsRate } = useExchangeRate()
-  const [payments, setPayments] = useState<ApiPayment[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadedPayments, setPayments] = useState<ApiPayment[]>([])
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  // Loading and the visible list are derived from which user the data was
+  // loaded for, rather than reset/toggled inside the effect.
+  const isCurrent = !!user && loadedFor === user.id
+  const payments  = isCurrent ? loadedPayments : []
+  const loading   = !!user && !isCurrent
 
   useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      setPayments([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    fetch(`/api/payments?guestId=${user.id}`)
+    if (authLoading || !user) return
+    const userId = user.id
+    let active = true
+    fetch(`/api/payments?guestId=${userId}`)
       .then((r) => r.json())
-      .then((data) => setPayments(Array.isArray(data.payments) ? data.payments : []))
-      .catch(() => setPayments([]))
-      .finally(() => setLoading(false))
+      .then((data) => { if (active) setPayments(Array.isArray(data.payments) ? data.payments : []) })
+      .catch(() => { if (active) setPayments([]) })
+      .finally(() => { if (active) setLoadedFor(userId) })
+    return () => { active = false }
   }, [user, authLoading])
 
   const total = payments.filter((p) => p.status === 'SUCCESS').reduce((s, p) => s + p.amount, 0)

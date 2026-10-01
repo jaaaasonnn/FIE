@@ -9,7 +9,7 @@
  * - Cluster click → zoom in
  */
 
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import Map, {
   Marker,
   Popup,
@@ -275,14 +275,26 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
   }, [initialRegion])
 
   const [viewState, setViewState] = useState<ViewState>(initialCenter)
-  const [clusters, setClusters] = useState<AnyFeature[]>([])
+
+  // Re-center when the region prop changes. viewState already starts on the
+  // initial region, so this only reacts to later changes (adjusting state
+  // during render rather than in an effect).
+  const [centeredRegion, setCenteredRegion] = useState(initialRegion)
+  if (initialRegion !== centeredRegion) {
+    setCenteredRegion(initialRegion)
+    if (initialRegion && REGION_CENTERS[initialRegion]) {
+      const [lng, lat] = REGION_CENTERS[initialRegion]
+      setViewState((v) => ({ ...v, longitude: lng, latitude: lat, zoom: 11 }))
+    }
+  }
+
+  // Visible map bounds, updated on load / move end; clusters derive from them
+  const [viewBounds, setViewBounds] = useState<{
+    bbox: [number, number, number, number]
+    zoom: number
+  } | null>(null)
   const [hoveredId, setHoveredId]   = useState<string | null>(null)
   const [popupListing, setPopupListing] = useState<MapListing | null>(null)
-
-  // Build supercluster from listings
-  const sc = useRef(
-    new Supercluster<PointProperties, Record<string, never>>({ radius: 55, maxZoom: 16 })
-  )
 
   const points = useMemo<GeoJSON.Feature<GeoJSON.Point, PointProperties>[]>(
     () =>
@@ -294,38 +306,32 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
     [listings],
   )
 
-  useEffect(() => {
-    sc.current.load(points)
-    recalcClusters()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Build supercluster index from listings
+  const index = useMemo(() => {
+    const sc = new Supercluster<PointProperties, Record<string, never>>({ radius: 55, maxZoom: 16 })
+    sc.load(points)
+    return sc
   }, [points])
 
-  // Re-center when region changes
-  useEffect(() => {
-    if (initialRegion && REGION_CENTERS[initialRegion]) {
-      const [lng, lat] = REGION_CENTERS[initialRegion]
-      setViewState((v) => ({ ...v, longitude: lng, latitude: lat, zoom: 11 }))
-    }
-  }, [initialRegion])
+  const clusters = useMemo<AnyFeature[]>(
+    () => (viewBounds ? (index.getClusters(viewBounds.bbox, viewBounds.zoom) as AnyFeature[]) : []),
+    [index, viewBounds],
+  )
 
-  function recalcClusters() {
+  const updateBounds = useCallback(() => {
     const map = mapRef.current?.getMap()
     if (!map) return
     const bounds = map.getBounds()
     if (!bounds) return
-    const zoom = Math.floor(map.getZoom())
-    const next = sc.current.getClusters(
-      [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
-      zoom,
-    ) as AnyFeature[]
-    setClusters(next)
-  }
-
-  const handleMoveEnd = useCallback(() => recalcClusters(), [])
+    setViewBounds({
+      bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
+      zoom: Math.floor(map.getZoom()),
+    })
+  }, [])
 
   function handleClusterClick(clusterId: number, lng: number, lat: number) {
     const expansionZoom = Math.min(
-      sc.current.getClusterExpansionZoom(clusterId), 16
+      index.getClusterExpansionZoom(clusterId), 16
     )
     mapRef.current?.flyTo({ center: [lng, lat], zoom: expansionZoom, duration: 500 })
   }
@@ -355,8 +361,8 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
         ref={mapRef}
         {...viewState}
         onMove={(e) => setViewState(e.viewState)}
-        onMoveEnd={handleMoveEnd}
-        onLoad={recalcClusters}
+        onMoveEnd={updateBounds}
+        onLoad={updateBounds}
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLE}
         attributionControl={false}

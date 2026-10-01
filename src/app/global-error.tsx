@@ -21,7 +21,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
               Something went wrong
             </h1>
             <p style={{ color: '#6B645C', marginBottom: '1.5rem' }}>
-              We've been notified and are looking into it. Try refreshing the page.
+              We&apos;ve been notified and are looking into it. Try refreshing the page.
             </p>
             <button
               onClick={() => window.location.reload()}

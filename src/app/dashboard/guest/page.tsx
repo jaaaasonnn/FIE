@@ -99,14 +99,17 @@ export default function GuestDashboardPage() {
   const [wishlistCount, setWishlistCount] = useState(0)
   const [reviewsGivenCount, setReviewsGivenCount] = useState(0)
   const [activity, setActivity] = useState<ActivityItem[]>([])
-  const [dataLoading, setDataLoading] = useState(true)
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  // Derived from which user the data was loaded for, not toggled in the effect
+  const dataLoading = !!user && loadedFor !== user.id
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [reviewModalBookingId, setReviewModalBookingId] = useState<string | null>(null)
   const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (!user) return
-    setDataLoading(true)
+    const userId = user.id
+    let active = true
     Promise.all([
       fetch(`/api/bookings?guestId=${user.id}`).then((r) => r.json()),
       fetch(`/api/wishlists?userId=${user.id}`).then((r) => r.json()),
@@ -115,6 +118,7 @@ export default function GuestDashboardPage() {
       fetch('/api/reviews?mine=true').then((r) => r.json()),
     ])
       .then(([bData, wData, rData, mData, mineData]) => {
+        if (!active) return
         const bookingRows: ApiBooking[] = Array.isArray(bData.bookings) ? bData.bookings : []
         const messageRows: ApiMessage[] = Array.isArray(mData.messages) ? mData.messages : []
         const myReviews: Array<{ bookingId: string }> = Array.isArray(mineData.reviews) ? mineData.reviews : []
@@ -125,12 +129,14 @@ export default function GuestDashboardPage() {
         setReviewedBookingIds(new Set(myReviews.map((r) => r.bookingId)))
       })
       .catch(() => {
+        if (!active) return
         setBookings([])
         setWishlistCount(0)
         setReviewsGivenCount(0)
         setActivity([])
       })
-      .finally(() => setDataLoading(false))
+      .finally(() => { if (active) setLoadedFor(userId) })
+    return () => { active = false }
   }, [user])
 
   if (authLoading || !user) {

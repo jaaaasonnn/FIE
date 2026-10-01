@@ -67,7 +67,7 @@ export default function BookingConfirmationPage() {
         <div className="text-5xl">🔍</div>
         <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Booking not found</h1>
         <p className="text-sm text-center" style={{ color: 'var(--color-text-secondary)' }}>
-          We couldn't find this booking. It may have been cancelled or the link is incorrect.
+          We couldn&apos;t find this booking. It may have been cancelled or the link is incorrect.
         </p>
         <Link href="/dashboard/guest"
           className="mt-2 px-6 py-3 rounded-full text-sm font-semibold"
@@ -205,7 +205,7 @@ export default function BookingConfirmationPage() {
           <div>
             <p className="font-semibold text-sm" style={{ color: '#1E40AF' }}>Escrow Active</p>
             <p className="text-xs text-blue-600 mt-0.5">
-              Your payment is held securely. If the property doesn't match the listing, raise a dispute within 24 hours of check-in for a full refund.
+              Your payment is held securely. If the property doesn&apos;t match the listing, raise a dispute within 24 hours of check-in for a full refund.
             </p>
           </div>
         </div>

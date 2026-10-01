@@ -34,8 +34,22 @@ type Props = {
   nav?: React.ReactNode
 }
 
+async function markReadOnServer(conv: Conversation): Promise<void> {
+  try {
+    await fetch('/api/messages', {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        otherUserId: conv.otherUserId,
+        listingId:   conv.listingId,
+        bookingId:   conv.bookingId,
+      }),
+    })
+  } catch { /* ignore */ }
+}
+
 export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [rawConversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [mobileThread, setMobileThread] = useState(false)
@@ -43,11 +57,35 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState('')
   const [search, setSearch] = useState('')
-  const [seedMeta, setSeedMeta] = useState<{
-    otherName: string
-    otherPhoto: string | null
-    listingTitle: string
+  // Seed peer display info, tagged with the seed conversation it was resolved
+  // for, so a missing or changed seed derives to null instead of being reset.
+  const [resolvedSeed, setResolvedSeed] = useState<{
+    key: string
+    meta: { otherName: string; otherPhoto: string | null; listingTitle: string }
   } | null>(null)
+  const seedKey = seed?.otherUserId
+    ? conversationKey(seed.otherUserId, { bookingId: seed.bookingId, listingId: seed.listingId })
+    : null
+  const seedMeta = resolvedSeed && resolvedSeed.key === seedKey ? resolvedSeed.meta : null
+
+  // Open the seed thread on mobile when arriving from "Message Host" (adjusted
+  // during render when the seed peer changes, rather than in an effect)
+  const seedUserId = seed?.otherUserId ?? null
+  const [openedForSeed, setOpenedForSeed] = useState<string | null>(null)
+  if (seedUserId && seedUserId !== openedForSeed) {
+    setOpenedForSeed(seedUserId)
+    setMobileThread(true)
+  }
+
+  // Empty seed thread shows resolved labels once they arrive (derived)
+  const conversations = useMemo(() => {
+    if (!seedMeta || !seedKey) return rawConversations
+    return rawConversations.map((c) =>
+      c.id === seedKey && c.messages.length === 0
+        ? { ...c, otherName: seedMeta.otherName, otherPhoto: seedMeta.otherPhoto, listingTitle: seedMeta.listingTitle }
+        : c,
+    )
+  }, [rawConversations, seedMeta, seedKey])
 
   const threadEndRef = useRef<HTMLDivElement>(null)
   const activeIdRef = useRef<string | null>(null)
@@ -56,7 +94,10 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
     listingId: string | null
     bookingId: string | null
   } | null>(null)
-  activeIdRef.current = activeId
+
+  useEffect(() => {
+    activeIdRef.current = activeId
+  }, [activeId])
 
   const activeConv = useMemo(
     () => conversations.find((c) => c.id === activeId) ?? null,
@@ -75,10 +116,8 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
 
   // Resolve seed peer display info (listing title / host name)
   useEffect(() => {
-    if (!seed?.otherUserId) {
-      setSeedMeta(null)
-      return
-    }
+    if (!seed?.otherUserId || !seedKey) return
+    const key = seedKey
     let cancelled = false
 
     async function resolve() {
@@ -112,13 +151,13 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
       }
 
       if (!cancelled) {
-        setSeedMeta({ otherName, otherPhoto, listingTitle })
+        setResolvedSeed({ key, meta: { otherName, otherPhoto, listingTitle } })
       }
     }
 
     resolve()
     return () => { cancelled = true }
-  }, [seed])
+  }, [seed, seedKey])
 
   const ensureSeedConversation = useCallback(
     (grouped: Conversation[]): Conversation[] => {
@@ -148,81 +187,70 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
     [seed, seedMeta],
   )
 
-  const markRead = useCallback(async (conv: Conversation) => {
-    if (conv.unread === 0) return
-    try {
-      await fetch('/api/messages', {
-        method:  'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          otherUserId: conv.otherUserId,
-          listingId:   conv.listingId,
-          bookingId:   conv.bookingId,
-        }),
-      })
-    } catch { /* ignore */ }
+  const clearUnread = useCallback((convId: string) => {
     setConversations((prev) =>
-      prev.map((c) => (c.id === conv.id ? { ...c, unread: 0 } : c)),
+      prev.map((c) => (c.id === convId ? { ...c, unread: 0 } : c)),
     )
   }, [])
 
-  const loadInbox = useCallback(async (opts?: { silent?: boolean }) => {
-    if (!opts?.silent) setLoading(true)
-    try {
-      const res = await fetch('/api/messages')
-      const data = await res.json()
-      if (!res.ok) {
-        if (!opts?.silent) {
-          setConversations(ensureSeedConversation([]))
-        }
-        return
-      }
-      const msgs = Array.isArray(data.messages) ? (data.messages as ApiMessage[]) : []
-      let grouped = groupConversations(msgs, userId)
-      grouped = ensureSeedConversation(grouped)
+  const markRead = useCallback(async (conv: Conversation) => {
+    if (conv.unread === 0) return
+    await markReadOnServer(conv)
+    clearUnread(conv.id)
+  }, [clearUnread])
 
-      // While a thread is open, refresh its messages from the full inbox grouping
-      setConversations((prev) => {
-        const currentId = activeIdRef.current
-        if (!currentId) return grouped
-        const fresh = grouped.find((c) => c.id === currentId)
-        const old = prev.find((c) => c.id === currentId)
-        if (fresh && old) {
-          return grouped.map((c) =>
-            c.id === currentId
-              ? { ...c, messages: mergeChatMessages(old.messages, fresh.messages), unread: c.unread }
-              : c,
-          )
-        }
-        return grouped
-      })
+  // Fetches and groups the inbox without touching state (null = request failed)
+  const fetchInbox = useCallback(async (): Promise<Conversation[] | null> => {
+    const res = await fetch('/api/messages')
+    const data = await res.json()
+    if (!res.ok) return null
+    const msgs = Array.isArray(data.messages) ? (data.messages as ApiMessage[]) : []
+    return ensureSeedConversation(groupConversations(msgs, userId))
+  }, [userId, ensureSeedConversation])
 
-      setActiveId((prev) => {
-        if (prev && grouped.some((c) => c.id === prev)) return prev
-        if (seed?.otherUserId) {
-          return conversationKey(seed.otherUserId, {
-            bookingId: seed.bookingId,
-            listingId: seed.listingId,
-          })
-        }
-        return grouped[0]?.id ?? null
-      })
-    } catch {
-      if (!opts?.silent) setConversations(ensureSeedConversation([]))
-    } finally {
-      if (!opts?.silent) setLoading(false)
+  const applyInbox = useCallback((grouped: Conversation[] | null) => {
+    if (!grouped) {
+      setConversations(ensureSeedConversation([]))
+      return
     }
-  }, [userId, ensureSeedConversation, seed])
 
-  // Open seed thread on mobile when arriving from Message Host
-  useEffect(() => {
-    if (seed?.otherUserId) setMobileThread(true)
-  }, [seed?.otherUserId])
+    // While a thread is open, refresh its messages from the full inbox grouping
+    setConversations((prev) => {
+      const currentId = activeIdRef.current
+      if (!currentId) return grouped
+      const fresh = grouped.find((c) => c.id === currentId)
+      const old = prev.find((c) => c.id === currentId)
+      if (fresh && old) {
+        return grouped.map((c) =>
+          c.id === currentId
+            ? { ...c, messages: mergeChatMessages(old.messages, fresh.messages), unread: c.unread }
+            : c,
+        )
+      }
+      return grouped
+    })
+
+    setActiveId((prev) => {
+      if (prev && grouped.some((c) => c.id === prev)) return prev
+      if (seed?.otherUserId) {
+        return conversationKey(seed.otherUserId, {
+          bookingId: seed.bookingId,
+          listingId: seed.listingId,
+        })
+      }
+      return grouped[0]?.id ?? null
+    })
+  }, [ensureSeedConversation, seed])
 
   // Initial load + when seed meta arrives (to refresh empty thread labels)
   useEffect(() => {
-    loadInbox()
-  }, [loadInbox])
+    let active = true
+    fetchInbox()
+      .then((grouped) => { if (active) applyInbox(grouped) })
+      .catch(() => { if (active) applyInbox(null) })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [fetchInbox, applyInbox])
 
   // Poll while a conversation is open
   useEffect(() => {
@@ -265,35 +293,15 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
 
   // Mark read when opening a conversation
   useEffect(() => {
-    if (!activeConv) return
-    markRead(activeConv)
+    if (!activeConv || activeConv.unread === 0) return
+    const convId = activeConv.id
+    markReadOnServer(activeConv).then(() => clearUnread(convId))
   }, [activeConv?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scroll to bottom on new messages
   useEffect(() => {
     threadEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [activeConv?.messages.length])
-
-  // Update empty seed labels when meta resolves
-  useEffect(() => {
-    if (!seedMeta || !seed?.otherUserId) return
-    const id = conversationKey(seed.otherUserId, {
-      bookingId: seed.bookingId,
-      listingId: seed.listingId,
-    })
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === id && c.messages.length === 0
-          ? {
-              ...c,
-              otherName:    seedMeta.otherName,
-              otherPhoto:   seedMeta.otherPhoto,
-              listingTitle: seedMeta.listingTitle,
-            }
-          : c,
-      ),
-    )
-  }, [seedMeta, seed])
 
   const filtered = useMemo(() => {
     if (!search.trim()) return conversations

@@ -86,6 +86,15 @@ const dpInputStyle: React.CSSProperties = {
 }
 
 // ── Page component ────────────────────────────────────────────────────────────
+async function getAvailability(listingId: string): Promise<{ bookedRanges: BookedRange[]; blockedDates: Date[] }> {
+  const res  = await fetch(`/api/listings/${listingId}/availability`)
+  const data = await res.json()
+  return {
+    bookedRanges: data.bookedRanges ?? [],
+    blockedDates: (data.blockedDates ?? []).map((d: string) => new Date(d)),
+  }
+}
+
 export default function ListingDetailPage() {
   const { id: listingId } = useParams<{ id: string }>()
   const router = useRouter()
@@ -94,13 +103,15 @@ export default function ListingDetailPage() {
 
   // Listing data
   const [listing,    setListing]    = useState<ApiListing | null>(null)
-  const [listLoading, setListLoading] = useState(true)
+  // Which listing the fetched data belongs to; loading is derived from it
+  const [loadedId,    setLoadedId]    = useState<string | null>(null)
+  const listLoading = loadedId !== listingId
   const [notFound,    setNotFound]   = useState(false)
 
   // UI state
   const [photoIdx,     setPhotoIdx]     = useState(0)
   const [selectedMode, setSelectedMode] = useState('')
-  const [wishlisted,   setWishlisted]   = useState(false)
+  const [savedHeart,   setWishlisted]   = useState(false)
   const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
   const [wishBusy,     setWishBusy]     = useState(false)
   const [months,       setMonths]       = useState(1)
@@ -110,7 +121,7 @@ export default function ListingDetailPage() {
   const [checkOut, setCheckOut] = useState<Date | null>(null)
 
   // Availability state
-  const [availLoading, setAvailLoading] = useState(false)
+  const [availLoading, setAvailLoading] = useState(true)
   const [bookedRanges, setBookedRanges] = useState<BookedRange[]>([])
   const [blockedDates, setBlockedDates] = useState<Date[]>([])
 
@@ -120,49 +131,65 @@ export default function ListingDetailPage() {
 
   // ── Fetch listing data ────────────────────────────────────────────────
   useEffect(() => {
-    setListLoading(true)
+    let active = true
     fetch(`/api/listings/${listingId}`)
       .then((r) => {
-        if (r.status === 404) { setNotFound(true); return null }
+        if (r.status === 404) { if (active) setNotFound(true); return null }
         return r.json()
       })
       .then((d) => {
-        if (!d) return
+        if (!d || !active) return
         const l: ApiListing = d.listing
         setListing(l)
         setSelectedMode(l.rentalModes?.[0] ?? '')
       })
-      .catch(() => setNotFound(true))
-      .finally(() => setListLoading(false))
+      .catch(() => { if (active) setNotFound(true) })
+      .finally(() => { if (active) setLoadedId(listingId) })
+    return () => { active = false }
   }, [listingId])
 
   // ── Fetch availability ────────────────────────────────────────────────
+  // availLoading starts true, so the initial load sets nothing synchronously
+  useEffect(() => {
+    let active = true
+    getAvailability(listingId)
+      .then((a) => {
+        if (!active) return
+        setBookedRanges(a.bookedRanges)
+        setBlockedDates(a.blockedDates)
+      })
+      .catch(() => { /* non-fatal */ })
+      .finally(() => { if (active) setAvailLoading(false) })
+    return () => { active = false }
+  }, [listingId])
+
+  // Manual refresh, e.g. after a booking hits a date conflict
   const fetchAvailability = useCallback(async () => {
     setAvailLoading(true)
     try {
-      const res  = await fetch(`/api/listings/${listingId}/availability`)
-      const data = await res.json()
-      setBookedRanges(data.bookedRanges ?? [])
-      setBlockedDates((data.blockedDates ?? []).map((d: string) => new Date(d)))
+      const a = await getAvailability(listingId)
+      setBookedRanges(a.bookedRanges)
+      setBlockedDates(a.blockedDates)
     } catch { /* non-fatal */ }
     finally  { setAvailLoading(false) }
   }, [listingId])
 
-  useEffect(() => { fetchAvailability() }, [fetchAvailability])
-
   // ── Sync heart with real wishlist status ───────────────────────────────
+  // Signed out always shows an empty heart, derived rather than reset
+  const wishlisted = !!user && savedHeart
+
   useEffect(() => {
-    if (!user || !listingId) {
-      setWishlisted(false)
-      return
-    }
+    if (!user || !listingId) return
+    let active = true
     fetch(`/api/wishlists?userId=${user.id}`)
       .then((r) => r.json())
       .then((data) => {
+        if (!active) return
         const rows = Array.isArray(data.wishlists) ? data.wishlists : []
         setWishlisted(rows.some((w: { listingId: string }) => w.listingId === listingId))
       })
-      .catch(() => setWishlisted(false))
+      .catch(() => { if (active) setWishlisted(false) })
+    return () => { active = false }
   }, [user, listingId])
 
   async function toggleWishlist() {

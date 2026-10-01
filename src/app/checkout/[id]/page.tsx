@@ -43,6 +43,12 @@ const MODE_UNIT: Record<string, string> = {
   PERMANENT:  'year',
 }
 
+function paymentReturnError(paymentResult: string | null): string {
+  if (paymentResult === 'failed') return 'Payment was not completed. Please try again.'
+  if (paymentResult === 'error')  return 'We could not confirm your payment. If you were charged, contact support.'
+  return ''
+}
+
 export default function CheckoutPage() {
   return (
     <Suspense fallback={null}>
@@ -79,8 +85,10 @@ function CheckoutPageInner() {
   const [cardCvv,     setCardCvv]     = useState('')
   const [cardName,    setCardName]    = useState('')
   const [loading,     setLoading]     = useState(false)
-  const [error,       setError]       = useState('')
-  const [success,     setSuccess]     = useState(false)
+  // Paystack's verify step redirects back here with ?payment=…, a full page
+  // load, so the result is read once when the state is created.
+  const [error,       setError]       = useState(() => paymentReturnError(searchParams.get('payment')))
+  const [success,     setSuccess]     = useState(() => searchParams.get('payment') === 'success')
 
   // ── Fetch booking from API ────────────────────────────────────────────
   useEffect(() => {
@@ -112,18 +120,6 @@ function CheckoutPageInner() {
     }
     load()
   }, [bookingId])
-
-  // ── Handle return from Paystack (after /api/payments/verify redirects back) ──
-  useEffect(() => {
-    const paymentResult = searchParams.get('payment')
-    if (paymentResult === 'success') {
-      setSuccess(true)
-    } else if (paymentResult === 'failed') {
-      setError('Payment was not completed. Please try again.')
-    } else if (paymentResult === 'error') {
-      setError('We could not confirm your payment. If you were charged, contact support.')
-    }
-  }, [searchParams])
 
   // ── Handle payment submission ─────────────────────────────────────────
   async function handlePay(e: React.FormEvent) {

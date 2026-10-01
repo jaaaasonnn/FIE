@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense, useCallback } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, SlidersHorizontal, MapPin, Star, Bed, Bath, X,
@@ -86,7 +86,6 @@ function SearchContent() {
   const [showMapMobile, setShowMapMobile] = useState(false)
   const [listings,      setListings]      = useState<ApiListing[]>([])
   const [total,         setTotal]         = useState(0)
-  const [loading,       setLoading]       = useState(true)
 
   const [filters, setFilters] = useState({
     query:        '',
@@ -101,11 +100,14 @@ function SearchContent() {
     sort:         'newest',
     amenities:    [] as string[],
   })
+  // Loading until results arrive for the current filters (derived, not toggled in the effect)
+  const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(null)
+  const loading = loadedFilters !== filters
 
   // ── Fetch from /api/listings whenever filters change ──────────────────
-  const fetchListings = useCallback(async () => {
-    setLoading(true)
-    try {
+  useEffect(() => {
+    let active = true
+    async function runSearch(): Promise<ApiListing[]> {
       const q = new URLSearchParams()
       if (filters.mode)         q.set('mode',         filters.mode)
       if (filters.region)       q.set('region',       filters.region)
@@ -152,16 +154,18 @@ function SearchContent() {
       if (filters.sort === 'top_rated')    results.sort((a, b) => b.avgRating  - a.avgRating)
       if (filters.sort === 'most_reviewed') results.sort((a, b) => b.reviewCount - a.reviewCount)
 
-      setListings(results)
-      setTotal(results.length)
-    } catch {
-      // Keep existing results on error
-    } finally {
-      setLoading(false)
+      return results
     }
+    runSearch()
+      .then((results) => {
+        if (!active) return
+        setListings(results)
+        setTotal(results.length)
+      })
+      .catch(() => { /* Keep existing results on error */ })
+      .finally(() => { if (active) setLoadedFilters(filters) })
+    return () => { active = false }
   }, [filters])
-
-  useEffect(() => { fetchListings() }, [fetchListings])
 
   // ── Map listings (only those with coordinates) ─────────────────────────
   const mapListings: MapListing[] = listings

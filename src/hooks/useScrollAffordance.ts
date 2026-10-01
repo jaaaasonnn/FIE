@@ -26,12 +26,14 @@ export function useScrollAffordance() {
   useEffect(() => {
     const el = scrollEl
     if (!el) return
-    update()
+    // ResizeObserver fires once on observe, which covers the initial
+    // measurement without setting state synchronously in the effect.
+    const resizeObserver = new ResizeObserver(update)
+    resizeObserver.observe(el)
     el.addEventListener('scroll', update, { passive: true })
-    window.addEventListener('resize', update)
     return () => {
+      resizeObserver.disconnect()
       el.removeEventListener('scroll', update)
-      window.removeEventListener('resize', update)
     }
   }, [scrollEl, update])
 

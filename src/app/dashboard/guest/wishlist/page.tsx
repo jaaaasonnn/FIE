@@ -42,20 +42,22 @@ function firstPhoto(photos: unknown): string {
 export default function WishlistPage() {
   const { user, loading: authLoading } = useAuth()
   const { rate: ghsRate } = useExchangeRate()
-  const [items, setItems] = useState<WishlistItem[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadedItems, setItems] = useState<WishlistItem[]>([])
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  // Loading and the visible list are derived from which user the data was
+  // loaded for, rather than reset/toggled inside the effect.
+  const isCurrent = !!user && loadedFor === user.id
+  const items     = isCurrent ? loadedItems : []
+  const loading   = !!user && !isCurrent
 
   useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      setItems([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    fetch(`/api/wishlists?userId=${user.id}`)
+    if (authLoading || !user) return
+    const userId = user.id
+    let active = true
+    fetch(`/api/wishlists?userId=${userId}`)
       .then((r) => r.json())
       .then((data) => {
+        if (!active) return
         const rows = Array.isArray(data.wishlists) ? data.wishlists : []
         setItems(rows.map((w: {
           id: string
@@ -97,8 +99,9 @@ export default function WishlistPage() {
           }
         }))
       })
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false))
+      .catch(() => { if (active) setItems([]) })
+      .finally(() => { if (active) setLoadedFor(userId) })
+    return () => { active = false }
   }, [user, authLoading])
 
   async function remove(listingId: string) {

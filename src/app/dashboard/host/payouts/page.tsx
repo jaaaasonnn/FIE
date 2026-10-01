@@ -74,8 +74,13 @@ function savedMethodLabel(m: SavedPayoutMethod): string {
 export default function HostPayoutsPage() {
   const { user, loading: authLoading } = useAuth()
   const { rate: ghsRate } = useExchangeRate()
-  const [payouts, setPayouts] = useState<ApiPayout[]>([])
-  const [loading, setLoading] = useState(true)
+  const [loadedPayouts, setPayouts] = useState<ApiPayout[]>([])
+  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  // Loading and the visible list are derived from which user the data was
+  // loaded for, rather than reset/toggled inside the effect.
+  const isCurrent = !!user && loadedFor === user.id
+  const payouts   = isCurrent ? loadedPayouts : []
+  const loading   = !!user && !isCurrent
   const [addingMethod, setAddingMethod] = useState(false)
 
   const [savedMethod, setSavedMethod] = useState<SavedPayoutMethod | null>(null)
@@ -94,28 +99,25 @@ export default function HostPayoutsPage() {
   const [saveSuccess, setSaveSuccess] = useState('')
 
   useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      setPayouts([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    fetch(`/api/payouts?hostId=${user.id}`)
+    if (authLoading || !user) return
+    const userId = user.id
+    let active = true
+    fetch(`/api/payouts?hostId=${userId}`)
       .then((r) => r.json())
-      .then((data) => setPayouts(Array.isArray(data.payouts) ? data.payouts : []))
-      .catch(() => setPayouts([]))
-      .finally(() => setLoading(false))
+      .then((data) => { if (active) setPayouts(Array.isArray(data.payouts) ? data.payouts : []) })
+      .catch(() => { if (active) setPayouts([]) })
+      .finally(() => { if (active) setLoadedFor(userId) })
 
     fetch('/api/users/me/payout-method')
       .then((r) => r.json())
-      .then((data) => { if (data.payoutMethod) setSavedMethod(data.payoutMethod) })
+      .then((data) => { if (active && data.payoutMethod) setSavedMethod(data.payoutMethod) })
       .catch(() => {})
 
     fetch('/api/notifications')
       .then((r) => r.json())
-      .then((data) => setNotifications(Array.isArray(data.notifications) ? data.notifications : []))
+      .then((data) => { if (active) setNotifications(Array.isArray(data.notifications) ? data.notifications : []) })
       .catch(() => {})
+    return () => { active = false }
   }, [user, authLoading])
 
   useEffect(() => {
