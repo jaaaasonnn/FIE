@@ -9,6 +9,12 @@ import { useAuth } from '@/context/AuthContext'
 
 type Tab = 'login' | 'signup'
 
+// Internal paths only. "//evil.com" and "/\evil.com" start with "/" but
+// browsers treat them as protocol-relative URLs to another site.
+function isSafeRedirect(path: string): boolean {
+  return path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\')
+}
+
 function LoginContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
@@ -62,8 +68,8 @@ function LoginContent() {
     setLoginBusy(false)
     if (result.error) { setLoginErr(result.error); return }
     // For sign-in, honour the redirect param so users land back where they came from.
-    // Only follow internal paths (must start with /) to prevent open-redirect.
-    const dest = (redirect && redirect.startsWith('/')) ? redirect : (result.user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
+    // Only follow internal paths to prevent open-redirect.
+    const dest = isSafeRedirect(redirect) ? redirect : (result.user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
     router.replace(dest)
   }
 

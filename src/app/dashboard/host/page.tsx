@@ -56,34 +56,37 @@ function HostDashboardContent() {
   const { user, loading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const createdId = searchParams.get('created')
-  const [listings, setListings] = useState<ApiListing[]>([])
-  const [bookings, setBookings] = useState<ApiBooking[]>([])
-  const [loading, setLoading] = useState(true)
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [respondingId, setRespondingId] = useState<string | null>(null)
 
+  // Data is tagged with the user it was loaded for, so signed-out (or a late
+  // response for a previous user) derives empty/loading instead of needing a
+  // reset inside the effect.
+  const [dashboard, setDashboard] = useState<{
+    userId: string
+    listings: ApiListing[]
+    bookings: ApiBooking[]
+  } | null>(null)
+  const current  = user && dashboard?.userId === user.id ? dashboard : null
+  const listings = current?.listings ?? []
+  const bookings = current?.bookings ?? []
+  const loading  = !!user && !current
+
   useEffect(() => {
-    if (authLoading) return
-    if (!user) {
-      setListings([])
-      setBookings([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
+    if (authLoading || !user) return
+    const userId = user.id
     Promise.all([
-      fetch(`/api/listings?hostId=${user.id}&limit=50`).then((r) => r.json()),
-      fetch(`/api/bookings?hostId=${user.id}`).then((r) => r.json()),
+      fetch(`/api/listings?hostId=${userId}&limit=50`).then((r) => r.json()),
+      fetch(`/api/bookings?hostId=${userId}`).then((r) => r.json()),
     ])
       .then(([lData, bData]) => {
-        setListings(Array.isArray(lData.listings) ? lData.listings : [])
-        setBookings(Array.isArray(bData.bookings) ? bData.bookings : [])
+        setDashboard({
+          userId,
+          listings: Array.isArray(lData.listings) ? lData.listings : [],
+          bookings: Array.isArray(bData.bookings) ? bData.bookings : [],
+        })
       })
-      .catch(() => {
-        setListings([])
-        setBookings([])
-      })
-      .finally(() => setLoading(false))
+      .catch(() => setDashboard({ userId, listings: [], bookings: [] }))
   }, [user, authLoading])
 
   const activeListings = listings.filter((l) => l.isActive)
@@ -111,7 +114,10 @@ function HostDashboardContent() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || `Failed to ${action} booking`)
-      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: data.booking.status } : b)))
+      setDashboard((prev) => prev && {
+        ...prev,
+        bookings: prev.bookings.map((b) => (b.id === bookingId ? { ...b, status: data.booking.status } : b)),
+      })
     } catch (err) {
       alert(err instanceof Error ? err.message : `Failed to ${action} booking`)
     } finally {

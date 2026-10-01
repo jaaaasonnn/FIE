@@ -13,6 +13,8 @@ function HostMessagesContent() {
   const guestId = searchParams.get('guestId')
   const listingId = searchParams.get('listingId')
   const bookingId = searchParams.get('bookingId')
+  const query = searchParams.toString()
+  const loginHref = `/login?redirect=${encodeURIComponent(`/dashboard/host/messages${query ? `?${query}` : ''}`)}`
 
   const seed =
     guestId && user && guestId !== user.id
@@ -54,7 +56,7 @@ function HostMessagesContent() {
           <div className="soft-panel flex flex-col items-center justify-center gap-4" style={{ height: '600px' }}>
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Sign in to view your messages.</p>
             <Link
-              href="/login?redirect=/dashboard/host/messages"
+              href={loginHref}
               className="px-5 py-2.5 rounded-full text-sm font-semibold"
               style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
             >
