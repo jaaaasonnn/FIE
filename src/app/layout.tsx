@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { Manrope } from 'next/font/google'
+import { Manrope, Unbounded } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/components/layout/Footer'
@@ -12,6 +12,14 @@ const manrope = Manrope({
   weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
   variable: '--font-manrope',
+})
+
+// Logo wordmark only ("fie."), never body or headline text
+const unbounded = Unbounded({
+  subsets: ['latin'],
+  weight: ['900'],
+  display: 'swap',
+  variable: '--font-unbounded',
 })
 
 export const metadata: Metadata = {
@@ -32,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={manrope.variable}>
+    <html lang="en" className={`${manrope.variable} ${unbounded.variable}`}>
       <body className={manrope.className}>
         <AuthProvider>
           <ExchangeRateProvider>

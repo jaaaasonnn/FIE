@@ -2,33 +2,66 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useReveal } from '@/hooks/useReveal'
 
+// Unsplash photo ids, each geotagged to the region it stands for
 const regions = [
-  // Aerial Accra cityscape — geotagged "Accra, Ghana"
-  { name: 'Greater Accra', city: 'Accra',       img: 'https://images.unsplash.com/photo-1568025848823-86404cd04ad1?w=400&q=70' },
-  // Aerial Adum, Kumasi — geotagged "Adum, Kumasi, Ghana"
-  { name: 'Ashanti',       city: 'Kumasi',      img: 'https://images.unsplash.com/photo-1506126208421-3345d63a05d8?w=400&q=70' },
-  // Atlantic coastline — geotagged "Takoradi, Ghana"
-  { name: 'Western',       city: 'Takoradi',    img: 'https://images.unsplash.com/photo-1624832040555-d9f92f7be672?w=400&q=70' },
-  // Elmina Castle (Central region, near Cape Coast) — geotagged "Elmina, Ghana"
-  { name: 'Central',       city: 'Cape Coast',  img: 'https://images.unsplash.com/photo-1769297468250-dfdea4662b00?w=400&q=70' },
-  // Aburi hills (Eastern region) — geotagged "Aburi, Ghana"
-  { name: 'Eastern',       city: 'Koforidua',   img: 'https://images.unsplash.com/photo-1670615431202-6a7159da3f6c?w=400&q=70' },
-  // Aerial village — captioned "Drone Image from the Northern Region of Ghana"
-  { name: 'Northern',      city: 'Tamale',      img: 'https://images.unsplash.com/photo-1680199489033-bc336166482b?w=400&q=70' },
+  // Aerial Accra cityscape, geotagged "Accra, Ghana"
+  { name: 'Greater Accra', city: 'Accra',      photo: 'photo-1568025848823-86404cd04ad1' },
+  // Aerial Adum, Kumasi, geotagged "Adum, Kumasi, Ghana"
+  { name: 'Ashanti',       city: 'Kumasi',     photo: 'photo-1506126208421-3345d63a05d8' },
+  // Atlantic coastline, geotagged "Takoradi, Ghana"
+  { name: 'Western',       city: 'Takoradi',   photo: 'photo-1624832040555-d9f92f7be672' },
+  // Elmina Castle (Central region, near Cape Coast), geotagged "Elmina, Ghana"
+  { name: 'Central',       city: 'Cape Coast', photo: 'photo-1769297468250-dfdea4662b00' },
+  // Aburi hills (Eastern region), geotagged "Aburi, Ghana"
+  { name: 'Eastern',       city: 'Koforidua',  photo: 'photo-1670615431202-6a7159da3f6c' },
+  // Aerial village, captioned "Drone Image from the Northern Region of Ghana"
+  { name: 'Northern',      city: 'Tamale',     photo: 'photo-1680199489033-bc336166482b' },
 ]
 
-// "Accra" / "Accra & Kumasi" / "Accra, Kumasi & Tamale" — natural join,
-// not a hardcoded claim, so it stays accurate as more regions get listings.
-function joinNatural(items: string[]): string {
-  if (items.length <= 1) return items[0] ?? ''
-  if (items.length === 2) return `${items[0]} & ${items[1]}`
-  return `${items.slice(0, -1).join(', ')} & ${items[items.length - 1]}`
+type Region = (typeof regions)[number]
+
+function RegionTile({
+  region, counts, width, lead = false,
+}: {
+  region: Region
+  counts: Record<string, number> | null
+  width: number
+  lead?: boolean
+}) {
+  const count = counts?.[region.name] ?? 0
+  return (
+    <Link
+      href={`/search?region=${encodeURIComponent(region.name)}`}
+      className={`photo-zoom-host focus-ring rounded-2xl flex flex-col ${lead ? 'lg:h-full' : ''}`}
+    >
+      <div
+        className={`relative rounded-2xl overflow-hidden aspect-[4/3] ${lead ? 'lg:aspect-auto lg:flex-1 lg:min-h-0' : ''}`}
+        style={{ backgroundColor: 'var(--color-border)' }}
+      >
+        <img
+          src={`https://images.unsplash.com/${region.photo}?w=${width}&q=70`}
+          alt=""
+          className="photo-zoom absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+        />
+      </div>
+      <div className="pt-2.5 flex items-baseline gap-2 text-sm">
+        <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{region.city}</span>
+        {/* Reserve the line while counts load so the tiles do not jump */}
+        <span style={{ color: 'var(--color-text-secondary)' }}>
+          {counts === null
+            ? ' '
+            : count > 0
+            ? `${count} ${count === 1 ? 'home' : 'homes'}`
+            : 'Coming soon'}
+        </span>
+      </div>
+    </Link>
+  )
 }
 
 export function RegionsSection() {
-  const sectionRef = useReveal<HTMLElement>()
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
 
   useEffect(() => {
@@ -38,57 +71,40 @@ export function RegionsSection() {
       .catch(() => setCounts({}))
   }, [])
 
-  const liveCities = counts
-    ? regions.filter((r) => (counts[r.name] ?? 0) > 0).map((r) => r.city)
-    : []
+  const [lead, ...rest] = regions
 
   return (
-    <section ref={sectionRef} className="py-24 px-4 bg-[var(--color-bg)]">
-      <div className="max-w-7xl mx-auto">
-        <div className="reveal-item flex items-end justify-between mb-12">
-          <div>
-            {liveCities.length > 0 && (
-              <p className="text-sm font-medium uppercase tracking-widest mb-2" style={{ color: 'var(--color-accent)' }}>
-                Live in {joinNatural(liveCities)}
-              </p>
-            )}
-            <h2 className="text-4xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-              Explore by Region
-            </h2>
-          </div>
-          <Link href="/search" className="hidden sm:block text-sm font-semibold" style={{ color: 'var(--color-accent)' }}>
-            All regions →
+    <section className="pt-14 md:pt-20" style={{ backgroundColor: 'var(--color-bg)' }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-baseline justify-between gap-4 mb-7">
+          <h2 className="text-[1.75rem] md:text-[2rem]" style={{ color: 'var(--color-text-primary)' }}>
+            Explore by region
+          </h2>
+          <Link
+            href="/search"
+            className="focus-ring rounded-sm text-sm font-semibold underline underline-offset-4 decoration-1 whitespace-nowrap"
+            style={{ color: 'var(--color-accent-deep)' }}
+          >
+            All regions
           </Link>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-5">
-          {regions.map(({ name, city, img }, i) => {
-            const count = counts?.[name] ?? 0
-            return (
-              <Link
-                key={name}
-                href={`/search?region=${encodeURIComponent(name)}`}
-                className="reveal-item group relative rounded-2xl overflow-hidden aspect-[3/4] block"
-                style={{ boxShadow: '0 4px 16px rgba(31, 27, 22, 0.08)', '--i': i + 1 } as React.CSSProperties}
-              >
-                <img
-                  src={img}
-                  alt={name}
-                  className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 hero-overlay" />
-                <div className="absolute bottom-3 left-3 right-3">
-                  <p className="text-white font-bold text-sm leading-tight">{city}</p>
-                  {counts && (
-                    <p className="text-xs" style={{ color: 'var(--color-accent)' }}>
-                      {count > 0 ? `${count} ${count === 1 ? 'listing' : 'listings'}` : 'Coming soon'}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            )
-          })}
+        {/* Below lg: six equal tiles, two per row.
+            lg and up: Accra leads at full height, then a row of two and a row of three. */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-[5fr_7fr] lg:gap-5">
+          <RegionTile region={lead} counts={counts} width={1200} lead />
+          <div className="contents lg:flex lg:flex-col lg:gap-5">
+            <div className="contents lg:grid lg:grid-cols-2 lg:gap-5">
+              {rest.slice(0, 2).map((r) => (
+                <RegionTile key={r.name} region={r} counts={counts} width={800} />
+              ))}
+            </div>
+            <div className="contents lg:grid lg:grid-cols-3 lg:gap-5">
+              {rest.slice(2).map((r) => (
+                <RegionTile key={r.name} region={r} counts={counts} width={600} />
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

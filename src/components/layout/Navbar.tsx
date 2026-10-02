@@ -6,6 +6,15 @@ import { useState, useRef, useEffect } from 'react'
 import { Menu, X, Search, Heart, MessageSquare, ChevronDown, LayoutDashboard, LogOut, UserCircle, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
+import { Wordmark } from '@/components/ui/Wordmark'
+
+const NAV_LINKS = [
+  { href: '/search?mode=SHORT_STAY', label: 'Short Stay' },
+  { href: '/search?mode=TEMP_STAY',  label: 'Monthly' },
+  { href: '/search?mode=PERMANENT',  label: 'Long-Term' },
+  { href: '/how-it-works',           label: 'How it Works' },
+  { href: '/faq',                    label: 'FAQ' },
+]
 
 export function Navbar() {
   const router = useRouter()
@@ -16,13 +25,15 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
+  // Compact state once the top 32px of the page has scrolled away. The
+  // sentinel is observed instead of listening to scroll events.
+  const sentinelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    function onScroll() {
-      setScrolled(window.scrollY > 32)
-    }
-    onScroll()
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+    const observer = new IntersectionObserver(([entry]) => setScrolled(!entry.isIntersecting))
+    observer.observe(sentinel)
+    return () => observer.disconnect()
   }, [])
 
   useEffect(() => {
@@ -43,12 +54,14 @@ export function Navbar() {
   }
 
   const dashboardHref = user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'
-  const logoSize = scrolled ? 36 : 40
+  const markWidth = scrolled ? 26 : 30
   const barHeight = scrolled ? '3.75rem' : '4.25rem'
 
   return (
+    <>
+    <div ref={sentinelRef} aria-hidden className="absolute top-0 left-0 h-8 w-px pointer-events-none" />
     <header
-      className="sticky top-0 z-50 w-full transition-all duration-200 ease-out"
+      className="sticky top-0 z-50 w-full transition-[background-color,box-shadow,border-color] duration-200 ease-out"
       style={{
         backgroundColor: scrolled
           ? 'rgba(255,255,255,0.88)'
@@ -66,53 +79,31 @@ export function Navbar() {
           className="flex items-center justify-between transition-all duration-200 ease-out"
           style={{ height: barHeight }}
         >
-          {/* Logo — gold wordmark paired with mark (Airbnb-style brand lockup) */}
-          <Link href="/" className="flex items-center gap-2.5 group flex-shrink-0">
+          {/* Logo: Deep Gold mark + glossy "fie." wordmark */}
+          <Link href="/" aria-label="FieGH home" className="flex items-center gap-2.5 flex-shrink-0 focus-ring rounded-lg">
             <Image
-              src="/logo.png"
-              alt="Fie"
-              width={48}
-              height={48}
-              style={{
-                width: logoSize,
-                height: 'auto',
-                transition: 'width 200ms ease-out',
-              }}
+              src="/logo-mark.png"
+              alt=""
+              width={84}
+              height={50}
+              style={{ width: markWidth, height: 'auto', transition: 'width 200ms ease-out' }}
               priority
             />
-            <span
-              className="fie-wordmark transition-colors duration-200 group-hover:opacity-90"
-              style={{
-                color: '#D4A84A',
-                fontWeight: 800,
-                fontSize: scrolled ? '1.35rem' : '1.5rem',
-                letterSpacing: '-0.045em',
-                lineHeight: 1,
-                WebkitTextStroke: '0.35px #D4A84A',
-                paintOrder: 'stroke fill',
-              }}
-            >
-              Fie
-            </span>
+            <Wordmark size={scrolled ? '1.4rem' : '1.6rem'} className="transition-[font-size] duration-200 ease-out" />
           </Link>
 
           {/* Desktop nav — sits between logo and actions */}
-          <nav className="hidden md:flex items-center gap-7 lg:gap-8 flex-1 justify-center px-6">
-            {[
-              { href: '/search?mode=SHORT_STAY', label: 'Short Stay' },
-              { href: '/search?mode=TEMP_STAY',  label: 'Monthly' },
-              { href: '/search?mode=PERMANENT',  label: 'Long-Term' },
-              { href: '/how-it-works',            label: 'How it Works' },
-            ].map(({ href, label }) => (
+          <nav className="hidden lg:flex items-center gap-7 xl:gap-8 flex-1 justify-center px-6">
+            {NAV_LINKS.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
                 className="text-[13px] font-medium relative group transition-colors duration-200 hover:text-[var(--color-text-primary)] whitespace-nowrap"
-                style={{ color: 'var(--color-text-muted)' }}
+                style={{ color: 'var(--color-text-secondary)' }}
               >
                 {label}
                 <span
-                  className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-0 h-[1.5px] rounded-full group-hover:w-full transition-all duration-300"
+                  className="absolute -bottom-1 left-0 w-full h-[1.5px] rounded-full origin-center scale-x-0 group-hover:scale-x-100 transition-transform duration-200 ease-out"
                   style={{ backgroundColor: 'var(--color-accent)' }}
                 />
               </Link>
@@ -120,7 +111,7 @@ export function Navbar() {
           </nav>
 
           {/* Desktop actions */}
-          <div className="hidden md:flex items-center gap-0.5 flex-shrink-0">
+          <div className="hidden lg:flex items-center gap-0.5 flex-shrink-0">
             {[
               { href: '/search',                   Icon: Search },
               { href: '/dashboard/guest/wishlist', Icon: Heart },
@@ -133,7 +124,7 @@ export function Navbar() {
                 style={{ color: 'var(--color-text-secondary)' }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'var(--color-accent-subtle)'
-                  e.currentTarget.style.color = 'var(--color-accent)'
+                  e.currentTarget.style.color = 'var(--color-accent-deep)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent'
@@ -163,7 +154,7 @@ export function Navbar() {
                   ) : (
                     <div
                       className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                      style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                     >
                       {(user.name ?? 'U')[0].toUpperCase()}
                     </div>
@@ -190,7 +181,7 @@ export function Navbar() {
                         className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full font-semibold"
                         style={{
                           backgroundColor: user.role === 'HOST' ? 'var(--color-accent-subtle)' : '#EFF6FF',
-                          color: user.role === 'HOST' ? 'var(--color-accent)' : '#2563EB',
+                          color: user.role === 'HOST' ? 'var(--color-accent-deep)' : '#2563EB',
                         }}
                       >
                         {user.role === 'HOST' ? 'Host' : 'Guest'}
@@ -234,8 +225,8 @@ export function Navbar() {
               <>
                 <Link
                   href="/login"
-                  className="text-sm px-5 py-2 rounded-full font-semibold transition-all duration-200 hover:opacity-90"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                  className="pressable text-sm px-5 py-2 rounded-full font-semibold hover:bg-[var(--color-accent-hover)]"
+                  style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                 >
                   Log in
                 </Link>
@@ -253,7 +244,7 @@ export function Navbar() {
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="md:hidden p-2 rounded-full transition-colors duration-200 hover:bg-[var(--color-accent-subtle)]"
+            className="lg:hidden p-2 rounded-full transition-colors duration-200 hover:bg-[var(--color-accent-subtle)]"
             style={{ color: 'var(--color-text-primary)' }}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
@@ -265,7 +256,7 @@ export function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="md:hidden"
+          className="lg:hidden"
           style={{
             backgroundColor: 'rgba(255,255,255,0.96)',
             backdropFilter: 'blur(12px)',
@@ -274,12 +265,7 @@ export function Navbar() {
           }}
         >
           <div className="px-4 py-4 space-y-1">
-            {[
-              { href: '/search?mode=SHORT_STAY', label: 'Short Stay' },
-              { href: '/search?mode=TEMP_STAY',  label: 'Monthly' },
-              { href: '/search?mode=PERMANENT',  label: 'Long-Term' },
-              { href: '/how-it-works',            label: 'How it Works' },
-            ].map(({ href, label }) => (
+            {NAV_LINKS.map(({ href, label }) => (
               <Link
                 key={href}
                 href={href}
@@ -297,7 +283,7 @@ export function Navbar() {
                   <div className="flex items-center gap-3 px-2 py-2">
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
-                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                      style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                     >
                       {(user.name ?? 'U')[0].toUpperCase()}
                     </div>
@@ -310,7 +296,7 @@ export function Navbar() {
                     href={dashboardHref}
                     onClick={() => setMenuOpen(false)}
                     className="text-center py-2.5 rounded-full text-sm font-semibold"
-                    style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                    style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                   >
                     Dashboard
                   </Link>
@@ -328,7 +314,7 @@ export function Navbar() {
                     href="/login"
                     onClick={() => setMenuOpen(false)}
                     className="text-center py-2.5 rounded-full text-sm font-semibold"
-                    style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                    style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                   >
                     Log in
                   </Link>
@@ -347,5 +333,6 @@ export function Navbar() {
         </div>
       )}
     </header>
+    </>
   )
 }

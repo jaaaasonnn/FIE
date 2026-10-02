@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
+import { Wordmark } from '@/components/ui/Wordmark'
 import { Mail, Phone, MapPin, ShieldAlert, Lock } from 'lucide-react'
 
 export function Footer() {
@@ -19,12 +20,9 @@ export function Footer() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div className="lg:col-span-1">
-            <Link href="/" className="flex items-center gap-3 mb-5">
-              <Image src="/logo.png" alt="FieGH" width={48} height={48} style={{ width: 48, height: 'auto' }} />
-              <div className="flex flex-col leading-tight">
-                <span className="text-xl font-bold" style={{ color: 'var(--color-accent)' }}>FieGH</span>
-                <span className="text-[10px] tracking-widest" style={{ color: 'rgba(240,184,78,0.45)', letterSpacing: '0.18em' }}>FIND YOUR FIE</span>
-              </div>
+            <Link href="/" aria-label="FieGH home" className="inline-flex items-center gap-3 mb-5">
+              <Image src="/logo-mark.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
+              <Wordmark size="1.75rem" />
             </Link>
             <p className="text-sm mb-4" style={{ color: 'rgba(250,247,242,0.65)', lineHeight: '1.6' }}>
               &ldquo;Fie&rdquo; means &ldquo;home&rdquo; in Twi.<br />

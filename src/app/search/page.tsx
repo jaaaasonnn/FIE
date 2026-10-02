@@ -91,6 +91,7 @@ function SearchContent() {
     query:        '',
     mode:         params.get('mode')   || '',
     region:       params.get('region') || '',
+    guests:       params.get('guests') || '',
     minPrice:     '',
     maxPrice:     '',
     bedrooms:     '',
@@ -131,6 +132,10 @@ function SearchContent() {
           (l.neighbourhood?.toLowerCase().includes(needle) ?? false),
         )
       }
+
+      // Party size from the homepage search (guests or occupants)
+      const guests = parseInt(filters.guests, 10)
+      if (guests > 0) results = results.filter((l) => l.maxGuests >= guests)
 
       // Client-side price filter (min/max) — not in API yet
       if (filters.minPrice) {
@@ -359,7 +364,7 @@ function SearchContent() {
               <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No properties found</h3>
               <p className="mb-6" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters.</p>
               <Button onClick={() => setFilters({
-                query: '', mode: '', region: '', minPrice: '', maxPrice: '',
+                query: '', mode: '', region: '', guests: '', minPrice: '', maxPrice: '',
                 bedrooms: '', propertyType: '', verified: false,
                 superhost: false, sort: 'newest', amenities: [],
               })}>

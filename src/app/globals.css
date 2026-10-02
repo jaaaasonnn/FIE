@@ -6,6 +6,9 @@
   --color-accent:         #C9932E;
   --color-accent-hover:   #B37F22;
   --color-accent-subtle:  #F5ECD6;   /* tinted bg for accent elements */
+  /* Gold as text or a link: #C9932E is ~2.6:1 on the page bg, this is ~5.3:1.
+     --color-accent itself is for fills and markers, with ink text on top. */
+  --color-accent-deep:    #8A5E10;
   --color-text-primary:   #1F1B16;
   --color-text-secondary: #6B645C;
   --color-text-muted:     #9C9589;
@@ -20,6 +23,10 @@
 
   /* Typography — Manrope via next/font (--font-manrope on <html>) */
   --font-sans: var(--font-manrope), 'Manrope', system-ui, sans-serif;
+  /* Logo wordmark only — Unbounded 900 via next/font (--font-unbounded on <html>) */
+  --font-wordmark: var(--font-unbounded), 'Unbounded', var(--font-sans);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
   /* Legacy aliases — existing components keep working unchanged */
   --brown-dark:    var(--color-surface-dark);
@@ -145,61 +152,137 @@ input, select, textarea, button {
   backdrop-filter: blur(8px);
 }
 
-/* ─── Hero image overlay ────────────────────────────────────────── */
-.hero-overlay {
-  background: linear-gradient(
-    to bottom,
-    rgba(15,11,5,0.12) 0%,
-    rgba(15,11,5,0.52) 60%,
-    rgba(15,11,5,0.92) 100%
-  );
-}
-
-/* ─── Gold shimmer ──────────────────────────────────────────────── */
+/* ─── Shimmer keyframes (used by .skeleton) ─────────────────────── */
 @keyframes shimmer {
   0%   { background-position: -200% center; }
   100% { background-position:  200% center; }
 }
 
-.text-shimmer {
-  background: linear-gradient(90deg, var(--color-accent) 0%, #F5DFA8 50%, var(--color-accent) 100%);
-  background-size: 200% auto;
+/* ─── Logo wordmark: lowercase "fie." in Unbounded 900 ──────────── */
+.wordmark {
+  font-family: var(--font-wordmark);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  display: inline-block;
+}
+/* Small / text-context usage: solid Deep Gold, guaranteed legibility */
+.wordmark-solid { color: var(--color-accent-deep); }
+/* Large standalone usage: glossy gold gradient clipped to the letters */
+.wordmark-gloss {
+  background: linear-gradient(120deg, #B8860B 0%, #E8C468 20%, #F3DFA8 40%, #E8C468 55%, #C9932E 75%, #F3DFA8 100%);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shimmer 3s linear infinite;
+  background-clip: text;
+  color: transparent;
+  /* background-clip: text crops at the line box; give the period and descender-free
+     glyphs a hair of room so the gradient is not cut at the edges */
+  padding: 0.06em 0.04em 0.08em 0;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .text-shimmer { animation: none; }
+/* ─── Landing page ──────────────────────────────────────────────────
+   Shape rule: interactive controls (buttons, tabs, search bar) are full
+   pills; photos, popovers and callouts are 16px (rounded-2xl).        */
+.pressable {
+  transition: transform 160ms var(--ease-out), background-color 200ms ease;
+}
+.pressable:active { transform: scale(0.97); }
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 3px;
 }
 
-/* ─── Entrance + scroll reveal (see src/hooks/useReveal.ts) ─────── */
+/* One load sequence for the hero; nothing else on the page animates in */
 @keyframes hero-enter {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(10px); }
 }
+
+/* Rental-type selector: one pill, the checked segment inverted to ink */
+.mode-segment {
+  color: var(--color-text-secondary);
+  transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.mode-segment:active { transform: scale(0.97); }
+.mode-segment[aria-checked='true'] {
+  background-color: var(--color-text-primary);
+  color: var(--color-bg);
+}
+@media (hover: hover) and (pointer: fine) {
+  .mode-segment:not([aria-checked='true']):hover { color: var(--color-text-primary); }
+}
+
+/* Photo panels. Mobile: stacked in one grid cell, crossfading with the tab.
+   Desktop: a row, the selected panel wide. */
+.mode-panels { display: grid; }
+.mode-panel {
+  grid-area: 1 / 1;
+  min-width: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 280ms var(--ease-out), visibility 0s linear 280ms;
+}
+.mode-panel[data-active='true'] {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 280ms var(--ease-out), visibility 0s;
+}
+@media (min-width: 768px) {
+  .mode-panels { display: flex; gap: 0.75rem; }
+  .mode-panel {
+    flex: 1 1 0;
+    opacity: 1;
+    visibility: visible;
+    /* The one deliberate layout transition on the page: three elements,
+       user-triggered, 280ms. */
+    transition: flex-grow 280ms var(--ease-out);
+  }
+  .mode-panel[data-active='true'] { flex-grow: 2.6; transition: flex-grow 280ms var(--ease-out); }
+  .mode-panel-photo { transition: filter 280ms var(--ease-out); }
+  .mode-panel:not([data-active='true']) .mode-panel-photo { filter: saturate(0.8) brightness(0.96); }
+}
+
+/* Who popover: scales in from its trigger corner */
+.who-popover {
+  transform-origin: top right;
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+@starting-style {
+  .who-popover { opacity: 0; transform: scale(0.97); }
+}
+
+.photo-zoom { transition: transform 400ms var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .photo-zoom-host:hover .photo-zoom { transform: scale(1.03); }
+}
+
+/* FAQ accordion (Radix) */
+@keyframes faq-open  { from { height: 0; } to { height: var(--radix-accordion-content-height); } }
+@keyframes faq-close { from { height: var(--radix-accordion-content-height); } to { height: 0; } }
+.faq-content { overflow: hidden; }
+.faq-content[data-state='open']   { animation: faq-open 220ms var(--ease-out); }
+.faq-content[data-state='closed'] { animation: faq-close 160ms var(--ease-out); }
+.faq-chevron { transition: transform 220ms var(--ease-out); }
+[data-state='open'] > .faq-chevron { transform: rotate(180deg); }
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-enter {
-    animation: hero-enter 700ms cubic-bezier(0.23, 1, 0.32, 1) both;
-    animation-delay: calc(var(--i, 0) * 90ms);
+    animation: hero-enter 500ms var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 70ms);
   }
+}
 
-  .reveal-item {
-    transition: opacity 500ms cubic-bezier(0.23, 1, 0.32, 1),
-                transform 500ms cubic-bezier(0.23, 1, 0.32, 1);
-    transition-delay: calc(var(--i, 0) * 60ms);
-  }
-  [data-reveal='pending'] .reveal-item {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-
-  .reveal-line {
-    transition: transform 700ms cubic-bezier(0.77, 0, 0.175, 1) 150ms;
-  }
-  [data-reveal='pending'] .reveal-line {
-    transform: scaleX(0);
-  }
+@media (prefers-reduced-motion: reduce) {
+  .pressable,
+  .mode-segment,
+  .mode-panel,
+  .mode-panel[data-active='true'],
+  .mode-panel-photo,
+  .who-popover,
+  .photo-zoom,
+  .faq-chevron { transition: none; }
+  .faq-content[data-state='open'],
+  .faq-content[data-state='closed'] { animation: none; }
+  .photo-zoom-host:hover .photo-zoom { transform: none; }
 }
 
 /* ─── Gold divider ──────────────────────────────────────────────── */
@@ -246,7 +329,8 @@ input, select, textarea, button {
   color: var(--color-text-primary);
 }
 .hero-datepicker .react-datepicker__input-container input::placeholder {
-  color: #9CA3AF;
+  color: var(--color-text-secondary);
+  opacity: 1;
 }
 
 /* Popup panel */
@@ -305,29 +389,29 @@ input, select, textarea, button {
 }
 .fiegh-cal .react-datepicker__day:hover {
   background: var(--color-accent-subtle) !important;
-  color: var(--color-accent) !important;
+  color: var(--color-accent-deep) !important;
 }
 
 /* Selected day */
 .fiegh-cal .react-datepicker__day--selected,
 .fiegh-cal .react-datepicker__day--keyboard-selected {
   background: var(--color-accent) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
   font-weight: 700 !important;
   border-radius: 8px !important;
 }
 .fiegh-cal .react-datepicker__day--selected:hover {
   background: var(--color-accent-hover) !important;
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 /* Today marker */
 .fiegh-cal .react-datepicker__day--today {
   font-weight: 800 !important;
-  color: var(--color-accent) !important;
+  color: var(--color-accent-deep) !important;
 }
 .fiegh-cal .react-datepicker__day--today.react-datepicker__day--selected {
-  color: #fff !important;
+  color: var(--color-text-primary) !important;
 }
 
 /* Disabled / outside month */

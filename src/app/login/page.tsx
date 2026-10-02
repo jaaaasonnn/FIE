@@ -3,6 +3,7 @@
 import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
+import { Wordmark } from '@/components/ui/Wordmark'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -98,8 +99,9 @@ function LoginContent() {
     >
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 mb-8 group">
-        <Image src="/logo.png" alt="FieGH" width={44} height={44} style={{ width: 36, height: 'auto' }} />
-        <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>FieGH</span>
+        <Image src="/logo-mark.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
+        <Wordmark size="1.75rem" />
+        <span className="sr-only">FieGH</span>
       </Link>
 
       {/* Card */}
@@ -363,8 +365,9 @@ function LoginFallback() {
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       <div className="flex items-center gap-3 mb-8">
-        <Image src="/logo.png" alt="FieGH" width={44} height={44} style={{ width: 36, height: 'auto' }} />
-        <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>FieGH</span>
+        <Image src="/logo-mark.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
+        <Wordmark size="1.75rem" />
+        <span className="sr-only">FieGH</span>
       </div>
       <div
         className="w-full max-w-md bg-white rounded-3xl shadow-sm border p-8 animate-pulse"
