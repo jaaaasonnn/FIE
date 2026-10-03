@@ -15,6 +15,8 @@ export type ModePhoto = {
   srcSet?: string
   sizes?: string
   alt: string
+  /** CSS object-position, for photos whose subject is off-centre. */
+  position?: string
   /** Set when the photo is a real listing, so the caption can link to it. */
   listingId?: string
   location?: string
@@ -335,6 +337,7 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
                     sizes={photo.sizes}
                     alt=""
                     className="mode-panel-photo absolute inset-0 w-full h-full object-cover"
+                    style={{ objectPosition: photo.position }}
                     fetchPriority={value === 'SHORT_STAY' ? 'high' : 'low'}
                     decoding="async"
                   />

@@ -116,6 +116,29 @@ export function Footer() {
             <span>MoMo & Card accepted</span>
           </div>
         </div>
+
+        {/* Photo credit required by the CC BY 2.0 licence of the Short Stay hero photo */}
+        <p className="mt-4 text-center sm:text-left text-[11px]" style={{ color: 'rgba(250,247,242,0.4)' }}>
+          Home page photo:{' '}
+          <a
+            href="https://commons.wikimedia.org/wiki/File:Luxury_Villa_House_(South_Ghana).jpg"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2"
+          >
+            &ldquo;Luxury Villa House (South Ghana)&rdquo;
+          </a>{' '}
+          by Remy Mboku,{' '}
+          <a
+            href="https://creativecommons.org/licenses/by/2.0/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline underline-offset-2"
+          >
+            CC BY 2.0
+          </a>
+          , cropped.
+        </p>
       </div>
     </footer>
   )

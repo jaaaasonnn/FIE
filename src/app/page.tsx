@@ -10,12 +10,24 @@ import { HostCTASection } from '@/components/home/HostCTASection'
 // than baking one set in at build time.
 export const revalidate = 3600
 
+// Unsplash serves any width on request, so hero photos get a srcset and
+// phones are not sent the desktop-sized file. Other hosts (listing uploads)
+// are used as they are.
+const HERO_WIDTHS = [640, 960, 1400]
+const HERO_SIZES = '(min-width: 768px) 720px, 100vw'
+
 // Used when a rental type has no listing with a photo yet (or the database
-// is unreachable). All three are geotagged Ghana photographs.
-const FALLBACK_PHOTOS: Record<RentalMode, { src: string; alt: string }> = {
+// is unreachable). All three are photographs taken in Ghana.
+const FALLBACK_PHOTOS: Record<RentalMode, Omit<ModePhoto, 'listingId' | 'location'>> = {
+  // "Luxury Villa House (South Ghana)" by Remy Mboku, CC BY 2.0, cropped to
+  // lose most of the sky. The licence requires the credit shown in the Footer.
   SHORT_STAY: {
-    src: 'https://images.unsplash.com/photo-1591465709469-5de113a071cc?w=1400&q=80',
-    alt: 'A two-storey house behind coconut palms and a lawn in Prampram',
+    src: '/hero/short-stay-villa-accra-1600.jpg',
+    srcSet: '/hero/short-stay-villa-accra-800.jpg 800w, /hero/short-stay-villa-accra-1600.jpg 1600w',
+    sizes: HERO_SIZES,
+    alt: 'A villa with a pool and terrace in Greater Accra',
+    // Keeps the villa in frame when the panel narrows
+    position: '65% 50%',
   },
   TEMP_STAY: {
     src: 'https://images.unsplash.com/photo-1568025848823-86404cd04ad1?w=1400&q=80',
@@ -38,14 +50,8 @@ const HERO_REJECTED = new Set([
   'https://images.unsplash.com/photo-1777052854737-7893f50de539?w=900&q=80',
 ])
 
-// Unsplash serves any width on request, so hero photos get a srcset and
-// phones are not sent the desktop-sized file. Other hosts (listing uploads)
-// are used as they are.
-const HERO_WIDTHS = [640, 960, 1400]
-const HERO_SIZES = '(min-width: 768px) 720px, 100vw'
-
 function heroPhoto(url: string) {
-  if (!url.includes('images.unsplash.com')) return { src: url }
+  if (!url.includes('images.unsplash.com')) return {}
   const at = (w: number) => url.replace(/([?&])w=\d+/, `$1w=${w}`).replace(/([?&])q=\d+/, '$1q=70')
   return {
     src: at(1400),
@@ -87,6 +93,7 @@ async function getModePhotos(): Promise<Record<RentalMode, ModePhoto>> {
       usedListings.add(pick.id)
       usedPhotos.add(pick.photo)
       photos[value] = {
+        src: pick.photo,
         ...heroPhoto(pick.photo),
         alt: pick.title,
         listingId: pick.id,
@@ -94,7 +101,7 @@ async function getModePhotos(): Promise<Record<RentalMode, ModePhoto>> {
       }
     } else {
       const fallback = FALLBACK_PHOTOS[value]
-      photos[value] = { ...heroPhoto(fallback.src), alt: fallback.alt }
+      photos[value] = { ...fallback, ...heroPhoto(fallback.src) }
     }
   }
 
