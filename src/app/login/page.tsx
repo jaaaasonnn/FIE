@@ -2,8 +2,7 @@
 
 import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
-import { Wordmark } from '@/components/ui/Wordmark'
+import { Logo } from '@/components/ui/Wordmark'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -99,8 +98,7 @@ function LoginContent() {
     >
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 mb-8 group">
-        <Image src="/logo-mark-gold.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
-        <Wordmark size="1.75rem" />
+        <Logo height={26} />
         <span className="sr-only">FieGH</span>
       </Link>
 
@@ -365,8 +363,7 @@ function LoginFallback() {
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       <div className="flex items-center gap-3 mb-8">
-        <Image src="/logo-mark-gold.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
-        <Wordmark size="1.75rem" />
+        <Logo height={26} />
         <span className="sr-only">FieGH</span>
       </div>
       <div

@@ -1,12 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useRef, useEffect } from 'react'
 import { Menu, X, Search, Heart, MessageSquare, ChevronDown, LayoutDashboard, LogOut, UserCircle, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
-import { Wordmark } from '@/components/ui/Wordmark'
+import { Logo } from '@/components/ui/Wordmark'
 
 const NAV_LINKS = [
   { href: '/search?mode=SHORT_STAY', label: 'Short Stay' },
@@ -54,7 +53,6 @@ export function Navbar() {
   }
 
   const dashboardHref = user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'
-  const markWidth = scrolled ? 26 : 30
   const barHeight = scrolled ? '3.75rem' : '4.25rem'
 
   return (
@@ -79,17 +77,9 @@ export function Navbar() {
           className="flex items-center justify-between transition-all duration-200 ease-out"
           style={{ height: barHeight }}
         >
-          {/* Logo: mark + "fie." wordmark, both flat brand gold */}
+          {/* Logo: mark + "fie." wordmark, compact once scrolled */}
           <Link href="/" aria-label="FieGH home" className="flex items-center gap-2.5 flex-shrink-0 focus-ring rounded-lg">
-            <Image
-              src="/logo-mark-gold.png"
-              alt=""
-              width={84}
-              height={50}
-              style={{ width: markWidth, height: 'auto', transition: 'width 200ms ease-out' }}
-              priority
-            />
-            <Wordmark size={scrolled ? '1.4rem' : '1.6rem'} className="transition-[font-size] duration-200 ease-out" />
+            <Logo height={scrolled ? 21 : 24} />
           </Link>
 
           {/* Desktop nav — sits between logo and actions */}

@@ -1,11 +1,12 @@
 import Link from 'next/link'
-import Image from 'next/image'
-import { Wordmark } from '@/components/ui/Wordmark'
+import { Logo } from '@/components/ui/Wordmark'
 import { Mail, Phone, MapPin, ShieldAlert, Lock } from 'lucide-react'
 
 export function Footer() {
+  // The logo gold is tuned for light pages; on this dark surface it goes
+  // dull, so the footer uses the brighter accent for it.
   return (
-    <footer style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--cream)' }}>
+    <footer style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--cream)', '--color-logo': 'var(--color-accent)' } as React.CSSProperties}>
       {/* Warning banner */}
       <div style={{ backgroundColor: 'rgba(200,135,63,0.12)', borderBottom: '1px solid rgba(240,184,78,0.15)' }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -21,8 +22,7 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" aria-label="FieGH home" className="inline-flex items-center gap-3 mb-5">
-              <Image src="/logo-mark-gold.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
-              <Wordmark size="1.75rem" />
+              <Logo height={26} />
             </Link>
             <p className="text-sm mb-4" style={{ color: 'rgba(250,247,242,0.65)', lineHeight: '1.6' }}>
               &ldquo;Fie&rdquo; means &ldquo;home&rdquo; in Twi.<br />

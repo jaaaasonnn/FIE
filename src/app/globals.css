@@ -9,6 +9,8 @@
   /* Gold as text or a link: #C9932E is ~2.6:1 on the page bg, this is ~5.3:1.
      --color-accent itself is for fills and markers, with ink text on top. */
   --color-accent-deep:    #8A5E10;
+  /* Logo only (mark + wordmark): a richer gold than the accent, ~3.3:1 on the page bg */
+  --color-logo:           #B58219;
   --color-text-primary:   #1F1B16;
   --color-text-secondary: #6B645C;
   --color-text-muted:     #9C9589;
@@ -166,8 +168,29 @@ input, select, textarea, button {
   letter-spacing: -0.04em;
   line-height: 1;
   display: inline-block;
-  color: var(--color-accent);
+  color: var(--color-logo);
 }
+
+/* Mark + wordmark lockup. font-size on .logo is the mark's height; the mark
+   is a mask so it takes --color-logo like the letters do. */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.42em;
+  line-height: 1;
+  transition: font-size 200ms ease-out;
+}
+.logo-mark {
+  flex: none;
+  height: 1em;
+  aspect-ratio: 646 / 384;
+  background-color: var(--color-logo);
+  -webkit-mask: url('/logo-mark.png') center / contain no-repeat;
+  mask: url('/logo-mark.png') center / contain no-repeat;
+}
+/* Unbounded's letters are ~0.87em tall, so this keeps them at about
+   three-quarters of the mark's height */
+.logo .wordmark { font-size: 0.9em; }
 
 /* ─── Landing page ──────────────────────────────────────────────────
    Shape rule: interactive controls (buttons, tabs, search bar) are full
