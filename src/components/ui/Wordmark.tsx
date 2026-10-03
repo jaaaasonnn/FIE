@@ -1,24 +1,16 @@
 /**
  * The "fie." wordmark, lowercase with the period, in Unbounded 900.
- *
- * gloss: large, standalone usage (nav, footer, auth screens). Glossy gold gradient.
- * solid: small or text-adjacent usage where legibility has to be guaranteed.
- *        Solid Deep Gold, no gradient.
+ * Flat brand gold (#C9932E) on every background, matching the logo mark.
  */
 export function Wordmark({
-  variant = 'gloss',
   size = '1.5rem',
   className = '',
 }: {
-  variant?: 'gloss' | 'solid'
   size?: string
   className?: string
 }) {
   return (
-    <span
-      className={`wordmark ${variant === 'gloss' ? 'wordmark-gloss' : 'wordmark-solid'} ${className}`}
-      style={{ fontSize: size }}
-    >
+    <span className={`wordmark ${className}`} style={{ fontSize: size }}>
       fie.
     </span>
   )

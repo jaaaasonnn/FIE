@@ -99,7 +99,7 @@ function LoginContent() {
     >
       {/* Logo */}
       <Link href="/" className="flex items-center gap-3 mb-8 group">
-        <Image src="/logo-mark.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
+        <Image src="/logo-mark-gold.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
         <Wordmark size="1.75rem" />
         <span className="sr-only">FieGH</span>
       </Link>
@@ -365,7 +365,7 @@ function LoginFallback() {
       style={{ backgroundColor: 'var(--color-bg)' }}
     >
       <div className="flex items-center gap-3 mb-8">
-        <Image src="/logo-mark.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
+        <Image src="/logo-mark-gold.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
         <Wordmark size="1.75rem" />
         <span className="sr-only">FieGH</span>
       </div>

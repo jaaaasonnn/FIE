@@ -21,7 +21,7 @@ export function Footer() {
           {/* Brand */}
           <div className="lg:col-span-1">
             <Link href="/" aria-label="FieGH home" className="inline-flex items-center gap-3 mb-5">
-              <Image src="/logo-mark.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
+              <Image src="/logo-mark-gold.png" alt="" width={84} height={50} style={{ width: 34, height: 'auto' }} />
               <Wordmark size="1.75rem" />
             </Link>
             <p className="text-sm mb-4" style={{ color: 'rgba(250,247,242,0.65)', lineHeight: '1.6' }}>

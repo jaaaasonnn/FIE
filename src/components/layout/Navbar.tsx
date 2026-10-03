@@ -79,10 +79,10 @@ export function Navbar() {
           className="flex items-center justify-between transition-all duration-200 ease-out"
           style={{ height: barHeight }}
         >
-          {/* Logo: Deep Gold mark + glossy "fie." wordmark */}
+          {/* Logo: mark + "fie." wordmark, both flat brand gold */}
           <Link href="/" aria-label="FieGH home" className="flex items-center gap-2.5 flex-shrink-0 focus-ring rounded-lg">
             <Image
-              src="/logo-mark.png"
+              src="/logo-mark-gold.png"
               alt=""
               width={84}
               height={50}

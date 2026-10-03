@@ -158,25 +158,15 @@ input, select, textarea, button {
   100% { background-position:  200% center; }
 }
 
-/* ─── Logo wordmark: lowercase "fie." in Unbounded 900 ──────────── */
+/* ─── Logo wordmark: lowercase "fie." in Unbounded 900 ────────────
+   Flat brand gold on light and dark alike, same colour as the mark. */
 .wordmark {
   font-family: var(--font-wordmark);
   font-weight: 900;
   letter-spacing: -0.04em;
   line-height: 1;
   display: inline-block;
-}
-/* Small / text-context usage: solid Deep Gold, guaranteed legibility */
-.wordmark-solid { color: var(--color-accent-deep); }
-/* Large standalone usage: glossy gold gradient clipped to the letters */
-.wordmark-gloss {
-  background: linear-gradient(120deg, #B8860B 0%, #E8C468 20%, #F3DFA8 40%, #E8C468 55%, #C9932E 75%, #F3DFA8 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  /* background-clip: text crops at the line box; give the period and descender-free
-     glyphs a hair of room so the gradient is not cut at the edges */
-  padding: 0.06em 0.04em 0.08em 0;
+  color: var(--color-accent);
 }
 
 /* ─── Landing page ──────────────────────────────────────────────────
