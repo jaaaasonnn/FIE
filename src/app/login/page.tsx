@@ -4,7 +4,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Logo } from '@/components/ui/Wordmark'
 import Link from 'next/link'
-import { Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Eye, EyeOff, Loader2, Search, Home } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 type Tab = 'login' | 'signup'
@@ -133,7 +133,7 @@ function LoginContent() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                Email or Phone Number
+                Email or phone number
               </label>
               <input
                 type="text"
@@ -195,7 +195,7 @@ function LoginContent() {
               className="w-full py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 mt-2"
               style={{
                 backgroundColor: 'var(--color-accent)',
-                color:           '#fff',
+                color:           'var(--color-text-primary)',
                 opacity:         loginBusy ? 0.7 : 1,
               }}
             >
@@ -206,7 +206,7 @@ function LoginContent() {
             <p className="text-center text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
               No account?{' '}
               <button type="button" onClick={() => setTab('signup')}
-                className="font-semibold underline" style={{ color: 'var(--color-accent)' }}>
+                className="font-semibold underline" style={{ color: 'var(--color-accent-deep)' }}>
                 Sign up free
               </button>
             </p>
@@ -221,9 +221,9 @@ function LoginContent() {
               <p className="text-xs font-semibold mb-2" style={{ color: 'var(--color-text-secondary)' }}>I want to…</p>
               <div className="grid grid-cols-2 gap-2">
                 {([
-                  { value: 'GUEST', icon: '🔍', label: 'Find a place', sub: 'Browse & book rentals' },
-                  { value: 'HOST',  icon: '🏠', label: 'List my place', sub: 'Earn from your property' },
-                ] as const).map(({ value, icon, label, sub }) => (
+                  { value: 'GUEST', icon: Search, label: 'Find a place', sub: 'Browse & book rentals' },
+                  { value: 'HOST',  icon: Home, label: 'List my place', sub: 'Earn from your property' },
+                ] as const).map(({ value, icon: Icon, label, sub }) => (
                   <button
                     key={value}
                     type="button"
@@ -231,10 +231,10 @@ function LoginContent() {
                     className="p-3.5 rounded-2xl border-2 text-left transition-all"
                     style={{
                       borderColor:     role === value ? 'var(--color-accent)' : 'var(--color-border)',
-                      backgroundColor: role === value ? '#FFF8EE' : '#fff',
+                      backgroundColor: role === value ? 'var(--color-accent-subtle)' : '#fff',
                     }}
                   >
-                    <div className="text-xl mb-1">{icon}</div>
+                    <Icon size={18} strokeWidth={1.75} aria-hidden className="mb-1.5" style={{ color: 'var(--color-text-primary)' }} />
                     <p className="text-xs font-bold" style={{ color: 'var(--color-text-primary)' }}>{label}</p>
                     <p className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{sub}</p>
                   </button>
@@ -244,7 +244,7 @@ function LoginContent() {
 
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                Full Name
+                Full name
               </label>
               <input
                 type="text"
@@ -261,7 +261,7 @@ function LoginContent() {
 
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                Email Address
+                Email address
               </label>
               <input
                 type="email"
@@ -302,7 +302,7 @@ function LoginContent() {
 
             <div>
               <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
-                Confirm Password
+                Confirm password
               </label>
               <input
                 type="password"
@@ -342,7 +342,7 @@ function LoginContent() {
             <p className="text-center text-xs" style={{ color: 'var(--color-text-secondary)' }}>
               Already have an account?{' '}
               <button type="button" onClick={() => setTab('login')}
-                className="font-semibold underline" style={{ color: 'var(--color-accent)' }}>
+                className="font-semibold underline" style={{ color: 'var(--color-accent-deep)' }}>
                 Log in
               </button>
             </p>
