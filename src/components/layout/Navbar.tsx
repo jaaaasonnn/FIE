@@ -55,12 +55,10 @@ export function Navbar() {
   const messagesHref = isHost ? '/dashboard/host/messages' : '/dashboard/guest/messages'
   // Guests' bookings are the first tab of their dashboard; there is no /dashboard/guest/bookings
   const bookingsHref = isHost ? '/dashboard/host/bookings' : '/dashboard/guest'
-  // Hosts go to their dashboard; everyone else is invited to host. Admins get neither.
-  const hostLink = isHost
-    ? { href: '/dashboard/host', label: 'Host dashboard' }
-    : user?.role === 'ADMIN'
-      ? null
-      : { href: '/login?tab=signup&role=host', label: 'Become a host' }
+  // Hosts reach their dashboard from the user menu, under its own name
+  const dashboardLabel = isHost ? 'Host dashboard' : 'Dashboard'
+  // Only signed-out visitors are invited to host
+  const showBecomeHost = !loading && !user
   const barHeight = scrolled ? '3.75rem' : '4.25rem'
 
   return (
@@ -110,13 +108,13 @@ export function Navbar() {
 
           {/* Desktop actions */}
           <div className="hidden lg:flex items-center gap-0.5 flex-shrink-0">
-            {!loading && hostLink && (
+            {showBecomeHost && (
               <Link
-                href={hostLink.href}
+                href="/login?tab=signup&role=host"
                 className="text-sm px-4 py-2 rounded-full font-semibold whitespace-nowrap mr-2.5 transition-colors duration-200 hover:bg-[var(--color-accent-subtle)]"
                 style={{ color: 'var(--color-text-primary)', border: '1px solid var(--color-border-strong)' }}
               >
-                {hostLink.label}
+                Become a host
               </Link>
             )}
 
@@ -176,7 +174,7 @@ export function Navbar() {
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors"
                       style={{ color: 'var(--color-text-primary)' }}
                     >
-                      <LayoutDashboard size={14} /> Dashboard
+                      <LayoutDashboard size={14} /> {dashboardLabel}
                     </Link>
                     <Link
                       href={bookingsHref}
@@ -275,15 +273,14 @@ export function Navbar() {
                 {label}
               </Link>
             ))}
-            {/* Hosts already get a Dashboard button below */}
-            {!loading && hostLink && !isHost && (
+            {showBecomeHost && (
               <Link
-                href={hostLink.href}
+                href="/login?tab=signup&role=host"
                 onClick={() => setMenuOpen(false)}
                 className="block py-2.5 px-3 text-sm font-medium rounded-xl hover:bg-[var(--color-accent-subtle)] transition-colors"
                 style={{ color: 'var(--color-text-primary)' }}
               >
-                {hostLink.label}
+                Become a host
               </Link>
             )}
 
@@ -322,7 +319,7 @@ export function Navbar() {
                     className="text-center py-2.5 rounded-full text-sm font-semibold"
                     style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                   >
-                    Dashboard
+                    {dashboardLabel}
                   </Link>
                   <button
                     onClick={handleSignOut}
