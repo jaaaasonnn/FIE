@@ -2,13 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, Camera, CheckCircle, AlertCircle } from 'lucide-react'
+import { Upload, Camera, CheckCircle, AlertCircle, IdCard, ShieldCheck } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 
 const ID_TYPES = [
-  { value: 'GHANA_CARD', label: '🪪 Ghana Card (NIA)' },
-  { value: 'PASSPORT', label: '📗 Passport' },
-  { value: 'VOTER_ID', label: '🗳️ Voter ID' },
+  { value: 'GHANA_CARD', label: 'Ghana Card (NIA)' },
+  { value: 'PASSPORT', label: 'Passport' },
+  { value: 'VOTER_ID', label: 'Voter ID' },
 ]
 
 export default function VerifyIdPage() {
@@ -48,8 +48,8 @@ export default function VerifyIdPage() {
       <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
         <div className="max-w-md w-full text-center">
           <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"
-            style={{ backgroundColor: '#D1FAE5' }}>
-            <CheckCircle size={40} style={{ color: '#059669' }} />
+            style={{ backgroundColor: 'var(--color-accent-subtle)' }}>
+            <CheckCircle size={40} style={{ color: 'var(--color-accent-deep)' }} />
           </div>
           <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>
             Verification Submitted!
@@ -59,11 +59,11 @@ export default function VerifyIdPage() {
             You can start browsing listings while we review.
           </p>
           <div className="p-4 rounded-xl mb-8 text-left"
-            style={{ backgroundColor: '#FBE8BB', border: '1px solid var(--gold)' }}>
+            style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
             <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>What happens next?</p>
             <ul className="text-sm text-[#4A4540] space-y-1">
               <li>• Our team reviews your ID (usually within a few hours)</li>
-              <li>• You get a ✅ Verified badge on your profile</li>
+              <li>• You get a Verified badge on your profile</li>
               <li>• You can then make bookings or list properties</li>
             </ul>
           </div>
@@ -74,7 +74,7 @@ export default function VerifyIdPage() {
             onClick={() => router.push('/search')}
             className="mt-3 w-full py-3 text-sm font-medium text-[#6B645C] hover:text-stone-900"
           >
-            Browse listings first →
+            Browse listings first
           </button>
         </div>
       </div>
@@ -86,8 +86,8 @@ export default function VerifyIdPage() {
       <div className="max-w-lg mx-auto">
         <div className="text-center mb-10">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ backgroundColor: 'var(--brown-dark)' }}>
-            <span className="text-2xl">🪪</span>
+            style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
+            <IdCard size={28} strokeWidth={1.75} aria-hidden />
           </div>
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
             Verify Your Identity
@@ -98,9 +98,9 @@ export default function VerifyIdPage() {
         </div>
 
         <div className="p-4 rounded-xl mb-8 flex items-start gap-3"
-          style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-          <AlertCircle size={18} style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }} />
-          <p className="text-sm" style={{ color: '#1E40AF' }}>
+          style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
+          <ShieldCheck size={18} aria-hidden style={{ color: 'var(--color-accent-deep)', flexShrink: 0, marginTop: 2 }} />
+          <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
             Your ID is only used for verification and is stored securely. It is never shared with other users.
           </p>
         </div>
@@ -120,13 +120,13 @@ export default function VerifyIdPage() {
                   className="flex items-center gap-3 p-4 rounded-xl border-2 text-sm font-medium transition-all text-left"
                   style={
                     idType === value
-                      ? { borderColor: 'var(--color-accent)', backgroundColor: '#FFF8EE', color: 'var(--color-text-primary)' }
-                      : { borderColor: '#E5E7EB', backgroundColor: '#fff', color: '#6B7280' }
+                      ? { borderColor: 'var(--color-accent)', backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-text-primary)' }
+                      : { borderColor: 'var(--color-border)', backgroundColor: '#fff', color: 'var(--color-text-secondary)' }
                   }
                 >
-                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0
-                    ${idType === value ? 'border-amber-500' : 'border-stone-300'}`}>
-                    {idType === value && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                  <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                    style={{ borderColor: idType === value ? 'var(--color-accent)' : 'var(--color-border-strong)' }}>
+                    {idType === value && <div className="w-2 h-2 rounded-full" style={{ backgroundColor: 'var(--color-accent)' }} />}
                   </div>
                   {label}
                 </button>
@@ -187,7 +187,7 @@ export default function VerifyIdPage() {
               {selfie ? (
                 <>
                   <CheckCircle size={28} className="mx-auto mb-2" style={{ color: 'var(--color-accent)' }} />
-                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Selfie added ✓</p>
+                  <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Selfie added</p>
                 </>
               ) : (
                 <>
