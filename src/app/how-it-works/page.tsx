@@ -36,11 +36,10 @@ const muted = { color: 'var(--color-text-secondary)' }
 const rule = { borderColor: 'var(--color-border)' }
 
 /** One audience's six steps: heading on the left, the numbered sequence on the right. */
-function Steps({ id, audience, heading, steps }: { id: string; audience: string; heading: string; steps: Step[] }) {
+function Steps({ id, heading, steps }: { id: string; heading: string; steps: Step[] }) {
   return (
     <section id={id} className="scroll-mt-24 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-14 py-12 md:py-16 border-t" style={rule}>
       <div className="mb-8 lg:mb-0">
-        <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-accent-deep)' }}>{audience}</p>
         <h2 className="text-[1.75rem] md:text-[2rem]" style={ink}>{heading}</h2>
       </div>
       <ol>
@@ -70,7 +69,6 @@ export default function HowItWorksPage() {
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-14 pb-16 md:pb-24">
         <header className="mb-10 md:mb-14">
-          <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-accent-deep)' }}>Simple & Transparent</p>
           <h1 className="text-[2.25rem] md:text-[3rem]" style={ink}>
             How FieGH works
           </h1>
@@ -79,8 +77,8 @@ export default function HowItWorksPage() {
           </p>
         </header>
 
-        <Steps id="guests" audience="For Guests" heading="How to rent on FieGH" steps={guestSteps} />
-        <Steps id="hosts" audience="For Hosts" heading="How to host on FieGH" steps={hostSteps} />
+        <Steps id="guests" heading="How to rent on FieGH" steps={guestSteps} />
+        <Steps id="hosts" heading="How to host on FieGH" steps={hostSteps} />
 
         {/* Fees */}
         <section className="py-12 md:py-16 border-t" style={rule}>

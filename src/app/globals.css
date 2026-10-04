@@ -86,13 +86,6 @@ h4 { font-weight: 600; letter-spacing: -0.015em; }
   letter-spacing: -0.025em;
 }
 
-.label-caps {
-  font-weight: 600;
-  font-size: 0.68rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
 .font-serif { font-family: var(--font-sans); }
 .font-sans  { font-family: var(--font-sans); }
 
