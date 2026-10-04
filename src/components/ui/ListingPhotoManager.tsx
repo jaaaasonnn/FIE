@@ -119,7 +119,7 @@ export function ListingPhotoManager({ listingId, photos, onPhotosChange }: Listi
       </div>
 
       {error && <p className="text-xs text-red-600">{error}</p>}
-      <p className="text-xs text-[#6B645C]">JPG, PNG, or WEBP. Max 5MB each — larger photos are compressed automatically.</p>
+      <p className="text-xs text-[#6B645C]">JPG, PNG, or WEBP. Max 5MB each. Larger photos are compressed automatically.</p>
     </div>
   )
 }

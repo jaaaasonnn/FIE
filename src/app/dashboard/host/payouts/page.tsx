@@ -53,7 +53,7 @@ function methodLabel(p: ApiPayout): string {
     if (p.momoNetwork === 'AIRTELTIGO') return 'AirtelTigo Money'
     return 'Mobile Money'
   }
-  if (p.method === 'BANK_TRANSFER') return p.bankName ? `Bank — ${p.bankName}` : 'Bank Transfer'
+  if (p.method === 'BANK_TRANSFER') return p.bankName ? `Bank: ${p.bankName}` : 'Bank Transfer'
   return p.method
 }
 
@@ -178,7 +178,7 @@ export default function HostPayoutsPage() {
         return
       }
       setSavedMethod(data.payoutMethod)
-      setSaveSuccess(`Payout method saved — verified as ${data.payoutMethod.payoutBankAccountName}.`)
+      setSaveSuccess(`Payout method saved and verified as ${data.payoutMethod.payoutBankAccountName}.`)
       setAddingMethod(false)
       setPassword('')
       setMomoNetwork(''); setMomoNumber(''); setBankCode(''); setBankAccountNumber('')

@@ -164,7 +164,7 @@ export default function WishlistPage() {
           <div className="text-center py-20">
             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Nothing saved yet</h3>
             <p className="text-[#6B645C] mb-6 max-w-sm mx-auto">
-              Tap the heart on a home you love — it&apos;ll wait for you here.
+              Tap the heart on a home you love and it&apos;ll wait for you here.
             </p>
             <Link href="/search" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
               style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
@@ -216,7 +216,7 @@ export default function WishlistPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                          ${listing.price ?? '—'}<span className="text-xs font-normal text-[#6B645C]">{listing.priceUnit}</span>
+                          ${listing.price ?? '-'}<span className="text-xs font-normal text-[#6B645C]">{listing.priceUnit}</span>
                         </span>
                         {listing.price != null && (
                           <div className="text-xs text-stone-400">≈ GH₵ {(listing.price * ghsRate).toLocaleString()}</div>

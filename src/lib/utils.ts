@@ -58,7 +58,7 @@ export const MOMO_NETWORKS = ['MTN', 'Vodafone', 'AirtelTigo']
 
 export const RENTAL_MODES = {
   SHORT_STAY: { label: 'Short Stay', desc: 'Nightly or weekly' },
-  TEMP_STAY: { label: 'Temporary Stay', desc: '1–11 months' },
+  TEMP_STAY: { label: 'Temporary Stay', desc: '1 to 11 months' },
   PERMANENT: { label: 'Permanent Rental', desc: '12+ months lease' }
 }
 

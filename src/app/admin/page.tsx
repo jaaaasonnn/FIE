@@ -245,11 +245,11 @@ export default function AdminPage() {
               {activeTab === 'Overview' && (
                 <div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-                    <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value={stats?.totalUsers ?? '—'} />
-                    <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value={stats?.totalListings ?? '—'} />
-                    <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value={stats?.totalBookings ?? '—'}
+                    <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value={stats?.totalUsers ?? '-'} />
+                    <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value={stats?.totalListings ?? '-'} />
+                    <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value={stats?.totalBookings ?? '-'}
                       sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString()} total value` : undefined} />
-                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString()}` : '—'}
+                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString()}` : '-'}
                       sub="8% commission" />
                   </div>
 
@@ -306,7 +306,7 @@ export default function AdminPage() {
                                     {(u.name ?? '?')[0]}
                                   </div>
                                   <div>
-                                    <span className="font-medium block" style={{ color: 'var(--color-text-primary)' }}>{u.name ?? '—'}</span>
+                                    <span className="font-medium block" style={{ color: 'var(--color-text-primary)' }}>{u.name ?? '-'}</span>
                                     <span className="text-xs text-stone-400">{u.email ?? ''}</span>
                                   </div>
                                 </div>
@@ -320,7 +320,7 @@ export default function AdminPage() {
                                   {u.role}
                                 </span>
                               </td>
-                              <td className="py-3 px-3 text-[#6B645C]">{u.phone ?? '—'}</td>
+                              <td className="py-3 px-3 text-[#6B645C]">{u.phone ?? '-'}</td>
                               <td className="py-3 px-3">
                                 {u.isVerified
                                   ? <CheckCircle size={16} style={{ color: '#059669' }} />
@@ -476,7 +476,7 @@ export default function AdminPage() {
                     </div>
                     <p className="text-sm text-[#6B645C] mb-4">
                       Auto-fetched from ExchangeRate-API every 6 hours (1% buffer applied). Set a
-                      value here to override it manually — the next automatic fetch will replace it.
+                      value here to override it manually. The next automatic fetch will replace it.
                     </p>
 
                     {rateAutoFetchStatus && !rateAutoFetchStatus.ok && (
@@ -485,7 +485,7 @@ export default function AdminPage() {
                         <AlertTriangle size={16} style={{ color: '#991B1B', flexShrink: 0, marginTop: 2 }} />
                         <p className="text-xs" style={{ color: '#991B1B' }}>
                           Last automatic fetch failed at {new Date(rateAutoFetchStatus.at).toLocaleString()}:{' '}
-                          {rateAutoFetchStatus.error}. Still using the rate below — nothing is broken,
+                          {rateAutoFetchStatus.error}. Still using the rate below. Nothing is broken,
                           but the automation needs a look if this keeps happening.
                         </p>
                       </div>

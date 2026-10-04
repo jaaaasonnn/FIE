@@ -153,7 +153,7 @@ export default function ProfilePage() {
               <div className="flex flex-wrap gap-4 text-sm text-[#6B645C] mb-4">
                 <span className="flex items-center gap-1">
                   <Star size={14} className="fill-amber-400 text-amber-400" />
-                  {profile.avgRating || '—'} avg rating
+                  {profile.avgRating || '-'} avg rating
                 </span>
                 <span className="flex items-center gap-1">
                   <Shield size={14} style={{ color: '#2563EB' }} />
@@ -176,11 +176,11 @@ export default function ProfilePage() {
               <div className="grid grid-cols-2 gap-3 text-xs text-[#6B645C] mb-4">
                 <div className="p-3 rounded-xl bg-stone-50">
                   <p className="text-stone-400 mb-0.5">Response rate</p>
-                  <p className="font-semibold text-sm">—</p>
+                  <p className="font-semibold text-sm">-</p>
                 </div>
                 <div className="p-3 rounded-xl bg-stone-50">
                   <p className="text-stone-400 mb-0.5">Response time</p>
-                  <p className="font-semibold text-sm">—</p>
+                  <p className="font-semibold text-sm">-</p>
                 </div>
               </div>
 

@@ -59,7 +59,7 @@ function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userI
     if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed`
     else if (b.status === 'CANCELLED') message = `Your booking at ${title} was cancelled`
     else if (b.status === 'DECLINED') message = `Your booking request at ${title} was declined`
-    else if (b.status === 'COMPLETED') message = `Your stay at ${title} is complete — leave a review!`
+    else if (b.status === 'COMPLETED') message = `Your stay at ${title} is complete. Leave a review!`
     if (!message) continue
     items.push({
       id: `booking-${b.id}`,
@@ -221,12 +221,12 @@ export default function GuestDashboardPage() {
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />}
-            label="Total Bookings" value={dataLoading ? '—' : bookings.length}
+            label="Total Bookings" value={dataLoading ? '-' : bookings.length}
             sub={dataLoading ? undefined : `${completedCount} completed`} />
           <StatCard icon={<Heart size={18} style={{ color: '#EF4444' }} />}
-            label="Saved Properties" value={dataLoading ? '—' : wishlistCount} />
+            label="Saved Properties" value={dataLoading ? '-' : wishlistCount} />
           <StatCard icon={<Star size={18} style={{ color: '#F59E0B' }} />}
-            label="Reviews Given" value={dataLoading ? '—' : reviewsGivenCount} />
+            label="Reviews Given" value={dataLoading ? '-' : reviewsGivenCount} />
           <StatCard icon={<TrendingUp size={18} style={{ color: '#059669' }} />}
             label="Trust Score" value={`${user.trustScore ?? 0}/100`}
             sub={user.isVerified ? undefined : 'ID verify to boost'} />
@@ -329,7 +329,7 @@ export default function GuestDashboardPage() {
                         <p className="text-xs text-[#6B645C] mt-1">{MODE_LABELS[b.rentalMode] ?? b.rentalMode}</p>
                         <p className="text-xs text-[#6B645C]">
                           {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
-                          {' – '}
+                          {' to '}
                           {new Date(b.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>

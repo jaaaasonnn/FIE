@@ -182,7 +182,7 @@ export default function EditProfilePage() {
 
         {success && (
           <div className="flex items-center gap-2 p-4 rounded-xl mb-4 text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7' }}>
-            <CheckCircle2 size={16} /> Profile updated — taking you to your profile…
+            <CheckCircle2 size={16} /> Profile updated. Taking you to your profile…
           </div>
         )}
 
@@ -218,7 +218,7 @@ export default function EditProfilePage() {
             </div>
             <div>
               <p className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>Profile photo</p>
-              <p className="text-xs text-[#6B645C]">JPG, PNG, or WEBP. Uploads instantly — no need to resize first.</p>
+              <p className="text-xs text-[#6B645C]">JPG, PNG, or WEBP. Uploads instantly, no need to resize first.</p>
               {errors.photo && <p className="mt-1 text-xs text-red-600">{errors.photo}</p>}
             </div>
           </div>

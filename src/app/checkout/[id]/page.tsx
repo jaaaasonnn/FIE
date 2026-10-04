@@ -380,7 +380,7 @@ function CheckoutPageInner() {
                   <div className="flex items-center gap-2 text-xs p-3 rounded-xl"
                     style={{ backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)' }}>
                     <Shield size={14} style={{ color: '#059669' }} />
-                    Secured by Paystack — Visa & Mastercard accepted
+                    Secured by Paystack. Visa & Mastercard accepted
                   </div>
                 </div>
               )}

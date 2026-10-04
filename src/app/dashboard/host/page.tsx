@@ -222,7 +222,7 @@ function HostDashboardContent() {
               <StatCard
                 icon={<Star size={18} style={{ color: '#F59E0B' }} />}
                 label="Avg Rating"
-                value={listings.length ? avgRating.toFixed(1) : '—'}
+                value={listings.length ? avgRating.toFixed(1) : '-'}
                 sub={listings.length ? `${listings.reduce((s, l) => s + (l.reviewCount || 0), 0)} reviews` : 'No listings yet'}
               />
             </div>

@@ -298,7 +298,7 @@ function SearchContent() {
                   onChange={(e) => setFilters((f) => ({ ...f, minPrice: e.target.value }))}
                   className="w-full text-xs p-2 rounded-lg"
                   style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }} />
-                <span style={{ color: 'var(--color-text-muted)' }}>–</span>
+                <span style={{ color: 'var(--color-text-muted)' }}>to</span>
                 <input type="number" placeholder="Max $" value={filters.maxPrice}
                   onChange={(e) => setFilters((f) => ({ ...f, maxPrice: e.target.value }))}
                   className="w-full text-xs p-2 rounded-lg"

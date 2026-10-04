@@ -300,7 +300,7 @@ export default function ListingDetailPage() {
 
       if (res.status === 409) {
         await fetchAvailability()
-        setBookError('Those dates just became unavailable. The calendar has been updated — please pick new dates.')
+        setBookError('Those dates just became unavailable. The calendar has been updated. Please pick new dates.')
         setCheckIn(null); setCheckOut(null)
         return
       }
@@ -456,7 +456,7 @@ export default function ListingDetailPage() {
                         )}
                         {m === 'TEMP_STAY' && listing.priceMonthly && (
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                            <strong>${listing.priceMonthly}</strong>/month · 1–11 months
+                            <strong>${listing.priceMonthly}</strong>/month · 1 to 11 months
                           </p>
                         )}
                         {m === 'PERMANENT' && (
@@ -616,7 +616,7 @@ export default function ListingDetailPage() {
                 </div>
               ) : (
                 <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  No reviews yet — be the first guest to leave one after your stay.
+                  No reviews yet. Be the first guest to leave one after your stay.
                 </p>
               )}
             </div>
@@ -724,7 +724,7 @@ export default function ListingDetailPage() {
                       customInput={<input style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
                   </div>
                   <div>
-                    <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Number of months (1–11)</label>
+                    <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Number of months (1 to 11)</label>
                     <input type="number" min={1} max={11} value={months}
                       onChange={(e) => setMonths(parseInt(e.target.value) || 1)}
                       className="w-full text-sm p-2.5 rounded-xl focus:outline-none"

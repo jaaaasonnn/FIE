@@ -377,7 +377,7 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
 
   const emptyCopy =
     role === 'guest'
-      ? 'When you reach out to a host — or they reply — your chats will show up here.'
+      ? 'When you reach out to a host, or they reply, your chats will show up here.'
       : 'When a guest messages you about a stay, the conversation will land here.'
 
   if (loading) {
@@ -520,7 +520,7 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
 
                   {activeConv.messages.length === 0 && (
                     <p className="text-center text-sm py-8" style={{ color: 'var(--color-text-secondary)' }}>
-                      No messages yet — say hello about {activeConv.listingTitle}.
+                      No messages yet. Say hello about {activeConv.listingTitle}.
                     </p>
                   )}
 

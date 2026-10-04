@@ -9,9 +9,9 @@ type Step = { icon: LucideIcon; title: string; desc: string }
 
 const guestSteps: Step[] = [
   { icon: Search, title: 'Browse & filter', desc: 'Search by rental mode (short stay, monthly, long-term), region, price, and amenities. Every listing clearly shows pricing and terms upfront.' },
-  { icon: ClipboardList, title: 'Review the listing', desc: 'Read the full description, house rules, cancellation policy, and for permanent rentals — the advance payment requirement. No surprises.' },
+  { icon: ClipboardList, title: 'Review the listing', desc: 'Read the full description, house rules, cancellation policy, and for permanent rentals, the advance payment requirement. No surprises.' },
   { icon: MessageSquare, title: 'Message the host', desc: 'Chat with the host directly in-app before booking. Ask questions, confirm details, get the welcome message.' },
-  { icon: CalendarDays, title: 'Book & pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Funds are held in escrow — not released to host until check-in.' },
+  { icon: CalendarDays, title: 'Book & pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Funds are held in escrow and not released to the host until check-in.' },
   { icon: Key, title: 'Move in', desc: 'After confirmation, you get the full property address and host contact. Raise any dispute within 24 hours of check-in if the property doesn\'t match.' },
   { icon: Star, title: 'Review your stay', desc: 'After check-out, rate your experience. Reviews build trust across the FieGH community.' },
 ]

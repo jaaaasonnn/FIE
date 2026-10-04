@@ -113,7 +113,7 @@ export function ReviewModal({
                   You&apos;ve already reviewed this stay
                 </p>
                 <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                  Thanks — your review has already been submitted.
+                  Thanks, your review has already been submitted.
                 </p>
                 <button
                   onClick={() => handleOpenChange(false)}

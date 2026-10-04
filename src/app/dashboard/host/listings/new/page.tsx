@@ -124,7 +124,7 @@ export default function NewListingPage() {
     // search until the host reaches the end and publishes it.
     if (step === PHOTOS_STEP - 1 && !listingId) {
       if (authLoading) {
-        setStepError('Still checking your session — please wait a moment and try again.')
+        setStepError('Still checking your session. Please wait a moment and try again.')
         return
       }
       if (!user) {
@@ -172,7 +172,7 @@ export default function NewListingPage() {
     }
 
     if (authLoading) {
-      setError('Still checking your session — please wait a moment and try again.')
+      setError('Still checking your session. Please wait a moment and try again.')
       return
     }
     if (!user) {
@@ -221,7 +221,7 @@ export default function NewListingPage() {
     <div className="space-y-5">
       <Input label="Property Title" placeholder="e.g. Modern 3-Bedroom Apartment in East Legon"
         value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required />
-      <Textarea label="Description" placeholder="Describe your property — what makes it special, what's nearby..."
+      <Textarea label="Description" placeholder="Describe your property: what makes it special, what's nearby..."
         value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
       <Select label="Property Type" value={form.propertyType}
         onChange={(e) => setForm({ ...form, propertyType: e.target.value })}
@@ -410,15 +410,15 @@ export default function NewListingPage() {
         <h4 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Listing Summary</h4>
         <div className="space-y-3 text-sm">
           {[
-            ['Title', form.title || '—'],
-            ['Type', form.propertyType || '—'],
-            ['Location', [form.neighbourhood, form.city, form.region].filter(Boolean).join(', ') || '—'],
+            ['Title', form.title || '-'],
+            ['Type', form.propertyType || '-'],
+            ['Location', [form.neighbourhood, form.city, form.region].filter(Boolean).join(', ') || '-'],
             ['Bedrooms', `${form.bedrooms} beds, ${form.bathrooms} baths, max ${form.maxGuests} guests`],
-            ['Rental Modes', form.rentalModes.join(', ') || '—'],
+            ['Rental Modes', form.rentalModes.join(', ') || '-'],
             ['Photos', `${photos.length} uploaded`],
-            ['Nightly Price', form.priceNightly ? `$${form.priceNightly}` : '—'],
-            ['Monthly Price', form.priceMonthly ? `$${form.priceMonthly}` : '—'],
-            ['Annual Price', form.priceAnnual ? `$${form.priceAnnual}` : '—'],
+            ['Nightly Price', form.priceNightly ? `$${form.priceNightly}` : '-'],
+            ['Monthly Price', form.priceMonthly ? `$${form.priceMonthly}` : '-'],
+            ['Annual Price', form.priceAnnual ? `$${form.priceAnnual}` : '-'],
             ['Instant Book', form.instantBook ? 'Yes' : 'No'],
             ['Cancellation', form.cancellationPolicy],
           ].map(([k, v]) => (
