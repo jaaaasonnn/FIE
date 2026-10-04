@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Home, Calendar, DollarSign, Shield, AlertTriangle,
-  CheckCircle, XCircle, Globe, Star, Loader2,
+  CheckCircle, XCircle, Globe, Star, Loader2, Ban,
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
@@ -164,7 +164,7 @@ export default function AdminPage() {
   if (forbidden) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-        <div className="text-5xl">🚫</div>
+        <Ban size={40} strokeWidth={1.5} aria-hidden style={{ color: 'var(--color-text-muted)' }} />
         <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Access denied</h1>
         <p className="text-sm text-center" style={{ color: 'var(--color-text-secondary)' }}>
           This panel is only available to users with the ADMIN role.

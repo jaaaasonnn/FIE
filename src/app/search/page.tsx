@@ -4,8 +4,9 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, SlidersHorizontal, MapPin, Star, Bed, Bath, X,
-  Map as MapIcon, Loader2,
+  Map as MapIcon, Loader2, Home,
 } from 'lucide-react'
+import { MODE_ICONS } from '@/lib/rentalModes'
 import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
@@ -54,10 +55,16 @@ type ApiListing = {
   }
 }
 
+/** Rental type with its icon, for the filter pills. */
+function ModeLabel({ mode }: { mode: string }) {
+  const Icon = MODE_ICONS[mode]
+  return <>{Icon && <Icon size={13} strokeWidth={1.75} aria-hidden />}{MODE_LABELS[mode]}</>
+}
+
 const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay',
-  TEMP_STAY:  '📅 Monthly',
-  PERMANENT:  '🏠 Long-Term',
+  SHORT_STAY: 'Short Stay',
+  TEMP_STAY:  'Monthly',
+  PERMANENT:  'Long-Term',
 }
 
 const SORT_OPTIONS = [
@@ -234,13 +241,13 @@ function SearchContent() {
               {['', 'SHORT_STAY', 'TEMP_STAY', 'PERMANENT'].map((m) => (
                 <button key={m}
                   onClick={() => setFilters((f) => ({ ...f, mode: m }))}
-                  className="px-3 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                   style={
                     filters.mode === m
                       ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
                       : { backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }
                   }>
-                  {m ? MODE_LABELS[m] : 'All types'}
+                  {m ? <ModeLabel mode={m} /> : 'All types'}
                 </button>
               ))}
             </div>
@@ -361,7 +368,9 @@ function SearchContent() {
           {/* Listing cards */}
           {!loading && listings.length === 0 ? (
             <div className="text-center py-20">
-              <div className="text-5xl mb-4">🏠</div>
+<div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
+                <Home size={26} strokeWidth={1.75} aria-hidden />
+              </div>
               <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No properties found</h3>
               <p className="mb-6" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters.</p>
               <Button onClick={() => setFilters({

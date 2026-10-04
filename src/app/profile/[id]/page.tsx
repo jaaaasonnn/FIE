@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Star, MapPin, Calendar, Shield, Flag, Loader2, Pencil } from 'lucide-react'
+import { Star, MapPin, Calendar, Shield, Flag, Loader2, Pencil, SearchX, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
 import { VerifiedBadge, SuperhostBadge, Badge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
@@ -96,7 +96,7 @@ export default function ProfilePage() {
   if (notFound || !profile) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-        <div className="text-5xl">🔍</div>
+        <SearchX size={40} strokeWidth={1.5} aria-hidden style={{ color: 'var(--color-text-muted)' }} />
         <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Profile not found</h1>
         <p className="text-sm text-center" style={{ color: 'var(--color-text-secondary)' }}>
           This user doesn&apos;t exist or the link is incorrect.
@@ -164,7 +164,7 @@ export default function ProfilePage() {
                 </span>
                 {profile.nationality && (
                   <span className="flex items-center gap-1">
-                    <MapPin size={14} />🇬🇭 {profile.nationality}
+                    <MapPin size={14} /> {profile.nationality}
                   </span>
                 )}
               </div>
@@ -196,7 +196,7 @@ export default function ProfilePage() {
                     <Link href="/dashboard/guest/messages"
                       className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold"
                       style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
-                      💬 Message
+                      <MessageSquare size={14} aria-hidden /> Message
                     </Link>
                     <button className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                       <Flag size={14} /> Report

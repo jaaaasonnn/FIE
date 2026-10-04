@@ -20,7 +20,7 @@ import Map, {
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import Supercluster from 'supercluster'
-import { Star, X } from 'lucide-react'
+import { Star, X, Map as MapIcon } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -343,7 +343,7 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
         style={{ backgroundColor: '#F4F2EE', border: '1px solid #E8E1D6' }}
       >
         <div className="text-center px-6">
-          <div className="text-4xl mb-3">🗺️</div>
+          <MapIcon size={32} strokeWidth={1.5} aria-hidden style={{ color: '#9C9589', margin: '0 auto 12px' }} />
           <p style={{ color: '#6B645C', fontSize: 14, fontWeight: 600 }}>
             Map unavailable
           </p>

@@ -23,7 +23,7 @@ type WishlistItem = {
 }
 
 const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay', TEMP_STAY: '📅 Monthly', PERMANENT: '🏠 Long-Term',
+  SHORT_STAY: 'Short Stay', TEMP_STAY: 'Monthly', PERMANENT: 'Long-Term',
 }
 
 function parseJsonArray(value: unknown): string[] {
@@ -142,10 +142,10 @@ export default function WishlistPage() {
         {/* Dashboard nav */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
           {[
-            { href: '/dashboard/guest', label: '📋 Bookings' },
-            { href: '/dashboard/guest/wishlist', label: '❤️ Wishlist', active: true },
-            { href: '/dashboard/guest/messages', label: '💬 Messages' },
-            { href: '/dashboard/guest/payments', label: '💳 Payments' },
+            { href: '/dashboard/guest', label: 'Bookings' },
+            { href: '/dashboard/guest/wishlist', label: 'Wishlist', active: true },
+            { href: '/dashboard/guest/messages', label: 'Messages' },
+            { href: '/dashboard/guest/payments', label: 'Payments' },
           ].map(({ href, label, active }) => (
             <Link key={href} href={href}
               className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all"
@@ -223,7 +223,7 @@ export default function WishlistPage() {
                         )}
                       </div>
                       {listing.superhost && (
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FBE8BB', color: '#92400E' }}>⭐ Superhost</span>
+                        <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#FBE8BB', color: '#92400E' }}><Star size={10} className="fill-current" aria-hidden /> Superhost</span>
                       )}
                     </div>
                   </div>

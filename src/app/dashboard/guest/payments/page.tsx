@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { CreditCard, CheckCircle, Clock, XCircle, Loader2 } from 'lucide-react'
+import { CreditCard, CheckCircle, Clock, XCircle, Loader2, Smartphone, Wallet, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 
@@ -39,8 +39,8 @@ function methodLabel(method: string, momoNetwork: string | null): string {
   return method
 }
 
-function methodIcon(method: string): string {
-  return method === 'MOMO' ? '📱' : method === 'CARD' ? '💳' : '💰'
+function methodIcon(method: string): LucideIcon {
+  return method === 'MOMO' ? Smartphone : method === 'CARD' ? CreditCard : Wallet
 }
 
 export default function GuestPaymentsPage() {
@@ -91,10 +91,10 @@ export default function GuestPaymentsPage() {
         {/* Dashboard nav */}
         <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
           {[
-            { href: '/dashboard/guest', label: '📋 Bookings' },
-            { href: '/dashboard/guest/wishlist', label: '❤️ Wishlist' },
-            { href: '/dashboard/guest/messages', label: '💬 Messages' },
-            { href: '/dashboard/guest/payments', label: '💳 Payments', active: true },
+            { href: '/dashboard/guest', label: 'Bookings' },
+            { href: '/dashboard/guest/wishlist', label: 'Wishlist' },
+            { href: '/dashboard/guest/messages', label: 'Messages' },
+            { href: '/dashboard/guest/payments', label: 'Payments', active: true },
           ].map(({ href, label, active }) => (
             <Link key={href} href={href} className="flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all"
               style={{ backgroundColor: active ? 'var(--brown-dark)' : '#fff', color: active ? 'var(--gold)' : '#374151', border: active ? 'none' : '1px solid #E5E7EB' }}>
@@ -151,7 +151,7 @@ export default function GuestPaymentsPage() {
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
                             style={{ backgroundColor: '#F9FAFB' }}>
-                            {methodIcon(p.method)}
+                            {(() => { const Icon = methodIcon(p.method); return <Icon size={18} strokeWidth={1.75} aria-hidden /> })()}
                           </div>
                           <div>
                             <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
@@ -182,7 +182,7 @@ export default function GuestPaymentsPage() {
             {/* Security notice */}
             <div className="mt-6 p-4 rounded-2xl flex items-start gap-3"
               style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
-              <span className="text-lg">🛡️</span>
+              <ShieldCheck size={18} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
               <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
                 All payments are processed securely via <strong>Paystack</strong>. FieGH never asks you to pay outside the app.
                 If you spot an unfamiliar transaction, contact <strong>support@fiegh.com</strong> immediately.

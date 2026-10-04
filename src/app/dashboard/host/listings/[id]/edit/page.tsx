@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
-import { CheckSquare, Square, Eye, Trash2, AlertTriangle, X, Loader2 } from 'lucide-react'
+import { CheckSquare, Square, Eye, Trash2, AlertTriangle, X, Loader2, SearchX, CheckCircle, AlertCircle, Zap } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
@@ -211,7 +211,7 @@ export default function EditListingPage() {
   if (fetchError) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-        <div className="text-5xl">🔍</div>
+        <SearchX size={40} strokeWidth={1.5} aria-hidden style={{ color: 'var(--color-text-muted)' }} />
         <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{fetchError}</p>
         <Link href="/dashboard/host"
           className="px-6 py-3 rounded-full text-sm font-semibold"
@@ -250,13 +250,13 @@ export default function EditListingPage() {
 
       <div className="max-w-3xl mx-auto px-4 py-8">
         {saved && (
-          <div className="p-4 rounded-xl mb-6 text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7' }}>
-            ✅ Listing saved successfully!
+          <div className="flex items-center gap-2 p-4 rounded-xl mb-6 text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46', border: '1px solid #6EE7B7' }}>
+            <CheckCircle size={16} aria-hidden className="flex-shrink-0" /> Listing saved successfully!
           </div>
         )}
         {saveError && (
-          <div className="p-4 rounded-xl mb-6 text-sm" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA' }}>
-            ❌ {saveError}
+          <div className="flex items-center gap-2 p-4 rounded-xl mb-6 text-sm" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA' }}>
+            <AlertCircle size={16} aria-hidden className="flex-shrink-0" /> {saveError}
           </div>
         )}
 
@@ -305,9 +305,9 @@ export default function EditListingPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { key: 'SHORT_STAY', label: '🌙 Short Stay' },
-                  { key: 'TEMP_STAY',  label: '📅 Monthly'    },
-                  { key: 'PERMANENT',  label: '🏠 Long-Term'  },
+                  { key: 'SHORT_STAY', label: 'Short Stay' },
+                  { key: 'TEMP_STAY',  label: 'Monthly'    },
+                  { key: 'PERMANENT',  label: 'Long-Term'  },
                 ].map(({ key, label }) => (
                   <button key={key} type="button" onClick={() => toggleMode(key)}
                     className="py-2.5 rounded-xl border-2 text-xs font-medium transition-all"
@@ -375,7 +375,7 @@ export default function EditListingPage() {
                 placeholder="Sent to guests automatically after booking confirmation..." />
               <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>⚡ Instant Book</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}><Zap size={14} aria-hidden /> Instant Book</p>
                   <p className="text-xs text-[#6B645C]">Auto-confirm bookings without manual approval</p>
                 </div>
                 <button type="button" onClick={() => setForm({ ...form, instantBook: !form.instantBook })}

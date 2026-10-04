@@ -150,7 +150,7 @@ function HostDashboardContent() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
-                  {firstName}&apos;s Dashboard 🏡
+                  {firstName}&apos;s Dashboard
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
                   {user?.isVerified && <VerifiedBadge />}
@@ -222,7 +222,7 @@ function HostDashboardContent() {
               <StatCard
                 icon={<Star size={18} style={{ color: '#F59E0B' }} />}
                 label="Avg Rating"
-                value={listings.length ? `${avgRating.toFixed(1)}★` : '—'}
+                value={listings.length ? avgRating.toFixed(1) : '—'}
                 sub={listings.length ? `${listings.reduce((s, l) => s + (l.reviewCount || 0), 0)} reviews` : 'No listings yet'}
               />
             </div>
@@ -350,7 +350,7 @@ function HostDashboardContent() {
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-[#6B645C] mb-3">
-                            <span>⭐ {l.avgRating?.toFixed(1) ?? '0.0'}</span>
+                            <span className="inline-flex items-center gap-1"><Star size={11} className="fill-current" aria-hidden />{l.avgRating?.toFixed(1) ?? '0.0'}</span>
                             <span>·</span>
                             <span>{l.reviewCount ?? 0} reviews</span>
                           </div>

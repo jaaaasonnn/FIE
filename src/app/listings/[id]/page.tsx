@@ -7,8 +7,9 @@ import 'react-datepicker/dist/react-datepicker.css'
 import {
   Star, MapPin, Bed, Bath, Users, Wifi, Shield, Zap, Wind, Car, Camera,
   Share2, Heart, Flag, ChevronLeft, ChevronRight, CheckCircle, Loader2,
-  AlertCircle,
+  AlertCircle, AlertTriangle, Home, X,
 } from 'lucide-react'
+import { MODE_ICONS } from '@/lib/rentalModes'
 import Link from 'next/link'
 import Image from 'next/image'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
@@ -72,9 +73,9 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
 }
 
 const MODE_LABELS: Record<string, { label: string; color: string }> = {
-  SHORT_STAY: { label: '🌙 Short Stay',        color: 'var(--color-accent)' },
-  TEMP_STAY:  { label: '📅 Temporary Stay',    color: '#2563EB' },
-  PERMANENT:  { label: '🏠 Permanent Rental',  color: '#059669' },
+  SHORT_STAY: { label: 'Short Stay',        color: 'var(--color-accent)' },
+  TEMP_STAY:  { label: 'Temporary Stay',    color: '#2563EB' },
+  PERMANENT:  { label: 'Permanent Rental',  color: '#059669' },
 }
 
 type BookedRange = { start: string; end: string; status: string }
@@ -236,7 +237,9 @@ export default function ListingDetailPage() {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
         <div className="text-center">
-          <div className="text-5xl mb-4">🏠</div>
+<div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
+            <Home size={26} strokeWidth={1.75} aria-hidden />
+          </div>
           <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Listing not found</h2>
           <p className="mb-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>This listing may have been removed or is no longer active.</p>
           <Button onClick={() => router.push('/search')}>Browse all listings</Button>
@@ -442,7 +445,8 @@ export default function ListingDetailPage() {
                     }}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                        <span className="inline-flex items-center gap-1.5 font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                          {(() => { const Icon = MODE_ICONS[m]; return Icon ? <Icon size={14} strokeWidth={1.75} aria-hidden /> : null })()}
                           {MODE_LABELS[m]?.label ?? m}
                         </span>
                         {m === 'SHORT_STAY' && listing.priceNightly && (
@@ -463,8 +467,9 @@ export default function ListingDetailPage() {
                               </p>
                             )}
                             {listing.advanceMonthsRequired && (
-                              <p className="text-xs font-medium mt-1" style={{ color: '#DC2626' }}>
-                                ⚠️ {listing.advanceMonthsRequired} months advance payment required upfront
+                              <p className="flex items-center gap-1.5 text-xs font-medium mt-1" style={{ color: '#DC2626' }}>
+                                <AlertTriangle size={12} aria-hidden className="flex-shrink-0" />
+                                {listing.advanceMonthsRequired} months advance payment required upfront
                               </p>
                             )}
                           </>
@@ -510,7 +515,7 @@ export default function ListingDetailPage() {
                   {listing.rules.map((r) => (
                     <div key={r} className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                       <span className="w-5 h-5 rounded-full flex items-center justify-center text-xs flex-shrink-0"
-                        style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>✗</span>
+                        style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}><X size={11} strokeWidth={2.5} aria-hidden /></span>
                       {r}
                     </div>
                   ))}
@@ -656,8 +661,9 @@ export default function ListingDetailPage() {
                       <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>/year</span>
                     </div>
                     {listing.advanceMonthsRequired && (
-                      <p className="text-xs mt-1 font-medium" style={{ color: '#DC2626' }}>
-                        ⚠️ {listing.advanceMonthsRequired} months advance required
+                      <p className="flex items-center gap-1.5 text-xs mt-1 font-medium" style={{ color: '#DC2626' }}>
+                        <AlertTriangle size={12} aria-hidden className="flex-shrink-0" />
+                        {listing.advanceMonthsRequired} months advance required
                       </p>
                     )}
                   </>
@@ -785,7 +791,7 @@ export default function ListingDetailPage() {
                   }}>
                   {bookLoading
                     ? <><Loader2 size={16} className="animate-spin" /> Creating booking…</>
-                    : listing.instantBook ? '⚡ Instant Book' : 'Request to Book'}
+                    : listing.instantBook ? <><Zap size={15} aria-hidden /> Instant Book</> : 'Request to Book'}
                 </button>
               ) : (
                 <Link

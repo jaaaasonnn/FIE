@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { CheckSquare, Square } from 'lucide-react'
+import { CheckSquare, Square, MapPin, AlertTriangle, Zap, Lightbulb, Check, X, Plus } from 'lucide-react'
+import { MODE_ICONS } from '@/lib/rentalModes'
 import { Button } from '@/components/ui/Button'
 import { Input, Select, Textarea } from '@/components/ui/Input'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
@@ -249,7 +250,7 @@ export default function NewListingPage() {
       <Input label="Neighbourhood (optional)" placeholder="e.g. East Legon, Cantonments"
         value={form.neighbourhood} onChange={(e) => setForm({ ...form, neighbourhood: e.target.value })} />
       <div className="p-4 rounded-xl border border-dashed border-stone-300 text-center">
-        <div className="text-2xl mb-2">📍</div>
+        <MapPin size={22} strokeWidth={1.75} aria-hidden className="mx-auto mb-2" style={{ color: 'var(--color-text-secondary)' }} />
         <p className="text-sm font-medium text-[#4A4540]">Map Pin (Coming Soon)</p>
         <p className="text-xs text-[#6B645C]">You will be able to drop a precise map pin for your property.</p>
       </div>
@@ -261,27 +262,27 @@ export default function NewListingPage() {
       <div>
         <p className="text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>Rental Modes (select all that apply)</p>
         <div className="space-y-3">
-          {Object.entries(RENTAL_MODES).map(([key, { label, desc, icon }]) => (
+          {Object.entries(RENTAL_MODES).map(([key, { label, desc }]) => { const ModeIcon = MODE_ICONS[key]; return (
             <button key={key} type="button" onClick={() => toggleMode(key)}
               className="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all"
               style={{
                 borderColor: form.rentalModes.includes(key) ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: form.rentalModes.includes(key) ? '#FFF8EE' : '#fff'
               }}>
-              <span className="text-2xl">{icon}</span>
+              {ModeIcon && <ModeIcon size={22} strokeWidth={1.75} aria-hidden style={{ color: 'var(--color-text-primary)' }} />}
               <div className="flex-1">
                 <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{label}</p>
                 <p className="text-xs text-[#6B645C]">{desc}</p>
               </div>
               {form.rentalModes.includes(key) ? <CheckSquare size={20} style={{ color: 'var(--color-accent)' }} /> : <Square size={20} className="text-stone-300" />}
             </button>
-          ))}
+          )})}
         </div>
       </div>
 
       {form.rentalModes.includes('SHORT_STAY') && (
         <div className="space-y-3 p-4 rounded-xl border border-[#E5D0A8] bg-[#FAF5EC]">
-          <h4 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>🌙 Short Stay Pricing</h4>
+          <h4 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Short Stay Pricing</h4>
           <Input label="Price per Night (USD $)" type="number" placeholder="e.g. 80"
             value={form.priceNightly} onChange={(e) => setForm({ ...form, priceNightly: e.target.value })} />
           <Select label="Minimum Stay" value={form.minStayNights}
@@ -292,7 +293,7 @@ export default function NewListingPage() {
 
       {form.rentalModes.includes('TEMP_STAY') && (
         <div className="p-4 rounded-xl border border-blue-200 bg-blue-50">
-          <h4 className="font-semibold text-sm mb-3" style={{ color: '#1E40AF' }}>📅 Temporary Stay Pricing</h4>
+          <h4 className="font-semibold text-sm mb-3" style={{ color: '#1E40AF' }}>Temporary Stay Pricing</h4>
           <Input label="Price per Month (USD $)" type="number" placeholder="e.g. 800"
             value={form.priceMonthly} onChange={(e) => setForm({ ...form, priceMonthly: e.target.value })} />
         </div>
@@ -300,14 +301,15 @@ export default function NewListingPage() {
 
       {form.rentalModes.includes('PERMANENT') && (
         <div className="p-4 rounded-xl border border-green-200 bg-green-50 space-y-3">
-          <h4 className="font-semibold text-sm" style={{ color: '#065F46' }}>🏠 Permanent Rental Pricing</h4>
+          <h4 className="font-semibold text-sm" style={{ color: '#065F46' }}>Permanent Rental Pricing</h4>
           <Input label="Annual Rent (USD $)" type="number" placeholder="e.g. 9600"
             value={form.priceAnnual} onChange={(e) => setForm({ ...form, priceAnnual: e.target.value })} />
           <Select label="Advance Payment Required (months)" value={form.advanceMonthsRequired}
             onChange={(e) => setForm({ ...form, advanceMonthsRequired: e.target.value })}
             options={[1,2,3,6,12].map((n) => ({ value: String(n), label: `${n} month${n > 1 ? 's' : ''} advance` }))} />
-          <p className="text-xs text-green-700">
-            ⚠️ This will be shown clearly to tenants before they apply.
+          <p className="flex items-center gap-1.5 text-xs text-green-700">
+            <AlertTriangle size={12} aria-hidden className="flex-shrink-0" />
+            This will be shown clearly to tenants before they apply.
           </p>
         </div>
       )}
@@ -334,7 +336,7 @@ export default function NewListingPage() {
 
       <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200 bg-white">
         <div>
-          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>⚡ Instant Book</p>
+          <p className="flex items-center gap-1.5 text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}><Zap size={14} aria-hidden /> Instant Book</p>
           <p className="text-xs text-[#6B645C]">Auto-confirm guest bookings without manual approval</p>
         </div>
         <button
@@ -384,7 +386,7 @@ export default function NewListingPage() {
                   backgroundColor: active ? '#FEE2E2' : '#fff',
                   color: active ? '#991B1B' : '#374151'
                 }}>
-                {active ? '✗' : '+'} {r}
+                <span className="inline-flex items-center gap-1">{active ? <X size={12} aria-hidden /> : <Plus size={12} aria-hidden />}{r}</span>
               </button>
             )
           })}
@@ -429,7 +431,7 @@ export default function NewListingPage() {
       </div>
       <div className="p-4 rounded-xl flex items-start gap-3"
         style={{ backgroundColor: '#FBE8BB', border: '1px solid var(--gold)' }}>
-        <span className="text-lg">💡</span>
+        <Lightbulb size={18} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
         <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
           Your listing will be reviewed before going live. Typical review time is under 24 hours.
         </p>
@@ -456,7 +458,7 @@ export default function NewListingPage() {
                   backgroundColor: i <= step ? 'var(--brown-dark)' : '#E5E7EB',
                   color: i <= step ? 'var(--gold)' : '#9CA3AF'
                 }}>
-                {i < step ? '✓' : i + 1}
+                {i < step ? <Check size={14} strokeWidth={2.5} aria-hidden /> : i + 1}
               </div>
               <span className={`text-xs hidden sm:block ${i === step ? 'font-semibold' : 'text-stone-400'}`}
                 style={{ color: i === step ? 'var(--brown-dark)' : undefined }}>
@@ -506,7 +508,7 @@ export default function NewListingPage() {
             </Button>
           ) : (
             <Button onClick={handleSubmit} loading={loading} disabled={authLoading || loading}>
-              Submit Listing 🏡
+              Submit Listing
             </Button>
           )}
         </div>

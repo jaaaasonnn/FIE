@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield } from 'lucide-react'
+import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield, SearchX, Phone } from 'lucide-react'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 
@@ -64,7 +64,7 @@ export default function BookingConfirmationPage() {
   if (!booking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-        <div className="text-5xl">🔍</div>
+        <SearchX size={40} strokeWidth={1.5} aria-hidden style={{ color: 'var(--color-text-muted)' }} />
         <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Booking not found</h1>
         <p className="text-sm text-center" style={{ color: 'var(--color-text-secondary)' }}>
           We couldn&apos;t find this booking. It may have been cancelled or the link is incorrect.
@@ -95,7 +95,7 @@ export default function BookingConfirmationPage() {
               : <Clock size={32} style={{ color: '#92400E' }} />}
           </div>
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
-            {confirmed ? 'Booking Confirmed! 🎉' : 'Booking Pending'}
+            {confirmed ? 'Booking Confirmed!' : 'Booking Pending'}
           </h1>
           <p style={{ color: 'rgba(250,247,242,0.7)' }}>Ref: {ref}</p>
         </div>
@@ -135,7 +135,7 @@ export default function BookingConfirmationPage() {
         {/* Welcome message */}
         {booking.listing.welcomeMessage && (
           <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
-            <h3 className="font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>💌 Welcome Message from Host</h3>
+            <h3 className="font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>Welcome Message from Host</h3>
             <p className="text-sm text-[#4A4540] leading-relaxed p-4 rounded-xl"
               style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)' }}>
               {booking.listing.welcomeMessage}
@@ -162,7 +162,7 @@ export default function BookingConfirmationPage() {
             <div>
               <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{booking.host.name}</p>
               {booking.host.phone && (
-                <p className="text-sm text-[#6B645C]">📱 {booking.host.phone}</p>
+                <p className="flex items-center gap-1.5 text-sm text-[#6B645C]"><Phone size={13} aria-hidden /> {booking.host.phone}</p>
               )}
             </div>
           </div>
@@ -192,7 +192,7 @@ export default function BookingConfirmationPage() {
                   backgroundColor: booking.paymentStatus === 'PAID' ? '#D1FAE5' : '#FEF3C7',
                   color:           booking.paymentStatus === 'PAID' ? '#065F46' : '#92400E',
                 }}>
-                {booking.paymentStatus === 'PAID' ? 'Paid ✓' : booking.paymentStatus}
+                {booking.paymentStatus === 'PAID' ? 'Paid' : booking.paymentStatus}
               </span>
             </div>
           </div>

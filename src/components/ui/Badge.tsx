@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { Star } from 'lucide-react'
 
 interface BadgeProps {
   children: React.ReactNode
@@ -52,7 +53,7 @@ export function VerifiedBadge() {
 export function SuperhostBadge() {
   return (
     <Badge variant="accent">
-      ⭐ Superhost
+      <Star size={11} className="fill-current" aria-hidden /> Superhost
     </Badge>
   )
 }

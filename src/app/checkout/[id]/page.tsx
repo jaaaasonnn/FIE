@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2 } from 'lucide-react'
+import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, Smartphone, MessageSquare, Lock, Check, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { validateGhanaPhone } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
@@ -32,9 +32,9 @@ type BookingData = {
 }
 
 const MOMO_NETWORKS = [
-  { id: 'MTN',       label: 'MTN Mobile Money',  logo: '🟡' },
-  { id: 'VODAFONE',  label: 'Vodafone Cash',      logo: '🔴' },
-  { id: 'AIRTELTIGO', label: 'AirtelTigo Money',  logo: '🔴' },
+  { id: 'MTN',       label: 'MTN Mobile Money' },
+  { id: 'VODAFONE',  label: 'Vodafone Cash' },
+  { id: 'AIRTELTIGO', label: 'AirtelTigo Money' },
 ]
 
 const MODE_UNIT: Record<string, string> = {
@@ -227,7 +227,7 @@ function CheckoutPageInner() {
             <CheckCircle size={48} style={{ color: '#059669' }} />
           </div>
           <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            Booking Confirmed! 🎉
+            Booking Confirmed!
           </h2>
           <p className="mb-2" style={{ color: 'var(--color-text-secondary)' }}>
             Your payment of <strong>${booking.totalPrice.toFixed(2)}</strong> has been received.
@@ -245,8 +245,8 @@ function CheckoutPageInner() {
             <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
               Check-out: {new Date(booking.checkOut).toLocaleDateString('en-GH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
-            <p className="text-xs font-medium mt-2" style={{ color: 'var(--color-accent)' }}>
-              📱 SMS confirmation sent to your phone
+            <p className="inline-flex items-center gap-1.5 text-xs font-medium mt-2" style={{ color: 'var(--color-accent)' }}>
+              <Smartphone size={13} aria-hidden /> SMS confirmation sent to your phone
             </p>
           </div>
 
@@ -263,7 +263,7 @@ function CheckoutPageInner() {
               View My Bookings
             </Button>
             <Button variant="outline" size="lg" className="w-full" onClick={() => router.push('/dashboard/guest/messages')}>
-              💬 Message Host
+              <MessageSquare size={16} aria-hidden /> Message Host
             </Button>
           </div>
         </div>
@@ -283,7 +283,7 @@ function CheckoutPageInner() {
         <div className="max-w-5xl mx-auto">
           <h1 className="text-2xl font-bold text-white">Complete Your Booking</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            Payment held in escrow until check-in 🔒
+            Payment held in escrow until check-in
           </p>
         </div>
       </div>
@@ -323,7 +323,7 @@ function CheckoutPageInner() {
                   <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Mobile Money Details</h3>
                   <div className="space-y-2">
                     <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>Select your network</p>
-                    {MOMO_NETWORKS.map(({ id, label, logo }) => (
+                    {MOMO_NETWORKS.map(({ id, label }) => (
                       <button key={id} type="button"
                         onClick={() => setMomoNetwork(id)}
                         className="w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all"
@@ -331,9 +331,8 @@ function CheckoutPageInner() {
                           borderColor:     momoNetwork === id ? 'var(--color-accent)' : 'var(--color-border)',
                           backgroundColor: momoNetwork === id ? 'var(--color-accent-subtle)' : 'var(--color-bg-card)',
                         }}>
-                        <span className="text-xl">{logo}</span>
                         <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>{label}</span>
-                        {momoNetwork === id && <span className="ml-auto" style={{ color: 'var(--color-accent)' }}>✓</span>}
+                        {momoNetwork === id && <Check size={16} strokeWidth={2.5} aria-hidden className="ml-auto" style={{ color: 'var(--color-accent-deep)' }} />}
                       </button>
                     ))}
                   </div>
@@ -398,7 +397,7 @@ function CheckoutPageInner() {
               {/* Security reminder */}
               <div className="p-4 rounded-xl flex items-start gap-2"
                 style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid #E5D0A8' }}>
-                <span className="text-lg">⚠️</span>
+                <AlertTriangle size={18} aria-hidden className="flex-shrink-0" style={{ color: 'var(--color-accent-deep)' }} />
                 <p className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
                   <strong>Safety reminder:</strong> Never pay a host directly outside FieGH. Your funds are protected in escrow until check-in.
                 </p>
@@ -416,7 +415,7 @@ function CheckoutPageInner() {
               >
                 {loading
                   ? <><Loader2 size={18} className="animate-spin" /> Processing…</>
-                  : `🔒 Pay $${booking.totalPrice.toFixed(2)} Securely`}
+                  : <><Lock size={16} aria-hidden /> {`Pay $${booking.totalPrice.toFixed(2)} Securely`}</>}
               </button>
             </form>
           </div>
@@ -473,9 +472,9 @@ function CheckoutPageInner() {
                   <p className="font-semibold text-sm" style={{ color: '#065F46' }}>Escrow Protection</p>
                 </div>
                 <ul className="space-y-1 text-xs" style={{ color: '#15803D' }}>
-                  <li>✓ Payment held until you check in</li>
-                  <li>✓ 24-hour dispute window after check-in</li>
-                  <li>✓ Damage deposit returned within 48hrs of check-out</li>
+                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Payment held until you check in</li>
+                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />24-hour dispute window after check-in</li>
+                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Damage deposit returned within 48hrs of check-out</li>
                 </ul>
               </div>
             </div>

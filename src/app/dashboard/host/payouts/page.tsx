@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X } from 'lucide-react'
+import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X, Landmark, Smartphone, Wallet } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 
@@ -288,14 +288,16 @@ export default function HostPayoutsPage() {
               </div>
 
               {saveSuccess && (
-                <div className="mb-4 p-3 rounded-xl text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
-                  ✅ {saveSuccess}
+                <div className="flex items-center gap-2 mb-4 p-3 rounded-xl text-sm" style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
+                  <CheckCircle size={15} aria-hidden className="flex-shrink-0" /> {saveSuccess}
                 </div>
               )}
 
               <div className="flex items-center gap-3 p-3 rounded-xl"
                 style={{ backgroundColor: '#F9FAFB', border: '1px solid #E5E7EB' }}>
-                <span className="text-2xl">{savedMethod?.payoutMethod === 'BANK_TRANSFER' ? '🏦' : '📱'}</span>
+                {savedMethod?.payoutMethod === 'BANK_TRANSFER'
+                  ? <Landmark size={22} strokeWidth={1.75} aria-hidden style={{ color: 'var(--color-text-primary)' }} />
+                  : <Smartphone size={22} strokeWidth={1.75} aria-hidden style={{ color: 'var(--color-text-primary)' }} />}
                 <div>
                   <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                     {savedMethod?.payoutMethod ? savedMethodLabel(savedMethod) : 'No payout method saved yet'}
@@ -319,7 +321,7 @@ export default function HostPayoutsPage() {
                       <button key={m} onClick={() => setFormMethod(m)}
                         className="flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all"
                         style={{ borderColor: formMethod === m ? 'var(--amber)' : '#E5E7EB', backgroundColor: formMethod === m ? '#FFF8EE' : '#fff', color: formMethod === m ? 'var(--amber)' : '#6B7280' }}>
-                        {m === 'MOMO' ? '📱 MoMo' : '🏦 Bank'}
+                        {m === 'MOMO' ? 'MoMo' : 'Bank'}
                       </button>
                     ))}
                   </div>
@@ -375,7 +377,7 @@ export default function HostPayoutsPage() {
               </div>
               {payouts.length === 0 ? (
                 <div className="text-center py-16 px-4">
-                  <div className="text-4xl mb-3">💸</div>
+                  <Wallet size={32} strokeWidth={1.5} aria-hidden className="mx-auto mb-3" style={{ color: 'var(--color-text-muted)' }} />
                   <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No payouts yet</p>
                   <p className="text-sm mt-1 max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
                     After a guest checks in, your earnings will show up here.
@@ -418,7 +420,7 @@ export default function HostPayoutsPage() {
 
             <div className="mt-4 p-4 rounded-xl text-sm"
               style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)', color: 'var(--color-text-primary)' }}>
-              💡 <strong>Payout schedule:</strong> Short stay payments are released 24 hours after guest check-in. Monthly and long-term payments are released on the agreed date. All amounts are in USD and converted at the current rate.
+              <strong>Payout schedule:</strong> Short stay payments are released 24 hours after guest check-in. Monthly and long-term payments are released on the agreed date. All amounts are in USD and converted at the current rate.
             </div>
           </>
         )}

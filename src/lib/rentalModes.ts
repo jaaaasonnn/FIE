@@ -13,3 +13,8 @@ export const RENTAL_MODES: {
   { value: 'TEMP_STAY',  label: 'Monthly',    plural: 'monthly lets',    icon: CalendarDays },
   { value: 'PERMANENT',  label: 'Long-Term',  plural: 'long-term homes', icon: Key },
 ]
+
+/** Icon per rental type, for labels that only have the stored value. */
+export const MODE_ICONS: Record<string, LucideIcon> = Object.fromEntries(
+  RENTAL_MODES.map(({ value, icon }) => [value, icon]),
+)

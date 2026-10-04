@@ -26,7 +26,7 @@ type ApiBooking = {
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
-  CONFIRMED: { bg: '#D1FAE5', color: '#065F46', label: 'Confirmed ✓' },
+  CONFIRMED: { bg: '#D1FAE5', color: '#065F46', label: 'Confirmed' },
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF', label: 'Completed' },
   PENDING: { bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
@@ -34,9 +34,9 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
 }
 
 const MODE_LABELS: Record<string, string> = {
-  SHORT_STAY: '🌙 Short Stay',
-  TEMP_STAY:  '📅 Monthly',
-  PERMANENT:  '🏠 Long-Term',
+  SHORT_STAY: 'Short Stay',
+  TEMP_STAY:  'Monthly',
+  PERMANENT:  'Long-Term',
 }
 
 function firstPhoto(photos: string): string {
@@ -56,7 +56,7 @@ function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userI
   for (const b of bookings) {
     const title = b.listing?.title ?? 'your listing'
     let message: string | null = null
-    if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed ✓`
+    if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed`
     else if (b.status === 'CANCELLED') message = `Your booking at ${title} was cancelled`
     else if (b.status === 'DECLINED') message = `Your booking request at ${title} was declined`
     else if (b.status === 'COMPLETED') message = `Your stay at ${title} is complete — leave a review!`
@@ -191,7 +191,7 @@ export default function GuestDashboardPage() {
             </div>
             <div>
               <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
-                Welcome back, {firstName} 👋
+                Welcome back, {firstName}
               </h1>
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>Guest Account</span>
@@ -262,7 +262,7 @@ export default function GuestDashboardPage() {
               <div>
                 <p className="font-semibold text-sm" style={{ color: '#1E40AF' }}>Verify your identity to unlock full access</p>
                 <p className="text-xs text-blue-600 mt-0.5">
-                  Submit your Ghana Card, Passport, or Voter ID to get the ✅ Verified badge.
+                  Submit your Ghana Card, Passport, or Voter ID to get the Verified badge.
                 </p>
               </div>
             </div>
