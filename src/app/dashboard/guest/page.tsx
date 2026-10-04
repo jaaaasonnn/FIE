@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Calendar, Heart, MessageSquare, Star, CreditCard, Bell, Shield, TrendingUp, Loader2 } from 'lucide-react'
+import { Calendar, Heart, MessageSquare, Star, CreditCard, Bell, Shield, TrendingUp, Loader2, Clock } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
 import { VerifiedBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
@@ -199,7 +199,7 @@ export default function GuestDashboardPage() {
                   <VerifiedBadge />
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
-                    ⏳ Verification Pending
+                    <Clock size={11} aria-hidden /> Verification Pending
                   </span>
                 )}
               </div>
