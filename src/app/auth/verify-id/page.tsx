@@ -51,8 +51,8 @@ export default function VerifyIdPage() {
             style={{ backgroundColor: 'var(--color-accent-subtle)' }}>
             <CheckCircle size={40} style={{ color: 'var(--color-accent-deep)' }} />
           </div>
-          <h2 className="text-2xl font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>
-            Verification Submitted!
+          <h2 className="text-[1.75rem] md:text-[2rem] mb-3" style={{ color: 'var(--color-text-primary)' }}>
+            Verification submitted
           </h2>
           <p className="text-[#6B645C] mb-6 leading-relaxed">
             Your ID has been submitted for review. Our team will verify it within 24 hours.
@@ -89,8 +89,8 @@ export default function VerifyIdPage() {
             style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
             <IdCard size={28} strokeWidth={1.75} aria-hidden />
           </div>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            Verify Your Identity
+          <h1 className="text-[2.25rem] mb-2" style={{ color: 'var(--color-text-primary)' }}>
+            Verify your identity
           </h1>
           <p className="text-[#6B645C]">
             FieGH requires ID verification to keep the platform safe for everyone.
