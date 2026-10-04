@@ -1,4 +1,3 @@
-import { preconnect, preload } from 'react-dom'
 import { db } from '@/lib/db'
 import { RENTAL_MODES, type RentalMode } from '@/lib/rentalModes'
 import { HeroSection, type ModePhoto } from '@/components/home/HeroSection'
@@ -10,11 +9,9 @@ import { HostCTASection } from '@/components/home/HostCTASection'
 // than baking one set in at build time.
 export const revalidate = 3600
 
-// Unsplash serves any width on request, so hero photos get a srcset and
-// phones are not sent the desktop-sized file. Other hosts (listing uploads)
-// are used as they are.
-const HERO_WIDTHS = [640, 960, 1400]
-const HERO_SIZES = '(min-width: 768px) 720px, 100vw'
+// next/image resizes the hero photos per device, so Unsplash is asked for one
+// generous source size and local files are used as they are.
+const HERO_SOURCE_WIDTH = 1600
 
 // Used when a rental type has no listing with a photo yet (or the database
 // is unreachable). All three are photographs taken in Ghana.
@@ -23,8 +20,6 @@ const FALLBACK_PHOTOS: Record<RentalMode, Omit<ModePhoto, 'listingId' | 'locatio
   // lose most of the sky. The licence requires the credit shown in the Footer.
   SHORT_STAY: {
     src: '/hero/short-stay-villa-accra-1600.jpg',
-    srcSet: '/hero/short-stay-villa-accra-800.jpg 800w, /hero/short-stay-villa-accra-1600.jpg 1600w',
-    sizes: HERO_SIZES,
     alt: 'A villa with a pool and terrace in Greater Accra',
     // Keeps the villa in frame when the panel narrows
     position: '65% 50%',
@@ -50,14 +45,9 @@ const HERO_REJECTED = new Set([
   'https://images.unsplash.com/photo-1777052854737-7893f50de539?w=900&q=80',
 ])
 
-function heroPhoto(url: string) {
-  if (!url.includes('images.unsplash.com')) return {}
-  const at = (w: number) => url.replace(/([?&])w=\d+/, `$1w=${w}`).replace(/([?&])q=\d+/, '$1q=70')
-  return {
-    src: at(1400),
-    srcSet: HERO_WIDTHS.map((w) => `${at(w)} ${w}w`).join(', '),
-    sizes: HERO_SIZES,
-  }
+function heroSrc(url: string) {
+  if (!url.includes('images.unsplash.com')) return url
+  return url.replace(/([?&])w=\d+/, `$1w=${HERO_SOURCE_WIDTH}`)
 }
 
 /** One real listing photo per rental type, never the same home or photo twice. */
@@ -93,15 +83,14 @@ async function getModePhotos(): Promise<Record<RentalMode, ModePhoto>> {
       usedListings.add(pick.id)
       usedPhotos.add(pick.photo)
       photos[value] = {
-        src: pick.photo,
-        ...heroPhoto(pick.photo),
+        src: heroSrc(pick.photo),
         alt: pick.title,
         listingId: pick.id,
         location: [pick.neighbourhood, pick.city].filter(Boolean).join(', '),
       }
     } else {
       const fallback = FALLBACK_PHOTOS[value]
-      photos[value] = { ...fallback, ...heroPhoto(fallback.src) }
+      photos[value] = { ...fallback, src: heroSrc(fallback.src) }
     }
   }
 
@@ -110,17 +99,6 @@ async function getModePhotos(): Promise<Record<RentalMode, ModePhoto>> {
 
 export default async function HomePage() {
   const modePhotos = await getModePhotos()
-
-  // The first panel's photo is the largest thing above the fold: tell the
-  // browser about it before it reaches the <img>.
-  const lead = modePhotos.SHORT_STAY
-  preconnect('https://images.unsplash.com')
-  preload(lead.src, {
-    as: 'image',
-    imageSrcSet: lead.srcSet,
-    imageSizes: lead.sizes,
-    fetchPriority: 'high',
-  })
 
   return (
     <>

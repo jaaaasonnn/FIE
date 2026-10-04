@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
@@ -366,7 +367,8 @@ export default function ListingDetailPage() {
               className="relative rounded-2xl overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/9] bg-stone-200"
               style={{ boxShadow: '0 8px 28px rgba(31, 27, 22, 0.1)' }}
             >
-              <img src={photos[photoIdx]} alt={listing.title} className="w-full h-full object-cover" />
+              <Image src={photos[photoIdx]} alt={listing.title} fill preload
+                sizes="(min-width: 1280px) 1216px, 100vw" className="object-cover" />
               {photos.length > 1 && (
                 <>
                   <button onClick={() => setPhotoIdx((p) => (p - 1 + photos.length) % photos.length)}
@@ -398,7 +400,7 @@ export default function ListingDetailPage() {
                 <button key={i} onClick={() => setPhotoIdx(i)}
                   className="flex-shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-all"
                   style={{ borderColor: i === photoIdx ? 'var(--color-accent)' : 'transparent' }}>
-                  <img src={p} alt="" className="w-full h-full object-cover" />
+                  <Image src={p} alt="" width={80} height={64} className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>

@@ -7,6 +7,7 @@ import {
   Map as MapIcon, Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { GHANA_REGIONS, PROPERTY_TYPES } from '@/lib/utils'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
@@ -402,9 +403,10 @@ function SearchContent() {
                     <div className="relative flex-shrink-0 rounded-xl overflow-hidden"
                       style={{ width: 110, height: 100 }}>
                       {l.photos?.[0] && (
-                        <img src={l.photos[0]} alt={l.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy" />
+                        <Image src={l.photos[0]} alt={l.title}
+                          fill
+                          sizes="110px"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105" />
                       )}
                       {l.rentalModes?.[0] && (
                         <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"

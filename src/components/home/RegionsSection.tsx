@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 // Unsplash photo ids, each geotagged to the region it stands for
 const regions = [
@@ -22,11 +23,12 @@ const regions = [
 type Region = (typeof regions)[number]
 
 function RegionTile({
-  region, counts, width, lead = false,
+  region, counts, sizes, lead = false,
 }: {
   region: Region
   counts: Record<string, number> | null
-  width: number
+  /** How wide the tile renders, for next/image */
+  sizes: string
   lead?: boolean
 }) {
   const count = counts?.[region.name] ?? 0
@@ -39,11 +41,12 @@ function RegionTile({
         className={`relative rounded-2xl overflow-hidden aspect-[4/3] ${lead ? 'lg:aspect-auto lg:flex-1 lg:min-h-0' : ''}`}
         style={{ backgroundColor: 'var(--color-border)' }}
       >
-        <img
-          src={`https://images.unsplash.com/${region.photo}?w=${width}&q=70`}
+        <Image
+          src={`https://images.unsplash.com/${region.photo}?w=1200&q=80`}
           alt=""
-          className="photo-zoom absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
+          fill
+          sizes={sizes}
+          className="photo-zoom object-cover"
         />
       </div>
       <div className="pt-2.5 flex items-baseline gap-2 text-sm">
@@ -92,16 +95,16 @@ export function RegionsSection() {
         {/* Below lg: six equal tiles, two per row.
             lg and up: Accra leads at full height, then a row of two and a row of three. */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-6 lg:grid-cols-[5fr_7fr] lg:gap-5">
-          <RegionTile region={lead} counts={counts} width={1200} lead />
+          <RegionTile region={lead} counts={counts} sizes="(min-width: 1024px) 520px, 50vw" lead />
           <div className="contents lg:flex lg:flex-col lg:gap-5">
             <div className="contents lg:grid lg:grid-cols-2 lg:gap-5">
               {rest.slice(0, 2).map((r) => (
-                <RegionTile key={r.name} region={r} counts={counts} width={800} />
+                <RegionTile key={r.name} region={r} counts={counts} sizes="(min-width: 1024px) 360px, 50vw" />
               ))}
             </div>
             <div className="contents lg:grid lg:grid-cols-3 lg:gap-5">
               {rest.slice(2).map((r) => (
-                <RegionTile key={r.name} region={r} counts={counts} width={600} />
+                <RegionTile key={r.name} region={r} counts={counts} sizes="(min-width: 1024px) 240px, 50vw" />
               ))}
             </div>
           </div>

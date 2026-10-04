@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Star, Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -204,9 +205,10 @@ export function FeaturedListings() {
                         style={{ backgroundColor: 'var(--color-border)' }}
                       >
                         {photo && (
-                          <img src={photo} alt={l.title}
-                            className="photo-zoom w-full h-full object-cover"
-                            loading="lazy" />
+                          <Image src={photo} alt={l.title}
+                            fill
+                            sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+                            className="photo-zoom object-cover" />
                         )}
                       </div>
 

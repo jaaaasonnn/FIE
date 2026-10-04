@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { format } from 'date-fns'
 import { Search, Minus, Plus } from 'lucide-react'
@@ -12,8 +13,6 @@ import { RENTAL_MODES, type RentalMode } from '@/lib/rentalModes'
 
 export type ModePhoto = {
   src: string
-  srcSet?: string
-  sizes?: string
   alt: string
   /** CSS object-position, for photos whose subject is off-centre. */
   position?: string
@@ -331,15 +330,17 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
                   className="block w-full rounded-2xl overflow-hidden relative aspect-[4/3] md:aspect-auto md:h-[clamp(20rem,52vh,34rem)]"
                   style={{ backgroundColor: 'var(--color-border)', cursor: active ? 'default' : 'pointer' }}
                 >
-                  <img
+                  {/* Sized for the widest state (the active panel) so a panel stays sharp when it expands */}
+                  <Image
                     src={photo.src}
-                    srcSet={photo.srcSet}
-                    sizes={photo.sizes}
                     alt=""
-                    className="mode-panel-photo absolute inset-0 w-full h-full object-cover"
-                    style={{ objectPosition: photo.position }}
+                    fill
+                    sizes="(min-width: 768px) 720px, 100vw"
+                    preload={value === 'SHORT_STAY'}
+                    loading={value === 'SHORT_STAY' ? 'eager' : 'lazy'}
                     fetchPriority={value === 'SHORT_STAY' ? 'high' : 'low'}
-                    decoding="async"
+                    className="mode-panel-photo object-cover"
+                    style={{ objectPosition: photo.position }}
                   />
                 </button>
                 <figcaption className="mt-3 flex items-baseline gap-2.5 text-sm min-w-0">

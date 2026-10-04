@@ -13,6 +13,16 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.resolve(__dirname),
   },
+
+  // next/image resizes these and serves AVIF/WebP. Listing photos are either
+  // seeded from Unsplash or uploaded to Supabase Storage's public buckets.
+  images: {
+    formats: ["image/avif", "image/webp"],
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+      { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
+    ],
+  },
 };
 
 export default withSentryConfig(nextConfig, {
