@@ -327,7 +327,7 @@ function LoginContent() {
               type="submit"
               disabled={signupBusy}
               className="w-full py-3.5 rounded-full text-sm font-bold transition-all flex items-center justify-center gap-2 mt-2"
-              style={{ backgroundColor: 'var(--color-accent)', color: '#fff', opacity: signupBusy ? 0.7 : 1 }}
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)', opacity: signupBusy ? 0.7 : 1 }}
             >
               {signupBusy && <Loader2 size={15} className="animate-spin" />}
               {signupBusy ? 'Creating account…' : 'Create account'}

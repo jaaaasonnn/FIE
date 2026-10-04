@@ -14,9 +14,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
     const variants = {
       // Single accent color for primary CTA
-      primary:   'bg-[#C9932E] text-white hover:bg-[#B37F22] focus:ring-[#C9932E]/40',
+      primary:   'bg-[#C9932E] text-[#1F1B16] hover:bg-[#B37F22] focus:ring-[#C9932E]/40',
       secondary: 'bg-[#F5ECD6] text-[#8A5E10] hover:bg-[#EDDFBF] focus:ring-[#C9932E]/30',
-      outline:   'border-[1.5px] border-[#C9932E] text-[#C9932E] hover:bg-[#F5ECD6] focus:ring-[#C9932E]/30',
+      outline:   'border-[1.5px] border-[#D4C9B8] text-[#1F1B16] hover:bg-[#F5ECD6] focus:ring-[#C9932E]/30',
       ghost:     'text-[#6B645C] hover:bg-[#F4F2EE] focus:ring-[#E8E1D6]',
       danger:    'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
     }

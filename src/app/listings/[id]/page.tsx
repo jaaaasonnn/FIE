@@ -74,8 +74,8 @@ const AMENITY_ICONS: Record<string, React.ReactNode> = {
 
 const MODE_LABELS: Record<string, { label: string; color: string }> = {
   SHORT_STAY: { label: 'Short Stay',        color: 'var(--color-accent)' },
-  TEMP_STAY:  { label: 'Temporary Stay',    color: '#2563EB' },
-  PERMANENT:  { label: 'Permanent Rental',  color: '#059669' },
+  TEMP_STAY:  { label: 'Temporary Stay',    color: 'var(--color-accent)' },
+  PERMANENT:  { label: 'Permanent Rental',  color: 'var(--color-accent)' },
 }
 
 type BookedRange = { start: string; end: string; status: string }
@@ -476,7 +476,7 @@ export default function ListingDetailPage() {
                         )}
                       </div>
                       <div className="text-xs px-3 py-1 rounded-full font-medium"
-                        style={{ backgroundColor: `${MODE_LABELS[m]?.color ?? '#888'}18`, color: MODE_LABELS[m]?.color ?? '#888' }}>
+                        style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
                         Available
                       </div>
                     </div>
@@ -571,7 +571,7 @@ export default function ListingDetailPage() {
                     router.push(dest)
                   }}
                   className="mt-5 flex items-center justify-center gap-2 w-full py-3 rounded-full text-sm font-semibold transition-all hover:opacity-90"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                 >
                   Message Host
                 </button>
@@ -633,7 +633,7 @@ export default function ListingDetailPage() {
                     onClick={() => { setSelectedMode(m); setCheckIn(null); setCheckOut(null); setBookError('') }}
                     className="flex-1 py-2 rounded-lg text-xs font-medium transition-all"
                     style={selectedMode === m
-                      ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+                      ? { backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }
                       : { color: 'var(--color-text-secondary)' }}>
                     {MODE_LABELS[m]?.label ?? m}
                   </button>
@@ -787,7 +787,7 @@ export default function ListingDetailPage() {
                   className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all flex items-center justify-center gap-2 mb-3"
                   style={{
                     backgroundColor: bookLoading ? '#D4A94E' : 'var(--color-accent)',
-                    color: '#fff', cursor: bookLoading ? 'not-allowed' : 'pointer', opacity: availLoading ? 0.7 : 1,
+                    color: 'var(--color-text-primary)', cursor: bookLoading ? 'not-allowed' : 'pointer', opacity: availLoading ? 0.7 : 1,
                   }}>
                   {bookLoading
                     ? <><Loader2 size={16} className="animate-spin" /> Creating booking…</>
@@ -797,7 +797,7 @@ export default function ListingDetailPage() {
                 <Link
                   href={`/login?redirect=/listings/${listingId}`}
                   className="w-full py-3.5 rounded-xl font-semibold text-sm flex items-center justify-center mb-3 transition-all hover:opacity-90"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                 >
                   Log in to Book
                 </Link>

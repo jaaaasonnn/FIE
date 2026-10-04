@@ -167,7 +167,7 @@ export default function WishlistPage() {
               Tap the heart on a home you love — it&apos;ll wait for you here.
             </p>
             <Link href="/search" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               Explore homes
             </Link>
           </div>

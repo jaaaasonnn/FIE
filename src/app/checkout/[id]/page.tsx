@@ -409,7 +409,7 @@ function CheckoutPageInner() {
                 className="w-full py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all"
                 style={{
                   backgroundColor: loading ? '#D4A94E' : 'var(--color-accent)',
-                  color: '#fff',
+                  color: 'var(--color-text-primary)',
                   cursor: loading ? 'not-allowed' : 'pointer',
                 }}
               >

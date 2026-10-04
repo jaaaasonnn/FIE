@@ -31,7 +31,7 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
                 fontWeight: 600,
                 fontSize: '0.875rem',
                 backgroundColor: '#C9932E',
-                color: '#fff',
+                color: '#1F1B16',
                 border: 'none',
                 cursor: 'pointer',
               }}

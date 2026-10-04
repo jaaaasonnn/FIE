@@ -71,7 +71,7 @@ export default function BookingConfirmationPage() {
         </p>
         <Link href="/dashboard/guest"
           className="mt-2 px-6 py-3 rounded-full text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
           Go to My Bookings
         </Link>
       </div>
@@ -214,7 +214,7 @@ export default function BookingConfirmationPage() {
         <div className="grid grid-cols-2 gap-3">
           <Link href="/dashboard/guest"
             className="flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold"
-            style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
             <Calendar size={16} /> My Bookings
           </Link>
           <button

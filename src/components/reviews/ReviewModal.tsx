@@ -118,7 +118,7 @@ export function ReviewModal({
                 <button
                   onClick={() => handleOpenChange(false)}
                   className="mt-4 px-5 py-2 rounded-full text-sm font-semibold"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                 >
                   Close
                 </button>
@@ -168,7 +168,7 @@ export function ReviewModal({
                   onClick={handleSubmit}
                   disabled={submitting}
                   className="mt-4 w-full flex items-center justify-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold disabled:opacity-60"
-                  style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+                  style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
                 >
                   {submitting ? <Loader2 size={16} className="animate-spin" /> : null}
                   {submitting ? 'Submitting…' : 'Submit Review'}

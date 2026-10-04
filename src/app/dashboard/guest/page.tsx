@@ -298,7 +298,7 @@ export default function GuestDashboardPage() {
                 When you book a stay, it&apos;ll show up here.
               </p>
               <Link href="/search" className="inline-block mt-4 px-5 py-2.5 rounded-full text-sm font-semibold"
-                style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                 Browse listings
               </Link>
             </div>

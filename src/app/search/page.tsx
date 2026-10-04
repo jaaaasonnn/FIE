@@ -244,7 +244,7 @@ function SearchContent() {
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap"
                   style={
                     filters.mode === m
-                      ? { backgroundColor: 'var(--color-accent)', color: '#fff' }
+                      ? { backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }
                       : { backgroundColor: 'var(--color-bg)', color: 'var(--color-text-secondary)', border: '1px solid var(--color-border)' }
                   }>
                   {m ? <ModeLabel mode={m} /> : 'All types'}
@@ -269,7 +269,7 @@ function SearchContent() {
             <button
               onClick={() => setShowMapMobile(true)}
               className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               <MapIcon size={15} /> Map
             </button>
           </div>
@@ -351,14 +351,14 @@ function SearchContent() {
               {filters.mode && (
                 <button onClick={() => setFilters((f) => ({ ...f, mode: '' }))}
                   className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
-                  style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent)', border: '1px solid #E5D0A8' }}>
+                  style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)', border: '1px solid var(--color-border-strong)' }}>
                   {MODE_LABELS[filters.mode]} <X size={11} />
                 </button>
               )}
               {filters.region && (
                 <button onClick={() => setFilters((f) => ({ ...f, region: '' }))}
                   className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
-                  style={{ backgroundColor: '#EAF5EE', color: '#2D6A42', border: '1px solid #B8DEC5' }}>
+                  style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)', border: '1px solid var(--color-border-strong)' }}>
                   {filters.region} <X size={11} />
                 </button>
               )}
@@ -496,7 +496,7 @@ function SearchContent() {
             </span>
             <button onClick={() => setShowMapMobile(false)}
               className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               <X size={14} /> Close
             </button>
           </div>

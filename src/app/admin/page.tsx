@@ -171,7 +171,7 @@ export default function AdminPage() {
         </p>
         <button onClick={() => router.push('/')}
           className="px-6 py-3 rounded-full text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
           Go home
         </button>
       </div>
@@ -503,7 +503,7 @@ export default function AdminPage() {
                         />
                       </div>
                       <button onClick={updateRate} className="px-5 py-3 rounded-xl text-sm font-semibold"
-                        style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                        style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                         Update Rate
                       </button>
                     </div>

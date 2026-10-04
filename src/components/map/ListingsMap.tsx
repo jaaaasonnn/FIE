@@ -148,7 +148,7 @@ function ClusterMarker({
         border: '2px solid #B37F22',
         cursor: 'pointer',
         backgroundColor: '#C9932E',
-        color: '#fff',
+        color: '#1F1B16',
         boxShadow: '0 4px 16px rgba(201,147,46,0.4)',
         transition: 'transform 0.15s ease',
       }}
@@ -243,7 +243,7 @@ function PopupCard({
           style={{
             display: 'block', marginTop: 10, textAlign: 'center',
             padding: '7px 0', borderRadius: 999,
-            backgroundColor: '#C9932E', color: '#fff',
+            backgroundColor: '#C9932E', color: '#1F1B16',
             fontSize: 12, fontWeight: 600, textDecoration: 'none',
           }}
         >

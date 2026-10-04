@@ -58,7 +58,7 @@ function HostMessagesContent() {
             <Link
               href={loginHref}
               className="px-5 py-2.5 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
             >
               Sign in
             </Link>

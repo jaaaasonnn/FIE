@@ -102,7 +102,7 @@ export default function ProfilePage() {
           This user doesn&apos;t exist or the link is incorrect.
         </p>
         <Link href="/" className="px-6 py-3 rounded-full text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
           Back to home
         </Link>
       </div>
@@ -188,14 +188,14 @@ export default function ProfilePage() {
                 {sessionUser?.id === profile.id ? (
                   <Link href="/profile/edit"
                     className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold"
-                    style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                    style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                     <Pencil size={14} /> Edit Profile
                   </Link>
                 ) : (
                   <>
                     <Link href="/dashboard/guest/messages"
                       className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold"
-                      style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                      style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                       <MessageSquare size={14} aria-hidden /> Message
                     </Link>
                     <button className="flex items-center gap-2 px-4 py-2.5 rounded-full text-sm border border-stone-200 text-[#6B645C] hover:bg-stone-50">

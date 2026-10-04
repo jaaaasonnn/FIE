@@ -215,7 +215,7 @@ export default function EditListingPage() {
         <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{fetchError}</p>
         <Link href="/dashboard/host"
           className="px-6 py-3 rounded-full text-sm font-semibold"
-          style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
           ← Back to Dashboard
         </Link>
       </div>

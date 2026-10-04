@@ -362,7 +362,7 @@ export default function HostPayoutsPage() {
                   )}
                   <button onClick={handleSaveMethod} disabled={saving}
                     className="w-full py-3 rounded-xl text-sm font-semibold disabled:opacity-60 flex items-center justify-center gap-2"
-                    style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
+                    style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                     {saving && <Loader2 size={14} className="animate-spin" />}
                     {saving ? 'Verifying with Paystack…' : 'Save Payout Method'}
                   </button>
