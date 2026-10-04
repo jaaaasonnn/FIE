@@ -28,6 +28,11 @@ export async function POST(req: Request) {
       if (existing) return NextResponse.json({ error: 'Phone number already registered' }, { status: 409 })
     }
 
+    // Never trust the client's role: only the two self-service roles are
+    // allowed, matched exactly. Anything else (missing, ADMIN, other casing,
+    // non-strings) becomes GUEST.
+    const safeRole = role === 'HOST' ? 'HOST' : 'GUEST'
+
     const passwordHash = await bcrypt.hash(password, 12)
 
     const user = await db.user.create({
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
         email: email || null,
         phone: normalizedPhone,
         passwordHash,
-        role: role || 'GUEST',
+        role: safeRole,
         businessName: businessName || null,
         nationality: nationality || 'Ghanaian'
       }
