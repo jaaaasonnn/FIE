@@ -1,128 +1,117 @@
 import Link from 'next/link'
+import {
+  Search, ClipboardList, MessageSquare, CalendarDays, Key, Star,
+  UserPlus, Home, SlidersHorizontal, Bell, Wallet, BarChart3,
+  type LucideIcon,
+} from 'lucide-react'
 
-const guestSteps = [
-  { num: '01', icon: '🔍', title: 'Browse & Filter', desc: 'Search by rental mode (short stay, monthly, long-term), region, price, and amenities. Every listing clearly shows pricing and terms upfront.' },
-  { num: '02', icon: '📋', title: 'Review the Listing', desc: 'Read the full description, house rules, cancellation policy, and for permanent rentals — the advance payment requirement. No surprises.' },
-  { num: '03', icon: '💬', title: 'Message the Host', desc: 'Chat with the host directly in-app before booking. Ask questions, confirm details, get the welcome message.' },
-  { num: '04', icon: '📅', title: 'Book & Pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Funds are held in escrow — not released to host until check-in.' },
-  { num: '05', icon: '🔑', title: 'Move In', desc: 'After confirmation, you get the full property address and host contact. Raise any dispute within 24 hours of check-in if the property doesn\'t match.' },
-  { num: '06', icon: '⭐', title: 'Review Your Stay', desc: 'After check-out, rate your experience. Reviews build trust across the FieGH community.' },
+type Step = { icon: LucideIcon; title: string; desc: string }
+
+const guestSteps: Step[] = [
+  { icon: Search, title: 'Browse & Filter', desc: 'Search by rental mode (short stay, monthly, long-term), region, price, and amenities. Every listing clearly shows pricing and terms upfront.' },
+  { icon: ClipboardList, title: 'Review the Listing', desc: 'Read the full description, house rules, cancellation policy, and for permanent rentals — the advance payment requirement. No surprises.' },
+  { icon: MessageSquare, title: 'Message the Host', desc: 'Chat with the host directly in-app before booking. Ask questions, confirm details, get the welcome message.' },
+  { icon: CalendarDays, title: 'Book & Pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Funds are held in escrow — not released to host until check-in.' },
+  { icon: Key, title: 'Move In', desc: 'After confirmation, you get the full property address and host contact. Raise any dispute within 24 hours of check-in if the property doesn\'t match.' },
+  { icon: Star, title: 'Review Your Stay', desc: 'After check-out, rate your experience. Reviews build trust across the FieGH community.' },
 ]
 
-const hostSteps = [
-  { num: '01', icon: '📝', title: 'Create Your Account', desc: 'Sign up with your phone number or email. Add your Ghana Card, Passport, or Voter ID to get the Verified Host badge.' },
-  { num: '02', icon: '🏡', title: 'List Your Property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
-  { num: '03', icon: '⚡', title: 'Set Your Preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
-  { num: '04', icon: '📲', title: 'Receive Bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For permanent rentals, review tenant applications before approving.' },
-  { num: '05', icon: '💰', title: 'Get Paid', desc: 'Payments are released to you 24 hours after guest check-in via MTN MoMo or bank transfer, minus the 8% platform commission.' },
-  { num: '06', icon: '📊', title: 'Manage & Grow', desc: 'Track bookings, earnings, and reviews from your host dashboard. Hit 4.8+ rating with 10+ reviews to earn Superhost status.' },
+const hostSteps: Step[] = [
+  { icon: UserPlus, title: 'Create Your Account', desc: 'Sign up with your phone number or email. Add your Ghana Card, Passport, or Voter ID to get the Verified Host badge.' },
+  { icon: Home, title: 'List Your Property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
+  { icon: SlidersHorizontal, title: 'Set Your Preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
+  { icon: Bell, title: 'Receive Bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For permanent rentals, review tenant applications before approving.' },
+  { icon: Wallet, title: 'Get Paid', desc: 'Payments are released to you 24 hours after guest check-in via MTN MoMo or bank transfer, minus the 8% platform commission.' },
+  { icon: BarChart3, title: 'Manage & Grow', desc: 'Track bookings, earnings, and reviews from your host dashboard. Hit 4.8+ rating with 10+ reviews to earn Superhost status.' },
 ]
+
+const fees = [
+  { label: 'Guest Service Fee', value: '12%', desc: 'Added on top of the listing price. This covers payment processing, escrow protection, and platform costs.' },
+  { label: 'Host Commission', value: '8%', desc: 'Deducted from your payout. You always see your net earnings before listing. No hidden surprises.' },
+  { label: 'Damage Deposit', value: 'Optional', desc: 'Set by host. Collected at booking, held in escrow, returned within 48 hours of check-out unless a dispute is raised.' },
+]
+
+const ink = { color: 'var(--color-text-primary)' }
+const muted = { color: 'var(--color-text-secondary)' }
+const rule = { borderColor: 'var(--color-border)' }
+
+/** One audience's six steps: heading on the left, the numbered sequence on the right. */
+function Steps({ id, audience, heading, steps }: { id: string; audience: string; heading: string; steps: Step[] }) {
+  return (
+    <section id={id} className="scroll-mt-24 lg:grid lg:grid-cols-[18rem_minmax(0,1fr)] lg:gap-14 py-12 md:py-16 border-t" style={rule}>
+      <div className="mb-8 lg:mb-0">
+        <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-accent-deep)' }}>{audience}</p>
+        <h2 className="text-3xl font-bold" style={ink}>{heading}</h2>
+      </div>
+      <ol>
+        {steps.map(({ icon: Icon, title, desc }, i) => (
+          <li
+            key={title}
+            className={`grid grid-cols-[2rem_minmax(0,1fr)] gap-x-4 py-5 ${i > 0 ? 'border-t' : 'pt-0'}`}
+            style={rule}
+          >
+            <span className="text-base font-bold tabular-nums pt-px" style={{ color: 'var(--color-accent-deep)' }}>{i + 1}</span>
+            <div>
+              <h3 className="flex items-center gap-2.5 text-base font-bold" style={ink}>
+                <Icon size={17} strokeWidth={1.75} aria-hidden className="flex-shrink-0" />
+                {title}
+              </h3>
+              <p className="mt-1.5 text-sm leading-relaxed max-w-[62ch]" style={muted}>{desc}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
 
 export default function HowItWorksPage() {
   return (
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
-      {/* Hero */}
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-sm font-medium uppercase tracking-widest mb-3" style={{ color: 'var(--color-accent)' }}>
-            Simple & Transparent
-          </p>
-          <h1 className="text-4xl sm:text-5xl font-bold mb-4" style={{ color: 'var(--cream)' }}>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-14 pb-16 md:pb-24">
+        <header className="mb-10 md:mb-14">
+          <p className="text-sm font-semibold mb-2" style={{ color: 'var(--color-accent-deep)' }}>Simple & Transparent</p>
+          <h1 className="text-4xl sm:text-5xl font-bold" style={ink}>
             How FieGH Works
           </h1>
-          <p className="text-base" style={{ color: 'rgba(250,247,242,0.7)' }}>
+          <p className="mt-3 text-base md:text-lg max-w-[60ch]" style={muted}>
             Whether you&apos;re renting or hosting, we&apos;ve made it simple, safe, and rooted in trust.
           </p>
-        </div>
-      </div>
+        </header>
 
-      <div className="max-w-5xl mx-auto px-4 py-16">
-        {/* Guest section */}
-        <div className="mb-20" id="guests">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-4"
-              style={{ backgroundColor: '#FFF8EE', color: 'var(--color-accent)', border: '1px solid var(--amber)' }}>
-              👤 For Guests
-            </div>
-            <h2 className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>How to Rent on FieGH</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {guestSteps.map(({ num, icon, title, desc }) => (
-              <div key={num} className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
-                    style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--color-accent)' }}>
-                    {num}
-                  </div>
-                  <span className="text-2xl">{icon}</span>
-                </div>
-                <h3 className="font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{title}</h3>
-                <p className="text-sm text-[#6B645C] leading-relaxed">{desc}</p>
+        <Steps id="guests" audience="For Guests" heading="How to Rent on FieGH" steps={guestSteps} />
+        <Steps id="hosts" audience="For Hosts" heading="How to Host on FieGH" steps={hostSteps} />
+
+        {/* Fees */}
+        <section className="py-12 md:py-16 border-t" style={rule}>
+          <h2 className="text-2xl font-bold mb-8" style={ink}>Fee Structure</h2>
+          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-y-8 sm:gap-x-10">
+            {fees.map(({ label, value, desc }, i) => (
+              <div key={label} className={i > 0 ? 'sm:border-l sm:pl-10' : ''} style={rule}>
+                <dt className="text-sm font-semibold" style={ink}>{label}</dt>
+                <dd className="mt-1 text-3xl font-bold" style={ink}>{value}</dd>
+                <dd className="mt-2 text-sm leading-relaxed" style={muted}>{desc}</dd>
               </div>
             ))}
-          </div>
-        </div>
+          </dl>
+        </section>
 
-        {/* Host section */}
-        <div className="mb-20" id="hosts">
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-4"
-              style={{ backgroundColor: '#F0FDF4', color: '#059669', border: '1px solid #6EE7B7' }}>
-              🏡 For Hosts
-            </div>
-            <h2 className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>How to Host on FieGH</h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {hostSteps.map(({ num, icon, title, desc }) => (
-              <div key={num} className="bg-white p-6 rounded-2xl border border-stone-100 shadow-sm">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
-                    style={{ backgroundColor: '#065F46', color: '#6EE7B7' }}>
-                    {num}
-                  </div>
-                  <span className="text-2xl">{icon}</span>
-                </div>
-                <h3 className="font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{title}</h3>
-                <p className="text-sm text-[#6B645C] leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Fee breakdown */}
-        <div className="bg-white rounded-2xl border border-stone-100 p-8 mb-16">
-          <h2 className="text-2xl font-bold mb-6" style={{ color: 'var(--color-text-primary)' }}>Fee Structure</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[
-              { label: 'Guest Service Fee', value: '12%', desc: 'Added on top of the listing price. This covers payment processing, escrow protection, and platform costs.', color: 'var(--color-accent)' },
-              { label: 'Host Commission', value: '8%', desc: 'Deducted from your payout. You always see your net earnings before listing. No hidden surprises.', color: '#059669' },
-              { label: 'Damage Deposit', value: 'Optional', desc: 'Set by host. Collected at booking, held in escrow, returned within 48 hours of check-out unless a dispute is raised.', color: '#2563EB' },
-            ].map(({ label, value, desc, color }) => (
-              <div key={label} className="text-center p-5 rounded-2xl" style={{ backgroundColor: '#F9FAFB' }}>
-                <p className="text-3xl font-bold mb-1" style={{ color }}>{value}</p>
-                <p className="font-semibold mb-2" style={{ color: 'var(--color-text-primary)' }}>{label}</p>
-                <p className="text-xs text-[#6B645C] leading-relaxed">{desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA */}
-        <div className="text-center">
-          <h2 className="text-3xl font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Ready to Start?</h2>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        {/* Next step */}
+        <section className="pt-12 md:pt-16 border-t" style={rule}>
+          <h2 className="text-3xl font-bold mb-6" style={ink}>Ready to Start?</h2>
+          <div className="flex flex-col sm:flex-row gap-3">
             <Link href="/search"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-sm"
-              style={{ backgroundColor: 'var(--color-accent)', color: '#fff' }}>
-              Find a Property 🔍
+              className="pressable focus-ring inline-flex items-center justify-center px-7 h-12 rounded-full font-semibold text-sm hover:bg-[var(--color-accent-hover)]"
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+              Find a Property
             </Link>
             <Link href="/login?tab=signup&role=host"
-              className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full font-semibold text-sm border-2"
-              style={{ borderColor: 'var(--color-accent)', color: 'var(--color-accent)' }}>
-              Start Hosting 🏡
+              className="pressable focus-ring inline-flex items-center justify-center px-7 h-12 rounded-full font-semibold text-sm hover:bg-[var(--color-accent-subtle)]"
+              style={{ border: '1px solid var(--color-border-strong)', color: 'var(--color-text-primary)' }}>
+              Start Hosting
             </Link>
           </div>
-        </div>
+        </section>
       </div>
     </div>
   )
