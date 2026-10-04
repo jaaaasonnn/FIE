@@ -99,7 +99,7 @@ export function Navbar() {
               >
                 {label}
                 <span
-                  className="absolute -bottom-1 left-0 w-full h-[1.5px] rounded-full origin-center scale-x-0 group-hover:scale-x-100 transition-transform duration-200 ease-out"
+                  className="absolute -bottom-1 left-0 w-full h-[1.5px] rounded-full origin-center scale-x-0 group-hover:scale-x-100 motion-reduce:transition-none transition-transform duration-200 ease-out"
                   style={{ backgroundColor: 'var(--color-accent)' }}
                 />
               </Link>

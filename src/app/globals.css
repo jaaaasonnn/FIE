@@ -124,12 +124,15 @@ input, select, textarea, button {
   will-change: transform;
   box-shadow: 0 4px 18px rgba(31, 27, 22, 0.06);
 }
-.listing-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(31, 27, 22, 0.1);
-}
-.listing-card:hover .listing-card-img {
-  transform: scale(1.04);
+/* Lift and zoom only for a real pointer: on touch, :hover sticks after a tap */
+@media (hover: hover) and (pointer: fine) {
+  .listing-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(31, 27, 22, 0.1);
+  }
+  .listing-card:hover .listing-card-img {
+    transform: scale(1.04);
+  }
 }
 
 /* Soft surface panels (listing detail, dashboards) */
@@ -292,7 +295,11 @@ input, select, textarea, button {
   .mode-panel-photo,
   .who-popover,
   .photo-zoom,
+  .listing-card,
+  .listing-card-img,
   .faq-chevron { transition: none; }
+  .listing-card:hover,
+  .listing-card:hover .listing-card-img { transform: none; }
   .faq-content[data-state='open'],
   .faq-content[data-state='closed'] { animation: none; }
   .photo-zoom-host:hover .photo-zoom { transform: none; }

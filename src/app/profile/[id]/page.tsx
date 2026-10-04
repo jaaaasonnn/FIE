@@ -227,7 +227,7 @@ export default function ProfilePage() {
                       <div className="relative h-40 overflow-hidden bg-stone-100">
                         {l.photo && (
                           <img src={l.photo} alt={l.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
                         )}
                       </div>
                       <div className="p-4 flex items-center justify-between">

@@ -415,7 +415,7 @@ function SearchContent() {
                         <Image src={l.photos[0]} alt={l.title}
                           fill
                           sizes="110px"
-                          className="object-cover transition-transform duration-500 group-hover:scale-105" />
+                          className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
                       )}
                       {l.rentalModes?.[0] && (
                         <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"

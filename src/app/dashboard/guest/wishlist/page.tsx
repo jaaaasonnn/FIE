@@ -191,7 +191,7 @@ export default function WishlistPage() {
                   <div className="relative h-48 overflow-hidden">
                     {listing.photo && (
                       <img src={listing.photo} alt={listing.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" loading="lazy" />
                     )}
                     <div className="absolute top-3 left-3 flex gap-1">
                       {listing.modes.slice(0, 1).map((m) => (
