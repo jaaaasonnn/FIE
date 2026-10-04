@@ -51,6 +51,7 @@ export function Navbar() {
   }
 
   const isHost = user?.role === 'HOST'
+  const roleLabel = isHost ? 'Host' : user?.role === 'ADMIN' ? 'Admin' : 'Guest'
   const dashboardHref = isHost ? '/dashboard/host' : '/dashboard/guest'
   const messagesHref = isHost ? '/dashboard/host/messages' : '/dashboard/guest/messages'
   // Guests' bookings are the first tab of their dashboard; there is no /dashboard/guest/bookings
@@ -288,15 +289,19 @@ export function Navbar() {
               {user ? (
                 <>
                   <div className="flex items-center gap-3 px-2 py-2">
-                    <div
-                      className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
-                      style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
-                    >
-                      {(user.name ?? 'U')[0].toUpperCase()}
-                    </div>
+                    {user.profilePhoto ? (
+                      <img src={user.profilePhoto} alt={user.name ?? ''} className="w-9 h-9 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
+                        style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
+                      >
+                        {(user.name ?? 'U')[0].toUpperCase()}
+                      </div>
+                    )}
                     <div>
                       <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>{user.name}</p>
-                      <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{user.role}</p>
+                      <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{roleLabel}</p>
                     </div>
                   </div>
                   {[
