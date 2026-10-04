@@ -1,16 +1,14 @@
 export default function PrivacyPage() {
   return (
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-16 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
-            Privacy Policy
-          </h1>
-          <p style={{ color: 'rgba(250,247,242,0.6)' }}>Last updated: January 2025 · FieGH Platform</p>
-        </div>
-      </div>
+      <header className="max-w-3xl mx-auto px-4 pt-10 md:pt-14">
+        <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+          Privacy Policy
+        </h1>
+        <p style={{ color: 'var(--color-text-secondary)' }}>Last updated: January 2025, FieGH Platform</p>
+      </header>
 
-      <div className="max-w-3xl mx-auto px-4 py-16">
+      <div className="max-w-3xl mx-auto px-4 pt-10 pb-16 md:pb-24">
         <div className="space-y-8 text-sm text-[#4A4540] leading-relaxed">
           {[
             {
