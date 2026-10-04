@@ -8,7 +8,7 @@ import { Star, Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { RENTAL_MODES } from '@/lib/rentalModes'
-import { formatUsd } from '@/lib/utils'
+import { formatUsdCompact } from '@/lib/utils'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -248,9 +248,9 @@ export function FeaturedListings() {
                         </p>
 
                         <p className="text-sm mt-1.5" style={{ color: 'var(--color-text-primary)' }}>
-                          <span className="font-bold">{formatUsd(price)}</span> per {unit}
+                          <span className="font-bold">{formatUsdCompact(price)}</span> per {unit}
                           <span style={{ color: 'var(--color-text-secondary)' }}>
-                            {yearly ? ` (about ${formatUsd(yearly / 12)} a month)` : ` (about GH₵ ${ghsPrice})`}
+                            {yearly ? ` (about ${formatUsdCompact(yearly / 12)} a month)` : ` (about GH₵ ${ghsPrice})`}
                           </span>
                         </p>
                       </div>

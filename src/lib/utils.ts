@@ -77,6 +77,11 @@ export function formatUsd(amount: number): string {
   return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+/** Card price: whole amounts without cents ($95), others with them ($95.50) */
+export function formatUsdCompact(amount: number): string {
+  return Number.isInteger(amount) ? '$' + amount.toLocaleString('en-US') : formatUsd(amount)
+}
+
 export function calculateFees(basePrice: number) {
   const serviceFee = basePrice * SERVICE_FEE_RATE
   const total = basePrice + serviceFee
