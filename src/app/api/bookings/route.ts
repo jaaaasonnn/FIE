@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
+import { quoteStay } from '@/lib/bookingQuote'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -15,8 +16,10 @@ export async function POST(req: Request) {
     const body = await req.json()
     const {
       listingId, rentalMode,
-      checkIn, checkOut, nightsOrMonths, specialRequests,
+      checkIn, checkOut, specialRequests,
     } = body
+    // body.nightsOrMonths is deliberately not read: the length of the stay,
+    // and so the price, is worked out below from the dates and the listing.
     // Always the authenticated session user — never a client-supplied
     // guestId, which would let a caller create bookings (and occupy real
     // calendar availability on instant-book listings) as anyone else.
@@ -37,8 +40,11 @@ export async function POST(req: Request) {
     if (!listing)         return NextResponse.json({ error: 'Listing not found' },       { status: 404 })
     if (!listing.isActive) return NextResponse.json({ error: 'Listing is not available' }, { status: 400 })
 
-    const checkInDate  = new Date(checkIn)
-    const checkOutDate = new Date(checkOut)
+    const quote = quoteStay(listing, rentalMode, checkIn, checkOut)
+    if (!quote.ok) {
+      return NextResponse.json({ error: quote.error }, { status: 400 })
+    }
+    const { checkIn: checkInDate, checkOut: checkOutDate, units, pricePerUnit } = quote
 
     // ── Atomic conflict check + create ──────────────────────────────────
     // Serializable isolation is required on Postgres — unlike SQLite (single
@@ -65,12 +71,17 @@ export async function POST(req: Request) {
           throw err
         }
 
-        let pricePerUnit = 0
-        if (rentalMode === 'SHORT_STAY') pricePerUnit = listing.priceNightly  ?? 0
-        else if (rentalMode === 'TEMP_STAY')  pricePerUnit = listing.priceMonthly ?? 0
-        else if (rentalMode === 'PERMANENT')  pricePerUnit = listing.priceAnnual  ?? 0
+        // Dates the host or an earlier booking has blocked out
+        const blocked = await tx.blockedDate.findFirst({
+          where: { listingId, date: { gte: checkInDate, lt: checkOutDate } },
+        })
+        if (blocked) {
+          const err = new Error('DATE_CONFLICT')
+          ;(err as NodeJS.ErrnoException).code = 'DATE_CONFLICT'
+          throw err
+        }
 
-        const subtotal = pricePerUnit * (nightsOrMonths || 1)
+        const subtotal = pricePerUnit * units
         const { serviceFee, total } = calculateFees(subtotal)
         const damageDeposit = listing.damageDeposit ?? 0
 
@@ -82,7 +93,7 @@ export async function POST(req: Request) {
             rentalMode,
             checkIn: checkInDate,
             checkOut: checkOutDate,
-            nightsOrMonths: nightsOrMonths || 1,
+            nightsOrMonths: units,
             pricePerUnit,
             subtotal,
             serviceFee,
