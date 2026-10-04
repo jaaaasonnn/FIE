@@ -198,7 +198,7 @@ export default function GuestDashboardPage() {
                 {user.isVerified ? (
                   <VerifiedBadge />
                 ) : (
-                  <span className="px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
                     <Clock size={11} aria-hidden /> Verification Pending
                   </span>
                 )}

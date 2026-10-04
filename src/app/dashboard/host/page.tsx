@@ -240,7 +240,7 @@ function HostDashboardContent() {
                   style={{
                     borderColor: primary ? 'var(--amber)' : '#E5E7EB',
                     backgroundColor: primary ? 'var(--amber)' : '#fff',
-                    color: primary ? '#fff' : '#374151',
+                    color: primary ? 'var(--color-text-primary)' : '#374151',
                   }}>
                   <Icon size={16} />
                   {label}
