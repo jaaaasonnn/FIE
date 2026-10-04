@@ -7,9 +7,11 @@ import 'react-datepicker/dist/react-datepicker.css'
 import {
   Star, MapPin, Bed, Bath, Users, Wifi, Shield, Zap, Wind, Car, Camera,
   Share2, Heart, Flag, ChevronLeft, ChevronRight, CheckCircle, Loader2,
-  AlertCircle, AlertTriangle, Home, X,
+  AlertCircle, Home, X,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
+import { formatUsd } from '@/lib/utils'
+import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 import Link from 'next/link'
 import Image from 'next/image'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
@@ -451,25 +453,24 @@ export default function ListingDetailPage() {
                         </span>
                         {m === 'SHORT_STAY' && listing.priceNightly && (
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                            From <strong>${listing.priceNightly}</strong>/night
+                            From <strong>{formatUsd(listing.priceNightly)}</strong>/night
                           </p>
                         )}
                         {m === 'TEMP_STAY' && listing.priceMonthly && (
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                            <strong>${listing.priceMonthly}</strong>/month · 1 to 11 months
+                            <strong>{formatUsd(listing.priceMonthly)}</strong>/month · 1 to 11 months
                           </p>
                         )}
                         {m === 'PERMANENT' && (
                           <>
                             {listing.priceAnnual && (
                               <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                                <strong>${listing.priceAnnual.toLocaleString()}</strong>/year · 12+ months
+                                <strong>{formatUsd(listing.priceAnnual)}</strong>/year, about {formatUsd(listing.priceAnnual / 12)} a month
                               </p>
                             )}
-                            {listing.advanceMonthsRequired && (
-                              <p className="flex items-center gap-1.5 text-xs font-medium mt-1" style={{ color: '#DC2626' }}>
-                                <AlertTriangle size={12} aria-hidden className="flex-shrink-0" />
-                                {listing.advanceMonthsRequired} months advance payment required upfront
+                            {listing.priceAnnual && (
+                              <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                                Paid as one year upfront
                               </p>
                             )}
                           </>
@@ -644,36 +645,33 @@ export default function ListingDetailPage() {
               <div className="mb-4">
                 {selectedMode === 'SHORT_STAY' && listing.priceNightly && (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${listing.priceNightly}</span>
+                    <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(listing.priceNightly)}</span>
                     <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>/night</span>
                   </div>
                 )}
                 {selectedMode === 'TEMP_STAY' && listing.priceMonthly && (
                   <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${listing.priceMonthly}</span>
+                    <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(listing.priceMonthly)}</span>
                     <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>/month</span>
                   </div>
                 )}
                 {selectedMode === 'PERMANENT' && listing.priceAnnual && (
                   <>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${listing.priceAnnual.toLocaleString()}</span>
+                      <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(listing.priceAnnual)}</span>
                       <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>/year</span>
                     </div>
-                    {listing.advanceMonthsRequired && (
-                      <p className="flex items-center gap-1.5 text-xs mt-1 font-medium" style={{ color: '#DC2626' }}>
-                        <AlertTriangle size={12} aria-hidden className="flex-shrink-0" />
-                        {listing.advanceMonthsRequired} months advance required
-                      </p>
-                    )}
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                      About {formatUsd(listing.priceAnnual / 12)} a month. Paid as one year upfront.
+                    </p>
                   </>
                 )}
                 <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                  ≈ GH₵ {(
+                  About GH₵ {(
                     (selectedMode === 'SHORT_STAY' ? listing.priceNightly ?? 0
                      : selectedMode === 'TEMP_STAY' ? listing.priceMonthly ?? 0
                      : listing.priceAnnual ?? 0) * ghsRate
-                  ).toLocaleString()}
+                  ).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </p>
               </div>
 
@@ -744,33 +742,19 @@ export default function ListingDetailPage() {
                 </div>
               )}
 
-              {/* Fee breakdown */}
+              {/* Live estimate once dates are picked. Same layout as checkout. */}
               {basePrice > 0 && (
-                <div className="space-y-2 mb-4 text-sm">
-                  <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-                    <span>
-                      {selectedMode === 'SHORT_STAY'
-                        ? `$${listing.priceNightly} × ${nightsCount} nights`
-                        : selectedMode === 'TEMP_STAY'
-                        ? `$${listing.priceMonthly} × ${months} months`
-                        : 'Annual rate'}
-                    </span>
-                    <span>${basePrice.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-                    <span>Service fee (12%)</span><span>${serviceFee.toFixed(0)}</span>
-                  </div>
-                  {(listing.damageDeposit ?? 0) > 0 && (
-                    <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-                      <span>Refundable damage deposit</span><span>${listing.damageDeposit}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold pt-2 border-t"
-                    style={{ color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}>
-                    <span>Total</span><span>${total.toFixed(0)}</span>
-                  </div>
-                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>≈ GH₵ {(total * ghsRate).toLocaleString()}</p>
-                </div>
+                <PriceBreakdown
+                  className="mb-4"
+                  rentalMode={selectedMode}
+                  pricePerUnit={selectedMode === 'SHORT_STAY' ? (listing.priceNightly ?? 0) : selectedMode === 'TEMP_STAY' ? (listing.priceMonthly ?? 0) : (listing.priceAnnual ?? 0)}
+                  units={selectedMode === 'SHORT_STAY' ? nightsCount : selectedMode === 'TEMP_STAY' ? months : 1}
+                  subtotal={basePrice}
+                  serviceFee={serviceFee}
+                  deposit={listing.damageDeposit ?? 0}
+                  total={total}
+                  ghsRate={ghsRate}
+                />
               )}
 
               {/* Error banner */}

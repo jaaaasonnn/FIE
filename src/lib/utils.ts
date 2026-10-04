@@ -72,6 +72,11 @@ export const PLATFORM_COMMISSION = 0.08
 // USD price implied at the moment the rate was quoted.
 export const EXCHANGE_RATE_BUFFER = 0.01
 
+/** Dollar amount as shown to guests: always two decimals, e.g. $1,400.00 */
+export function formatUsd(amount: number): string {
+  return '$' + amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function calculateFees(basePrice: number) {
   const serviceFee = basePrice * SERVICE_FEE_RATE
   const total = basePrice + serviceFee

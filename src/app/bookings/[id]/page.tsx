@@ -6,12 +6,17 @@ import Link from 'next/link'
 import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield, SearchX, Phone } from 'lucide-react'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 
 type BookingData = {
   id: string
   paymentReference: string | null
   rentalMode: string
   nightsOrMonths: number
+  pricePerUnit: number
+  subtotal: number
+  serviceFee: number
+  damageDeposit: number
   totalPrice: number
   status: string
   paymentStatus: string
@@ -176,15 +181,18 @@ export default function BookingConfirmationPage() {
         {/* Payment summary */}
         <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
           <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Payment Summary</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-[#6B645C]">
-              <span>Booking total</span>
-              <span>${booking.totalPrice.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-[#6B645C]">
-              <span>Approx. in GHS</span>
-              <span>GH₵ {(booking.totalPrice * ghsRate).toLocaleString()}</span>
-            </div>
+          <PriceBreakdown
+            rentalMode={booking.rentalMode}
+            pricePerUnit={booking.pricePerUnit}
+            units={booking.nightsOrMonths}
+            subtotal={booking.subtotal}
+            serviceFee={booking.serviceFee}
+            deposit={booking.damageDeposit}
+            total={booking.totalPrice}
+            ghsRate={ghsRate}
+            totalLabel={booking.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}
+          />
+          <div className="mt-4 text-sm">
             <div className="flex justify-between items-center pt-2 border-t border-stone-100">
               <span className="text-[#6B645C]">Payment status</span>
               <span className="px-2 py-1 rounded-full text-xs font-semibold"

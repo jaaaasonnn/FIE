@@ -2,9 +2,10 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, Smartphone, MessageSquare, Lock, Check, AlertTriangle } from 'lucide-react'
+import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, MessageSquare, Lock, Check, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { validateGhanaPhone } from '@/lib/utils'
+import { validateGhanaPhone, formatUsd } from '@/lib/utils'
+import { PriceBreakdown, depositIncludedNote } from '@/components/booking/PriceBreakdown'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 
@@ -36,12 +37,6 @@ const MOMO_NETWORKS = [
   { id: 'VODAFONE',  label: 'Vodafone Cash' },
   { id: 'AIRTELTIGO', label: 'AirtelTigo Money' },
 ]
-
-const MODE_UNIT: Record<string, string> = {
-  SHORT_STAY: 'nights',
-  TEMP_STAY:  'months',
-  PERMANENT:  'year',
-}
 
 function paymentReturnError(paymentResult: string | null): string {
   if (paymentResult === 'failed') return 'Payment was not completed. Please try again.'
@@ -230,8 +225,11 @@ function CheckoutPageInner() {
             Booking Confirmed!
           </h2>
           <p className="mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-            Your payment of <strong>${booking.totalPrice.toFixed(2)}</strong> has been received.
+            Your payment of <strong>{formatUsd(booking.totalPrice)}</strong> has been received.
           </p>
+          {booking.damageDeposit > 0 && (
+            <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>{depositIncludedNote(booking.damageDeposit)}.</p>
+          )}
           <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
             Funds are held in escrow and will be released to the host when you check in.
           </p>
@@ -244,9 +242,6 @@ function CheckoutPageInner() {
             </p>
             <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
               Check-out: {new Date(booking.checkOut).toLocaleDateString('en-GH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-            <p className="inline-flex items-center gap-1.5 text-xs font-medium mt-2" style={{ color: 'var(--color-accent)' }}>
-              <Smartphone size={13} aria-hidden /> SMS confirmation sent to your phone
             </p>
           </div>
 
@@ -273,8 +268,6 @@ function CheckoutPageInner() {
 
   // ── Checkout form ─────────────────────────────────────────────────────
   const photo      = getFirstPhoto(booking.listing.photos)
-  const unit       = MODE_UNIT[booking.rentalMode] ?? ''
-  const nightLabel = `${booking.nightsOrMonths} ${unit}`
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -415,7 +408,7 @@ function CheckoutPageInner() {
               >
                 {loading
                   ? <><Loader2 size={18} className="animate-spin" /> Processing…</>
-                  : <><Lock size={16} aria-hidden /> {`Pay $${booking.totalPrice.toFixed(2)} Securely`}</>}
+                  : <><Lock size={16} aria-hidden /> {`Pay ${formatUsd(booking.totalPrice)} Securely`}</>}
               </button>
             </form>
           </div>
@@ -440,29 +433,17 @@ function CheckoutPageInner() {
                   </div>
                 </div>
 
-                <div className="space-y-2 text-sm border-t pt-4" style={{ borderColor: 'var(--color-border)' }}>
-                  <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-                    <span>${booking.pricePerUnit} × {nightLabel}</span>
-                    <span>${booking.subtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-                    <span>Service fee (12%)</span>
-                    <span>${booking.serviceFee.toFixed(2)}</span>
-                  </div>
-                  {booking.damageDeposit > 0 && (
-                    <div className="flex justify-between" style={{ color: 'var(--color-text-secondary)' }}>
-                      <span>Damage deposit (refundable)</span>
-                      <span>${booking.damageDeposit}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between font-bold pt-2 border-t" style={{ color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}>
-                    <span>Total</span>
-                    <span>${booking.totalPrice.toFixed(2)}</span>
-                  </div>
-                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                    ≈ GH₵ {(booking.totalPrice * ghsRate).toLocaleString()}
-                  </p>
-                </div>
+                <PriceBreakdown
+                  className="border-t pt-4"
+                  rentalMode={booking.rentalMode}
+                  pricePerUnit={booking.pricePerUnit}
+                  units={booking.nightsOrMonths}
+                  subtotal={booking.subtotal}
+                  serviceFee={booking.serviceFee}
+                  deposit={booking.damageDeposit}
+                  total={booking.totalPrice}
+                  ghsRate={ghsRate}
+                />
               </div>
 
               {/* Escrow info */}
@@ -474,7 +455,7 @@ function CheckoutPageInner() {
                 <ul className="space-y-1 text-xs" style={{ color: '#15803D' }}>
                   <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Payment held until you check in</li>
                   <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />24-hour dispute window after check-in</li>
-                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Damage deposit returned within 48hrs of check-out</li>
+                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Deposit returned after check-out if there is no damage claim</li>
                 </ul>
               </div>
             </div>

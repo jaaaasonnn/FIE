@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { formatUsd } from '@/lib/utils'
+import { depositIncludedNote } from '@/components/booking/PriceBreakdown'
 import { CreditCard, CheckCircle, Clock, XCircle, Loader2, Smartphone, Wallet, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
@@ -48,6 +50,8 @@ export default function GuestPaymentsPage() {
   const { rate: ghsRate } = useExchangeRate()
   const [loadedPayments, setPayments] = useState<ApiPayment[]>([])
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  // Deposit per booking, read from the guest's bookings so each payment can say what it includes
+  const [deposits, setDeposits] = useState<Record<string, number>>({})
   // Loading and the visible list are derived from which user the data was
   // loaded for, rather than reset/toggled inside the effect.
   const isCurrent = !!user && loadedFor === user.id
@@ -63,6 +67,13 @@ export default function GuestPaymentsPage() {
       .then((data) => { if (active) setPayments(Array.isArray(data.payments) ? data.payments : []) })
       .catch(() => { if (active) setPayments([]) })
       .finally(() => { if (active) setLoadedFor(userId) })
+    fetch(`/api/bookings?guestId=${userId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!active || !Array.isArray(data.bookings)) return
+        setDeposits(Object.fromEntries(data.bookings.map((b: { id: string; damageDeposit: number }) => [b.id, b.damageDeposit ?? 0])))
+      })
+      .catch(() => {})
     return () => { active = false }
   }, [user, authLoading])
 
@@ -114,8 +125,8 @@ export default function GuestPaymentsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>${total.toLocaleString()}</p>
-                <p className="text-xs text-stone-400 mt-0.5">≈ GH₵ {(total * ghsRate).toLocaleString()}</p>
+                <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(total)}</p>
+                <p className="text-xs text-stone-400 mt-0.5">About GH₵ {(total * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
               </div>
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Transactions</p>
@@ -124,7 +135,7 @@ export default function GuestPaymentsPage() {
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Refunds Received</p>
                 <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
-                  ${refunds.toLocaleString()}
+                  {formatUsd(refunds)}
                 </p>
               </div>
             </div>
@@ -155,7 +166,7 @@ export default function GuestPaymentsPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                              {p.status === 'REFUNDED' ? 'Damage Deposit (Refunded)' : 'Booking Payment'}
+                              {p.status === 'REFUNDED' ? 'Refundable deposit (returned)' : p.status === 'SUCCESS' ? 'Total paid' : 'Total due now'}
                             </p>
                             <p className="text-xs text-[#6B645C]">{p.booking.listing.title}</p>
                             <p className="text-xs text-stone-400">
@@ -165,8 +176,11 @@ export default function GuestPaymentsPage() {
                         </div>
                         <div className="text-right flex-shrink-0">
                           <p className="font-bold text-sm" style={{ color: p.status === 'REFUNDED' ? '#2563EB' : 'var(--brown-dark)' }}>
-                            {p.status === 'REFUNDED' ? '+' : ''} ${p.amount.toLocaleString()}
+                            {p.status === 'REFUNDED' ? '+' : ''} {formatUsd(p.amount)}
                           </p>
+                          {p.status !== 'REFUNDED' && (deposits[p.booking.id] ?? 0) > 0 && (
+                            <p className="text-xs text-[#6B645C]">{depositIncludedNote(deposits[p.booking.id])}</p>
+                          )}
                           <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1"
                             style={{ backgroundColor: s.bg, color: s.color }}>
                             {s.icon} {s.label}

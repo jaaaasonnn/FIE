@@ -8,6 +8,7 @@ import { Star, Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { RENTAL_MODES } from '@/lib/rentalModes'
+import { formatUsd } from '@/lib/utils'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -19,6 +20,7 @@ type ApiListing = {
   bathrooms:     number
   maxGuests:     number
   priceNightly:  number | null
+  priceAnnual?:  number | null
   priceMonthly:  number | null
   avgRating:     number
   reviewCount:   number
@@ -185,8 +187,10 @@ export function FeaturedListings() {
               </div>
             )
             : listings.map((l) => {
-                const price    = l.priceNightly ?? l.priceMonthly ?? 0
-                const unit     = l.priceNightly ? 'night' : 'month'
+                // Long-term-only homes show the yearly price with its monthly equivalent
+                const yearly   = l.rentalModes?.length === 1 && l.rentalModes[0] === 'PERMANENT' && l.priceAnnual ? l.priceAnnual : null
+                const price    = yearly ?? l.priceNightly ?? l.priceMonthly ?? 0
+                const unit     = yearly ? 'year' : l.priceNightly ? 'night' : 'month'
                 const ghsPrice = Math.round(price * ghsRate).toLocaleString()
                 const photo    = l.photos?.[0] ?? ''
                 const mode     = MODE_LABELS[l.rentalModes?.[0]]
@@ -244,8 +248,10 @@ export function FeaturedListings() {
                         </p>
 
                         <p className="text-sm mt-1.5" style={{ color: 'var(--color-text-primary)' }}>
-                          <span className="font-bold">${price.toLocaleString()}</span> per {unit}
-                          <span style={{ color: 'var(--color-text-secondary)' }}> (about GH₵ {ghsPrice})</span>
+                          <span className="font-bold">{formatUsd(price)}</span> per {unit}
+                          <span style={{ color: 'var(--color-text-secondary)' }}>
+                            {yearly ? ` (about ${formatUsd(yearly / 12)} a month)` : ` (about GH₵ ${ghsPrice})`}
+                          </span>
                         </p>
                       </div>
                     </Link>

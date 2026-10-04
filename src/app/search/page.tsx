@@ -10,7 +10,7 @@ import { MODE_ICONS } from '@/lib/rentalModes'
 import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import { GHANA_REGIONS, PROPERTY_TYPES } from '@/lib/utils'
+import { GHANA_REGIONS, PROPERTY_TYPES, formatUsd } from '@/lib/utils'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import type { MapListing } from '@/components/map/ListingsMap'
@@ -77,6 +77,10 @@ const SORT_OPTIONS = [
 
 // ── Display price helper ─────────────────────────────────────────────────────
 function getDisplayPrice(l: ApiListing, mode: string) {
+  // A long-term-only home has no monthly rate to book at: show the yearly
+  // price (the card adds the monthly equivalent underneath).
+  const longTermOnly = l.rentalModes?.length === 1 && l.rentalModes[0] === 'PERMANENT'
+  if (longTermOnly && l.priceAnnual) return { price: l.priceAnnual, unit: '/year' }
   if (mode === 'SHORT_STAY' && l.priceNightly)  return { price: l.priceNightly,  unit: '/night' }
   if (mode === 'PERMANENT'  && l.priceAnnual)   return { price: l.priceAnnual,   unit: '/year'  }
   if (l.priceMonthly) return { price: l.priceMonthly, unit: '/mo' }
@@ -455,13 +459,18 @@ function SearchContent() {
                       <div className="flex items-end justify-between gap-2 flex-wrap">
                         <div>
                           <span className="text-sm font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                            ${price.toLocaleString()}
+                            {formatUsd(price)}
                           </span>
                           <span className="text-xs ml-0.5" style={{ color: 'var(--color-text-secondary)' }}>
                             {unit}
                           </span>
+                          {unit === '/year' && (
+                            <div className="text-[11px] mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                              About {formatUsd(price / 12)} a month
+                            </div>
+                          )}
                           <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                            ≈ GH₵ {(price * ghsRate).toLocaleString()}
+                            About GH₵ {(price * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                           </div>
                         </div>
                         {(l.host?.isVerified || l.host?.isSuperhost) && (

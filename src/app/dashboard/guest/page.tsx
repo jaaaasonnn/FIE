@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { formatUsd } from '@/lib/utils'
+import { depositIncludedNote } from '@/components/booking/PriceBreakdown'
 import { Calendar, Heart, MessageSquare, Star, CreditCard, Bell, Shield, TrendingUp, Loader2, Clock } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
 import { VerifiedBadge } from '@/components/ui/Badge'
@@ -20,6 +22,8 @@ type ApiBooking = {
   updatedAt: string
   status: string
   totalPrice: number
+  damageDeposit: number
+  paymentStatus: string
   rentalMode: string
   listing: { id: string; title: string; photos: string; city: string; neighbourhood: string | null }
   host: { id: string; name: string | null; profilePhoto: string | null }
@@ -333,9 +337,13 @@ export default function GuestDashboardPage() {
                           {new Date(b.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
-                          ${b.totalPrice.toLocaleString()}
-                          <span className="font-normal text-xs text-stone-400 ml-1">≈ GH₵ {(b.totalPrice * ghsRate).toLocaleString()}</span>
+                          <span className="font-normal text-xs text-[#6B645C] mr-1.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
+                          {formatUsd(b.totalPrice)}
+                          <span className="font-normal text-xs text-stone-400 ml-1">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                         </p>
+                        {b.damageDeposit > 0 && (
+                          <p className="text-xs text-[#6B645C] mt-0.5">{depositIncludedNote(b.damageDeposit)}</p>
+                        )}
                       </div>
                     </div>
                     <div className="px-4 pb-4 flex gap-2">

@@ -28,7 +28,7 @@ const hostSteps: Step[] = [
 const fees = [
   { label: 'Guest service fee', value: '12%', desc: 'Added on top of the listing price. This covers payment processing, escrow protection, and platform costs.' },
   { label: 'Host commission', value: '8%', desc: 'Deducted from your payout. You always see your net earnings before listing. No hidden surprises.' },
-  { label: 'Damage deposit', value: 'Optional', desc: 'Set by host. Collected at booking, held in escrow, returned within 48 hours of check-out unless a dispute is raised.' },
+  { label: 'Damage deposit', value: 'Optional', desc: 'Set by host. Paid with your booking and held by FieGH. Returned after check-out if there is no damage claim.' },
 ]
 
 const ink = { color: 'var(--color-text-primary)' }
