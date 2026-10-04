@@ -256,19 +256,19 @@ export default function GuestDashboardPage() {
         {/* Verify ID banner */}
         {!user.isVerified && (
           <div className="p-5 rounded-2xl mb-8 flex items-center justify-between gap-4"
-            style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+            style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-text-primary)' }}>
             <div className="flex items-center gap-3">
-              <Shield size={20} style={{ color: '#2563EB' }} />
+              <Shield size={20} aria-hidden className="flex-shrink-0" style={{ color: 'var(--color-text-primary)' }} />
               <div>
-                <p className="font-semibold text-sm" style={{ color: '#1E40AF' }}>Verify your identity to unlock full access</p>
-                <p className="text-xs text-blue-600 mt-0.5">
+                <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Verify your identity to unlock full access</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
                   Submit your Ghana Card, Passport, or Voter ID to get the Verified badge.
                 </p>
               </div>
             </div>
             <Link href="/auth/verify-id"
               className="px-4 py-2 rounded-full text-sm font-semibold flex-shrink-0"
-              style={{ backgroundColor: '#2563EB', color: '#fff' }}>
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               Verify Now
             </Link>
           </div>
