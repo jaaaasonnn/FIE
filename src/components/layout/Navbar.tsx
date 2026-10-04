@@ -2,17 +2,15 @@
 
 import Link from 'next/link'
 import { useState, useRef, useEffect } from 'react'
-import { Menu, X, Search, Heart, MessageSquare, ChevronDown, LayoutDashboard, LogOut, UserCircle, Settings } from 'lucide-react'
+import { Menu, X, Heart, MessageSquare, ChevronDown, LayoutDashboard, LogOut, UserCircle, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/Wordmark'
 
+// Rental types live in the hero's pill selector, not here
 const NAV_LINKS = [
-  { href: '/search?mode=SHORT_STAY', label: 'Short Stay' },
-  { href: '/search?mode=TEMP_STAY',  label: 'Monthly' },
-  { href: '/search?mode=PERMANENT',  label: 'Long-Term' },
-  { href: '/how-it-works',           label: 'How it Works' },
-  { href: '/faq',                    label: 'FAQ' },
+  { href: '/how-it-works', label: 'How it Works' },
+  { href: '/faq',          label: 'FAQ' },
 ]
 
 export function Navbar() {
@@ -52,7 +50,17 @@ export function Navbar() {
     router.push('/')
   }
 
-  const dashboardHref = user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'
+  const isHost = user?.role === 'HOST'
+  const dashboardHref = isHost ? '/dashboard/host' : '/dashboard/guest'
+  const messagesHref = isHost ? '/dashboard/host/messages' : '/dashboard/guest/messages'
+  // Guests' bookings are the first tab of their dashboard; there is no /dashboard/guest/bookings
+  const bookingsHref = isHost ? '/dashboard/host/bookings' : '/dashboard/guest'
+  // Hosts go to their dashboard; everyone else is invited to host. Admins get neither.
+  const hostLink = isHost
+    ? { href: '/dashboard/host', label: 'Host dashboard' }
+    : user?.role === 'ADMIN'
+      ? null
+      : { href: '/login?tab=signup&role=host', label: 'Become a host' }
   const barHeight = scrolled ? '3.75rem' : '4.25rem'
 
   return (
@@ -102,30 +110,15 @@ export function Navbar() {
 
           {/* Desktop actions */}
           <div className="hidden lg:flex items-center gap-0.5 flex-shrink-0">
-            {[
-              { href: '/search',                   Icon: Search },
-              { href: '/dashboard/guest/wishlist', Icon: Heart },
-              { href: '/dashboard/guest/messages', Icon: MessageSquare },
-            ].map(({ href, Icon }) => (
+            {!loading && hostLink && (
               <Link
-                key={href}
-                href={href}
-                className="p-2.5 rounded-full transition-colors duration-200"
-                style={{ color: 'var(--color-text-secondary)' }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = 'var(--color-accent-subtle)'
-                  e.currentTarget.style.color = 'var(--color-accent-deep)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent'
-                  e.currentTarget.style.color = 'var(--color-text-secondary)'
-                }}
+                href={hostLink.href}
+                className="text-sm px-4 py-2 rounded-full font-semibold whitespace-nowrap mr-2.5 transition-colors duration-200 hover:bg-[var(--color-accent-subtle)]"
+                style={{ color: 'var(--color-text-primary)', border: '1px solid var(--color-border-strong)' }}
               >
-                <Icon size={18} />
+                {hostLink.label}
               </Link>
-            ))}
-
-            <div className="w-px h-5 mx-2.5" style={{ backgroundColor: 'var(--color-border)' }} />
+            )}
 
             {loading ? (
               <div className="w-24 h-9 rounded-full animate-pulse" style={{ backgroundColor: 'var(--color-border)' }} />
@@ -186,12 +179,28 @@ export function Navbar() {
                       <LayoutDashboard size={14} /> Dashboard
                     </Link>
                     <Link
-                      href="/dashboard/guest/bookings"
+                      href={bookingsHref}
                       onClick={() => setDropdownOpen(false)}
                       className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors"
                       style={{ color: 'var(--color-text-primary)' }}
                     >
                       <UserCircle size={14} /> My Bookings
+                    </Link>
+                    <Link
+                      href="/dashboard/guest/wishlist"
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      <Heart size={14} /> Favourites
+                    </Link>
+                    <Link
+                      href={messagesHref}
+                      onClick={() => setDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      <MessageSquare size={14} /> Messages
                     </Link>
                     <Link
                       href="/profile/edit"
@@ -266,6 +275,17 @@ export function Navbar() {
                 {label}
               </Link>
             ))}
+            {/* Hosts already get a Dashboard button below */}
+            {!loading && hostLink && !isHost && (
+              <Link
+                href={hostLink.href}
+                onClick={() => setMenuOpen(false)}
+                className="block py-2.5 px-3 text-sm font-medium rounded-xl hover:bg-[var(--color-accent-subtle)] transition-colors"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                {hostLink.label}
+              </Link>
+            )}
 
             <div className="border-t pt-3 mt-2 flex flex-col gap-2" style={{ borderColor: 'var(--color-border)' }}>
               {user ? (
@@ -282,6 +302,20 @@ export function Navbar() {
                       <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{user.role}</p>
                     </div>
                   </div>
+                  {[
+                    { href: '/dashboard/guest/wishlist', label: 'Favourites', Icon: Heart },
+                    { href: messagesHref,                label: 'Messages',   Icon: MessageSquare },
+                  ].map(({ href, label, Icon }) => (
+                    <Link
+                      key={href}
+                      href={href}
+                      onClick={() => setMenuOpen(false)}
+                      className="flex items-center gap-2.5 py-2.5 px-3 text-sm font-medium rounded-xl hover:bg-[var(--color-accent-subtle)] transition-colors"
+                      style={{ color: 'var(--color-text-primary)' }}
+                    >
+                      <Icon size={16} /> {label}
+                    </Link>
+                  ))}
                   <Link
                     href={dashboardHref}
                     onClick={() => setMenuOpen(false)}
@@ -309,7 +343,7 @@ export function Navbar() {
                     Log in
                   </Link>
                   <Link
-                    href="/login"
+                    href="/login?tab=signup"
                     onClick={() => setMenuOpen(false)}
                     className="text-center py-2.5 rounded-full text-sm font-semibold"
                     style={{ color: 'var(--color-text-primary)' }}
