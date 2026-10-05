@@ -21,7 +21,7 @@ export async function GET(
       db.booking.findMany({
         where: {
           listingId,
-          status: { notIn: ['CANCELLED'] },
+          status: { notIn: ['CANCELLED', 'DECLINED'] },
         },
         select: { checkIn: true, checkOut: true, status: true },
       }),

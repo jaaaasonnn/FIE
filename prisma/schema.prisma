@@ -130,7 +130,8 @@ model BlockedDate {
   id        String   @id @default(cuid())
   listingId String
   date      DateTime
-  reason    String?
+  reason    String?  // BOOKED (a guest's instant booking) | HOST (blocked by the host, stored at 12:00 UTC of the day)
+  note      String?  // Host's private note on a HOST block. Never sent to guests.
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
 }
 

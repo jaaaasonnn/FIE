@@ -81,6 +81,8 @@ export async function PATCH(
           await tx.blockedDate.deleteMany({
             where: {
               listingId: result.listingId,
+              // Only the rows the booking itself created, never a host's own blocks
+              reason: 'BOOKED',
               date: { gte: result.checkIn, lt: result.checkOut },
             },
           })

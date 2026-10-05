@@ -381,6 +381,11 @@ function HostDashboardContent() {
                               style={{ borderColor: '#E5E7EB', color: '#374151' }}>
                               <Eye size={12} /> Preview
                             </Link>
+                            <Link href={`/dashboard/host/listings/${l.id}/calendar`}
+                              className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-all hover:bg-stone-50"
+                              style={{ borderColor: '#E5E7EB', color: '#374151' }}>
+                              <Calendar size={12} /> Calendar
+                            </Link>
                             <Link href={`/dashboard/host/listings/${l.id}/edit`}
                               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full"
                               style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>

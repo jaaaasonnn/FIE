@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import * as Dialog from '@radix-ui/react-dialog'
-import { CheckSquare, Square, Eye, Trash2, AlertTriangle, X, Loader2, SearchX, CheckCircle, AlertCircle, Zap } from 'lucide-react'
+import { CheckSquare, Square, Eye, Trash2, AlertTriangle, X, Loader2, SearchX, CheckCircle, AlertCircle, Zap, CalendarDays } from 'lucide-react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
@@ -246,6 +246,10 @@ export default function EditListingPage() {
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full"
               style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
               <Eye size={13} /> Preview
+            </Link>
+            <Link href={`/dashboard/host/listings/${params.id}/calendar`}
+              className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full text-stone-400 border border-white/20 hover:bg-white/10">
+              <CalendarDays size={13} /> Calendar
             </Link>
             <Link href="/dashboard/host"
               className="text-xs px-3 py-2 rounded-full text-stone-400 border border-white/20 hover:bg-white/10">
