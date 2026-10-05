@@ -263,7 +263,7 @@ The neighbourhood is walkable to restaurants, supermarkets, and the Accra Mall. 
     amenities:    ['WiFi', 'Generator/Inverter', 'Parking', 'Boys Quarters', 'CCTV', 'Water Storage Tank'],
     rules:        ['No parties', 'Tenants responsible for utility bills', 'No subletting'],
     photos: [
-      'https://images.unsplash.com/photo-1586228046763-cd367fc926bf?w=900&q=80',
+      'https://images.unsplash.com/photo-1589749714123-a1a4ee1702ff?w=900&q=80',
       'https://images.unsplash.com/photo-1600489000022-c2086d79f9d4?w=900&q=80',
     ],
     cancellationPolicy: 'MODERATE',

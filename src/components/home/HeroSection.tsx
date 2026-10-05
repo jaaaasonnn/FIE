@@ -311,7 +311,9 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
           </div>
         </form>
 
-        {/* ── Photo panels: one whole home per rental type ──
+        {/* ── Photo panels: one real listing per rental type ──
+            All three behave the same: the panel selects its type and
+            enlarges, and the location link under it opens the listing.
             Pointer shortcut for the tabs above; keyboard and screen-reader
             users select with the radio group, so these stay out of the tab order. */}
         <div
