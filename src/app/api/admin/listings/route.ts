@@ -22,8 +22,9 @@ export async function GET() {
       title:    l.title,
       host:     l.host.name ?? 'Unknown',
       hostId:   l.hostId,
-      status:   l.isActive ? 'ACTIVE' : 'INACTIVE',
+      status:   l.moderationHold ? 'ON HOLD' : l.isActive ? 'ACTIVE' : 'INACTIVE',
       flagged:  !l.isActive,
+      onHold:   l.moderationHold,
       region:   l.region,
       price:    l.priceNightly != null
         ? `$${l.priceNightly}/night`

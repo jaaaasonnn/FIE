@@ -39,6 +39,7 @@ type AdminListing = {
   host: string
   status: string
   flagged: boolean
+  onHold: boolean
   price: string
   region: string
 }
@@ -66,6 +67,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([])
   const [verifications, setVerifications] = useState<AdminVerification[]>([])
   const [listings, setListings] = useState<AdminListing[]>([])
+  const [holdBusy, setHoldBusy] = useState<string | null>(null)
   const [tabLoading, setTabLoading] = useState(false)
   // 403s from the admin API set this; a non-admin user is derived below
   const [apiForbidden, setForbidden] = useState(false)
@@ -136,6 +138,25 @@ export default function AdminPage() {
 
     load()
   }, [activeTab, user])
+
+  // Put a listing on hold (switches it off; its host cannot switch it back
+  // on) or clear the hold and reactivate it.
+  async function setListingHold(listingId: string, hold: boolean) {
+    setHoldBusy(listingId)
+    try {
+      const res = await fetch('/api/admin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ type: hold ? 'hold-listing' : 'clear-hold', listingId }),
+      })
+      if (!res.ok) return
+      setListings((prev) => prev.map((l) => l.id === listingId
+        ? { ...l, onHold: hold, flagged: hold, status: hold ? 'ON HOLD' : 'ACTIVE' }
+        : l))
+    } finally {
+      setHoldBusy(null)
+    }
+  }
 
   async function updateRate() {
     const res = await fetch('/api/admin', {
@@ -436,22 +457,30 @@ export default function AdminPage() {
                                 {l.flagged && (
                                   <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
                                     style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
-                                    <AlertTriangle size={10} /> Inactive
+                                    <AlertTriangle size={10} /> {l.onHold ? 'On hold' : 'Inactive'}
                                   </span>
                                 )}
                               </div>
                               <p className="text-xs text-[#6B645C]">Host: {l.host} · {l.region} · {l.price}</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 flex-wrap">
                               <a href={`/listings/${l.id}`} className="px-3 py-1.5 rounded-full text-xs font-semibold"
                                 style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>View</a>
                               <span className="px-3 py-1.5 rounded-full text-xs font-semibold"
                                 style={{
-                                  backgroundColor: l.status === 'ACTIVE' ? '#D1FAE5' : '#F3F4F6',
-                                  color: l.status === 'ACTIVE' ? '#065F46' : '#6B7280',
+                                  backgroundColor: l.status === 'ACTIVE' ? '#D1FAE5' : l.onHold ? '#FEE2E2' : '#F3F4F6',
+                                  color: l.status === 'ACTIVE' ? '#065F46' : l.onHold ? '#DC2626' : '#6B7280',
                                 }}>
                                 {l.status}
                               </span>
+                              <button
+                                type="button"
+                                onClick={() => setListingHold(l.id, !l.onHold)}
+                                disabled={holdBusy === l.id}
+                                className="px-3 py-1.5 rounded-full text-xs font-semibold border disabled:opacity-50"
+                                style={{ borderColor: 'var(--color-border-strong)', color: 'var(--color-text-primary)', backgroundColor: '#fff' }}>
+                                {l.onHold ? 'Clear hold and reactivate' : 'Put on hold'}
+                              </button>
                             </div>
                           </div>
                         </div>

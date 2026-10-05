@@ -212,7 +212,7 @@ export default function NewListingPage() {
 
       const finalId = data.listing?.id ?? listingId
       if (finalId) {
-        router.push(`/dashboard/host?created=${finalId}`)
+        router.push(`/dashboard/host?created=${finalId}${data.held || data.flagged ? '&held=1' : ''}`)
       } else {
         router.push('/dashboard/host')
       }

@@ -54,6 +54,8 @@ export default function EditListingPage() {
   const [loading,   setLoading]   = useState(false)
   const [saved,     setSaved]     = useState(false)
   const [saveError, setSaveError] = useState('')
+  // On moderation hold: the host can edit, but only FieGH can switch it back on
+  const [onHold, setOnHold] = useState(false)
 
   const [hostId, setHostId] = useState('')
   const [upcomingBookingCount, setUpcomingBookingCount] = useState(0)
@@ -101,6 +103,7 @@ export default function EditListingPage() {
           isActive:               l.isActive             ?? true,
         })
         setPhotos(parseJson(l.photos))
+        setOnHold(!!l.moderationHold)
       })
       .catch(() => setFetchError('Failed to load listing. Please try again.'))
       .finally(() => setFetching(false))
@@ -187,6 +190,10 @@ export default function EditListingPage() {
         setSaveError(data.error ?? `Save failed (${res.status}). Please try again.`)
         return
       }
+      if (data.held) {
+        setOnHold(true)
+        setForm((f) => ({ ...f, isActive: false }))
+      }
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
     } catch {
@@ -257,6 +264,18 @@ export default function EditListingPage() {
         {saveError && (
           <div className="flex items-center gap-2 p-4 rounded-xl mb-6 text-sm" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA' }}>
             <AlertCircle size={16} aria-hidden className="flex-shrink-0" /> {saveError}
+          </div>
+        )}
+
+        {onHold && (
+          <div className="flex items-start gap-2 p-4 rounded-xl mb-6 text-sm" role="status"
+            style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-text-primary)', color: 'var(--color-text-primary)' }}>
+            <AlertTriangle size={16} aria-hidden className="flex-shrink-0 mt-0.5" />
+            <span>
+              This listing is on hold and hidden from guests. Listings are held when FieGH switches them off or when the
+              description contains contact details. You can still edit it, but only FieGH can switch it back on.
+              Email hello@fiegh.com once it is ready for review.
+            </span>
           </div>
         )}
 
@@ -388,10 +407,13 @@ export default function EditListingPage() {
               <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200">
                 <div>
                   <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Listing Active</p>
-                  <p className="text-xs text-[#6B645C]">Toggle off to temporarily hide from search</p>
+                  <p className="text-xs text-[#6B645C]">
+                    {onHold ? 'On hold. Only FieGH can switch this listing back on.' : 'Toggle off to temporarily hide from search'}
+                  </p>
                 </div>
                 <button type="button" onClick={() => setForm({ ...form, isActive: !form.isActive })}
-                  className="w-12 h-6 rounded-full transition-all relative"
+                  disabled={onHold} aria-pressed={form.isActive} aria-label="Listing active"
+                  className="w-12 h-6 rounded-full transition-all relative disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: form.isActive ? '#059669' : '#D1D5DB' }}>
                   <span className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
                     style={{ left: form.isActive ? '28px' : '4px' }} />

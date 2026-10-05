@@ -13,6 +13,7 @@ type ApiListing = {
   id: string
   title: string
   isActive: boolean
+  moderationHold?: boolean
   avgRating: number
   reviewCount: number
   priceNightly: number | null
@@ -56,6 +57,7 @@ function HostDashboardContent() {
   const { user, loading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const createdId = searchParams.get('created')
+  const createdHeld = searchParams.get('held') === '1'
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [respondingId, setRespondingId] = useState<string | null>(null)
 
@@ -197,7 +199,9 @@ function HostDashboardContent() {
           >
             <div className="flex items-center gap-2 text-sm font-medium">
               <CheckCircle size={18} />
-              Listing created successfully.
+              {createdHeld
+                ? 'Listing saved, but it is on hold and hidden from guests. Open Edit to see why.'
+                : 'Listing created successfully.'}
             </div>
             <div className="flex items-center gap-3 text-sm font-semibold">
               <Link href={`/listings/${createdId}`} className="underline underline-offset-2">
@@ -360,10 +364,10 @@ function HostDashboardContent() {
                             <h4 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>{l.title}</h4>
                             <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0"
                               style={{
-                                backgroundColor: l.isActive ? '#D1FAE5' : '#F3F4F6',
-                                color: l.isActive ? '#065F46' : '#6B7280',
+                                backgroundColor: l.isActive ? '#D1FAE5' : l.moderationHold ? '#FEE2E2' : '#F3F4F6',
+                                color: l.isActive ? '#065F46' : l.moderationHold ? '#DC2626' : '#6B7280',
                               }}>
-                              {l.isActive ? 'ACTIVE' : 'INACTIVE'}
+                              {l.isActive ? 'ACTIVE' : l.moderationHold ? 'ON HOLD' : 'INACTIVE'}
                             </span>
                           </div>
                           <div className="flex gap-2 text-xs text-[#6B645C] mb-3">

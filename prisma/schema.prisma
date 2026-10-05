@@ -106,6 +106,10 @@ model Listing {
   instantBook           Boolean  @default(false)
   minStayNights         Int      @default(1)
   isActive              Boolean  @default(true)
+  // Set when an admin switches the listing off or the contact-details check
+  // fails. While true the host cannot make the listing active; only an admin
+  // clears it.
+  moderationHold        Boolean  @default(false)
   isFeatured            Boolean  @default(false)
   avgRating             Float    @default(0)
   reviewCount           Int      @default(0)

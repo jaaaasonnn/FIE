@@ -1,19 +1,21 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { hasContactDetails } from '@/lib/moderation'
 
 // Fields a host (or admin) may change via this route. Anything else in the
 // request body — hostId, id, avgRating, reviewCount, isFeatured, etc. — is
 // silently ignored rather than being spread straight into the Prisma
 // update. photos is deliberately excluded: it's managed exclusively via
 // /api/listings/[id]/photos now, which handles Storage cleanup that a
-// plain field overwrite here would bypass.
+// plain field overwrite here would bypass. isActive is handled on its own
+// below, and moderationHold can never be set through this route.
 const EDITABLE_FIELDS = [
   'title', 'description', 'propertyType', 'region', 'city', 'neighbourhood',
   'lat', 'lng', 'bedrooms', 'bathrooms', 'maxGuests', 'rentalModes',
   'priceNightly', 'priceMonthly', 'priceAnnual', 'advanceMonthsRequired',
   'amenities', 'rules', 'cancellationPolicy', 'instantBook',
-  'minStayNights', 'damageDeposit', 'welcomeMessage', 'isActive',
+  'minStayNights', 'damageDeposit', 'welcomeMessage',
 ] as const
 const JSON_ARRAY_FIELDS = new Set(['rentalModes', 'amenities', 'rules'])
 
@@ -27,7 +29,7 @@ async function requireOwnedListing(id: string) {
   if (listing.hostId !== user.id && user.role !== 'ADMIN') {
     return { error: NextResponse.json({ error: 'You can only manage your own listings' }, { status: 403 }) }
   }
-  return { listing }
+  return { listing, user }
 }
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -79,10 +81,11 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const { error } = await requireOwnedListing(id)
+    const { error, listing, user } = await requireOwnedListing(id)
     if (error) return error
 
     const body = await req.json()
+    const isAdmin = user.role === 'ADMIN'
 
     const data: Record<string, unknown> = {}
     for (const field of EDITABLE_FIELDS) {
@@ -90,9 +93,26 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       data[field] = JSON_ARRAY_FIELDS.has(field) ? JSON.stringify(body[field]) : body[field]
     }
 
+    // A host's new description gets the same contact-details check as at
+    // creation. Failing it puts the listing on hold, exactly as creation does.
+    const flagged = !isAdmin && typeof body.description === 'string' && hasContactDetails(body.description)
+    const held = listing.moderationHold || flagged
+    if (flagged) {
+      data.moderationHold = true
+      data.isActive = false
+    }
+
+    // Publishing and pausing stay with the host, except that a held listing
+    // can never be switched on here, by anyone: an admin clears the hold from
+    // the admin panel, which is the only place moderationHold is ever unset.
+    if (typeof body.isActive === 'boolean') {
+      if (held) data.isActive = false
+      else data.isActive = body.isActive
+    }
+
     const updated = await db.listing.update({ where: { id }, data })
 
-    return NextResponse.json({ listing: updated })
+    return NextResponse.json({ listing: updated, flagged, held })
   } catch (error) {
     console.error('Listing PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update listing' }, { status: 500 })

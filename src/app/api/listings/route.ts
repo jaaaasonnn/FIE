@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { hasContactDetails } from '@/lib/moderation'
 
 export async function GET(req: Request) {
   try {
@@ -118,8 +119,7 @@ export async function POST(req: Request) {
     }
 
     // Auto-flag listings with contact details in description
-    const contactPattern = /(\+?233|\b0[2-5]\d{8}\b|\b\d{10}\b|@gmail|@yahoo|whatsapp)/i
-    const isFlagged = contactPattern.test(description || '')
+    const isFlagged = hasContactDetails(description)
 
     console.log('[POST /api/listings] creating listing for host', hostId, { title, region, city, propertyType })
 
@@ -155,6 +155,8 @@ export async function POST(req: Request) {
         // step) but can never force itself active — the content-flag check
         // still applies either way.
         isActive: requestedIsActive === false ? false : !isFlagged,
+        // A flagged listing is held, so publishing it later cannot switch it on
+        moderationHold: isFlagged,
       },
     })
 

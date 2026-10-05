@@ -74,10 +74,29 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, message: 'User suspended' })
     }
 
-    if (type === 'flag-listing') {
+    // Switching a listing off as an admin also holds it, so its host cannot
+    // switch it back on. 'flag-listing' is the older name for the same action.
+    if (type === 'hold-listing' || type === 'flag-listing') {
       const { listingId } = data
-      await db.listing.update({ where: { id: listingId }, data: { isActive: false } })
-      return NextResponse.json({ success: true })
+      if (typeof listingId !== 'string') return NextResponse.json({ error: 'listingId required' }, { status: 400 })
+      const listing = await db.listing.update({
+        where: { id: listingId },
+        data: { isActive: false, moderationHold: true },
+        select: { id: true, isActive: true, moderationHold: true },
+      })
+      return NextResponse.json({ success: true, listing })
+    }
+
+    // The only way a hold is ever cleared
+    if (type === 'clear-hold') {
+      const { listingId } = data
+      if (typeof listingId !== 'string') return NextResponse.json({ error: 'listingId required' }, { status: 400 })
+      const listing = await db.listing.update({
+        where: { id: listingId },
+        data: { isActive: true, moderationHold: false },
+        select: { id: true, isActive: true, moderationHold: true },
+      })
+      return NextResponse.json({ success: true, listing })
     }
 
     if (type === 'resolve-dispute') {
