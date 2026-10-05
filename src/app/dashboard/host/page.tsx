@@ -172,6 +172,23 @@ function HostDashboardContent() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {/* Not required to host, so this is a prompt, not a gate */}
+        {user && !user.isVerified && (
+          <div className="p-5 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4"
+            style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-text-primary)' }}>
+            <div>
+              <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Verify your ID to earn the Verified badge</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
+                It is not required to host, but guests can filter for verified hosts.
+              </p>
+            </div>
+            <Link href="/auth/verify-id"
+              className="px-4 py-2 rounded-full text-sm font-semibold flex-shrink-0"
+              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+              Verify ID
+            </Link>
+          </div>
+        )}
         {createdId && (
           <div
             className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"

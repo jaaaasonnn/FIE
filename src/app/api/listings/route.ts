@@ -77,6 +77,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You must be signed in to create a listing' }, { status: 401 })
     }
 
+    // Only hosts can list. Guests become hosts through /become-a-host, which
+    // explains what hosting involves first.
+    if (user.role !== 'HOST') {
+      return NextResponse.json({ error: 'Only hosts can create listings' }, { status: 403 })
+    }
+
     const body = await req.json()
     const {
       title, description, propertyType, region, city, neighbourhood,
@@ -151,11 +157,6 @@ export async function POST(req: Request) {
         isActive: requestedIsActive === false ? false : !isFlagged,
       },
     })
-
-    // Promote guests to HOST so the host dashboard treats them as owners
-    if (user.role === 'GUEST') {
-      await db.user.update({ where: { id: user.id }, data: { role: 'HOST' } })
-    }
 
     console.log('[POST /api/listings] created', listing.id, isFlagged ? '(flagged inactive)' : '')
     return NextResponse.json({ listing, flagged: isFlagged }, { status: 201 })

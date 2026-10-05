@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CheckSquare, Square, MapPin, AlertTriangle, Zap, Lightbulb, Check, X, Plus } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
@@ -27,6 +27,12 @@ export default function NewListingPage() {
   const [photos, setPhotos] = useState<string[]>([])
   const router = useRouter()
   const { user, loading: authLoading } = useAuth()
+
+  // Listing is for hosts. A guest who lands here is shown what hosting
+  // involves first.
+  useEffect(() => {
+    if (!authLoading && user?.role === 'GUEST') router.replace('/become-a-host')
+  }, [authLoading, user, router])
 
   const [form, setForm] = useState({
     title: '', description: '', propertyType: '',

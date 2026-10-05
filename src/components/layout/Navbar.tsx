@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useState, useRef, useEffect } from 'react'
-import { Menu, X, Heart, MessageSquare, ChevronDown, LayoutDashboard, LogOut, UserCircle, Settings } from 'lucide-react'
+import { Menu, X, Heart, MessageSquare, ChevronDown, LayoutDashboard, LogOut, UserCircle, Settings, Home, Luggage } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useRouter } from 'next/navigation'
 import { Logo } from '@/components/ui/Wordmark'
@@ -60,6 +60,8 @@ export function Navbar() {
   const dashboardLabel = isHost ? 'Host dashboard' : 'Dashboard'
   // Only signed-out visitors are invited to host
   const showBecomeHost = !loading && !user
+  // Signed-in guests (and only guests) can upgrade from their menu
+  const canUpgrade = user?.role === 'GUEST'
   const barHeight = scrolled ? '3.75rem' : '4.25rem'
 
   return (
@@ -209,6 +211,26 @@ export function Navbar() {
                     >
                       <Settings size={14} /> Edit Profile
                     </Link>
+                    {isHost && (
+                      <Link
+                        href="/dashboard/guest"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors"
+                        style={{ color: 'var(--color-text-primary)' }}
+                      >
+                        <Luggage size={14} /> My trips
+                      </Link>
+                    )}
+                    {canUpgrade && (
+                      <Link
+                        href="/become-a-host"
+                        onClick={() => setDropdownOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-stone-50 transition-colors"
+                        style={{ color: 'var(--color-text-primary)' }}
+                      >
+                        <Home size={14} /> Become a host
+                      </Link>
+                    )}
                     <button
                       onClick={handleSignOut}
                       className="flex items-center gap-2.5 w-full px-4 py-2.5 text-sm hover:bg-red-50 transition-colors"
@@ -307,6 +329,8 @@ export function Navbar() {
                   {[
                     { href: '/dashboard/guest/wishlist', label: 'Favourites', Icon: Heart },
                     { href: messagesHref,                label: 'Messages',   Icon: MessageSquare },
+                    ...(isHost ? [{ href: '/dashboard/guest', label: 'My trips', Icon: Luggage }] : []),
+                    ...(canUpgrade ? [{ href: '/become-a-host', label: 'Become a host', Icon: Home }] : []),
                   ].map(({ href, label, Icon }) => (
                     <Link
                       key={href}
