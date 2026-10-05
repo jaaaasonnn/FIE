@@ -39,6 +39,11 @@ export async function POST(req: Request) {
 
     if (!listing)         return NextResponse.json({ error: 'Listing not found' },       { status: 404 })
     if (!listing.isActive) return NextResponse.json({ error: 'Listing is not available' }, { status: 400 })
+    // A host booking their own home would occupy the calendar and create a
+    // payment owed to themselves.
+    if (listing.hostId === user.id) {
+      return NextResponse.json({ error: 'You cannot book your own listing' }, { status: 403 })
+    }
 
     const quote = quoteStay(listing, rentalMode, checkIn, checkOut)
     if (!quote.ok) {

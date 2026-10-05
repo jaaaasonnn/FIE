@@ -12,6 +12,7 @@ import {
 import { MODE_ICONS } from '@/lib/rentalModes'
 import { formatUsd } from '@/lib/utils'
 import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
+import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import Link from 'next/link'
 import Image from 'next/image'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
@@ -249,6 +250,9 @@ export default function ListingDetailPage() {
       </div>
     )
   }
+
+  // Hosts cannot book their own home; they get a link to manage it instead
+  const isOwner = !!user && user.id === listing.host.id
 
   // ── Price calculations ────────────────────────────────────────────────
   const nightsCount = checkIn && checkOut
@@ -626,6 +630,10 @@ export default function ListingDetailPage() {
           {/* ── Right: booking widget ─────────────────────────────── */}
           <div className="lg:col-span-1">
             <div className="soft-panel-lg sticky top-20 p-6">
+              {isOwner ? (
+                <OwnListingNote listingId={listingId} />
+              ) : (
+              <>
 
               {/* Mode selector */}
               <div className="flex gap-1 p-1 rounded-xl mb-5" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -801,6 +809,8 @@ export default function ListingDetailPage() {
                 <Shield size={16} style={{ color: '#059669' }} />
                 <p className="text-xs" style={{ color: '#065F46' }}>Payment held in escrow until check-in confirmed.</p>
               </div>
+              </>
+              )}
             </div>
           </div>
 

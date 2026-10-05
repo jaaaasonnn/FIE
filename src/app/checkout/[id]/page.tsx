@@ -6,12 +6,14 @@ import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, MessageSq
 import { Button } from '@/components/ui/Button'
 import { validateGhanaPhone, formatUsd } from '@/lib/utils'
 import { PriceBreakdown, depositIncludedNote } from '@/components/booking/PriceBreakdown'
+import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
   id:            string
+  hostId:        string
   rentalMode:    string
   checkIn:       string
   checkOut:      string
@@ -207,6 +209,17 @@ function CheckoutPageInner() {
             {bookingError || 'This booking could not be loaded.'}
           </p>
           <Button onClick={() => router.back()}>← Go back and pick new dates</Button>
+        </div>
+      </div>
+    )
+  }
+
+  // ── The host of this listing cannot pay for a booking on it ────────────
+  if (user && booking.hostId === user.id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <div className="max-w-md w-full soft-panel-lg p-6">
+          <OwnListingNote listingId={booking.listing.id} />
         </div>
       </div>
     )
