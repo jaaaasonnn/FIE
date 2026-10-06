@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
+import { DAY_MS } from '@/lib/stayDates'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -18,6 +19,8 @@ export async function POST(req: Request) {
       listingId, rentalMode,
       checkIn, checkOut, specialRequests,
     } = body
+    // checkIn and checkOut are calendar days ("2027-03-09"), stored at 12:00
+    // UTC so every time zone reads the same date.
     // body.nightsOrMonths is deliberately not read: the length of the stay,
     // and so the price, is worked out below from the dates and the listing.
     // Always the authenticated session user — never a client-supplied
@@ -114,10 +117,9 @@ export async function POST(req: Request) {
         // For instant-book, also stamp blocked dates immediately
         if (listing.instantBook) {
           const dates: { listingId: string; date: Date; reason: string }[] = []
-          const d = new Date(checkInDate)
-          while (d < checkOutDate) {
-            dates.push({ listingId, date: new Date(d), reason: 'BOOKED' })
-            d.setDate(d.getDate() + 1)
+          // One row per night, at 12:00 UTC like the stay itself
+          for (let t = checkInDate.getTime(); t < checkOutDate.getTime(); t += DAY_MS) {
+            dates.push({ listingId, date: new Date(t), reason: 'BOOKED' })
           }
           if (dates.length > 0) {
             await tx.blockedDate.createMany({ data: dates })

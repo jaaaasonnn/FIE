@@ -8,6 +8,7 @@ import { StatCard } from '@/components/ui/Card'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
+import { formatStayDate } from '@/lib/stayDates'
 
 type ApiListing = {
   id: string
@@ -299,9 +300,9 @@ function HostDashboardContent() {
                               <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{guestName}</p>
                               <p className="text-xs text-[#6B645C]">{b.listing?.title}</p>
                               <p className="text-xs text-stone-400">
-                                {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
+                                {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
                                 {' → '}
-                                {new Date(b.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
                             </div>
                           </div>

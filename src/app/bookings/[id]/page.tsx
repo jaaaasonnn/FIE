@@ -7,6 +7,7 @@ import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield, 
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
+import { formatStayDate } from '@/lib/stayDates'
 
 type BookingData = {
   id: string
@@ -122,14 +123,14 @@ export default function BookingConfirmationPage() {
               <div className="p-3 rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
                 <p className="text-xs text-[#6B645C] mb-1">Check-in</p>
                 <p className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                  {new Date(booking.checkIn).toLocaleDateString('en-GH', { weekday: 'short', day: 'numeric', month: 'long' })}
+                  {formatStayDate(booking.checkIn, { weekday: 'short', day: 'numeric', month: 'long' })}
                 </p>
                 <p className="text-xs text-[#6B645C]">From 2:00 PM</p>
               </div>
               <div className="p-3 rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
                 <p className="text-xs text-[#6B645C] mb-1">Check-out</p>
                 <p className="font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                  {new Date(booking.checkOut).toLocaleDateString('en-GH', { weekday: 'short', day: 'numeric', month: 'long' })}
+                  {formatStayDate(booking.checkOut, { weekday: 'short', day: 'numeric', month: 'long' })}
                 </p>
                 <p className="text-xs text-[#6B645C]">By 12:00 PM</p>
               </div>

@@ -6,6 +6,7 @@ import { Calendar, CheckCircle, Clock, XCircle, MessageSquare } from 'lucide-rea
 import { useAuth } from '@/context/AuthContext'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { ReviewModal } from '@/components/reviews/ReviewModal'
+import { formatStayDate } from '@/lib/stayDates'
 
 type ApiBooking = {
   id: string
@@ -168,9 +169,9 @@ export default function HostBookingsPage() {
                         </div>
                         <p className="text-xs text-[#6B645C] mb-1">{b.listing.title} · {MODE_LABELS[b.rentalMode] ?? b.rentalMode}</p>
                         <p className="text-xs text-stone-400">
-                          {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
+                          {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
                           {' → '}
-                          {new Date(b.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
                           {b.rentalMode === 'SHORT_STAY' && ` · ${b.nightsOrMonths} night${b.nightsOrMonths !== 1 ? 's' : ''}`}
                           {b.rentalMode === 'TEMP_STAY'  && ` · ${b.nightsOrMonths} month${b.nightsOrMonths !== 1 ? 's' : ''}`}
                         </p>

@@ -1,9 +1,10 @@
 // Turns the dates a guest searches with into the range of nights to check,
 // and into the database conditions that leave out listings taken on any of
-// those nights. Days are compared at midday UTC, as the host calendar does,
-// so a stay stored at any guest's local midnight is matched correctly.
+// those nights. Days are compared at midday UTC, which is how stays and host
+// blocks are stored.
 
 import { HOST_BLOCK, dayKey, parseDay } from '@/lib/hostCalendar'
+import { addMonthsClamped, addYearClamped } from '@/lib/stayDates'
 
 const DAY_MS = 86_400_000
 export const MAX_SEARCH_NIGHTS = 366
@@ -21,6 +22,8 @@ export type SearchRange =
  * rental type:
  *  - Short Stay (or no type): check-in to check-out. Check-in alone is one night.
  *  - Monthly: `months` calendar months from the move-in date (1 to 11, default 1).
+ *    A day the last month does not have falls back to its last day, the same
+ *    rule the booking route uses.
  *  - Long-Term: one year from the move-in date.
  */
 export function parseSearchRange(
@@ -40,11 +43,9 @@ export function parseSearchRange(
     if (!Number.isInteger(months) || months < 1 || months > MAX_SEARCH_MONTHS) {
       return fail(`Monthly stays are 1 to ${MAX_SEARCH_MONTHS} months`)
     }
-    end = new Date(start)
-    end.setUTCMonth(end.getUTCMonth() + months)
+    end = addMonthsClamped(start, months)
   } else if (input.mode === 'PERMANENT') {
-    end = new Date(start)
-    end.setUTCFullYear(end.getUTCFullYear() + 1)
+    end = addYearClamped(start)
   } else if (input.checkOut === undefined || input.checkOut === null || input.checkOut === '') {
     end = new Date(start.getTime() + DAY_MS)
   } else {

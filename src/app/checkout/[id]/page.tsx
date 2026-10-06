@@ -9,6 +9,7 @@ import { PriceBreakdown, depositIncludedNote } from '@/components/booking/PriceB
 import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { formatStayDate } from '@/lib/stayDates'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -251,10 +252,10 @@ function CheckoutPageInner() {
             style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
             <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{booking.listing.title}</p>
             <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              Check-in: {new Date(booking.checkIn).toLocaleDateString('en-GH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              Check-in: {formatStayDate(booking.checkIn, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
             <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-              Check-out: {new Date(booking.checkOut).toLocaleDateString('en-GH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+              Check-out: {formatStayDate(booking.checkOut, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
 
@@ -439,9 +440,9 @@ function CheckoutPageInner() {
                     <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{booking.listing.title}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>Host: {booking.host.name}</p>
                     <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                      {new Date(booking.checkIn).toLocaleDateString('en-GH',  { day: 'numeric', month: 'short' })}
+                      {formatStayDate(booking.checkIn, { day: 'numeric', month: 'short' })}
                       {' → '}
-                      {new Date(booking.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
+                      {formatStayDate(booking.checkOut, { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
                 </div>

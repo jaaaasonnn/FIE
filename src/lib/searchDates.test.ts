@@ -20,6 +20,12 @@ describe('parseSearchRange', () => {
     expect(p({ checkIn: '2027-02-01', mode: 'TEMP_STAY', months: '12' }).ok).toBe(false)
     expect(p({ checkIn: '2027-02-01', mode: 'TEMP_STAY', months: '1.5' }).ok).toBe(false)
   })
+  it('ends a monthly search on the last day of a shorter month, as the booking route does', () => {
+    expect(p({ checkIn: '2027-01-31', mode: 'TEMP_STAY' })).toMatchObject({ ok: true, checkOut: '2027-02-28', nights: 28 })
+    expect(p({ checkIn: '2028-01-31', mode: 'TEMP_STAY' })).toMatchObject({ ok: true, checkOut: '2028-02-29' })
+    expect(p({ checkIn: '2027-01-31', mode: 'TEMP_STAY', months: '3' })).toMatchObject({ ok: true, checkOut: '2027-04-30' })
+    expect(p({ checkIn: '2028-02-29', mode: 'PERMANENT' })).toMatchObject({ ok: true, checkOut: '2029-02-28' })
+  })
   it('checks one year for long-term rentals', () => {
     expect(p({ checkIn: '2027-02-01', mode: 'PERMANENT' })).toMatchObject({ ok: true, checkOut: '2028-02-01', nights: 365 })
   })

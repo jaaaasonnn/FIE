@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:tz": "for tz in UTC Europe/London America/New_York America/Los_Angeles Africa/Accra Pacific/Auckland; do echo \"== $tz\"; TZ=$tz vitest run || exit 1; done",
     "db:seed": "node prisma/seed.mjs",
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio"

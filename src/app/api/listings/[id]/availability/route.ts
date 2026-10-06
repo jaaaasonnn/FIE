@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { dayKey } from '@/lib/hostCalendar'
 
 /**
  * GET /api/listings/[id]/availability
  *
- * Returns all date ranges currently blocked for a listing:
- *   - bookedRanges: from non-cancelled Bookings (PENDING or CONFIRMED)
- *   - blockedDates: from manual BlockedDate records (host-blocked days)
+ * Returns all date ranges currently blocked for a listing, as calendar days:
+ *   - bookedRanges: from non-cancelled Bookings. `start` is the check-in day
+ *     and `end` the check-out day, which is itself free for a new arrival.
+ *   - blockedDates: BlockedDate rows (host-blocked days and booked nights)
  *
  * Used by the calendar UI on the listing page to grey out unavailable dates.
  */
@@ -31,13 +33,14 @@ export async function GET(
       }),
     ])
 
+    // Calendar days ("2027-03-09"), never moments: see lib/stayDates.ts
     const bookedRanges = bookings.map((b) => ({
-      start: b.checkIn.toISOString(),
-      end: b.checkOut.toISOString(),
+      start: dayKey(b.checkIn),
+      end: dayKey(b.checkOut),
       status: b.status,
     }))
 
-    const blockedDates = blockedDateRows.map((d) => d.date.toISOString())
+    const blockedDates = blockedDateRows.map((d) => dayKey(d.date))
 
     return NextResponse.json({ bookedRanges, blockedDates })
   } catch (error) {

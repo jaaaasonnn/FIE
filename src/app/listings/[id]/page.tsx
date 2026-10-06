@@ -11,6 +11,11 @@ import {
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
 import { formatUsd } from '@/lib/utils'
+import { dayKey, parseDay } from '@/lib/hostCalendar'
+import {
+  addDays, addMonthsClamped, addYearClamped, daysBetween, fromDayKey, ghanaToday,
+  lastCheckOut, nightsAreFree, takenNights, toDayKey,
+} from '@/lib/stayDates'
 import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import Link from 'next/link'
@@ -91,12 +96,13 @@ const dpInputStyle: React.CSSProperties = {
 }
 
 // ── Page component ────────────────────────────────────────────────────────────
-async function getAvailability(listingId: string): Promise<{ bookedRanges: BookedRange[]; blockedDates: Date[] }> {
+// Booked ranges and blocked days arrive as calendar days ("2027-03-09")
+async function getAvailability(listingId: string): Promise<{ bookedRanges: BookedRange[]; blockedDates: string[] }> {
   const res  = await fetch(`/api/listings/${listingId}/availability`)
   const data = await res.json()
   return {
     bookedRanges: data.bookedRanges ?? [],
-    blockedDates: (data.blockedDates ?? []).map((d: string) => new Date(d)),
+    blockedDates: data.blockedDates ?? [],
   }
 }
 
@@ -128,7 +134,7 @@ export default function ListingDetailPage() {
   // Availability state
   const [availLoading, setAvailLoading] = useState(true)
   const [bookedRanges, setBookedRanges] = useState<BookedRange[]>([])
-  const [blockedDates, setBlockedDates] = useState<Date[]>([])
+  const [blockedDates, setBlockedDates] = useState<string[]>([])
 
   // Booking submit state
   const [bookLoading, setBookLoading] = useState(false)
@@ -151,16 +157,12 @@ export default function ListingDetailPage() {
         // Arriving from a search by dates: pre-fill the booking box. Read
         // straight from the address so the page needs no Suspense boundary.
         const q = new URLSearchParams(window.location.search)
-        const localDay = (key: string | null) => {
-          const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key ?? '')
-          return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null
-        }
         const wantedMode = q.get('mode')
         if (wantedMode && l.rentalModes?.includes(wantedMode)) setSelectedMode(wantedMode)
-        const from = localDay(q.get('checkIn'))
+        const from = fromDayKey(q.get('checkIn'))
         if (from) {
           setCheckIn(from)
-          const to = localDay(q.get('checkOut'))
+          const to = fromDayKey(q.get('checkOut'))
           if (to && to > from) setCheckOut(to)
           const m = parseInt(q.get('months') ?? '', 10)
           if (m >= 1 && m <= 11) setMonths(m)
@@ -240,7 +242,23 @@ export default function ListingDetailPage() {
     }
   }
 
-  const excludeIntervals = bookedRanges.map((r) => ({ start: new Date(r.start), end: new Date(r.end) }))
+  // ── Date picker rules ─────────────────────────────────────────────────
+  // The pickers work in calendar days. A stay takes the nights from check-in
+  // up to the day before check-out, so a check-out day stays free: one guest
+  // can leave and the next arrive on the same day.
+  const taken = takenNights(bookedRanges, blockedDates)
+  const pickerDays = (keys: string[]) => keys.flatMap((k) => fromDayKey(k) ?? [])
+  // "Today" is today in Ghana, where the homes are
+  const todayKey = ghanaToday()
+  const today = fromDayKey(todayKey)!
+  const checkInKey  = checkIn  ? toDayKey(checkIn)  : null
+  const checkOutKey = checkOut ? toDayKey(checkOut) : null
+  // Arriving: any night that is taken is off
+  const takenDays = pickerDays([...taken])
+  // Leaving: a day is off when the night before it is taken. Once a check-in
+  // is chosen, the stay simply has to end by the next taken night.
+  const noCheckOutDays = checkInKey ? [] : pickerDays([...taken].map((k) => addDays(k, 1)))
+  const lastCheckOutKey = checkInKey ? lastCheckOut(checkInKey, taken) : null
 
   // ── Loading screen ────────────────────────────────────────────────────
   if (listLoading) {
@@ -273,8 +291,8 @@ export default function ListingDetailPage() {
   const isOwner = !!user && user.id === listing.host.id
 
   // ── Price calculations ────────────────────────────────────────────────
-  const nightsCount = checkIn && checkOut
-    ? Math.max(0, Math.round((checkOut.getTime() - checkIn.getTime()) / 86400000))
+  const nightsCount = checkInKey && checkOutKey
+    ? Math.max(0, daysBetween(parseDay(checkInKey)!, parseDay(checkOutKey)!))
     : 0
 
   const basePrice =
@@ -301,11 +319,13 @@ export default function ListingDetailPage() {
     setBookLoading(true)
     try {
       if (!listing) return
-      let effectiveCheckOut = checkOut
-      if (selectedMode === 'TEMP_STAY' && checkIn) {
-        effectiveCheckOut = new Date(checkIn); effectiveCheckOut.setMonth(effectiveCheckOut.getMonth() + months)
-      } else if (selectedMode === 'PERMANENT' && checkIn) {
-        effectiveCheckOut = new Date(checkIn); effectiveCheckOut.setFullYear(effectiveCheckOut.getFullYear() + 1)
+      // Dates go to the server as calendar days, never as moments, so the
+      // guest's time zone cannot shift them.
+      let effectiveCheckOut = checkOutKey
+      if (selectedMode === 'TEMP_STAY' && checkInKey) {
+        effectiveCheckOut = dayKey(addMonthsClamped(parseDay(checkInKey)!, months))
+      } else if (selectedMode === 'PERMANENT' && checkInKey) {
+        effectiveCheckOut = dayKey(addYearClamped(parseDay(checkInKey)!))
       }
 
       const res = await fetch('/api/bookings', {
@@ -315,8 +335,8 @@ export default function ListingDetailPage() {
           listingId,
           guestId:        user!.id,
           rentalMode:     selectedMode,
-          checkIn:        checkIn!.toISOString(),
-          checkOut:       effectiveCheckOut!.toISOString(),
+          checkIn:        checkInKey,
+          checkOut:       effectiveCheckOut,
           nightsOrMonths: selectedMode === 'SHORT_STAY' ? nightsCount : months,
         }),
       })
@@ -715,9 +735,14 @@ export default function ListingDetailPage() {
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Check-in</label>
                     <DatePicker
                       selected={checkIn}
-                      onChange={(d: Date | null) => { setCheckIn(d); if (checkOut && d && d >= checkOut) setCheckOut(null) }}
+                      onChange={(d: Date | null) => {
+                        setCheckIn(d)
+                        // Keep the check-out only if every night up to it is still free
+                        const from = d ? toDayKey(d) : null
+                        if (checkOutKey && from && (from >= checkOutKey || !nightsAreFree(from, checkOutKey, taken))) setCheckOut(null)
+                      }}
                       selectsStart startDate={checkIn ?? undefined} endDate={checkOut ?? undefined}
-                      minDate={new Date()} excludeDateIntervals={excludeIntervals} excludeDates={blockedDates}
+                      minDate={today} excludeDates={takenDays}
                       placeholderText="Add date" dateFormat="dd MMM yyyy"
                       customInput={<input style={dpInputStyle} readOnly />}
                       wrapperClassName="w-full" popperPlacement="bottom-start" />
@@ -728,8 +753,9 @@ export default function ListingDetailPage() {
                       selected={checkOut}
                       onChange={(d: Date | null) => setCheckOut(d)}
                       selectsEnd startDate={checkIn ?? undefined} endDate={checkOut ?? undefined}
-                      minDate={checkIn ? new Date(checkIn.getTime() + 86400000 * listing.minStayNights) : new Date()}
-                      excludeDateIntervals={excludeIntervals} excludeDates={blockedDates}
+                      minDate={fromDayKey(addDays(checkInKey ?? todayKey, Math.max(1, listing.minStayNights)))!}
+                      maxDate={fromDayKey(lastCheckOutKey) ?? undefined}
+                      excludeDates={noCheckOutDays}
                       placeholderText="Add date" dateFormat="dd MMM yyyy"
                       customInput={<input style={dpInputStyle} readOnly />}
                       wrapperClassName="w-full" popperPlacement="bottom-end" />
@@ -743,7 +769,7 @@ export default function ListingDetailPage() {
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Move-in date</label>
                     <DatePicker selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
-                      minDate={new Date()} excludeDateIntervals={excludeIntervals} excludeDates={blockedDates}
+                      minDate={today} excludeDates={takenDays}
                       placeholderText="Select date" dateFormat="dd MMM yyyy"
                       customInput={<input style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
                   </div>
@@ -762,7 +788,7 @@ export default function ListingDetailPage() {
                 <div className="mb-4">
                   <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Preferred move-in date</label>
                   <DatePicker selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
-                    minDate={new Date()} excludeDateIntervals={excludeIntervals} excludeDates={blockedDates}
+                    minDate={today} excludeDates={takenDays}
                     placeholderText="Select date" dateFormat="dd MMM yyyy"
                     customInput={<input style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
                 </div>

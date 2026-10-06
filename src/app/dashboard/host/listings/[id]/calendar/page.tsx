@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { formatStayDate } from '@/lib/stayDates'
 
 type Block = { date: string; note: string | null }
 type Booking = { id: string; checkIn: string; checkOut: string; status: string; guestName: string }
@@ -18,9 +19,9 @@ const keyOf = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}
 const noon = (key: string) => new Date(`${key}T12:00:00Z`)
 const todayKey = () => new Date().toISOString().slice(0, 10)
 const longDate = (key: string) =>
-  noon(key).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  formatStayDate(noon(key), { day: 'numeric', month: 'long', year: 'numeric' })
 const shortDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+  formatStayDate(iso, { day: 'numeric', month: 'short', year: 'numeric' })
 
 export default function ListingCalendarPage() {
   const params = useParams<{ id: string }>()

@@ -1,10 +1,8 @@
 // Rules for dates a host blocks on their own listing.
 //
 // A host block is one BlockedDate row per calendar day with reason HOST,
-// stored at 12:00 UTC of that day. Midday is deliberate: a guest's stay is
-// sent as local midnights, so a block at midday still falls inside the stay
-// for a browser up to twelve hours either side of UTC, and the booking
-// route's existing "any blocked date inside the stay" check catches it.
+// stored at 12:00 UTC of that day. Stays are stored the same way (see
+// lib/stayDates.ts), so a block and a stay on the same day compare exactly.
 
 export const HOST_BLOCK = 'HOST'
 export const GUEST_BLOCK = 'BOOKED'

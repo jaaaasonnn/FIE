@@ -13,6 +13,7 @@ import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/messages'
+import { formatStayDate } from '@/lib/stayDates'
 
 type ApiBooking = {
   id: string
@@ -332,9 +333,9 @@ export default function GuestDashboardPage() {
                         </div>
                         <p className="text-xs text-[#6B645C] mt-1">{MODE_LABELS[b.rentalMode] ?? b.rentalMode}</p>
                         <p className="text-xs text-[#6B645C]">
-                          {new Date(b.checkIn).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })}
+                          {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
                           {' to '}
-                          {new Date(b.checkOut).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
                         <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
                           <span className="font-normal text-xs text-[#6B645C] mr-1.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
