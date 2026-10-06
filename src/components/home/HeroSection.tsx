@@ -80,6 +80,8 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
   const [mode, setMode] = useState<RentalMode>('SHORT_STAY')
   const [region, setRegion] = useState('')
   const [startDate, setStartDate] = useState<Date | null>(null)
+  // Check-out, for Short Stay only. Monthly and Long-Term search from a move-in date.
+  const [endDate, setEndDate] = useState<Date | null>(null)
   const [party, setParty] = useState<Party>({ adults: 0, children: 0, infants: 0, pets: 0 })
   const [whoOpen, setWhoOpen] = useState(false)
 
@@ -129,6 +131,7 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
     const params = new URLSearchParams({ mode })
     if (region) params.set('region', region)
     if (startDate) params.set('checkIn', format(startDate, 'yyyy-MM-dd'))
+    if (mode === 'SHORT_STAY' && startDate && endDate) params.set('checkOut', format(endDate, 'yyyy-MM-dd'))
     if (people > 0) params.set('guests', String(people))
     router.push(`/search?${params.toString()}`)
   }
@@ -216,20 +219,37 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
             style={{ borderColor: 'var(--color-border)' }}
           >
             <label htmlFor="hero-date" className={fieldLabel} style={{ color: 'var(--color-text-primary)' }}>
-              {mode === 'SHORT_STAY' ? 'Check-in' : 'Move-in'}
+              {mode === 'SHORT_STAY' ? 'Check-in and check-out' : 'Move-in'}
             </label>
-            <DatePicker
-              id="hero-date"
-              selected={startDate}
-              onChange={(d: Date | null) => setStartDate(d)}
-              placeholderText="Add a date"
-              minDate={new Date()}
-              dateFormat="d MMM yyyy"
-              className={`${fieldControl} cursor-pointer`}
-              calendarClassName="fiegh-cal"
-              showPopperArrow={false}
-              popperPlacement="bottom-start"
-            />
+            {mode === 'SHORT_STAY' ? (
+              <DatePicker
+                id="hero-date"
+                selectsRange
+                startDate={startDate}
+                endDate={endDate}
+                onChange={([start, end]: [Date | null, Date | null]) => { setStartDate(start); setEndDate(end) }}
+                placeholderText="Add dates"
+                minDate={new Date()}
+                dateFormat="d MMM"
+                className={`${fieldControl} cursor-pointer`}
+                calendarClassName="fiegh-cal"
+                showPopperArrow={false}
+                popperPlacement="bottom-start"
+              />
+            ) : (
+              <DatePicker
+                id="hero-date"
+                selected={startDate}
+                onChange={(d: Date | null) => setStartDate(d)}
+                placeholderText="Add a date"
+                minDate={new Date()}
+                dateFormat="d MMM yyyy"
+                className={`${fieldControl} cursor-pointer`}
+                calendarClassName="fiegh-cal"
+                showPopperArrow={false}
+                popperPlacement="bottom-start"
+              />
+            )}
           </div>
 
           <div

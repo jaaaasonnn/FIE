@@ -89,6 +89,40 @@ function getDisplayPrice(l: ApiListing, mode: string) {
   return { price: 0, unit: '' }
 }
 
+const dateInputStyle = {
+  border: '1px solid var(--color-border)',
+  backgroundColor: 'var(--color-bg)',
+  color: 'var(--color-text-primary)',
+}
+
+// ── Dates ────────────────────────────────────────────────────────────────────
+type DateFilters = { mode: string; checkIn: string; checkOut: string; months: string }
+
+/** The date parameters to send, or null when there is not enough to search by dates yet. */
+function dateQuery(f: DateFilters): Record<string, string> | null {
+  if (!f.checkIn) return null
+  if (f.mode === 'TEMP_STAY') return { checkIn: f.checkIn, months: f.months || '1' }
+  if (f.mode === 'PERMANENT') return { checkIn: f.checkIn }
+  // Short stays and "all types" wait for a check-out before filtering
+  return f.checkOut ? { checkIn: f.checkIn, checkOut: f.checkOut } : null
+}
+
+const dayLabel = (key: string, withYear = false) =>
+  new Date(`${key}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' })
+
+/** "13 to 16 Oct, 3 nights", "From 13 Oct, 3 months" or "From 13 Oct, one year". */
+function dateSummary(f: DateFilters): string {
+  if (f.mode === 'TEMP_STAY') return `From ${dayLabel(f.checkIn)}, ${f.months === '1' ? '1 month' : `${f.months} months`}`
+  if (f.mode === 'PERMANENT') return `From ${dayLabel(f.checkIn)}, one year`
+  const a = new Date(`${f.checkIn}T12:00:00Z`), b = new Date(`${f.checkOut}T12:00:00Z`)
+  const nights = Math.round((b.getTime() - a.getTime()) / 86_400_000)
+  const sameMonth = a.getUTCMonth() === b.getUTCMonth() && a.getUTCFullYear() === b.getUTCFullYear()
+  const from = sameMonth ? String(a.getUTCDate()) : dayLabel(f.checkIn)
+  return `${from} to ${dayLabel(f.checkOut)}, ${nights} ${nights === 1 ? 'night' : 'nights'}`
+}
+
+const todayKey = () => new Date().toISOString().slice(0, 10)
+
 // ── Search UI ────────────────────────────────────────────────────────────────
 function SearchContent() {
   const params = useSearchParams()
@@ -98,12 +132,17 @@ function SearchContent() {
   const [showMapMobile, setShowMapMobile] = useState(false)
   const [listings,      setListings]      = useState<ApiListing[]>([])
   const [total,         setTotal]         = useState(0)
+  // Set when the server refuses the chosen dates (for example a past check-in)
+  const [dateError,     setDateError]     = useState('')
 
   const [filters, setFilters] = useState({
     query:        '',
     mode:         params.get('mode')   || '',
     region:       params.get('region') || '',
     guests:       params.get('guests') || '',
+    checkIn:      params.get('checkIn')  || '',
+    checkOut:     params.get('checkOut') || '',
+    months:       params.get('months')   || '1',
     minPrice:     '',
     maxPrice:     '',
     bedrooms:     '',
@@ -128,10 +167,13 @@ function SearchContent() {
       if (filters.propertyType) q.set('propertyType', filters.propertyType)
       if (filters.verified)     q.set('verified',     'true')
       if (filters.superhost)    q.set('superhost',    'true')
+      if (dateQuery(filters)) for (const [k, v] of Object.entries(dateQuery(filters)!)) q.set(k, v)
       q.set('limit', '50')
 
       const res  = await fetch(`/api/listings?${q}`)
       const data = await res.json()
+      // A refused date range comes back as an error, with nothing to show
+      if (!res.ok) throw new Error(data.error ?? 'Search failed')
       let results: ApiListing[] = data.listings ?? []
 
       // Client-side free-text search (title, city, neighbourhood, region) — not in API yet
@@ -178,8 +220,13 @@ function SearchContent() {
         if (!active) return
         setListings(results)
         setTotal(results.length)
+        setDateError('')
       })
-      .catch(() => { /* Keep existing results on error */ })
+      .catch((err: Error) => {
+        if (!active) return
+        // Only a date problem empties the list; other failures keep the last results
+        if (dateQuery(filters)) { setListings([]); setTotal(0); setDateError(err.message) }
+      })
       .finally(() => { if (active) setLoadedFilters(filters) })
     return () => { active = false }
   }, [filters])
@@ -201,6 +248,10 @@ function SearchContent() {
       coordinates:   [l.lng!, l.lat!] as [number, number],
       activeMode:    filters.mode || undefined,
     }))
+
+  // Dates travel to the listing page, which pre-fills its booking box
+  const dq = dateQuery(filters)
+  const listingQuery = dq ? `?${new URLSearchParams({ ...dq, ...(filters.mode ? { mode: filters.mode } : {}) })}` : ''
 
   // ── Render ────────────────────────────────────────────────────────────
   return (
@@ -278,6 +329,38 @@ function SearchContent() {
             </button>
           </div>
 
+          {/* Dates: always visible, since they decide what is available */}
+          <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
+            <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+              {filters.mode === 'TEMP_STAY' || filters.mode === 'PERMANENT' ? 'Move-in' : 'Check-in'}
+              <input type="date" value={filters.checkIn} min={todayKey()}
+                onChange={(e) => setFilters((f) => ({ ...f, checkIn: e.target.value, checkOut: f.checkOut && e.target.value && f.checkOut <= e.target.value ? '' : f.checkOut }))}
+                className="focus-ring mt-1 text-sm px-3 py-2 rounded-xl font-normal"
+                style={dateInputStyle} />
+            </label>
+            {filters.mode === 'TEMP_STAY' ? (
+              <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                Months
+                <select value={filters.months}
+                  onChange={(e) => setFilters((f) => ({ ...f, months: e.target.value }))}
+                  className="focus-ring mt-1 text-sm px-3 py-2 rounded-xl font-normal"
+                  style={dateInputStyle}>
+                  {Array.from({ length: 11 }, (_, i) => String(i + 1)).map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+            ) : filters.mode === 'PERMANENT' ? (
+              <p className="text-xs pb-2.5" style={{ color: 'var(--color-text-secondary)' }}>Checks one year from this date.</p>
+            ) : (
+              <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                Check-out
+                <input type="date" value={filters.checkOut} min={filters.checkIn || todayKey()}
+                  onChange={(e) => setFilters((f) => ({ ...f, checkOut: e.target.value }))}
+                  className="focus-ring mt-1 text-sm px-3 py-2 rounded-xl font-normal"
+                  style={dateInputStyle} />
+              </label>
+            )}
+          </div>
+
           {/* Filter panel */}
           {showFilters && (
             <div className="mt-3 pt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
@@ -335,7 +418,7 @@ function SearchContent() {
           (the page and this panel), and on iOS Safari specifically 100vh
           doesn't track the address bar's show/hide, so taps could land on
           the wrong scroll container. Below md, this is just normal page flow. */}
-      <div className="max-w-[1600px] mx-auto flex md:h-[calc(100vh_-_4.25rem_-_57px)]">
+      <div className="max-w-[1600px] mx-auto flex md:h-[calc(100vh_-_4.25rem_-_121px)]">
 
         {/* LEFT: scrollable listings */}
         <div className="flex-[58] md:overflow-y-auto px-4 sm:px-6 py-6">
@@ -345,13 +428,22 @@ function SearchContent() {
             <p className="text-sm flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               {loading
                 ? <><Loader2 size={13} className="animate-spin" style={{ color: 'var(--color-accent)' }} /> Searching…</>
-                : <><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> properties found
+                : <span><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> properties found
                     {filters.region && <span> in <strong>{filters.region}</strong></span>}
                     {filters.mode   && <span> · <strong>{MODE_LABELS[filters.mode]}</strong></span>}
-                  </>}
+                    {dateQuery(filters) && !dateError && <span>, available {dateSummary(filters).replace(/^From/, 'from')}</span>}
+                  </span>}
             </p>
 
             <div className="flex flex-wrap gap-2">
+              {dateQuery(filters) && (
+                <button onClick={() => setFilters((f) => ({ ...f, checkIn: '', checkOut: '' }))}
+                  aria-label={`Clear dates: ${dateSummary(filters)}`}
+                  className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
+                  style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)', border: '1px solid var(--color-border-strong)' }}>
+                  {dateSummary(filters)} <X size={11} />
+                </button>
+              )}
               {filters.mode && (
                 <button onClick={() => setFilters((f) => ({ ...f, mode: '' }))}
                   className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
@@ -369,6 +461,12 @@ function SearchContent() {
             </div>
           </div>
 
+          {dateError && !loading && (
+            <p role="alert" className="mb-5 text-sm px-3 py-2 rounded-lg" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+              {dateError}. Change the dates above to search again.
+            </p>
+          )}
+
           {/* Listing cards */}
           {!loading && listings.length === 0 ? (
             <div className="text-center py-20">
@@ -378,7 +476,7 @@ function SearchContent() {
               <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No properties found</h3>
               <p className="mb-6" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters.</p>
               <Button onClick={() => setFilters({
-                query: '', mode: '', region: '', guests: '', minPrice: '', maxPrice: '',
+                query: '', mode: '', region: '', guests: '', checkIn: '', checkOut: '', months: '1', minPrice: '', maxPrice: '',
                 bedrooms: '', propertyType: '', verified: false,
                 superhost: false, sort: 'newest', amenities: [],
               })}>
@@ -406,7 +504,7 @@ function SearchContent() {
                 const { price, unit } = getDisplayPrice(l, filters.mode)
 
                 return (
-                  <Link key={l.id} href={`/listings/${l.id}`}
+                  <Link key={l.id} href={`/listings/${l.id}${listingQuery}`}
                     className="listing-card group flex gap-3 rounded-2xl p-3"
                     style={{
                       backgroundColor: 'var(--color-bg-card)',
@@ -490,7 +588,7 @@ function SearchContent() {
 
         {/* RIGHT: sticky map — desktop only */}
         <div className="hidden md:block flex-[42] sticky"
-          style={{ top: 'calc(4.25rem + 57px)', height: 'calc(100vh - 4.25rem - 57px)', padding: '12px 12px 12px 0' }}>
+          style={{ top: 'calc(4.25rem + 121px)', height: 'calc(100vh - 4.25rem - 121px)', padding: '12px 12px 12px 0' }}>
           <ListingsMap listings={mapListings} initialRegion={filters.region || undefined} />
         </div>
       </div>

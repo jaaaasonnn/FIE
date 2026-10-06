@@ -133,6 +133,9 @@ model BlockedDate {
   reason    String?  // BOOKED (a guest's instant booking) | HOST (blocked by the host, stored at 12:00 UTC of the day)
   note      String?  // Host's private note on a HOST block. Never sent to guests.
   listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+  // Search by dates and the host calendar look up a listing's days in a range
+  @@index([listingId, date])
 }
 
 model Booking {
@@ -165,6 +168,9 @@ model Booking {
   dispute   Dispute?
   application RentalApplication?
   payouts   Payout[]
+
+  // Search by dates looks for a listing's stays that overlap a range
+  @@index([listingId, checkIn, checkOut])
 }
 
 model RentalApplication {

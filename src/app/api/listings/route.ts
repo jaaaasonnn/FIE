@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { hasContactDetails } from '@/lib/moderation'
+import { parseSearchRange, availabilityWhere } from '@/lib/searchDates'
 
 export async function GET(req: Request) {
   try {
@@ -17,6 +18,7 @@ export async function GET(req: Request) {
     const superhost = searchParams.get('superhost') === 'true'
     const featured = searchParams.get('featured') === 'true'
     const hostId = searchParams.get('hostId')
+    const checkIn = searchParams.get('checkIn')
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
 
@@ -34,6 +36,25 @@ export async function GET(req: Request) {
     if (bedrooms) where.bedrooms = { gte: parseInt(bedrooms) }
     if (featured) where.isFeatured = true
     if (mode) where.rentalModes = { contains: mode }
+
+    // Search results never include a listing on moderation hold, even if a
+    // stale row were somehow still marked active
+    if (!hostId) where.moderationHold = false
+
+    // Dates: leave out listings taken on any night of the stay. Done here in
+    // the query, so the count and paging describe what the guest can book.
+    if (checkIn) {
+      const range = parseSearchRange({
+        checkIn,
+        checkOut: searchParams.get('checkOut'),
+        months: searchParams.get('months'),
+        mode,
+      })
+      if (!range.ok) return NextResponse.json({ error: range.error }, { status: 400 })
+      where.AND = availabilityWhere(range)
+      // A short stay shorter than the listing's minimum cannot be booked
+      if (mode === 'SHORT_STAY') where.minStayNights = { lte: range.nights }
+    }
 
     if (verified) where.host = { isVerified: true }
     if (superhost) where.host = { ...(where.host as object || {}), isSuperhost: true }

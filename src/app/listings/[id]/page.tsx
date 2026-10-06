@@ -147,6 +147,24 @@ export default function ListingDetailPage() {
         const l: ApiListing = d.listing
         setListing(l)
         setSelectedMode(l.rentalModes?.[0] ?? '')
+
+        // Arriving from a search by dates: pre-fill the booking box. Read
+        // straight from the address so the page needs no Suspense boundary.
+        const q = new URLSearchParams(window.location.search)
+        const localDay = (key: string | null) => {
+          const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key ?? '')
+          return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null
+        }
+        const wantedMode = q.get('mode')
+        if (wantedMode && l.rentalModes?.includes(wantedMode)) setSelectedMode(wantedMode)
+        const from = localDay(q.get('checkIn'))
+        if (from) {
+          setCheckIn(from)
+          const to = localDay(q.get('checkOut'))
+          if (to && to > from) setCheckOut(to)
+          const m = parseInt(q.get('months') ?? '', 10)
+          if (m >= 1 && m <= 11) setMonths(m)
+        }
       })
       .catch(() => { if (active) setNotFound(true) })
       .finally(() => { if (active) setLoadedId(listingId) })
