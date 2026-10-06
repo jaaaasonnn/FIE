@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { CANCEL_CONTACT_SUPPORT, cancelNeedsSupport } from '@/lib/cancelRules'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -19,6 +20,8 @@ const VALID_ACTIONS: Action[] = ['accept', 'decline', 'cancel']
  *   - decline: PENDING   -> DECLINED   (host only)
  *   - cancel:  CONFIRMED -> CANCELLED  (guest only) — also releases any
  *              BlockedDate rows for that stretch of dates.
+ *              Refused once the check-in day has arrived or a payout exists
+ *              for the booking; the guest is told to contact support.
  * Any other transition is rejected. The current status is checked again as
  * part of the update's own `where` clause (not just the earlier findUnique)
  * so two concurrent requests can't both succeed against a stale read.
@@ -67,6 +70,15 @@ export async function PATCH(
         { error: `Cannot ${action} a booking that is ${booking.status.toLowerCase()}` },
         { status: 409 },
       )
+    }
+
+    // A guest cannot cancel online once the stay has started or the host has
+    // a payout for it: see lib/cancelRules.ts.
+    if (action === 'cancel') {
+      const payout = await db.payout.findFirst({ where: { bookingId: id }, select: { id: true } })
+      if (cancelNeedsSupport(booking.checkIn, !!payout)) {
+        return NextResponse.json({ error: CANCEL_CONTACT_SUPPORT }, { status: 409 })
+      }
     }
 
     try {

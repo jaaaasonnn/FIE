@@ -76,6 +76,8 @@ export default function HostPayoutsPage() {
   const { rate: ghsRate } = useExchangeRate()
   const [loadedPayouts, setPayouts] = useState<ApiPayout[]>([])
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  // Money that has fallen due but cannot be sent until a payout method is saved
+  const [waiting, setWaiting] = useState<{ count: number; amount: number } | null>(null)
   // Loading and the visible list are derived from which user the data was
   // loaded for, rather than reset/toggled inside the effect.
   const isCurrent = !!user && loadedFor === user.id
@@ -104,7 +106,11 @@ export default function HostPayoutsPage() {
     let active = true
     fetch(`/api/payouts?hostId=${userId}`)
       .then((r) => r.json())
-      .then((data) => { if (active) setPayouts(Array.isArray(data.payouts) ? data.payouts : []) })
+      .then((data) => {
+        if (!active) return
+        setPayouts(Array.isArray(data.payouts) ? data.payouts : [])
+        setWaiting(data.waitingForMethod ?? null)
+      })
       .catch(() => { if (active) setPayouts([]) })
       .finally(() => { if (active) setLoadedFor(userId) })
 
@@ -240,6 +246,23 @@ export default function HostPayoutsPage() {
           </div>
         ) : (
           <>
+            {/* Earnings held up for want of a payout method */}
+            {waiting && !savedMethod?.payoutMethodVerifiedAt && (
+              <div className="mb-6 p-4 rounded-2xl flex items-start gap-3"
+                style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
+                <Wallet size={18} aria-hidden style={{ color: 'var(--color-accent-deep)', flexShrink: 0, marginTop: 2 }} />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                    ${waiting.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} is waiting to be paid to you
+                  </p>
+                  <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                    {waiting.count === 1 ? 'One stay is' : `${waiting.count} stays are`} ready for payout, but you have not added a payout method yet.
+                    Add one below and the money is sent on the next hourly payout run.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Summary */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {[

@@ -1,10 +1,6 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
-import { db } from '@/lib/db'
-import { initiateHostPayout, retryFailedPayouts } from '@/lib/payouts'
-import { PLATFORM_COMMISSION } from '@/lib/utils'
-
-const PAYOUT_DELAY_MS = 24 * 60 * 60 * 1000 // 24h after check-in, matches the app's own copy
+import { runPayouts, wantsDryRun } from '@/lib/cronRuns'
 
 /**
  * GET/POST /api/cron/process-payouts
@@ -21,60 +17,17 @@ const PAYOUT_DELAY_MS = 24 * 60 * 60 * 1000 // 24h after check-in, matches the a
  * periods need a data-model decision that hasn't been made yet, so those
  * bookings are deliberately left untouched by this query.
  *
+ * The rules live in lib/cronRuns.ts (runPayouts). Nothing is paid until
+ * PAYOUTS_ENABLED and PAYOUTS_NOT_BEFORE are set (lib/payoutSwitches.ts);
+ * until then, and whenever ?dryRun=1 is passed, the job only reports what it
+ * would do: no database writes and no Paystack calls.
+ *
  * Secured by a shared secret (CRON_SECRET) rather than a user session,
  * since there's no logged-in user driving this — checked via the standard
  * `Authorization: Bearer <CRON_SECRET>` header, which is what Vercel's
  * native cron feature sends automatically when CRON_SECRET is set as an
  * env var (see https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs).
  */
-async function processDuePayouts() {
-  const cutoff = new Date(Date.now() - PAYOUT_DELAY_MS)
-
-  // payouts: { none: {} } is a belt-and-suspenders check on top of
-  // initiateHostPayout()'s own idempotency guard — cheaper to exclude
-  // already-handled bookings from the query than to call the function
-  // (and hit the DB again) for every single one, every run.
-  const dueBookings = await db.booking.findMany({
-    where: {
-      rentalMode: 'SHORT_STAY',
-      status: 'CONFIRMED',
-      paymentStatus: 'PAID',
-      checkIn: { lte: cutoff },
-      payouts: { none: {} },
-    },
-    select: { id: true, hostId: true, subtotal: true },
-  })
-
-  const results = []
-  for (const booking of dueBookings) {
-    const hostPayoutAmount = booking.subtotal * (1 - PLATFORM_COMMISSION)
-    try {
-      const result = await initiateHostPayout({
-        hostId: booking.hostId,
-        bookingId: booking.id,
-        amount: hostPayoutAmount,
-      })
-      results.push({
-        bookingId: booking.id,
-        ok: result.ok,
-        payoutId: result.payout.id,
-        status: result.payout.status,
-        alreadyInitiated: result.alreadyInitiated ?? false,
-      })
-    } catch (error) {
-      console.error('[Payout cron] initiateHostPayout threw for booking', booking.id, error)
-      results.push({ bookingId: booking.id, ok: false, error: error instanceof Error ? error.message : 'Unknown error' })
-    }
-  }
-
-  // Second pass: FAILED payouts eligible for another attempt under the retry
-  // policy in lib/payouts.ts. Running it from this hourly cron (rather than
-  // retrying inline) is what spaces the attempts out.
-  const retried = await retryFailedPayouts()
-
-  return { checked: dueBookings.length, results, retried }
-}
-
 function checkAuth(req: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
@@ -85,8 +38,9 @@ function checkAuth(req: Request): boolean {
 // cron detection — that feature only instruments the Pages Router, not
 // App Router route handlers like this one. Schedule here must be kept in
 // sync with vercel.json's entry for this route.
-function runMonitored() {
-  return Sentry.withMonitor('process-payouts-cron', processDuePayouts, {
+function runMonitored(req: Request) {
+  const dryRun = wantsDryRun(req)
+  return Sentry.withMonitor('process-payouts-cron', () => runPayouts({ dryRun }), {
     schedule: { type: 'crontab', value: '0 * * * *' },
     timezone: 'UTC',
     checkinMargin: 5,
@@ -96,10 +50,10 @@ function runMonitored() {
 
 export async function GET(req: Request) {
   if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(await runMonitored())
+  return NextResponse.json(await runMonitored(req))
 }
 
 export async function POST(req: Request) {
   if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(await runMonitored())
+  return NextResponse.json(await runMonitored(req))
 }

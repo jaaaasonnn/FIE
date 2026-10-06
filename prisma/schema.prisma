@@ -221,7 +221,9 @@ model Payout {
   // several bookings in one Payout row). paystackTransferReference is our
   // own idempotent key generated before calling Paystack; paystackTransferCode
   // is Paystack's own transfer_code, only present once the call succeeds.
-  bookingId                 String?
+  // Unique: the database refuses a second payout for the same booking, so
+  // two overlapping cron runs can never pay one stay twice.
+  bookingId                 String?  @unique
   paystackTransferCode      String?
   paystackTransferReference String?  @unique
   failureReason             String?

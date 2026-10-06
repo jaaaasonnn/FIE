@@ -1,10 +1,15 @@
 import crypto from 'crypto'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
-import type { Payout } from '@prisma/client'
+import { Prisma, type Payout } from '@prisma/client'
+import { PayoutsOffError, payoutGate } from '@/lib/payoutSwitches'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
+
+/** A payout claimed for sending this long ago, with no answer recorded, is
+ *  treated as abandoned (the run crashed) and may be picked up again. */
+export const STALE_CLAIM_MS = 15 * 60 * 1000
 
 function getSecret(): string {
   const secret = process.env.PAYSTACK_SECRET_KEY
@@ -38,6 +43,15 @@ export type InitiateHostPayoutResult = {
  * function will not call Paystack again for it; it just returns the
  * existing state.
  *
+ * Safe to call at the same moment from two places too: the database allows
+ * one Payout per booking, and only the caller that claims the row (below)
+ * goes on to call Paystack.
+ *
+ * Refuses to do anything while payouts are switched off (see
+ * lib/payoutSwitches.ts), or for a booking made before PAYOUTS_NOT_BEFORE.
+ * This is the only place a transfer is started, so the switch covers every
+ * caller.
+ *
  * `amount` is the USD amount to actually pay the host — i.e. already net
  * of platform commission — not the booking's gross price.
  */
@@ -50,6 +64,17 @@ export async function initiateHostPayout({
   bookingId: string
   amount: number
 }): Promise<InitiateHostPayoutResult> {
+  const gate = payoutGate()
+  if (!gate.live) throw new PayoutsOffError(gate.reason)
+
+  const booking = await db.booking.findUnique({ where: { id: bookingId }, select: { createdAt: true } })
+  if (!booking) {
+    throw new Error(`Booking ${bookingId} not found`)
+  }
+  if (booking.createdAt.getTime() < gate.notBefore.getTime()) {
+    throw new PayoutsOffError(`booking ${bookingId} was made before PAYOUTS_NOT_BEFORE`)
+  }
+
   const host = await db.user.findUnique({ where: { id: hostId } })
   if (!host) {
     throw new Error(`Host ${hostId} not found`)
@@ -62,24 +87,32 @@ export async function initiateHostPayout({
   // network call — this is the record that survives a crash mid-call.
   let payout = await db.payout.findFirst({ where: { hostId, bookingId } })
   if (!payout) {
-    payout = await db.payout.create({
-      data: {
-        hostId,
-        bookingId,
-        amount,
-        currency: 'USD',
-        method: host.payoutMethod ?? 'MOMO',
-        momoNetwork: host.payoutMomoNetwork,
-        momoNumber: host.payoutMomoNumber,
-        accountNumber: host.payoutMethod === 'BANK_TRANSFER' ? host.payoutBankAccountNumber : host.payoutMomoNumber,
-        accountName: host.payoutBankAccountName,
-        status: 'PENDING',
-        // Our own idempotent key — generated once here and reused on every
-        // retry of this same row, unless Paystack already consumed it on a
-        // transfer that then conclusively failed (see retryFailedPayouts).
-        paystackTransferReference: newTransferReference(),
-      },
-    })
+    try {
+      payout = await db.payout.create({
+        data: {
+          hostId,
+          bookingId,
+          amount,
+          currency: 'USD',
+          method: host.payoutMethod ?? 'MOMO',
+          momoNetwork: host.payoutMomoNetwork,
+          momoNumber: host.payoutMomoNumber,
+          accountNumber: host.payoutMethod === 'BANK_TRANSFER' ? host.payoutBankAccountNumber : host.payoutMomoNumber,
+          accountName: host.payoutBankAccountName,
+          status: 'PENDING',
+          // Our own idempotent key — generated once here and reused on every
+          // retry of this same row, unless Paystack already consumed it on a
+          // transfer that then conclusively failed (see retryFailedPayouts).
+          paystackTransferReference: newTransferReference(),
+        },
+      })
+    } catch (error) {
+      // Another run created this booking's payout a moment ago: the unique
+      // index on bookingId refused ours, so use theirs.
+      if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error
+      payout = await db.payout.findFirst({ where: { bookingId } })
+      if (!payout) throw error
+    }
   }
 
   // Idempotency guard: already has a real Paystack transfer code, or has
@@ -87,6 +120,24 @@ export async function initiateHostPayout({
   // call Paystack again no matter how many times this is retried.
   if (payout.paystackTransferCode || payout.status === 'COMPLETED' || payout.status === 'FAILED') {
     return { ok: payout.status !== 'FAILED', payout, alreadyInitiated: true }
+  }
+
+  // Claim the row before any network call, so two runs holding the same
+  // PENDING row cannot both send it. A claim older than STALE_CLAIM_MS with
+  // nothing recorded is a run that died; taking it over reuses the same
+  // reference, which Paystack will not pay twice.
+  const claimedAt = new Date()
+  const claim = await db.payout.updateMany({
+    where: {
+      id: payout.id,
+      status: 'PENDING',
+      paystackTransferCode: null,
+      OR: [{ initiatedAt: null }, { initiatedAt: { lte: new Date(claimedAt.getTime() - STALE_CLAIM_MS) } }],
+    },
+    data: { initiatedAt: claimedAt },
+  })
+  if (claim.count === 0) {
+    return { ok: true, payout, alreadyInitiated: true }
   }
 
   const secret = getSecret()
@@ -267,6 +318,10 @@ export type RetryResult = { payoutId: string; ok: boolean; status: string; retry
  * deliberately left alone.
  */
 export async function retryFailedPayouts(): Promise<RetryResult[]> {
+  // Nothing is retried while payouts are off: a refused attempt would
+  // otherwise be recorded as one more failure.
+  if (!payoutGate().live) return []
+
   const candidates = await db.payout.findMany({
     where: {
       status: 'FAILED',
@@ -297,6 +352,7 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
         retryCount: { increment: 1 },
         failureReason: null,
         completedAt: null,
+        initiatedAt: null, // releases the last attempt's claim
         ...(payout.paystackTransferCode
           ? { paystackTransferCode: null, paystackTransferReference: newTransferReference() }
           : {}),

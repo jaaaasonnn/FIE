@@ -35,6 +35,8 @@ function apply(row: Row, data: Row) {
 vi.mock('@/lib/db', () => ({
   db: {
     user: { findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null },
+    // Every booking here was made after the PAYOUTS_NOT_BEFORE date set below
+    booking: { findUnique: async () => ({ createdAt: new Date('2026-09-01T00:00:00Z') }) },
     exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
     payout: {
       findFirst: async ({ where }: { where: Row }) => {
@@ -110,6 +112,9 @@ beforeEach(() => {
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
   vi.stubEnv('PAYSTACK_SECRET_KEY', SECRET)
+  // Payouts are off unless both switches are set (lib/payoutSwitches.ts)
+  vi.stubEnv('PAYOUTS_ENABLED', 'true')
+  vi.stubEnv('PAYOUTS_NOT_BEFORE', '2026-01-01')
   vi.useFakeTimers({ toFake: ['Date'] })
   vi.setSystemTime(clock)
   vi.spyOn(console, 'error').mockImplementation(() => {})

@@ -43,6 +43,24 @@ _(none currently — Paystack and Supabase migration below are resolved)_
 8. End-to-end testing
 9. Legal documentation
 
+## Payout and completion switches
+
+The two hourly cron jobs do nothing risky until they are switched on in the environment. All three variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
+
+- `PAYOUTS_ENABLED`: must be exactly `true` before any Paystack transfer is attempted. Otherwise `process-payouts` runs as a dry run: it reports what it would pay, writes nothing and calls nothing. The same check sits inside `initiateHostPayout`, so no other caller can start a transfer.
+- `PAYOUTS_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be paid out. Required: without a valid date, payouts stay in dry run even when enabled. Set it to the launch date so no test booking is ever paid.
+- `COMPLETION_ENABLED`: must be exactly `true` before `complete-bookings` marks anything `COMPLETED`.
+- `?dryRun=1` on either cron URL forces a report-only run whatever the switches say.
+
+Rules worth knowing:
+- The payout job pays short stays that are `CONFIRMED` or `COMPLETED`, so the order the two jobs run in does not matter.
+- One payout per booking is enforced by a unique index on `Payout.bookingId`.
+- A host with no verified payout method is skipped and retried every hour; the host payouts page shows the amount waiting, and Sentry is alerted once a day once a payout is 7 days overdue.
+- A guest cannot cancel online once the check-in day has arrived or a payout exists (`src/lib/cancelRules.ts`).
+- Still not built: payouts for monthly and long-term stays, refunds, disputes, and returning the damage deposit.
+
+Before turning payouts on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, point the Paystack webhook at the real domain, and run the launch clean of test bookings.
+
 ## Key Technical Decisions & Why
 - **MapTiler over Mapbox** — avoids Mapbox's credit card requirement during development
 - **Paystack over direct MTN MoMo API** — covers all three Ghanaian mobile money networks plus cards, stronger docs, settles to Ghana bank accounts

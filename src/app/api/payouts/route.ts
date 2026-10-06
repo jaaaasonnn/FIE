@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { duePayoutWhere, hostPayoutAmount } from '@/lib/cronRuns'
+import { payoutGate } from '@/lib/payoutSwitches'
 
 /**
  * GET /api/payouts?hostId=…
@@ -26,7 +28,31 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ payouts })
+    // Stays whose payout has fallen due but cannot be sent because the host
+    // has no verified payout method. Only once payouts are switched on:
+    // before that nothing is owed through this route.
+    let waitingForMethod: { count: number; amount: number } | null = null
+    const gate = payoutGate()
+    if (gate.live) {
+      const host = await db.user.findUnique({
+        where: { id: hostId },
+        select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true },
+      })
+      if (!host?.paystackRecipientCode || !host.payoutMethodVerifiedAt) {
+        const due = await db.booking.findMany({
+          where: { ...duePayoutWhere(new Date(), gate.notBefore), hostId },
+          select: { subtotal: true },
+        })
+        if (due.length > 0) {
+          waitingForMethod = {
+            count: due.length,
+            amount: due.reduce((sum, b) => sum + hostPayoutAmount(b.subtotal), 0),
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ payouts, waitingForMethod })
   } catch (error) {
     console.error('Payouts GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch payouts' }, { status: 500 })

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
-import { db } from '@/lib/db'
+import { runCompletion, wantsDryRun } from '@/lib/cronRuns'
 
 /**
  * GET/POST /api/cron/complete-bookings
@@ -22,35 +22,13 @@ import { db } from '@/lib/db'
  * Query is naturally idempotent: once a booking's status flips to
  * COMPLETED, it no longer matches status: 'CONFIRMED' and is never
  * re-selected on a later run.
+ *
+ * The rules live in lib/cronRuns.ts (runCompletion). Nothing is completed
+ * until COMPLETION_ENABLED is set (lib/payoutSwitches.ts); until then, and
+ * whenever ?dryRun=1 is passed, the job only reports what it would do.
+ * Completing a stay never costs the host a payout: the payout job picks up
+ * COMPLETED stays as well as CONFIRMED ones.
  */
-async function completeDueBookings() {
-  const now = new Date()
-
-  // paymentStatus: 'PAID' matters here, not just status: 'CONFIRMED' — an
-  // instant-book listing creates its booking as CONFIRMED immediately,
-  // before payment (see POST /api/bookings), so an unpaid booking can sit
-  // at CONFIRMED with a checkOut date that quietly passes. Without this
-  // filter, an instant-book confirmation nobody ever paid for would
-  // "complete" and become eligible for the review flow, which checks only
-  // status === 'COMPLETED'.
-  const due = await db.booking.findMany({
-    where: { status: 'CONFIRMED', paymentStatus: 'PAID', checkOut: { lte: now } },
-    select: { id: true },
-  })
-
-  if (due.length === 0) {
-    return { transitioned: 0, bookingIds: [] }
-  }
-
-  const ids = due.map((b) => b.id)
-  await db.booking.updateMany({
-    where: { id: { in: ids } },
-    data: { status: 'COMPLETED' },
-  })
-
-  return { transitioned: ids.length, bookingIds: ids }
-}
-
 function checkAuth(req: Request): boolean {
   const secret = process.env.CRON_SECRET
   if (!secret) return false
@@ -61,8 +39,9 @@ function checkAuth(req: Request): boolean {
 // cron detection — that feature only instruments the Pages Router, not
 // App Router route handlers like this one. Schedule here must be kept in
 // sync with vercel.json's entry for this route.
-function runMonitored() {
-  return Sentry.withMonitor('complete-bookings-cron', completeDueBookings, {
+function runMonitored(req: Request) {
+  const dryRun = wantsDryRun(req)
+  return Sentry.withMonitor('complete-bookings-cron', () => runCompletion({ dryRun }), {
     schedule: { type: 'crontab', value: '0 * * * *' },
     timezone: 'UTC',
     checkinMargin: 5,
@@ -72,10 +51,10 @@ function runMonitored() {
 
 export async function GET(req: Request) {
   if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(await runMonitored())
+  return NextResponse.json(await runMonitored(req))
 }
 
 export async function POST(req: Request) {
   if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  return NextResponse.json(await runMonitored())
+  return NextResponse.json(await runMonitored(req))
 }
