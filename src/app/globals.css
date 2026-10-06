@@ -449,3 +449,82 @@ input, select, textarea, button {
 .lightbox-overlay[data-state='closed'] { animation: lightboxOverlayIn 0.15s ease-in reverse; }
 .lightbox-content[data-state='open']   { animation: lightboxContentIn 0.15s ease-out; }
 .lightbox-content[data-state='closed'] { animation: lightboxContentIn 0.15s ease-in reverse; }
+
+/* ─── Search map popup ──────────────────────────────────────────────
+   MapLibre's own white box and tip are replaced by the card itself.   */
+.map-popup { z-index: 3; }
+.map-popup .maplibregl-popup-content {
+  padding: 0;
+  background: transparent;
+  border-radius: 16px;
+  box-shadow: none;
+}
+.map-popup .maplibregl-popup-tip { display: none; }
+
+.map-popup-card {
+  position: relative;
+  /* Always leaves a margin either side, down to a 320px screen */
+  width: min(260px, calc(100vw - 48px));
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: var(--color-bg-card);
+  box-shadow: 0 12px 40px rgba(31, 27, 22, 0.18);
+  font-family: var(--font-sans);
+  transition: opacity 160ms var(--ease-out), transform 160ms var(--ease-out);
+  @starting-style {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+}
+.map-popup-link {
+  display: block;
+  border-radius: 16px;
+  text-decoration: none;
+  color: inherit;
+}
+.map-popup-link:focus-visible { outline-offset: -2px; }
+
+.map-popup-close {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+.map-popup-close span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 1px 4px rgba(31, 27, 22, 0.18);
+}
+.map-popup-close:focus-visible { outline: none; }
+.map-popup-close:focus-visible span {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+
+/* Pins keep their size; the tap target reaches 8px past the pill on touch */
+.map-pin::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+}
+
+/* A card whose pin was tapped on the map */
+.listing-card[data-selected='true'] {
+  box-shadow: 0 0 0 2px var(--color-accent), 0 12px 32px rgba(31, 27, 22, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-popup-card { transition: none; }
+}

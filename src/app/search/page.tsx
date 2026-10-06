@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, SlidersHorizontal, MapPin, Star, Bed, Bath, X,
@@ -235,6 +235,7 @@ function SearchContent() {
   const mapListings: MapListing[] = listings
     .filter((l) => l.lat != null && l.lng != null)
     .map((l) => ({
+      ...getDisplayPrice(l, filters.mode),
       id:            l.id,
       title:         l.title,
       neighbourhood: l.neighbourhood ?? l.city,
@@ -242,12 +243,22 @@ function SearchContent() {
       photo:         l.photos?.[0] ?? '',
       rating:        l.avgRating,
       reviews:       l.reviewCount,
-      priceNightly:  l.priceNightly  ?? undefined,
-      priceMonthly:  l.priceMonthly  ?? undefined,
-      priceAnnual:   l.priceAnnual   ?? undefined,
       coordinates:   [l.lng!, l.lat!] as [number, number],
-      activeMode:    filters.mode || undefined,
     }))
+
+  // ── List and map, linked ───────────────────────────────────────────────
+  // Hovering a card highlights its pin; tapping a pin highlights its card
+  // and brings it into view.
+  const [hoveredCardId, setHoveredCardId] = useState<string | null>(null)
+  const [selectedId,    setSelectedId]    = useState<string | null>(null)
+  const cardRefs = useRef(new Map<string, HTMLAnchorElement>())
+
+  const handleMapSelect = useCallback((id: string | null) => {
+    setSelectedId(id)
+    if (!id) return
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    cardRefs.current.get(id)?.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' })
+  }, [])
 
   // Dates travel to the listing page, which pre-fills its booking box
   const dq = dateQuery(filters)
@@ -505,10 +516,21 @@ function SearchContent() {
 
                 return (
                   <Link key={l.id} href={`/listings/${l.id}${listingQuery}`}
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(l.id, el)
+                      else cardRefs.current.delete(l.id)
+                    }}
+                    data-selected={selectedId === l.id}
+                    // Real pointers only: a tap fires no mouse pointer events
+                    onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoveredCardId(l.id) }}
+                    onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHoveredCardId(null) }}
                     className="listing-card group flex gap-3 rounded-2xl p-3"
                     style={{
                       backgroundColor: 'var(--color-bg-card)',
                       textDecoration:  'none',
+                      // Clear of the sticky header and filter bar when scrolled to
+                      scrollMarginTop: 'calc(4.25rem + 121px + 12px)',
+                      scrollMarginBottom: 12,
                     }}>
                     {/* Thumbnail */}
                     <div className="relative flex-shrink-0 rounded-xl overflow-hidden"
@@ -589,7 +611,8 @@ function SearchContent() {
         {/* RIGHT: sticky map — desktop only */}
         <div className="hidden md:block flex-[42] sticky"
           style={{ top: 'calc(4.25rem + 121px)', height: 'calc(100vh - 4.25rem - 121px)', padding: '12px 12px 12px 0' }}>
-          <ListingsMap listings={mapListings} initialRegion={filters.region || undefined} />
+          <ListingsMap listings={mapListings} initialRegion={filters.region || undefined}
+            listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />
         </div>
       </div>
 
@@ -608,7 +631,8 @@ function SearchContent() {
             </button>
           </div>
           <div className="flex-1">
-            <ListingsMap listings={mapListings} initialRegion={filters.region || undefined} />
+            <ListingsMap listings={mapListings} initialRegion={filters.region || undefined}
+            listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />
           </div>
         </div>
       )}

@@ -1,15 +1,19 @@
 'use client'
 
 /**
- * ListingsMap — MapLibre GL / react-map-gl split-screen map
+ * ListingsMap: MapLibre GL / react-map-gl split-screen map
  * - MapTiler "positron" base style (light, minimal, warm-palette friendly)
- * - Custom price-pill markers (GH₵ amount)
- * - Supercluster for marker clustering
- * - Click marker → popup mini-card (photo, title, price, rating)
- * - Cluster click → zoom in
+ * - Price-pill markers in short US dollars ("$45", "$1.4k")
+ * - Supercluster for marker clustering; a cluster shows its price range
+ * - Tap a pin: popup card (photo, title, location, rating, price) that links
+ *   to the listing. Tap the map, the close button or press Escape to close.
+ * - Tap a cluster: zoom in until its pins separate
+ * - highlightId / onSelect link the pins to the cards in the list
  */
 
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
 import Map, {
   Marker,
   Popup,
@@ -18,9 +22,10 @@ import Map, {
   MapMouseEvent,
 } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useExchangeRate } from '@/context/ExchangeRateContext'
 import Supercluster from 'supercluster'
 import { Star, X, Map as MapIcon } from 'lucide-react'
+import { formatUsdCompact } from '@/lib/utils'
+import { shortUsd, shortUsdRange } from '@/lib/mapLabels'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -32,11 +37,10 @@ export type MapListing = {
   photo: string
   rating: number
   reviews: number
-  priceNightly?: number
-  priceMonthly?: number
-  priceAnnual?: number
+  /** USD price and unit, exactly as the listing card shows them */
+  price: number
+  unit: string
   coordinates: [number, number]   // [lng, lat]
-  activeMode?: string
 }
 
 type ViewState = {
@@ -45,15 +49,19 @@ type ViewState = {
   zoom: number
 }
 
-type ClusterProperties = {
+type PointProperties = {
+  cluster?: false
+  listingId: string
+  price: number
+}
+
+// Lowest and highest price inside a cluster, kept up to date by supercluster
+type ClusterRange = { min: number; max: number }
+
+type ClusterProperties = ClusterRange & {
   cluster: true
   cluster_id: number
   point_count: number
-}
-
-type PointProperties = {
-  cluster: false
-  listingId: string
 }
 
 type AnyFeature =
@@ -86,170 +94,182 @@ const ACCRA_DEFAULT: ViewState = { longitude: -0.187, latitude: 5.55, zoom: 11.5
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || ''
 const MAP_STYLE = `https://api.maptiler.com/maps/positron/style.json?key=${MAPTILER_KEY}`
 
-// ── Helpers ───────────────────────────────────────────────────────────────
+// Supercluster stops clustering above this zoom, so a cluster click may need
+// to go one level past it before the pins separate.
+const CLUSTER_MAX_ZOOM = 16
 
-function formatGHS(usdPrice: number, rate: number): string {
-  const ghs = Math.round(usdPrice * rate)
-  if (ghs >= 10000) return `GH₵${(ghs / 1000).toFixed(0)}k`
-  if (ghs >= 1000)  return `GH₵${(ghs / 1000).toFixed(1)}k`
-  return `GH₵${ghs}`
-}
-
-function getDisplayPrice(listing: MapListing): number {
-  if (listing.activeMode === 'SHORT_STAY' && listing.priceNightly) return listing.priceNightly
-  if (listing.activeMode === 'PERMANENT' && listing.priceAnnual)   return listing.priceAnnual
-  return listing.priceMonthly ?? listing.priceNightly ?? listing.priceAnnual ?? 0
-}
+// The popup always opens above its pin, and the map slides just enough to
+// fit it, so it never hangs off the edge of a narrow screen.
+const PIN_HEIGHT = 30
+const POPUP_GAP = 6
+const POPUP_WIDTH = 260      // matches .map-popup-card
+const POPUP_HEIGHT = 270     // tallest card: two-line title plus the yearly note
+const POPUP_MARGIN = 8
 
 // ── Sub-components ────────────────────────────────────────────────────────
 
 function PriceMarker({
-  price, hovered, onClick,
-}: { price: string; hovered: boolean; onClick: () => void }) {
+  listing, active, open, onClick, onHover,
+}: {
+  listing: MapListing
+  active: boolean
+  open: boolean
+  onClick: (fromKeyboard: boolean) => void
+  onHover: (hovering: boolean) => void
+}) {
   return (
     <button
-      onClick={onClick}
+      type="button"
+      data-map-pin={listing.id}
+      className="map-pin focus-ring"
+      aria-label={`${listing.title}, ${formatUsdCompact(listing.price)}${listing.unit}`}
+      aria-expanded={open}
+      // A click with no pointer behind it (detail 0) came from Enter or Space
+      onClick={(e) => onClick(e.detail === 0)}
+      // Hover highlight is for a real pointer only: a tap must not leave it stuck
+      onPointerEnter={(e) => { if (e.pointerType === 'mouse') onHover(true) }}
+      onPointerLeave={(e) => { if (e.pointerType === 'mouse') onHover(false) }}
       style={{
+        display: 'block',
+        position: 'relative',
         fontFamily: "var(--font-sans)",
         fontSize: '12px',
         fontWeight: 600,
+        lineHeight: '16px',
         padding: '5px 10px',
         borderRadius: '999px',
         border: '1.5px solid',
         cursor: 'pointer',
         whiteSpace: 'nowrap',
-        transition: 'transform 0.15s ease, background 0.15s ease, color 0.15s ease',
-        transform: hovered ? 'scale(1.08)' : 'scale(1)',
-        backgroundColor: hovered ? '#C9932E' : '#FAF7F2',
-        color:           hovered ? '#fff'     : '#1F1B16',
-        borderColor:     hovered ? '#B37F22'  : '#D4C9B8',
-        boxShadow: hovered
-          ? '0 4px 16px rgba(201,147,46,0.35)'
+        transition: 'transform 0.15s ease, background-color 0.15s ease, color 0.15s ease',
+        transform: active ? 'scale(1.08)' : 'scale(1)',
+        backgroundColor: active ? '#1F1B16' : '#FAF7F2',
+        color:           active ? '#FAF7F2' : '#1F1B16',
+        borderColor:     active ? '#1F1B16' : '#D4C9B8',
+        boxShadow: active
+          ? '0 4px 16px rgba(31,27,22,0.28)'
           : '0 2px 8px rgba(31,27,22,0.14)',
       }}
     >
-      {price}
+      {shortUsd(listing.price)}
     </button>
   )
 }
 
 function ClusterMarker({
-  count, onClick,
-}: { count: number; onClick: () => void }) {
+  count, label, onClick,
+}: { count: number; label: string; onClick: () => void }) {
   return (
     <button
+      type="button"
+      data-map-pin="cluster"
+      className="map-pin focus-ring"
+      aria-label={`${count} stays, ${label}. Zoom in`}
       onClick={onClick}
       style={{
+        display: 'block',
+        position: 'relative',
         fontFamily: "var(--font-sans)",
         fontSize: '12px',
         fontWeight: 700,
-        padding: '6px 12px',
+        lineHeight: '16px',
+        padding: '5px 10px',
         borderRadius: '999px',
-        border: '2px solid #B37F22',
+        border: '1.5px solid #B37F22',
         cursor: 'pointer',
+        whiteSpace: 'nowrap',
         backgroundColor: '#C9932E',
         color: '#1F1B16',
         boxShadow: '0 4px 16px rgba(201,147,46,0.4)',
-        transition: 'transform 0.15s ease',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.08)' }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
     >
-      {count} stays
+      {label}
     </button>
   )
 }
 
 function PopupCard({
-  listing,
-  onClose,
-}: { listing: MapListing; onClose: () => void }) {
-  const { rate } = useExchangeRate()
-  const price = getDisplayPrice(listing)
-  const unit  = listing.activeMode === 'SHORT_STAY' ? '/night'
-              : listing.activeMode === 'PERMANENT'  ? '/year' : '/mo'
+  listing, href, takeFocus, onClose,
+}: { listing: MapListing; href: string; takeFocus: boolean; onClose: (fromKeyboard: boolean) => void }) {
+  // Opened from the keyboard: move focus into the card, once, so Enter follows it
+  const linkRef = useRef<HTMLAnchorElement>(null)
+  useEffect(() => {
+    if (!takeFocus) return
+    // The map attaches the popup to the page just after this card renders
+    const frame = requestAnimationFrame(() => linkRef.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [takeFocus])
 
   return (
-    <div
-      style={{
-        width: 240,
-        borderRadius: 16,
-        overflow: 'hidden',
-        backgroundColor: '#fff',
-        boxShadow: '0 12px 40px rgba(31,27,22,0.18)',
-        fontFamily: "var(--font-sans)",
-      }}
-    >
-      {/* Photo */}
-      <div style={{ position: 'relative', height: 130 }}>
-        <img
-          src={listing.photo}
-          alt={listing.title}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
-        <button
-          onClick={onClose}
-          style={{
-            position: 'absolute', top: 8, right: 8,
-            width: 28, height: 28, borderRadius: '50%',
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <X size={14} color="#1F1B16" />
-        </button>
-      </div>
-
-      {/* Body */}
-      <div style={{ padding: '10px 12px 12px' }}>
-        <p
-          style={{
-            fontSize: 13, fontWeight: 600, color: '#1F1B16',
-            lineHeight: 1.35, marginBottom: 4,
-            display: '-webkit-box', WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical', overflow: 'hidden',
-          }}
-        >
-          {listing.title}
-        </p>
-
-        <p style={{ fontSize: 11, color: '#6B645C', marginBottom: 8 }}>
-          {listing.neighbourhood}, {listing.city}
-        </p>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <span style={{ fontSize: 14, fontWeight: 700, color: '#1F1B16' }}>
-              ${price.toLocaleString()}
-            </span>
-            <span style={{ fontSize: 11, color: '#6B645C' }}>{unit}</span>
-            <div style={{ fontSize: 10, color: '#9C9589', marginTop: 1 }}>
-              ≈ {formatGHS(price, rate)}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-            <Star size={11} fill="#C9932E" color="#C9932E" />
-            <span style={{ fontSize: 12, fontWeight: 600, color: '#1F1B16' }}>
-              {listing.rating}
-            </span>
-            <span style={{ fontSize: 11, color: '#9C9589' }}>({listing.reviews})</span>
-          </div>
+    <div className="map-popup-card">
+      {/* The whole card is the link; the close button sits on top of it */}
+      <Link
+        href={href}
+        className="map-popup-link focus-ring"
+        ref={linkRef}
+      >
+        <div style={{ position: 'relative', height: 132, backgroundColor: '#E8E1D6' }}>
+          {listing.photo && (
+            <Image
+              src={listing.photo}
+              alt=""
+              fill
+              sizes="260px"
+              style={{ objectFit: 'cover' }}
+            />
+          )}
         </div>
 
-        <a
-          href={`/listings/${listing.id}`}
-          style={{
-            display: 'block', marginTop: 10, textAlign: 'center',
-            padding: '7px 0', borderRadius: 999,
-            backgroundColor: '#C9932E', color: '#1F1B16',
-            fontSize: 12, fontWeight: 600, textDecoration: 'none',
-          }}
-        >
-          View listing →
-        </a>
-      </div>
+        <div style={{ padding: '10px 12px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <p
+              style={{
+                flex: 1, minWidth: 0,
+                fontSize: 14, fontWeight: 600, color: '#1F1B16', lineHeight: 1.35,
+                display: '-webkit-box', WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical', overflow: 'hidden',
+              }}
+            >
+              {listing.title}
+            </p>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0, paddingTop: 2 }}>
+              <Star size={11} fill="#C9932E" color="#C9932E" aria-hidden />
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#1F1B16' }}>
+                <span className="sr-only">Rated </span>
+                {listing.rating.toFixed(1)}
+              </span>
+            </span>
+          </div>
+
+          <p style={{ fontSize: 12, color: '#6B645C', marginTop: 2 }}>
+            {listing.neighbourhood}, {listing.city}
+          </p>
+
+          <p style={{ marginTop: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#1F1B16' }}>
+              {formatUsdCompact(listing.price)}
+            </span>
+            <span style={{ fontSize: 12, color: '#6B645C', marginLeft: 2 }}>{listing.unit}</span>
+          </p>
+          {listing.unit === '/year' && (
+            <p style={{ fontSize: 11, color: '#6B645C', marginTop: 2 }}>
+              About {formatUsdCompact(listing.price / 12)} a month
+            </p>
+          )}
+        </div>
+      </Link>
+
+      {/* 44px target around a smaller visible circle */}
+      <button
+        type="button"
+        onClick={(e) => onClose(e.detail === 0)}
+        aria-label="Close"
+        className="map-popup-close"
+      >
+        <span>
+          <X size={15} color="#1F1B16" aria-hidden />
+        </span>
+      </button>
     </div>
   )
 }
@@ -259,11 +279,19 @@ function PopupCard({
 interface ListingsMapProps {
   listings: MapListing[]
   initialRegion?: string
+  /** Query string (with its "?") carried to the listing page, e.g. chosen dates */
+  listingQuery?: string
+  /** A listing to highlight from outside, e.g. the card being hovered */
+  highlightId?: string | null
+  /** Called with the listing whose popup opened, or null when it closed */
+  onSelect?: (id: string | null) => void
 }
 
-export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
+export function ListingsMap({
+  listings, initialRegion, listingQuery = '', highlightId = null, onSelect,
+}: ListingsMapProps) {
   const mapRef = useRef<MapRef>(null)
-  const { rate } = useExchangeRate()
+  const wrapRef = useRef<HTMLDivElement>(null)
 
   // Determine initial center from region or default to Accra
   const initialCenter = useMemo<ViewState>(() => {
@@ -293,14 +321,20 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
     bbox: [number, number, number, number]
     zoom: number
   } | null>(null)
-  const [hoveredId, setHoveredId]   = useState<string | null>(null)
-  const [popupListing, setPopupListing] = useState<MapListing | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [popupId, setPopupId]     = useState<string | null>(null)
+  const [popupFromKeyboard, setPopupFromKeyboard] = useState(false)
+
+  const byId = useMemo(() => new globalThis.Map(listings.map((l) => [l.id, l])), [listings])
+
+  // Only one popup at a time, and none for a listing the results no longer hold
+  const popupListing = popupId ? byId.get(popupId) ?? null : null
 
   const points = useMemo<GeoJSON.Feature<GeoJSON.Point, PointProperties>[]>(
     () =>
       listings.map((l) => ({
         type: 'Feature' as const,
-        properties: { cluster: false, listingId: l.id },
+        properties: { listingId: l.id, price: l.price },
         geometry: { type: 'Point' as const, coordinates: l.coordinates },
       })),
     [listings],
@@ -308,7 +342,15 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
 
   // Build supercluster index from listings
   const index = useMemo(() => {
-    const sc = new Supercluster<PointProperties, Record<string, never>>({ radius: 55, maxZoom: 16 })
+    const sc = new Supercluster<PointProperties, ClusterRange>({
+      radius: 55,
+      maxZoom: CLUSTER_MAX_ZOOM,
+      map: (p) => ({ min: p.price, max: p.price }),
+      reduce: (acc, p) => {
+        acc.min = Math.min(acc.min, p.min)
+        acc.max = Math.max(acc.max, p.max)
+      },
+    })
     sc.load(points)
     return sc
   }, [points])
@@ -325,15 +367,64 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
     if (!bounds) return
     setViewBounds({
       bbox: [bounds.getWest(), bounds.getSouth(), bounds.getEast(), bounds.getNorth()],
-      zoom: Math.floor(map.getZoom()),
+      // An animated zoom can land a hair under its target (11.9999), which
+      // would leave a tapped cluster unsplit, so nudge before flooring
+      zoom: Math.floor(map.getZoom() + 0.01),
     })
   }, [])
 
+  // Slide the map so a popup above this point sits fully inside it
+  function makeRoomFor([lng, lat]: [number, number]) {
+    const map = mapRef.current?.getMap()
+    if (!map) return
+    const { x, y } = map.project([lng, lat])
+    const width = map.getContainer().clientWidth
+    const half = Math.min(POPUP_WIDTH, window.innerWidth - 48) / 2 + POPUP_MARGIN
+    const top = POPUP_HEIGHT + PIN_HEIGHT + POPUP_GAP + POPUP_MARGIN
+
+    let dx = 0
+    if (width < half * 2) dx = x - width / 2
+    else if (x < half) dx = x - half
+    else if (x > width - half) dx = x - (width - half)
+    const dy = y < top ? y - top : 0
+
+    if (dx || dy) map.panBy([dx, dy], { duration: 300 })
+  }
+
+  function select(id: string | null, fromKeyboard = false) {
+    const listing = id ? byId.get(id) : null
+    if (listing) makeRoomFor(listing.coordinates)
+    setPopupId(id)
+    setPopupFromKeyboard(fromKeyboard)
+    onSelect?.(id)
+  }
+
   function handleClusterClick(clusterId: number, lng: number, lat: number) {
+    select(null)
     const expansionZoom = Math.min(
-      index.getClusterExpansionZoom(clusterId), 16
+      index.getClusterExpansionZoom(clusterId), CLUSTER_MAX_ZOOM + 1
     )
     mapRef.current?.flyTo({ center: [lng, lat], zoom: expansionZoom, duration: 500 })
+  }
+
+  // A tap on the bare map closes the popup. Pins sit inside the map's own
+  // canvas container, so their taps reach this handler too and are skipped.
+  function handleMapClick(e: MapMouseEvent) {
+    const target = e.originalEvent?.target
+    if (target instanceof Element && target.closest('[data-map-pin], .maplibregl-popup')) return
+    if (popupId) select(null)
+  }
+
+  // Closing from the keyboard hands focus back to the pin that opened the popup
+  function closeToPin() {
+    if (!popupId) return
+    const pin = wrapRef.current?.querySelector<HTMLElement>(`[data-map-pin="${CSS.escape(popupId)}"]`)
+    select(null)
+    pin?.focus()
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') closeToPin()
   }
 
   if (!MAPTILER_KEY) {
@@ -356,13 +447,18 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
   }
 
   return (
-    <div style={{ width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' }}>
+    <div
+      ref={wrapRef}
+      onKeyDown={handleKeyDown}
+      style={{ width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' }}
+    >
       <Map
         ref={mapRef}
         {...viewState}
         onMove={(e) => setViewState(e.viewState)}
         onMoveEnd={updateBounds}
         onLoad={updateBounds}
+        onClick={handleMapClick}
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLE}
         attributionControl={false}
@@ -375,7 +471,7 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
 
           // ── Cluster pill ───────────────────────────────────────────
           if (props.cluster) {
-            const { cluster_id, point_count } = props as ClusterProperties
+            const { cluster_id, point_count, min, max } = props
             return (
               <Marker
                 key={`cluster-${cluster_id}`}
@@ -385,6 +481,7 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
               >
                 <ClusterMarker
                   count={point_count}
+                  label={shortUsdRange(min, max)}
                   onClick={() => handleClusterClick(cluster_id, lng, lat)}
                 />
               </Marker>
@@ -392,12 +489,12 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
           }
 
           // ── Individual price marker ────────────────────────────────
-          const { listingId } = props as PointProperties
-          const listing = listings.find((l) => l.id === listingId)
+          const { listingId } = props
+          const listing = byId.get(listingId)
           if (!listing) return null
 
-          const usd   = getDisplayPrice(listing)
-          const label = formatGHS(usd, rate)
+          const open   = popupId === listingId
+          const active = open || hoveredId === listingId || highlightId === listingId
 
           return (
             <Marker
@@ -405,40 +502,38 @@ export function ListingsMap({ listings, initialRegion }: ListingsMapProps) {
               longitude={lng}
               latitude={lat}
               anchor="bottom"
+              style={{ zIndex: active ? 2 : 1 }}
             >
               <PriceMarker
-                price={label}
-                hovered={hoveredId === listingId}
-                onClick={() => {
-                  setPopupListing(popupListing?.id === listingId ? null : listing)
-                }}
-              />
-              {/* Invisible hover zone — larger than the pill */}
-              <div
-                style={{ position: 'absolute', inset: -8, cursor: 'pointer' }}
-                onMouseEnter={() => setHoveredId(listingId)}
-                onMouseLeave={() => setHoveredId(null)}
+                listing={listing}
+                active={active}
+                open={open}
+                onClick={(fromKeyboard) => select(open ? null : listingId, fromKeyboard)}
+                onHover={(hovering) => setHoveredId(hovering ? listingId : null)}
               />
             </Marker>
           )
         })}
 
-        {/* Popup */}
+        {/* Popup: keyed by listing so each one opens fresh */}
         {popupListing && (
           <Popup
+            key={popupListing.id}
             longitude={popupListing.coordinates[0]}
             latitude={popupListing.coordinates[1]}
             anchor="bottom"
-            offset={[0, -12]}
+            offset={[0, -(PIN_HEIGHT + POPUP_GAP)]}
             closeButton={false}
             closeOnClick={false}
-            onClose={() => setPopupListing(null)}
-            style={{ padding: 0 }}
+            focusAfterOpen={false}
+            className="map-popup"
             maxWidth="none"
           >
             <PopupCard
               listing={popupListing}
-              onClose={() => setPopupListing(null)}
+              href={`/listings/${popupListing.id}${listingQuery}`}
+              takeFocus={popupFromKeyboard}
+              onClose={(fromKeyboard) => (fromKeyboard ? closeToPin() : select(null))}
             />
           </Popup>
         )}
