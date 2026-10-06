@@ -1,6 +1,7 @@
 /**
- * Short US dollar labels for map pins and clusters. Display only: they are
- * built from a listing's stored USD price and never feed a calculation.
+ * Short labels for map pins (US dollars) and clusters (a count of homes).
+ * Display only: prices are built from a listing's stored USD price and never
+ * feed a calculation.
  */
 
 /** "$45", "$1.4k", "$12k", "$1.2m". Whole dollars under a thousand. */
@@ -17,9 +18,8 @@ function trim(value: number, oneDecimal: boolean): string {
   return text.replace(/\.0$/, '')
 }
 
-/** "$45 to $120" for a cluster, or a single label when both ends read the same. */
-export function shortUsdRange(min: number, max: number): string {
-  const low = shortUsd(Math.min(min, max))
-  const high = shortUsd(Math.max(min, max))
-  return low === high ? low : `${low} to ${high}`
+/** The number of homes in a cluster: "3", "42", and "99+" past two digits. */
+export function clusterLabel(count: number): string {
+  const n = Math.max(0, Math.floor(count))
+  return n > 99 ? '99+' : String(n)
 }

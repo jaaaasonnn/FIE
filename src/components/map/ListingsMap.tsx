@@ -4,10 +4,11 @@
  * ListingsMap: MapLibre GL / react-map-gl split-screen map
  * - MapTiler "positron" base style (light, minimal, warm-palette friendly)
  * - Price-pill markers in short US dollars ("$45", "$1.4k")
- * - Supercluster for marker clustering; a cluster shows its price range
+ * - Supercluster for marker clustering; a cluster shows how many homes it holds
  * - Tap a pin: popup card (photo, title, location, rating, price) that links
  *   to the listing. Tap the map, the close button or press Escape to close.
- * - Tap a cluster: zoom in until its pins separate
+ * - Tap a cluster: zoom in until its pins separate. Homes too close together
+ *   to ever separate open a list popup instead.
  * - highlightId / onSelect link the pins to the cards in the list
  */
 
@@ -25,7 +26,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import Supercluster from 'supercluster'
 import { Star, X, Map as MapIcon } from 'lucide-react'
 import { formatUsdCompact } from '@/lib/utils'
-import { shortUsd, shortUsdRange } from '@/lib/mapLabels'
+import { shortUsd, clusterLabel } from '@/lib/mapLabels'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -52,13 +53,9 @@ type ViewState = {
 type PointProperties = {
   cluster?: false
   listingId: string
-  price: number
 }
 
-// Lowest and highest price inside a cluster, kept up to date by supercluster
-type ClusterRange = { min: number; max: number }
-
-type ClusterProperties = ClusterRange & {
+type ClusterProperties = {
   cluster: true
   cluster_id: number
   point_count: number
@@ -94,16 +91,17 @@ const ACCRA_DEFAULT: ViewState = { longitude: -0.187, latitude: 5.55, zoom: 11.5
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || ''
 const MAP_STYLE = `https://api.maptiler.com/maps/positron/style.json?key=${MAPTILER_KEY}`
 
-// Supercluster stops clustering above this zoom, so a cluster click may need
-// to go one level past it before the pins separate.
-const CLUSTER_MAX_ZOOM = 16
+// The map stops zooming here and homes are clustered all the way up to it, so
+// a cluster that is still together at this zoom can never be zoomed apart:
+// tapping it lists its homes instead.
+const MAX_ZOOM = 18
 
 // The popup always opens above its pin, and the map slides just enough to
 // fit it, so it never hangs off the edge of a narrow screen.
 const PIN_HEIGHT = 30
 const POPUP_GAP = 6
 const POPUP_WIDTH = 260      // matches .map-popup-card
-const POPUP_HEIGHT = 270     // tallest card: two-line title plus the yearly note
+const POPUP_HEIGHT = 280     // tallest popup: the list of homes at its full height
 const POPUP_MARGIN = 8
 
 // ── Sub-components ────────────────────────────────────────────────────────
@@ -157,15 +155,23 @@ function PriceMarker({
 }
 
 function ClusterMarker({
-  count, label, onClick,
-}: { count: number; label: string; onClick: () => void }) {
+  pinKey, count, lists, open, onClick,
+}: {
+  pinKey: string
+  count: number
+  /** Its homes cannot be zoomed apart, so a tap lists them */
+  lists: boolean
+  open: boolean
+  onClick: (fromKeyboard: boolean) => void
+}) {
   return (
     <button
       type="button"
-      data-map-pin="cluster"
+      data-map-pin={pinKey}
       className="map-pin focus-ring"
-      aria-label={`${count} stays, ${label}. Zoom in`}
-      onClick={onClick}
+      aria-label={`${count} homes. ${lists ? 'Show list' : 'Zoom in'}`}
+      aria-expanded={lists ? open : undefined}
+      onClick={(e) => onClick(e.detail === 0)}
       style={{
         display: 'block',
         position: 'relative',
@@ -174,6 +180,8 @@ function ClusterMarker({
         fontWeight: 700,
         lineHeight: '16px',
         padding: '5px 10px',
+        minWidth: 40,
+        textAlign: 'center',
         borderRadius: '999px',
         border: '1.5px solid #B37F22',
         cursor: 'pointer',
@@ -183,22 +191,43 @@ function ClusterMarker({
         boxShadow: '0 4px 16px rgba(201,147,46,0.4)',
       }}
     >
-      {label}
+      {clusterLabel(count)}
     </button>
   )
+}
+
+function CloseButton({ onClose }: { onClose: (fromKeyboard: boolean) => void }) {
+  // 44px target around a smaller visible circle
+  return (
+    <button
+      type="button"
+      onClick={(e) => onClose(e.detail === 0)}
+      aria-label="Close"
+      className="map-popup-close"
+    >
+      <span>
+        <X size={15} color="#1F1B16" aria-hidden />
+      </span>
+    </button>
+  )
+}
+
+/** Opened from the keyboard: move focus into the popup, once, so Enter follows it */
+function useFocusOnOpen<T extends HTMLElement>(takeFocus: boolean) {
+  const ref = useRef<T>(null)
+  useEffect(() => {
+    if (!takeFocus) return
+    // The map attaches the popup to the page just after it renders
+    const frame = requestAnimationFrame(() => ref.current?.focus())
+    return () => cancelAnimationFrame(frame)
+  }, [takeFocus])
+  return ref
 }
 
 function PopupCard({
   listing, href, takeFocus, onClose,
 }: { listing: MapListing; href: string; takeFocus: boolean; onClose: (fromKeyboard: boolean) => void }) {
-  // Opened from the keyboard: move focus into the card, once, so Enter follows it
-  const linkRef = useRef<HTMLAnchorElement>(null)
-  useEffect(() => {
-    if (!takeFocus) return
-    // The map attaches the popup to the page just after this card renders
-    const frame = requestAnimationFrame(() => linkRef.current?.focus())
-    return () => cancelAnimationFrame(frame)
-  }, [takeFocus])
+  const linkRef = useFocusOnOpen<HTMLAnchorElement>(takeFocus)
 
   return (
     <div className="map-popup-card">
@@ -259,17 +288,52 @@ function PopupCard({
         </div>
       </Link>
 
-      {/* 44px target around a smaller visible circle */}
-      <button
-        type="button"
-        onClick={(e) => onClose(e.detail === 0)}
-        aria-label="Close"
-        className="map-popup-close"
-      >
-        <span>
-          <X size={15} color="#1F1B16" aria-hidden />
-        </span>
-      </button>
+      <CloseButton onClose={onClose} />
+    </div>
+  )
+}
+
+/** Homes that share a spot on the map: a short list, each row a link */
+function GroupCard({
+  listings, hrefFor, takeFocus, onClose,
+}: {
+  listings: MapListing[]
+  hrefFor: (id: string) => string
+  takeFocus: boolean
+  onClose: (fromKeyboard: boolean) => void
+}) {
+  const firstRef = useFocusOnOpen<HTMLAnchorElement>(takeFocus)
+
+  return (
+    <div className="map-popup-card">
+      <p className="map-popup-heading">{listings.length} homes here</p>
+      <ul className="map-popup-list">
+        {listings.map((listing, i) => (
+          <li key={listing.id}>
+            <Link
+              href={hrefFor(listing.id)}
+              ref={i === 0 ? firstRef : undefined}
+              className="map-popup-row focus-ring"
+            >
+              <span className="map-popup-thumb">
+                {listing.photo && (
+                  <Image src={listing.photo} alt="" fill sizes="56px" style={{ objectFit: 'cover' }} />
+                )}
+              </span>
+              <span style={{ minWidth: 0 }}>
+                <span className="map-popup-row-title">{listing.title}</span>
+                <span style={{ display: 'block', marginTop: 2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#1F1B16' }}>
+                    {formatUsdCompact(listing.price)}
+                  </span>
+                  <span style={{ fontSize: 12, color: '#6B645C', marginLeft: 2 }}>{listing.unit}</span>
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      <CloseButton onClose={onClose} />
     </div>
   )
 }
@@ -324,17 +388,27 @@ export function ListingsMap({
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [popupId, setPopupId]     = useState<string | null>(null)
   const [popupFromKeyboard, setPopupFromKeyboard] = useState(false)
+  // A list popup for homes that share a spot: which cluster, and who is in it
+  const [group, setGroup] = useState<{
+    pinKey: string
+    ids: string[]
+    coordinates: [number, number]
+  } | null>(null)
 
   const byId = useMemo(() => new globalThis.Map(listings.map((l) => [l.id, l])), [listings])
 
   // Only one popup at a time, and none for a listing the results no longer hold
   const popupListing = popupId ? byId.get(popupId) ?? null : null
+  const groupListings = useMemo(
+    () => (group ? group.ids.flatMap((id) => byId.get(id) ?? []) : []),
+    [group, byId],
+  )
 
   const points = useMemo<GeoJSON.Feature<GeoJSON.Point, PointProperties>[]>(
     () =>
       listings.map((l) => ({
         type: 'Feature' as const,
-        properties: { listingId: l.id, price: l.price },
+        properties: { listingId: l.id },
         geometry: { type: 'Point' as const, coordinates: l.coordinates },
       })),
     [listings],
@@ -342,15 +416,7 @@ export function ListingsMap({
 
   // Build supercluster index from listings
   const index = useMemo(() => {
-    const sc = new Supercluster<PointProperties, ClusterRange>({
-      radius: 55,
-      maxZoom: CLUSTER_MAX_ZOOM,
-      map: (p) => ({ min: p.price, max: p.price }),
-      reduce: (acc, p) => {
-        acc.min = Math.min(acc.min, p.min)
-        acc.max = Math.max(acc.max, p.max)
-      },
-    })
+    const sc = new Supercluster<PointProperties>({ radius: 55, maxZoom: MAX_ZOOM })
     sc.load(points)
     return sc
   }, [points])
@@ -373,14 +439,15 @@ export function ListingsMap({
     })
   }, [])
 
-  // Slide the map so a popup above this point sits fully inside it
-  function makeRoomFor([lng, lat]: [number, number]) {
+  // Slide the map so a popup above this point sits fully inside it. `rise` is
+  // how far above the point the popup's bottom edge sits.
+  function makeRoomFor([lng, lat]: [number, number], rise: number) {
     const map = mapRef.current?.getMap()
     if (!map) return
     const { x, y } = map.project([lng, lat])
     const width = map.getContainer().clientWidth
     const half = Math.min(POPUP_WIDTH, window.innerWidth - 48) / 2 + POPUP_MARGIN
-    const top = POPUP_HEIGHT + PIN_HEIGHT + POPUP_GAP + POPUP_MARGIN
+    const top = POPUP_HEIGHT + rise + POPUP_MARGIN
 
     let dx = 0
     if (width < half * 2) dx = x - width / 2
@@ -393,18 +460,41 @@ export function ListingsMap({
 
   function select(id: string | null, fromKeyboard = false) {
     const listing = id ? byId.get(id) : null
-    if (listing) makeRoomFor(listing.coordinates)
+    if (listing) makeRoomFor(listing.coordinates, PIN_HEIGHT + POPUP_GAP)
+    setGroup(null)
     setPopupId(id)
     setPopupFromKeyboard(fromKeyboard)
     onSelect?.(id)
   }
 
-  function handleClusterClick(clusterId: number, lng: number, lat: number) {
+  // True when the cluster's homes are still together at the closest zoom
+  function staysTogether(clusterId: number) {
+    return index.getClusterExpansionZoom(clusterId) > MAX_ZOOM
+  }
+
+  function handleClusterClick(clusterId: number, lng: number, lat: number, fromKeyboard: boolean) {
+    const pinKey = `cluster-${clusterId}`
+    const wasOpen = group?.pinKey === pinKey
     select(null)
-    const expansionZoom = Math.min(
-      index.getClusterExpansionZoom(clusterId), CLUSTER_MAX_ZOOM + 1
-    )
-    mapRef.current?.flyTo({ center: [lng, lat], zoom: expansionZoom, duration: 500 })
+
+    if (!staysTogether(clusterId)) {
+      mapRef.current?.flyTo({
+        center: [lng, lat],
+        zoom: index.getClusterExpansionZoom(clusterId),
+        duration: 500,
+      })
+      return
+    }
+    if (wasOpen) return
+
+    // Cluster bubbles are centred on their point, so the popup clears half of one
+    makeRoomFor([lng, lat], PIN_HEIGHT / 2 + POPUP_GAP)
+    setGroup({
+      pinKey,
+      ids: index.getLeaves(clusterId, Infinity).map((leaf) => leaf.properties.listingId),
+      coordinates: [lng, lat],
+    })
+    setPopupFromKeyboard(fromKeyboard)
   }
 
   // A tap on the bare map closes the popup. Pins sit inside the map's own
@@ -412,13 +502,14 @@ export function ListingsMap({
   function handleMapClick(e: MapMouseEvent) {
     const target = e.originalEvent?.target
     if (target instanceof Element && target.closest('[data-map-pin], .maplibregl-popup')) return
-    if (popupId) select(null)
+    if (popupId || group) select(null)
   }
 
   // Closing from the keyboard hands focus back to the pin that opened the popup
   function closeToPin() {
-    if (!popupId) return
-    const pin = wrapRef.current?.querySelector<HTMLElement>(`[data-map-pin="${CSS.escape(popupId)}"]`)
+    const pinKey = popupId ?? group?.pinKey
+    if (!pinKey) return
+    const pin = wrapRef.current?.querySelector<HTMLElement>(`[data-map-pin="${CSS.escape(pinKey)}"]`)
     select(null)
     pin?.focus()
   }
@@ -461,6 +552,7 @@ export function ListingsMap({
         onClick={handleMapClick}
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLE}
+        maxZoom={MAX_ZOOM}
         attributionControl={false}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
@@ -471,7 +563,8 @@ export function ListingsMap({
 
           // ── Cluster pill ───────────────────────────────────────────
           if (props.cluster) {
-            const { cluster_id, point_count, min, max } = props
+            const { cluster_id, point_count } = props
+            const pinKey = `cluster-${cluster_id}`
             return (
               <Marker
                 key={`cluster-${cluster_id}`}
@@ -480,9 +573,11 @@ export function ListingsMap({
                 anchor="center"
               >
                 <ClusterMarker
+                  pinKey={pinKey}
                   count={point_count}
-                  label={shortUsdRange(min, max)}
-                  onClick={() => handleClusterClick(cluster_id, lng, lat)}
+                  lists={staysTogether(cluster_id)}
+                  open={group?.pinKey === pinKey}
+                  onClick={(fromKeyboard) => handleClusterClick(cluster_id, lng, lat, fromKeyboard)}
                 />
               </Marker>
             )
@@ -532,6 +627,29 @@ export function ListingsMap({
             <PopupCard
               listing={popupListing}
               href={`/listings/${popupListing.id}${listingQuery}`}
+              takeFocus={popupFromKeyboard}
+              onClose={(fromKeyboard) => (fromKeyboard ? closeToPin() : select(null))}
+            />
+          </Popup>
+        )}
+
+        {/* List popup for homes that cannot be zoomed apart */}
+        {group && groupListings.length > 0 && (
+          <Popup
+            key={group.pinKey}
+            longitude={group.coordinates[0]}
+            latitude={group.coordinates[1]}
+            anchor="bottom"
+            offset={[0, -(PIN_HEIGHT / 2 + POPUP_GAP)]}
+            closeButton={false}
+            closeOnClick={false}
+            focusAfterOpen={false}
+            className="map-popup"
+            maxWidth="none"
+          >
+            <GroupCard
+              listings={groupListings}
+              hrefFor={(id) => `/listings/${id}${listingQuery}`}
               takeFocus={popupFromKeyboard}
               onClose={(fromKeyboard) => (fromKeyboard ? closeToPin() : select(null))}
             />

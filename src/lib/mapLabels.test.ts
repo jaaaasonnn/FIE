@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { shortUsd, shortUsdRange } from './mapLabels'
+import { shortUsd, clusterLabel } from './mapLabels'
 
 describe('shortUsd', () => {
   it('shows whole dollars under a thousand', () => {
@@ -24,14 +24,22 @@ describe('shortUsd', () => {
   })
 })
 
-describe('shortUsdRange', () => {
-  it('joins the two ends with "to"', () => {
-    expect(shortUsdRange(45, 120)).toBe('$45 to $120')
-    expect(shortUsdRange(1400, 45)).toBe('$45 to $1.4k')
+describe('clusterLabel', () => {
+  it('shows the number of homes', () => {
+    expect(clusterLabel(2)).toBe('2')
+    expect(clusterLabel(3)).toBe('3')
+    expect(clusterLabel(42)).toBe('42')
+    expect(clusterLabel(99)).toBe('99')
   })
 
-  it('collapses to one label when both ends read the same', () => {
-    expect(shortUsdRange(80, 80)).toBe('$80')
-    expect(shortUsdRange(1410, 1440)).toBe('$1.4k')
+  it('caps at two digits so the bubble keeps its size', () => {
+    expect(clusterLabel(100)).toBe('99+')
+    expect(clusterLabel(1250)).toBe('99+')
+  })
+
+  it('never shows a price or a fraction', () => {
+    expect(clusterLabel(3.9)).toBe('3')
+    expect(clusterLabel(-1)).toBe('0')
+    expect(clusterLabel(7)).not.toContain('$')
   })
 })
