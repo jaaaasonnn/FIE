@@ -114,6 +114,12 @@ export async function POST(req: Request) {
         { status: 409 },
       )
     }
+    if (booking.status === 'DECLINED') {
+      return NextResponse.json(
+        { error: 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.' },
+        { status: 409 },
+      )
+    }
 
     // Prefer session email, then guest record email. Paystack requires a valid email.
     const email = user.email || booking.guest.email
@@ -148,6 +154,10 @@ export async function POST(req: Request) {
           method,
           status:           'PENDING',
           gatewayReference: reference,
+          // Exactly what Paystack is asked to charge, and the rate used, so
+          // a refund can return the same cedis (lib/cancellationPolicy.ts)
+          amountPesewas,
+          usdToGhs,
         },
       }),
       db.booking.update({

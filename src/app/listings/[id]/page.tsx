@@ -18,6 +18,7 @@ import {
 } from '@/lib/stayDates'
 import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 import { OwnListingNote } from '@/components/booking/OwnListingNote'
+import { CancellationPolicy, heldNote } from '@/components/booking/CancellationPolicy'
 import Link from 'next/link'
 import Image from 'next/image'
 import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
@@ -528,6 +529,11 @@ export default function ListingDetailPage() {
               </div>
             </div>
 
+            {/* Cancellation policy for the rental type being looked at */}
+            <div>
+              <CancellationPolicy policy={listing.cancellationPolicy} rentalMode={selectedMode} />
+            </div>
+
             {/* Description */}
             <div>
               <h3 className="text-lg font-bold mb-3" style={{ color: 'var(--color-text-primary)' }}>About this property</h3>
@@ -851,7 +857,7 @@ export default function ListingDetailPage() {
               <div className="mt-4 p-3 rounded-xl flex items-center gap-2"
                 style={{ backgroundColor: '#F0FDF4', border: '1px solid #BBF7D0' }}>
                 <Shield size={16} style={{ color: '#059669' }} />
-                <p className="text-xs" style={{ color: '#065F46' }}>Payment held in escrow until check-in confirmed.</p>
+                <p className="text-xs" style={{ color: '#065F46' }}>{heldNote(selectedMode)}</p>
               </div>
               </>
               )}

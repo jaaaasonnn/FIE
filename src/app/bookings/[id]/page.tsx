@@ -8,6 +8,8 @@ import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 import { formatStayDate } from '@/lib/stayDates'
+import { CancellationPolicy, SUPPORT_NOTE, heldNote } from '@/components/booking/CancellationPolicy'
+import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 
 type BookingData = {
   id: string
@@ -23,6 +25,8 @@ type BookingData = {
   paymentStatus: string
   checkIn: string
   checkOut: string
+  cancellationPolicy: string | null
+  refund: RefundSummary | null
   listing: {
     id: string
     title: string
@@ -30,6 +34,7 @@ type BookingData = {
     city: string
     neighbourhood: string | null
     welcomeMessage: string | null
+    cancellationPolicy: string
   }
   host: {
     id: string
@@ -101,7 +106,11 @@ export default function BookingConfirmationPage() {
               : <Clock size={32} style={{ color: '#92400E' }} />}
           </div>
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
-            {confirmed ? 'Booking Confirmed!' : 'Booking Pending'}
+            {confirmed ? 'Booking Confirmed!'
+              : booking.status === 'CANCELLED' ? 'Booking cancelled'
+              : booking.status === 'DECLINED' ? 'Request declined'
+              : booking.status === 'COMPLETED' ? 'Stay completed'
+              : 'Booking Pending'}
           </h1>
           <p style={{ color: 'rgba(250,247,242,0.7)' }}>Ref: {ref}</p>
         </div>
@@ -207,17 +216,36 @@ export default function BookingConfirmationPage() {
           </div>
         </div>
 
-        {/* Escrow notice */}
-        <div className="p-4 rounded-2xl flex items-start gap-3"
-          style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
-          <Shield size={18} style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <p className="font-semibold text-sm" style={{ color: '#1E40AF' }}>Escrow Active</p>
-            <p className="text-xs text-blue-600 mt-0.5">
-              Your payment is held securely. If the property doesn&apos;t match the listing, raise a dispute within 24 hours of check-in for a full refund.
+        {/* Refund, once the booking has been cancelled */}
+        {booking.refund && (
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
+            <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Refund</p>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{refundStatusText(booking.refund)}</p>
+          </div>
+        )}
+
+        {/* How the money is held, while the booking stands */}
+        {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
+          <div className="p-4 rounded-2xl flex items-start gap-3"
+            style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE' }}>
+            <Shield size={18} style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }} />
+            <div>
+              <p className="font-semibold text-sm" style={{ color: '#1E40AF' }}>How your payment is held</p>
+              <p className="text-xs text-blue-600 mt-0.5">{heldNote(booking.rentalMode)} {SUPPORT_NOTE}</p>
+            </div>
+          </div>
+        )}
+
+        {/* The policy this booking was made under */}
+        {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
+          <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+            <CancellationPolicy rentalMode={booking.rentalMode}
+              policy={booking.cancellationPolicy ?? booking.listing.cancellationPolicy} />
+            <p className="text-sm mt-3" style={{ color: 'var(--color-text-secondary)' }}>
+              You can cancel from your bookings page, where you will see the exact refund before you confirm.
             </p>
           </div>
-        </div>
+        )}
 
         {/* Actions */}
         <div className="grid grid-cols-2 gap-3">

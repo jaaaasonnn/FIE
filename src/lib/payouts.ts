@@ -67,9 +67,18 @@ export async function initiateHostPayout({
   const gate = payoutGate()
   if (!gate.live) throw new PayoutsOffError(gate.reason)
 
-  const booking = await db.booking.findUnique({ where: { id: bookingId }, select: { createdAt: true } })
+  const booking = await db.booking.findUnique({
+    where: { id: bookingId },
+    select: { createdAt: true, status: true, refund: { select: { id: true } } },
+  })
   if (!booking) {
     throw new Error(`Booking ${bookingId} not found`)
+  }
+  // A cancelled or refunded stay is never paid out. The cron's own query
+  // already leaves cancelled bookings out; this covers a payout row that was
+  // created earlier and is being resumed or retried after the cancellation.
+  if (booking.status === 'CANCELLED' || booking.status === 'DECLINED' || booking.refund) {
+    throw new Error(`Booking ${bookingId} is cancelled or refunded: no payout`)
   }
   if (booking.createdAt.getTime() < gate.notBefore.getTime()) {
     throw new PayoutsOffError(`booking ${bookingId} was made before PAYOUTS_NOT_BEFORE`)
@@ -232,6 +241,7 @@ const PERMANENT_PATTERNS: RegExp[] = [
   /third party payouts/i, // business not upgraded to Registered
   /amount too small/i,
   /no verified payout method|host .* not found/i,
+  /is cancelled or refunded/i, // never retry a payout for a cancelled or refunded stay
 ]
 
 const TRANSIENT_PATTERNS: RegExp[] = [

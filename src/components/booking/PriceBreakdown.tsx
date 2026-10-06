@@ -2,7 +2,7 @@ import { formatUsd } from '@/lib/utils'
 
 // Shown wherever the deposit is mentioned. It is paid with the booking and
 // nothing returns it automatically yet, so no time is promised.
-export const DEPOSIT_NOTE = 'Paid now and held by FieGH. Returned after check-out if there is no damage claim.'
+export const DEPOSIT_NOTE = 'Paid now and held by FieGH. Returned by our team after check-out.'
 
 /** "Includes the $200.00 refundable deposit", or null when there is none. */
 export function depositIncludedNote(deposit: number): string | null {

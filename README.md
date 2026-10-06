@@ -118,15 +118,16 @@ CLOUDINARY_API_SECRET="..."
 
 ---
 
-### Payout and completion switches
+### Payout, completion and refund switches
 
 The hourly cron jobs are off until switched on. Leave these unset until launch (see `.env.example` and CLAUDE.md):
 
 - `PAYOUTS_ENABLED`: must be exactly `true` before any transfer to a host is attempted. Otherwise the payout job only reports what it would do.
 - `PAYOUTS_NOT_BEFORE`: a date (`YYYY-MM-DD`). Only bookings created on or after it can be paid out. Required for payouts to run.
 - `COMPLETION_ENABLED`: must be exactly `true` before bookings are marked completed.
+- `REFUNDS_ENABLED`: must be exactly `true` before any refund is sent to Paystack. While off, cancelling still works and the refund is recorded as owed.
 
-Add `?dryRun=1` to either cron URL for a report-only run.
+Add `?dryRun=1` to any cron URL for a report-only run.
 
 ## Pages
 

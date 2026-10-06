@@ -10,6 +10,7 @@ import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { POLICY_LABELS, policyRuleLines, type Policy } from '@/lib/cancellationPolicy'
 
 const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Photos', 'Review']
 
@@ -43,7 +44,7 @@ export default function NewListingPage() {
     advanceMonthsRequired: '6',
     amenities: [] as string[],
     rules: [] as string[],
-    cancellationPolicy: 'FLEXIBLE',
+    cancellationPolicy: 'MODERATE',
     instantBook: false,
     minStayNights: '1',
     damageDeposit: '',
@@ -331,13 +332,30 @@ export default function NewListingPage() {
                 backgroundColor: form.cancellationPolicy === p ? '#FFF8EE' : '#fff',
                 color: form.cancellationPolicy === p ? 'var(--amber)' : '#6B7280'
               }}>
-              {p}
+              {POLICY_LABELS[p as Policy]}
             </button>
           ))}
         </div>
+        {/* What the chosen policy means for a guest, per rental type offered */}
+        <div className="mt-3 space-y-3">
+          {(form.rentalModes.length ? form.rentalModes : ['SHORT_STAY']).map((mode: string) => (
+            <div key={mode}>
+              <p className="text-xs font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                {mode === 'SHORT_STAY' ? 'Short stays' : mode === 'TEMP_STAY' ? 'Monthly stays' : 'Long-term rentals'}
+              </p>
+              <ul className="mt-1 space-y-1 text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+                {policyRuleLines(mode, form.cancellationPolicy).map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+          ))}
+          <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
+            The service fee is refunded only with a full refund, and the damage deposit is always refunded if the guest cancels before arriving.
+            If you cancel a confirmed booking yourself, the guest is refunded everything.
+          </p>
+        </div>
       </div>
 
-      <Input label="Refundable Damage Deposit (USD $, optional)" type="number" placeholder="e.g. 200"
+      <Input label="Damage deposit (USD $, optional)" type="number" placeholder="e.g. 200"
         value={form.damageDeposit} onChange={(e) => setForm({ ...form, damageDeposit: e.target.value })} />
 
       <div className="flex items-center justify-between p-4 rounded-xl border border-stone-200 bg-white">
@@ -426,7 +444,7 @@ export default function NewListingPage() {
             ['Monthly Price', form.priceMonthly ? `$${form.priceMonthly}` : '-'],
             ['Annual Price', form.priceAnnual ? `$${form.priceAnnual}` : '-'],
             ['Instant Book', form.instantBook ? 'Yes' : 'No'],
-            ['Cancellation', form.cancellationPolicy],
+            ['Cancellation', POLICY_LABELS[form.cancellationPolicy as Policy] ?? form.cancellationPolicy],
           ].map(([k, v]) => (
             <div key={k} className="flex justify-between gap-4">
               <span className="text-[#6B645C]">{k}</span>

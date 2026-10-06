@@ -14,6 +14,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/messages'
 import { formatStayDate } from '@/lib/stayDates'
+import { CancelDialog } from '@/components/booking/CancelDialog'
+import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 
 type ApiBooking = {
   id: string
@@ -28,6 +30,7 @@ type ApiBooking = {
   rentalMode: string
   listing: { id: string; title: string; photos: string; city: string; neighbourhood: string | null }
   host: { id: string; name: string | null; profilePhoto: string | null }
+  refund?: RefundSummary | null
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
@@ -155,23 +158,14 @@ export default function GuestDashboardPage() {
   const firstName      = user.name?.split(' ')[0] ?? 'there'
   const completedCount = bookings.filter((b) => b.status === 'COMPLETED').length
 
-  async function handleCancel(bookingId: string) {
-    if (!confirm('Cancel this booking? This cannot be undone.')) return
-    setCancellingId(bookingId)
+  // After a cancellation, load the bookings again so the status and any
+  // refund shown come from the server
+  async function reloadBookings() {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel' }),
-      })
+      const res = await fetch(`/api/bookings?guestId=${user!.id}`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Failed to cancel booking')
-      setBookings((prev) => prev.map((b) => (b.id === bookingId ? { ...b, status: data.booking.status } : b)))
-    } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to cancel booking')
-    } finally {
-      setCancellingId(null)
-    }
+      if (res.ok && Array.isArray(data.bookings)) setBookings(data.bookings)
+    } catch { /* the list refreshes on the next visit */ }
   }
 
   return (
@@ -345,6 +339,9 @@ export default function GuestDashboardPage() {
                         {b.damageDeposit > 0 && (
                           <p className="text-xs text-[#6B645C] mt-0.5">{depositIncludedNote(b.damageDeposit)}</p>
                         )}
+                        {b.refund && (
+                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{refundStatusText(b.refund)}</p>
+                        )}
                       </div>
                     </div>
                     <div className="px-4 pb-4 flex gap-2">
@@ -353,11 +350,11 @@ export default function GuestDashboardPage() {
                         style={{ borderColor: '#E5E7EB', color: '#374151' }}>
                         View Listing
                       </Link>
-                      {b.status === 'CONFIRMED' && (
-                        <button onClick={() => handleCancel(b.id)} disabled={cancellingId === b.id}
-                          className="text-xs px-4 py-2 rounded-full font-medium disabled:opacity-50"
+                      {(b.status === 'CONFIRMED' || b.status === 'PENDING') && (
+                        <button onClick={() => setCancellingId(b.id)}
+                          className="text-xs px-4 py-2 rounded-full font-medium"
                           style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-                          {cancellingId === b.id ? 'Cancelling…' : 'Cancel'}
+                          {b.status === 'PENDING' ? 'Withdraw request' : 'Cancel'}
                         </button>
                       )}
                       {b.status === 'COMPLETED' && (
@@ -420,6 +417,20 @@ export default function GuestDashboardPage() {
             revieweeName={b.host?.name ?? 'your host'}
             onSubmitted={(id) => setReviewedBookingIds((prev) => new Set(prev).add(id))}
             onAlreadyReviewed={(id) => setReviewedBookingIds((prev) => new Set(prev).add(id))}
+          />
+        )
+      })()}
+
+      {(() => {
+        const b = bookings.find((x) => x.id === cancellingId)
+        if (!b) return null
+        return (
+          <CancelDialog
+            bookingId={b.id}
+            listingTitle={b.listing?.title ?? 'Your booking'}
+            role="GUEST"
+            onClose={() => setCancellingId(null)}
+            onDone={() => { setCancellingId(null); reloadBookings() }}
           />
         )
       })()}

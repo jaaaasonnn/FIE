@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { formatStayDate } from '@/lib/stayDates'
+import { CancelDialog } from '@/components/booking/CancelDialog'
 
 type ApiBooking = {
   id: string
@@ -68,6 +69,10 @@ export default function HostBookingsPage() {
   }, [user])
 
   const bookings = filter === 'All' ? allBookings : allBookings.filter((b) => b.status === filter)
+
+  // The booking a host is in the middle of cancelling, if any
+  const [cancelId, setCancelId] = useState<string | null>(null)
+  const cancelBooking = allBookings.find((b) => b.id === cancelId)
 
   async function handleRespond(bookingId: string, action: 'accept' | 'decline') {
     setRespondingId(bookingId)
@@ -212,6 +217,13 @@ export default function HostBookingsPage() {
                       className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                       <MessageSquare size={13} /> Message Guest
                     </Link>
+                    {b.status === 'CONFIRMED' && (
+                      <button onClick={() => setCancelId(b.id)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
+                        style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
+                        <XCircle size={13} /> Cancel booking
+                      </button>
+                    )}
                     {b.status === 'COMPLETED' && (
                       reviewedBookingIds.has(b.id) ? (
                         <span className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"
@@ -262,6 +274,18 @@ export default function HostBookingsPage() {
           />
         )
       })()}
+      {cancelBooking && (
+        <CancelDialog
+          bookingId={cancelBooking.id}
+          listingTitle={cancelBooking.listing?.title ?? 'This booking'}
+          role="HOST"
+          onClose={() => setCancelId(null)}
+          onDone={() => {
+            setAllBookings((prev) => prev.map((b) => (b.id === cancelBooking.id ? { ...b, status: 'CANCELLED' } : b)))
+            setCancelId(null)
+          }}
+        />
+      )}
     </div>
   )
 }

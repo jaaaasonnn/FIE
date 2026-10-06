@@ -7,6 +7,7 @@ import { depositIncludedNote } from '@/components/booking/PriceBreakdown'
 import { CreditCard, CheckCircle, Clock, XCircle, Loader2, Smartphone, Wallet, ShieldCheck, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 
 type ApiPayment = {
   id: string
@@ -52,6 +53,7 @@ export default function GuestPaymentsPage() {
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   // Deposit per booking, read from the guest's bookings so each payment can say what it includes
   const [deposits, setDeposits] = useState<Record<string, number>>({})
+  const [refundsByBooking, setRefundsByBooking] = useState<Record<string, RefundSummary>>({})
   // Loading and the visible list are derived from which user the data was
   // loaded for, rather than reset/toggled inside the effect.
   const isCurrent = !!user && loadedFor === user.id
@@ -72,13 +74,17 @@ export default function GuestPaymentsPage() {
       .then((data) => {
         if (!active || !Array.isArray(data.bookings)) return
         setDeposits(Object.fromEntries(data.bookings.map((b: { id: string; damageDeposit: number }) => [b.id, b.damageDeposit ?? 0])))
+        setRefundsByBooking(Object.fromEntries(
+          data.bookings.filter((b: { refund?: RefundSummary | null }) => b.refund).map((b: { id: string; refund: RefundSummary }) => [b.id, b.refund]),
+        ))
       })
       .catch(() => {})
     return () => { active = false }
   }, [user, authLoading])
 
   const total = payments.filter((p) => p.status === 'SUCCESS').reduce((s, p) => s + p.amount, 0)
-  const refunds = payments.filter((p) => p.status === 'REFUNDED').reduce((s, p) => s + p.amount, 0)
+  // Only refunds that have actually landed count as received
+  const refunds = Object.values(refundsByBooking).filter((r) => r.status === 'PROCESSED').reduce((s, r) => s + r.amount, 0)
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -133,7 +139,7 @@ export default function GuestPaymentsPage() {
                 <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{payments.length}</p>
               </div>
               <div className="soft-panel p-5 text-center">
-                <p className="text-xs text-[#6B645C] mb-1">Refunds Received</p>
+                <p className="text-xs text-[#6B645C] mb-1">Refunds received</p>
                 <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
                   {formatUsd(refunds)}
                 </p>
@@ -166,9 +172,14 @@ export default function GuestPaymentsPage() {
                           </div>
                           <div>
                             <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                              {p.status === 'REFUNDED' ? 'Refundable deposit (returned)' : p.status === 'SUCCESS' ? 'Total paid' : 'Total due now'}
+                              {p.status === 'REFUNDED' ? 'Refunded' : p.status === 'SUCCESS' ? 'Total paid' : 'Total due now'}
                             </p>
                             <p className="text-xs text-[#6B645C]">{p.booking.listing.title}</p>
+                            {p.status === 'SUCCESS' && refundsByBooking[p.booking.id] && (
+                              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
+                                {refundStatusText(refundsByBooking[p.booking.id])}
+                              </p>
+                            )}
                             <p className="text-xs text-stone-400">
                               {method} · {new Date(p.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>

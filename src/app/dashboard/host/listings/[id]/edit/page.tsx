@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input, Textarea, Select } from '@/components/ui/Input'
 import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST } from '@/lib/utils'
+import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 
 type FormState = {
   title: string
@@ -294,9 +295,14 @@ export default function EditListingPage() {
                 <Select label="Property Type" value={form.propertyType}
                   onChange={(e) => setForm({ ...form, propertyType: e.target.value })}
                   options={PROPERTY_TYPES.map((t) => ({ value: t, label: t }))} />
-                <Select label="Cancellation Policy" value={form.cancellationPolicy}
+                <Select label="Cancellation policy" value={form.cancellationPolicy}
                   onChange={(e) => setForm({ ...form, cancellationPolicy: e.target.value })}
-                  options={['FLEXIBLE', 'MODERATE', 'STRICT'].map((p) => ({ value: p, label: p }))} />
+                  options={POLICIES.map((p) => ({ value: p, label: POLICY_LABELS[p] }))} />
+              </div>
+              {/* What the chosen policy means for a guest. Bookings already made keep the policy they were made under. */}
+              <div className="text-xs leading-relaxed space-y-1" style={{ color: 'var(--color-text-secondary)' }}>
+                {policyRuleLines('SHORT_STAY', form.cancellationPolicy).map((line) => <p key={line}>{line}</p>)}
+                <p>Monthly and long-term stays have longer notice periods under the same policy. Changing this affects new bookings only.</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <Select label="Bedrooms" value={form.bedrooms} onChange={(e) => setForm({ ...form, bedrooms: e.target.value })}

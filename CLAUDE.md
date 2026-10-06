@@ -43,23 +43,35 @@ _(none currently — Paystack and Supabase migration below are resolved)_
 8. End-to-end testing
 9. Legal documentation
 
-## Payout and completion switches
+## Payout, completion and refund switches
 
-The two hourly cron jobs do nothing risky until they are switched on in the environment. All three variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
+The hourly cron jobs do nothing risky until they are switched on in the environment. All four variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
 
 - `PAYOUTS_ENABLED`: must be exactly `true` before any Paystack transfer is attempted. Otherwise `process-payouts` runs as a dry run: it reports what it would pay, writes nothing and calls nothing. The same check sits inside `initiateHostPayout`, so no other caller can start a transfer.
 - `PAYOUTS_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be paid out. Required: without a valid date, payouts stay in dry run even when enabled. Set it to the launch date so no test booking is ever paid.
 - `COMPLETION_ENABLED`: must be exactly `true` before `complete-bookings` marks anything `COMPLETED`.
-- `?dryRun=1` on either cron URL forces a report-only run whatever the switches say.
+- `REFUNDS_ENABLED`: must be exactly `true` before any refund is sent to Paystack. While off, cancelling still works and the refund is recorded as owed (`Refund` row, status `PENDING`); nothing is sent. The hourly `process-refunds` job sends those once it is on. The check sits inside `sendRefund` (`src/lib/refunds.ts`), the only place a refund is started.
+- `?dryRun=1` on any cron URL forces a report-only run whatever the switches say.
 
 Rules worth knowing:
 - The payout job pays short stays that are `CONFIRMED` or `COMPLETED`, so the order the two jobs run in does not matter.
 - One payout per booking is enforced by a unique index on `Payout.bookingId`.
 - A host with no verified payout method is skipped and retried every hour; the host payouts page shows the amount waiting, and Sentry is alerted once a day once a payout is 7 days overdue.
 - A guest cannot cancel online once the check-in day has arrived or a payout exists (`src/lib/cancelRules.ts`).
-- Still not built: payouts for monthly and long-term stays, refunds, disputes, and returning the damage deposit.
+- A cancelled or refunded booking is never paid out (guard in `initiateHostPayout`).
+- Still not built: payouts for monthly and long-term stays, disputes, refunds after check-in (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
 
-Before turning payouts on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, point the Paystack webhook at the real domain, and run the launch clean of test bookings.
+Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries both transfer and refund events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+
+## Cancellation policies and refunds
+
+- The rules are one table in `src/lib/cancellationPolicy.ts`: Flexible, Moderate and Strict, with different notice periods for short stays, monthly stays and long-term rentals. Every page that states a policy builds its sentences from that table, so wording cannot drift from the sums.
+- The service fee is refunded only when the whole stay price is refunded. The damage deposit is always refunded on a cancellation before check-in. For monthly and long-term stays the amount kept is never more than one month's rent. FieGH absorbs Paystack's fee.
+- New listings default to Moderate (in code; the database column default is still `FLEXIBLE`). The policy is copied onto the booking when it is made (`Booking.cancellationPolicy`).
+- The refund is worked out on the server from stored values (`src/lib/cancellation.ts`), never from the request. The cancel request carries the amount the person was shown only so the server can refuse if it has changed.
+- One refund per booking (unique index on `Refund.bookingId`). `Payment.amountPesewas` and `usdToGhs` are saved at charge time so a refund returns the same share of the cedis paid.
+- A host can cancel a confirmed booking up to the day before check-in with a required reason; the guest gets everything back, every admin is notified, and the admin page counts them. No penalties yet.
+- A payment that lands on a cancelled or declined booking is refunded in full and does not revive it.
 
 ## Key Technical Decisions & Why
 - **MapTiler over Mapbox** — avoids Mapbox's credit card requirement during development

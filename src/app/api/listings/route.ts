@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { hasContactDetails } from '@/lib/moderation'
@@ -166,7 +167,7 @@ export async function POST(req: Request) {
         amenities: JSON.stringify(amenities || []),
         rules: JSON.stringify(rules || []),
         photos: JSON.stringify([]),
-        cancellationPolicy: cancellationPolicy || 'FLEXIBLE',
+        cancellationPolicy: asPolicy(cancellationPolicy),
         instantBook: !!instantBook,
         minStayNights: minStayNights ? parseInt(String(minStayNights), 10) : 1,
         damageDeposit: damageDeposit ? parseFloat(String(damageDeposit)) : null,

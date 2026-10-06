@@ -1,6 +1,6 @@
-// Safety switches for the cron jobs. Everything is off until it is turned on
-// in the environment, so a fresh deploy can never move money or complete
-// bookings by accident. See CLAUDE.md, "Payout and completion switches".
+// Safety switches for anything that moves money or completes bookings.
+// Everything is off until it is turned on in the environment, so a fresh
+// deploy can never do either by accident. See CLAUDE.md, "Payout and completion switches".
 //
 //   PAYOUTS_ENABLED=true        Real transfers may be attempted.
 //   PAYOUTS_NOT_BEFORE=2027-01-15
@@ -8,6 +8,9 @@
 //                               (UTC) can ever be paid out. Required: without
 //                               it payouts stay in dry run.
 //   COMPLETION_ENABLED=true     Bookings may be marked COMPLETED.
+//   REFUNDS_ENABLED=true        Refunds may be sent to Paystack. While off,
+//                               cancelling still works and the refund is
+//                               recorded as owed; nothing is sent.
 //
 // Either cron also accepts ?dryRun=1, which reports what it would do and
 // changes nothing, whatever the switches say.
@@ -44,6 +47,11 @@ export function payoutGate(): PayoutGate {
 
 export function completionEnabled(): boolean {
   return process.env.COMPLETION_ENABLED === 'true'
+}
+
+/** Exactly "true", like the others: a typo must never switch refunds on. */
+export function refundsEnabled(): boolean {
+  return process.env.REFUNDS_ENABLED === 'true'
 }
 
 /** Thrown when something tries to start a transfer while payouts are off. */

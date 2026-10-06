@@ -1,6 +1,6 @@
 export type RentalMode = 'SHORT_STAY' | 'TEMP_STAY' | 'PERMANENT'
 export type BookingStatus = 'PENDING' | 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'DISPUTED'
-export type PaymentStatus = 'UNPAID' | 'PAID' | 'REFUNDED' | 'RELEASED'
+export type PaymentStatus = 'UNPAID' | 'PAID' | 'PARTIALLY_REFUNDED' | 'REFUNDED' | 'RELEASED'
 export type UserRole = 'GUEST' | 'HOST' | 'ADMIN'
 export type VerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED'
 export type DisputeStatus = 'OPEN' | 'UNDER_REVIEW' | 'RESOLVED' | 'CLOSED'

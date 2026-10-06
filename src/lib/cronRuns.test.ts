@@ -488,6 +488,39 @@ describe('a payout left PENDING by a run that died', () => {
   })
 })
 
+// ─── Cancelled or refunded stays ────────────────────────────────────────────
+
+describe('a cancelled or refunded stay', () => {
+  beforeEach(switchesOn)
+
+  it('is refused a payout when called directly', async () => {
+    for (const status of ['CANCELLED', 'DECLINED']) {
+      const b = booking({ status })
+      await expect(initiateHostPayout({ hostId: 'host_1', bookingId: b.id as string, amount: 92 })).rejects.toThrow(/cancelled or refunded/)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+  })
+
+  it('is refused a payout once a refund is on record, whatever its status says', async () => {
+    booking({ refund: { id: 'refund_1' } })
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 92 })).rejects.toThrow(/cancelled or refunded/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not have a stuck payout resumed after the cancellation', async () => {
+    booking({ status: 'CANCELLED', refund: { id: 'refund_1' } })
+    state.payouts.push({
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 92, status: 'PENDING', retryCount: 0,
+      paystackTransferCode: null, paystackTransferReference: 'pyt-original', failureReason: null,
+      createdAt: new Date(NOW.getTime() - STALE_CLAIM_MS - 1000), initiatedAt: null,
+    })
+    const run = await runPayouts()
+    expect(run.resumed[0]).toMatchObject({ action: 'error', error: expect.stringMatching(/cancelled or refunded/) })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 // ─── Completion ─────────────────────────────────────────────────────────────
 
 describe('completion', () => {

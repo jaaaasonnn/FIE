@@ -5,6 +5,7 @@ import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { DAY_MS } from '@/lib/stayDates'
+import { asPolicy } from '@/lib/cancellationPolicy'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -111,6 +112,9 @@ export async function POST(req: Request) {
             status: listing.instantBook ? 'CONFIRMED' : 'PENDING',
             paymentStatus: 'UNPAID',
             specialRequests: specialRequests ?? null,
+            // The listing's policy as it stands now: a later change by the
+            // host does not alter this guest's terms
+            cancellationPolicy: asPolicy(listing.cancellationPolicy),
           },
         })
 
@@ -181,6 +185,7 @@ export async function GET(req: Request) {
           guest:    { select: { id: true, name: true, email: true, phone: true, profilePhoto: true } },
           host:     { select: { id: true, name: true, profilePhoto: true, phone: true } },
           payments: true,
+          refund:   true,
         },
       })
       if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -223,6 +228,7 @@ export async function GET(req: Request) {
         guest:    { select: { id: true, name: true, profilePhoto: true, trustScore: true, isVerified: true } },
         host:     { select: { id: true, name: true, profilePhoto: true } },
         payments: true,
+        refund:   true,
       },
       orderBy: { createdAt: 'desc' },
     })

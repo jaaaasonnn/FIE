@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { hasContactDetails } from '@/lib/moderation'
@@ -88,6 +89,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const isAdmin = user.role === 'ADMIN'
 
     const data: Record<string, unknown> = {}
+    if (body.cancellationPolicy !== undefined && !isPolicy(body.cancellationPolicy)) {
+      return NextResponse.json({ error: 'Choose a cancellation policy: Flexible, Moderate or Strict' }, { status: 400 })
+    }
     for (const field of EDITABLE_FIELDS) {
       if (body[field] === undefined) continue
       data[field] = JSON_ARRAY_FIELDS.has(field) ? JSON.stringify(body[field]) : body[field]

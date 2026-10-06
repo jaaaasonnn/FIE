@@ -14,7 +14,7 @@ export async function GET(req: Request) {
     if (type === 'stats') {
       const [
         totalUsers, totalListings, totalBookings, totalRevenue,
-        pendingVerifications, openDisputes,
+        pendingVerifications, openDisputes, hostCancellations, refundsOwed,
       ] = await Promise.all([
         db.user.count(),
         db.listing.count({ where: { isActive: true } }),
@@ -22,6 +22,10 @@ export async function GET(req: Request) {
         db.payment.aggregate({ _sum: { amount: true }, where: { status: 'SUCCESS' } }),
         db.verification.count({ where: { status: 'PENDING' } }),
         db.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
+        // Confirmed bookings a host cancelled. No penalty is applied yet.
+        db.booking.count({ where: { cancelledBy: 'HOST' } }),
+        // Refunds recorded but not yet landed with the guest
+        db.refund.count({ where: { status: { in: ['PENDING', 'PROCESSING', 'FAILED', 'NEEDS_ATTENTION'] } } }),
       ])
 
       const platformRevenue = (totalRevenue._sum.amount || 0) * 0.08
@@ -30,7 +34,7 @@ export async function GET(req: Request) {
         totalUsers, totalListings, totalBookings,
         totalRevenue: totalRevenue._sum.amount || 0,
         platformRevenue,
-        pendingVerifications, openDisputes
+        pendingVerifications, openDisputes, hostCancellations, refundsOwed,
       })
     }
 

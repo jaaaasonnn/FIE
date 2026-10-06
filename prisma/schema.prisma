@@ -153,11 +153,19 @@ model Booking {
   damageDeposit   Float    @default(0)
   totalPrice      Float
   status          String   @default("PENDING") // PENDING | CONFIRMED | DECLINED | CANCELLED | COMPLETED | DISPUTED
-  paymentStatus    String   @default("UNPAID") // UNPAID | PAID | REFUNDED | RELEASED
+  paymentStatus    String   @default("UNPAID") // UNPAID | PAID | PARTIALLY_REFUNDED | REFUNDED
   paymentReference String?  // Paystack reference stored on booking for fast webhook lookup
   specialRequests  String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // Cancellation. cancellationPolicy is the listing's policy copied at the
+  // time of booking, so a host changing the listing later does not change
+  // this guest's terms (null on bookings made before policies were enforced).
+  cancellationPolicy String?   // FLEXIBLE | MODERATE | STRICT
+  cancelledBy        String?   // GUEST | HOST
+  cancelledAt        DateTime?
+  cancelReason       String?   // host cancellations: a reason code, then an optional note
 
   listing   Listing   @relation(fields: [listingId], references: [id])
   guest     User      @relation("GuestBookings", fields: [guestId], references: [id])
@@ -168,6 +176,7 @@ model Booking {
   dispute   Dispute?
   application RentalApplication?
   payouts   Payout[]
+  refund    Refund?
 
   // Search by dates looks for a listing's stays that overlap a range
   @@index([listingId, checkIn, checkOut])
@@ -198,7 +207,42 @@ model Payment {
   gatewayReference String?
   createdAt        DateTime @default(now())
 
+  // What Paystack was actually asked to charge, in pesewas, and the rate used.
+  // Saved at charge time so a refund returns the exact cedis the guest paid.
+  amountPesewas    Int?
+  usdToGhs         Float?
+
+  booking Booking  @relation(fields: [bookingId], references: [id])
+  refunds Refund[]
+}
+
+// Money owed back to a guest for one booking. Written when the booking is
+// cancelled, whether or not refunds are switched on; sent to Paystack by
+// lib/refunds.ts. bookingId is unique: one refund per booking.
+model Refund {
+  id               String   @id @default(cuid())
+  bookingId        String   @unique
+  paymentId        String
+  reason           String   // GUEST_CANCELLED | HOST_CANCELLED | LATE_PAYMENT
+  policy           String?  // the policy applied, for guest cancellations
+  stayRefund       Float
+  serviceFeeRefund Float
+  depositRefund    Float
+  amount           Float    // the three parts added together, in USD
+  currency         String   @default("USD")
+  amountPesewas    Int?     // the same share of the cedis charged; null if the payment has no stored cedi amount
+  status           String   @default("PENDING") // PENDING | PROCESSING | PROCESSED | FAILED | NEEDS_ATTENTION
+  paystackRefundId String?
+  failureReason    String?
+  retryCount       Int      @default(0)
+  lastFailedAt     DateTime?
+  alertedAt        DateTime?
+  initiatedAt      DateTime?
+  processedAt      DateTime?
+  createdAt        DateTime @default(now())
+
   booking Booking @relation(fields: [bookingId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id])
 }
 
 model Payout {

@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { recordPayoutFailure } from '@/lib/payouts'
+import { REFUND_EVENTS, handleRefundEvent, type RefundEvent } from '@/lib/refunds'
 
 /**
  * POST /api/webhooks/paystack
  *
- * Handles transfer.success / transfer.failed / transfer.reversed (host payouts). Payment
+ * Handles transfer.success / transfer.failed / transfer.reversed (host payouts)
+ * and refund.pending / refund.processing / refund.processed / refund.failed
+ * (guest refunds, see lib/refunds.ts). Payment
  * confirmation still goes through the browser-redirect flow in
  * /api/payments/verify — this endpoint is new and specific to transfers,
  * which have no browser redirect to hang verification off of.
@@ -41,6 +44,8 @@ export async function POST(req: Request) {
 
   if (event.event === 'transfer.success' || event.event === 'transfer.failed' || event.event === 'transfer.reversed') {
     await handleTransferEvent(event.event, event.data ?? {})
+  } else if (REFUND_EVENTS.includes(event.event as RefundEvent)) {
+    await handleRefundEvent(event.event as RefundEvent, event.data ?? {})
   }
   // Any other (recognized-signature) event type is intentionally a no-op —
   // still 200, since a non-2xx makes Paystack retry, and there's nothing

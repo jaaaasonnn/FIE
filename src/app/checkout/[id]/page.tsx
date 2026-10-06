@@ -10,6 +10,7 @@ import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { formatStayDate } from '@/lib/stayDates'
+import { CancellationPolicy, SUPPORT_NOTE, heldNote } from '@/components/booking/CancellationPolicy'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -25,12 +26,14 @@ type BookingData = {
   damageDeposit: number
   totalPrice:    number
   status:        string
+  cancellationPolicy: string | null
   listing: {
     id:            string
     title:         string
     photos:        string
     city:          string
     neighbourhood: string
+    cancellationPolicy: string
   }
   host: { name: string }
 }
@@ -101,10 +104,20 @@ function CheckoutPageInner() {
           return
         }
 
-        // Guard: booking was cancelled (dates taken by someone else)
+        // A cancelled or declined booking cannot be paid for
         if (data.booking.status === 'CANCELLED') {
           setBookingError(
-            'This booking has been cancelled because the dates became unavailable. Please go back and pick new dates.',
+            new URLSearchParams(window.location.search).get('payment') === 'refunded'
+              ? 'This booking was cancelled before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
+              : 'This booking has been cancelled, so it cannot be paid for. Please go back and pick new dates.',
+          )
+          return
+        }
+        if (data.booking.status === 'DECLINED') {
+          setBookingError(
+            new URLSearchParams(window.location.search).get('payment') === 'refunded'
+              ? 'The host declined this request before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
+              : 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.',
           )
           return
         }
@@ -148,10 +161,8 @@ function CheckoutPageInner() {
       const data = await res.json()
 
       if (res.status === 409) {
-        // Booking was cancelled between page load and payment submit
-        setError(
-          'This booking has been cancelled because the selected dates are no longer available. Please start a new booking.',
-        )
+        // Cancelled or declined between page load and payment submit
+        setError(data.error ?? 'This booking can no longer be paid for. Please start a new booking.')
         return
       }
 
@@ -245,7 +256,7 @@ function CheckoutPageInner() {
             <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>{depositIncludedNote(booking.damageDeposit)}.</p>
           )}
           <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-            Funds are held in escrow and will be released to the host when you check in.
+            {heldNote(booking.rentalMode)}
           </p>
 
           <div className="p-5 rounded-2xl text-left mb-6 space-y-2"
@@ -263,7 +274,7 @@ function CheckoutPageInner() {
             style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF' }}>
             <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
             <span>
-              If anything is wrong at check-in, you have <strong>24 hours</strong> to raise a dispute and get a full refund.
+              {SUPPORT_NOTE}
             </span>
           </div>
 
@@ -290,7 +301,7 @@ function CheckoutPageInner() {
         <div className="max-w-5xl mx-auto">
           <h1 className="text-2xl font-bold text-white">Complete Your Booking</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            Payment held in escrow until check-in
+            Your payment is held by FieGH until after check-in
           </p>
         </div>
       </div>
@@ -406,7 +417,7 @@ function CheckoutPageInner() {
                 style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid #E5D0A8' }}>
                 <AlertTriangle size={18} aria-hidden className="flex-shrink-0" style={{ color: 'var(--color-accent-deep)' }} />
                 <p className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
-                  <strong>Safety reminder:</strong> Never pay a host directly outside FieGH. Your funds are protected in escrow until check-in.
+                  <strong>Safety reminder:</strong> Never pay a host directly outside FieGH. Payments made here are held by FieGH until after check-in.
                 </p>
               </div>
 
@@ -460,16 +471,24 @@ function CheckoutPageInner() {
                 />
               </div>
 
-              {/* Escrow info */}
+              {/* The policy this booking was made under */}
+              <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+                <CancellationPolicy compact rentalMode={booking.rentalMode}
+                  policy={booking.cancellationPolicy ?? booking.listing.cancellationPolicy} />
+              </div>
+
+              {/* How the money is held */}
               <div className="p-4 rounded-2xl" style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC' }}>
                 <div className="flex items-center gap-2 mb-2">
                   <Shield size={16} style={{ color: '#059669' }} />
-                  <p className="font-semibold text-sm" style={{ color: '#065F46' }}>Escrow Protection</p>
+                  <p className="font-semibold text-sm" style={{ color: '#065F46' }}>How your payment is held</p>
                 </div>
                 <ul className="space-y-1 text-xs" style={{ color: '#15803D' }}>
-                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Payment held until you check in</li>
-                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />24-hour dispute window after check-in</li>
-                  <li className="flex items-center gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0" />Deposit returned after check-out if there is no damage claim</li>
+                  <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />{heldNote(booking.rentalMode)}</li>
+                  <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />{SUPPORT_NOTE}</li>
+                  {booking.damageDeposit > 0 && (
+                    <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />The deposit is returned by our team after check-out.</li>
+                  )}
                 </ul>
               </div>
             </div>

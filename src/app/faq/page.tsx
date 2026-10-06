@@ -3,6 +3,17 @@ import Link from 'next/link'
 import { BadgeCheck, Shield, CreditCard, MessageSquare, ShieldAlert } from 'lucide-react'
 import { RENTAL_MODES } from '@/lib/rentalModes'
 import { FaqAccordion } from '@/components/faq/FaqAccordion'
+import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
+
+// Built from the same table the refund is worked out from
+const CANCEL_ANSWER =
+  'Yes. You can cancel from your bookings page up to the day before check-in, and you will see the exact refund before you confirm. How much comes back depends on the cancellation policy the host chose (Flexible, Moderate or Strict), which is shown on the listing page, at checkout and on your booking. From the check-in day onwards, contact support at support@fiegh.com.'
+const REFUND_ANSWER =
+  'For short stays: '
+  + POLICIES.map((p) => `${POLICY_LABELS[p]}: ${policyRuleLines('SHORT_STAY', p).join(' ')}`).join(' ')
+  + " Monthly and long-term stays have longer notice periods, shown on each listing, and we never keep more than one month's rent."
+  + ' The service fee is refunded only with a full refund. The damage deposit is always refunded if you cancel before check-in. Refunds go back to the card or mobile money number you paid with and can take up to 10 working days.'
+
 
 export const metadata: Metadata = {
   title: 'FAQ | FieGH',
@@ -35,8 +46,8 @@ const TRUST = [
   },
   {
     icon: Shield,
-    title: 'Escrow protection',
-    desc: 'Your payment is held securely until check-in is confirmed. Raise a dispute within 24 hours if anything is wrong.',
+    title: 'Payments held by FieGH',
+    desc: 'Your payment is held by FieGH, and for short stays the host is paid 24 hours after check-in. If anything is wrong when you arrive, contact support within 24 hours of check-in.',
   },
   {
     icon: CreditCard,
@@ -65,7 +76,7 @@ const FAQS = [
     category: 'Payments',
     questions: [
       { q: 'What payment methods are accepted?', a: 'We accept MTN Mobile Money, Vodafone Cash, AirtelTigo Money, and Visa/Mastercard debit or credit cards. All payments are processed via Paystack, Ghana\'s leading payment gateway.' },
-      { q: 'Are my payments safe?', a: 'Yes. All payments are held in escrow until check-in is confirmed. The host only receives the money after you\'ve moved in. If there\'s a problem, you can raise a dispute within 24 hours of check-in.' },
+      { q: 'Are my payments safe?', a: 'Yes. Your payment is held by FieGH, not paid straight to the host. For short stays the host is paid 24 hours after check-in. If there is a problem when you arrive, contact support at support@fiegh.com within 24 hours of check-in.' },
       { q: 'What currencies are accepted?', a: 'Prices are listed in USD and shown in GHS (Ghana Cedis) for reference. The exchange rate updates automatically every 6 hours, and MoMo payments are converted at the current rate.' },
       { q: 'Can I pay in Ghana Cedis?', a: 'Yes. When paying via MoMo, the amount is charged in GHS at the current exchange rate shown at checkout.' },
       { q: 'Why can\'t I pay outside the app?', a: 'For your protection. Cash and direct bank transfers have no protection. If you pay outside FieGH, we cannot help you recover funds in case of a scam. Always book and pay through the app.' },
@@ -77,8 +88,10 @@ const FAQS = [
     questions: [
       { q: 'What\'s the difference between Short Stay, Monthly, and Long-Term?', a: 'Short Stay is nightly or weekly (like Airbnb). Monthly is 1 to 11 months, ideal for workers or diaspora visitors. Long-Term is 12 months and up, with a formal tenancy agreement. Hosts can enable one or more of these on each listing.' },
       { q: 'What is Instant Book?', a: 'Instant Book means your booking is confirmed automatically without waiting for host approval. Not all listings have this. Some hosts prefer to approve guests manually.' },
-      { q: 'What happens if the property doesn\'t match the listing?', a: 'You have 24 hours after check-in to raise a dispute. Our team will review the case and may issue a partial or full refund depending on the findings.' },
-      { q: 'Can I cancel my booking?', a: 'Yes, depending on the cancellation policy set by the host (Flexible, Moderate, or Strict). You\'ll see the policy clearly on the listing page before booking. Flexible allows full refunds if cancelled 24+ hours before check-in.' },
+      { q: 'What happens if the property doesn\'t match the listing?', a: 'Contact support at support@fiegh.com within 24 hours of check-in. Our team will look into it with you and the host.' },
+      { q: 'Can I cancel my booking?', a: CANCEL_ANSWER },
+      { q: 'How much do I get back if I cancel?', a: REFUND_ANSWER },
+      { q: 'What if the host cancels?', a: 'You are refunded everything you paid: the stay price, the service fee and the damage deposit.' },
     ],
   },
   {

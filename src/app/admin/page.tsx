@@ -52,6 +52,8 @@ type AdminStats = {
   platformRevenue: number
   pendingVerifications: number
   openDisputes: number
+  hostCancellations?: number
+  refundsOwed?: number
 }
 
 export default function AdminPage() {
@@ -290,6 +292,22 @@ export default function AdminPage() {
                       </div>
                       <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.openDisputes ?? 0}</p>
                       <p className="text-xs text-[#6B645C] mt-1">Require resolution</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={16} style={{ color: '#DC2626' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Host cancellations</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.hostCancellations ?? 0}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Confirmed bookings cancelled by a host</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={16} style={{ color: '#DC2626' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Refunds owed</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.refundsOwed ?? 0}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Recorded and not yet landed with the guest</p>
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-stone-100">
                       <div className="flex items-center gap-2 mb-3">

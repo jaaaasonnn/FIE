@@ -11,8 +11,8 @@ const guestSteps: Step[] = [
   { icon: Search, title: 'Browse & filter', desc: 'Search by rental mode (short stay, monthly, long-term), region, price, and amenities. Every listing clearly shows pricing and terms upfront.' },
   { icon: ClipboardList, title: 'Review the listing', desc: 'Read the full description, house rules, cancellation policy, and for permanent rentals, the advance payment requirement. No surprises.' },
   { icon: MessageSquare, title: 'Message the host', desc: 'Chat with the host directly in-app before booking. Ask questions, confirm details, get the welcome message.' },
-  { icon: CalendarDays, title: 'Book & pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Funds are held in escrow and not released to the host until check-in.' },
-  { icon: Key, title: 'Move in', desc: 'After confirmation, you get the full property address and host contact. Raise any dispute within 24 hours of check-in if the property doesn\'t match.' },
+  { icon: CalendarDays, title: 'Book & pay', desc: 'Submit your booking and pay via MTN MoMo, Vodafone Cash, AirtelTigo, or card. Your payment is held by FieGH. For short stays the host is paid 24 hours after check-in.' },
+  { icon: Key, title: 'Move in', desc: 'After confirmation, you get the full property address and host contact. If the property doesn\'t match, contact support within 24 hours of check-in.' },
   { icon: Star, title: 'Review your stay', desc: 'After check-out, rate your experience. Reviews build trust across the FieGH community.' },
 ]
 
@@ -21,14 +21,14 @@ const hostSteps: Step[] = [
   { icon: Home, title: 'List your property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
   { icon: SlidersHorizontal, title: 'Set your preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
   { icon: Bell, title: 'Receive bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For permanent rentals, review tenant applications before approving.' },
-  { icon: Wallet, title: 'Get paid', desc: 'Payments are released to you 24 hours after guest check-in via MTN MoMo or bank transfer, minus the 8% platform commission.' },
+  { icon: Wallet, title: 'Get paid', desc: 'For short stays, you are paid 24 hours after guest check-in via MTN MoMo or bank transfer, minus the 8% platform commission.' },
   { icon: BarChart3, title: 'Manage & grow', desc: 'Track bookings, earnings, and reviews from your host dashboard. Hit 4.8+ rating with 10+ reviews to earn Superhost status.' },
 ]
 
 const fees = [
-  { label: 'Guest service fee', value: '12%', desc: 'Added on top of the listing price. This covers payment processing, escrow protection, and platform costs.' },
+  { label: 'Guest service fee', value: '12%', desc: 'Added on top of the listing price. This covers payment processing and platform costs.' },
   { label: 'Host commission', value: '8%', desc: 'Deducted from your payout. You always see your net earnings before listing. No hidden surprises.' },
-  { label: 'Damage deposit', value: 'Optional', desc: 'Set by host. Paid with your booking and held by FieGH. Returned after check-out if there is no damage claim.' },
+  { label: 'Damage deposit', value: 'Optional', desc: 'Set by host. Paid with your booking and held by FieGH. Returned by our team after check-out.' },
 ]
 
 const ink = { color: 'var(--color-text-primary)' }
