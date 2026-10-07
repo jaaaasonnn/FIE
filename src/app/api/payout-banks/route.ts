@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 
 /**
  * GET /api/payout-banks — Ghana bank list (excluding mobile money, which
@@ -8,10 +8,10 @@ import { getSessionUser } from '@/lib/session'
  * method route can't resolve a bank account without one.
  */
 export async function GET() {
-  const user = await getSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
-  }
+  // Hosts only: the list is only needed to save a payout method, and
+  // fetching it calls Paystack
+  const auth = await requireHost()
+  if (auth.error) return auth.error
 
   const secret = process.env.PAYSTACK_SECRET_KEY
   if (!secret || secret.startsWith('your_') || !secret.startsWith('sk_')) {

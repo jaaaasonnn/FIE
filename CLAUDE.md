@@ -64,6 +64,15 @@ Rules worth knowing:
 
 Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries both transfer and refund events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
 
+## Roles and host-only routes
+
+- One helper file, `src/lib/roles.ts`: `requireHost()` and `requireAdmin()` for API routes (401 signed out, 403 otherwise), and `hostAreaRedirect()` for pages. The role is read from the database on every request, so a guest who becomes a host is a host on the next request.
+- Every page under `/dashboard/host` is checked on the server by `src/app/dashboard/host/layout.tsx`: a guest goes to `/become-a-host`, an admin to `/admin`, a missing or expired session to log in.
+- Host-only API routes call `requireHost()` first and then their own ownership check: listing create, edit, switch off, photos, calendar, a host's bookings, accept, decline, host cancellation, payout history, payout method and the bank list.
+- Admins keep access only where they had it: editing or switching off a listing, its calendar, and reading a host's bookings (`requireHost({ allowAdmin: true })`).
+- `GET /api/listings?hostId=` returns switched-off and held listings only to that host or an admin. Everyone else gets the public ones.
+- Routes shared by guests and hosts (disputes, reviews, messages, the cancellation preview, notifications) check that the person is a party to the booking, not their role.
+
 ## Disputes
 
 - Rules are in `src/lib/disputes.ts`; applying a decision is `src/lib/disputeDecisions.ts`. One dispute per side per booking (unique index on `Dispute(bookingId, raisedByRole)`); the other party replies once.

@@ -1,19 +1,12 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { requireAdmin } from '@/lib/roles'
 import { OPEN_DISPUTE_STATUSES, outcomesFor, outcomeLabel } from '@/lib/disputes'
 import { disputeInclude, disputeView } from '@/lib/disputeViews'
 import { decideDispute } from '@/lib/disputeDecisions'
 import { disputeDecisionsEnabled } from '@/lib/payoutSwitches'
 
 const MAX_NOTE = 1000
-
-async function requireAdmin() {
-  const user = await getSessionUser()
-  if (!user) return { error: NextResponse.json({ error: 'You must be signed in' }, { status: 401 }) }
-  if (user.role !== 'ADMIN') return { error: NextResponse.json({ error: 'Admins only' }, { status: 403 }) }
-  return { user }
-}
 
 /**
  * GET /api/admin/disputes

@@ -6,6 +6,7 @@ import { REFUND_TIMING, previewCancellation } from '@/lib/cancellation'
 import { HOST_CANCEL_REASONS, MAX_CANCEL_NOTE, isHostCancelReason } from '@/lib/cancellationPolicy'
 import { sendRefund } from '@/lib/refunds'
 import { formatUsd } from '@/lib/utils'
+import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -73,6 +74,9 @@ export async function PATCH(
       if (sessionUser.id !== booking.guestId) {
         return NextResponse.json({ error: 'Only the guest can cancel this booking' }, { status: 403 })
       }
+    } else if (sessionUser.role !== 'HOST') {
+      // Accepting, declining and a host's cancellation are for hosts only
+      return NextResponse.json({ error: HOSTS_ONLY_MESSAGE }, { status: 403 })
     } else if (sessionUser.id !== booking.hostId) {
       return NextResponse.json(
         { error: action === 'host-cancel' ? 'Only the host can cancel this booking' : 'Only the host can respond to this booking request' },

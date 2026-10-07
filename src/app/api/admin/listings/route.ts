@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin'
+import { requireAdmin } from '@/lib/roles'
 
 /**
  * GET /api/admin/listings — ADMIN only

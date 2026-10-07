@@ -6,6 +6,7 @@ import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
+import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -210,6 +211,11 @@ export async function GET(req: Request) {
     }
     if (guestId && user.id !== guestId && user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'You do not have access to these bookings' }, { status: 403 })
+    }
+    // A host's bookings are for that host (or an admin): being signed in as
+    // the same person is not enough if they are not a host
+    if (hostId && user.role !== 'HOST' && user.role !== 'ADMIN') {
+      return NextResponse.json({ error: HOSTS_ONLY_MESSAGE }, { status: 403 })
     }
     if (hostId && user.id !== hostId && user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'You do not have access to these bookings' }, { status: 403 })

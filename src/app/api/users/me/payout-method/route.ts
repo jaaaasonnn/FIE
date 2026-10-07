@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 
 const MOMO_BANK_CODES: Record<string, string> = { MTN: 'MTN', VODAFONE: 'VOD', AIRTELTIGO: 'ATL' }
 
@@ -20,10 +20,10 @@ const PAYOUT_SELECT = {
  * Auth required. Returns the current host's saved payout destination, if any.
  */
 export async function GET() {
-  const sessionUser = await getSessionUser()
-  if (!sessionUser) {
-    return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
-  }
+  // Hosts only: a guest has no payouts to receive
+  const auth = await requireHost()
+  if (auth.error) return auth.error
+  const sessionUser = auth.user
 
   const user = await db.user.findUnique({ where: { id: sessionUser.id }, select: PAYOUT_SELECT })
   return NextResponse.json({ payoutMethod: user })
@@ -44,10 +44,11 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   try {
-    const sessionUser = await getSessionUser()
-    if (!sessionUser) {
-      return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
-    }
+    // Hosts only, checked before anything else: saving a payout method
+    // registers a recipient with Paystack, which a guest has no reason to do
+    const auth = await requireHost()
+    if (auth.error) return auth.error
+    const sessionUser = auth.user
 
     const body = await req.json()
     const { password, payoutMethod, payoutMomoNetwork, payoutMomoNumber, payoutBankCode, payoutBankAccountNumber } = body

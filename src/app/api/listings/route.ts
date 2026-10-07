@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { parseSearchRange, availabilityWhere } from '@/lib/searchDates'
 
@@ -25,10 +26,15 @@ export async function GET(req: Request) {
 
     const where: Record<string, unknown> = { isActive: true }
 
-    // Host dashboard: filter by owner and include inactive listings
+    // A host's own listings. The host themselves (and an admin) see all of
+    // them, including ones switched off or on moderation hold. Anyone else,
+    // signed in or not, gets only what is public.
+    let ownerView = false
     if (hostId) {
       where.hostId = hostId
-      delete where.isActive
+      const viewer = await getSessionUser()
+      ownerView = !!viewer && ((viewer.id === hostId && viewer.role === 'HOST') || viewer.role === 'ADMIN')
+      if (ownerView) delete where.isActive
     }
 
     if (region) where.region = region
@@ -40,7 +46,7 @@ export async function GET(req: Request) {
 
     // Search results never include a listing on moderation hold, even if a
     // stale row were somehow still marked active
-    if (!hostId) where.moderationHold = false
+    if (!ownerView) where.moderationHold = false
 
     // Dates: leave out listings taken on any night of the stay. Done here in
     // the query, so the count and paging describe what the guest can book.
@@ -94,17 +100,11 @@ export async function POST(req: Request) {
   console.log('[POST /api/listings] request received')
 
   try {
-    const user = await getSessionUser()
-    if (!user) {
-      console.log('[POST /api/listings] rejected — no session')
-      return NextResponse.json({ error: 'You must be signed in to create a listing' }, { status: 401 })
-    }
-
     // Only hosts can list. Guests become hosts through /become-a-host, which
     // explains what hosting involves first.
-    if (user.role !== 'HOST') {
-      return NextResponse.json({ error: 'Only hosts can create listings' }, { status: 403 })
-    }
+    const auth = await requireHost()
+    if (auth.error) return auth.error
+    const user = auth.user
 
     const body = await req.json()
     const {

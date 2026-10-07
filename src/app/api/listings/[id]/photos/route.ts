@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 import { supabaseAdmin, LISTING_PHOTOS_BUCKET } from '@/lib/supabase'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024 // 5MB — matches the bucket's own file_size_limit
@@ -17,9 +17,11 @@ function parsePhotos(value: string | null): string[] {
   }
 }
 
+// Photos are managed by the host who owns the listing, and no one else
 async function requireOwnedListing(id: string) {
-  const user = await getSessionUser()
-  if (!user) return { error: NextResponse.json({ error: 'You must be signed in' }, { status: 401 }) }
+  const auth = await requireHost()
+  if (auth.error) return { error: auth.error }
+  const user = auth.user
 
   const listing = await db.listing.findUnique({ where: { id }, select: { id: true, hostId: true, photos: true } })
   if (!listing) return { error: NextResponse.json({ error: 'Listing not found' }, { status: 404 }) }

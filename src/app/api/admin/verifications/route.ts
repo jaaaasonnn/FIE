@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { requireAdmin } from '@/lib/admin'
+import { requireAdmin } from '@/lib/roles'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 
 const SIGNED_URL_TTL_SECONDS = 10 * 60

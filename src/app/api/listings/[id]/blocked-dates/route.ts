@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 import { HOST_BLOCK, dayKey, parseDayRange, parseNote } from '@/lib/hostCalendar'
 
 // The host's calendar for one listing: read it, block days, unblock days.
@@ -10,9 +10,11 @@ import { HOST_BLOCK, dayKey, parseDayRange, parseNote } from '@/lib/hostCalendar
 
 const TAKEN_STATUSES = ['PENDING', 'CONFIRMED']
 
+// The calendar is managed by the host who owns the listing, or by an admin
 async function requireCalendarAccess(listingId: string) {
-  const user = await getSessionUser()
-  if (!user) return { error: NextResponse.json({ error: 'You must be signed in' }, { status: 401 }) }
+  const auth = await requireHost({ allowAdmin: true })
+  if (auth.error) return { error: auth.error }
+  const user = auth.user
 
   const listing = await db.listing.findUnique({ where: { id: listingId }, select: { id: true, hostId: true } })
   if (!listing) return { error: NextResponse.json({ error: 'Listing not found' }, { status: 404 }) }

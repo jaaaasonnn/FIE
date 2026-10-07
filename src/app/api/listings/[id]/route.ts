@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 
 // Fields a host (or admin) may change via this route. Anything else in the
@@ -20,9 +20,11 @@ const EDITABLE_FIELDS = [
 ] as const
 const JSON_ARRAY_FIELDS = new Set(['rentalModes', 'amenities', 'rules'])
 
+// A listing is managed by the host who owns it, or by an admin (moderation)
 async function requireOwnedListing(id: string) {
-  const user = await getSessionUser()
-  if (!user) return { error: NextResponse.json({ error: 'You must be signed in' }, { status: 401 }) }
+  const auth = await requireHost({ allowAdmin: true })
+  if (auth.error) return { error: auth.error }
+  const user = auth.user
 
   const listing = await db.listing.findUnique({ where: { id } })
   if (!listing) return { error: NextResponse.json({ error: 'Listing not found' }, { status: 404 }) }

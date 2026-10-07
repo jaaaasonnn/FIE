@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
-import { requireAdmin } from '@/lib/admin'
+import { requireAdmin } from '@/lib/roles'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { getSessionUser } from '@/lib/session'
+import { requireHost } from '@/lib/roles'
 import { duePayoutWhere, hostPayoutAmount } from '@/lib/cronRuns'
 import { payoutGate } from '@/lib/payoutSwitches'
 
@@ -10,10 +10,10 @@ import { payoutGate } from '@/lib/payoutSwitches'
  */
 export async function GET(req: Request) {
   try {
-    const user = await getSessionUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+    // Hosts only. Nothing below this line changed: it reads payout rows.
+    const auth = await requireHost()
+    if (auth.error) return auth.error
+    const user = auth.user
 
     const hostId = new URL(req.url).searchParams.get('hostId')
     if (!hostId) {
