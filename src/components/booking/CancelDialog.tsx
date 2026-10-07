@@ -228,12 +228,12 @@ export function CancelDialog({ bookingId, listingTitle, role, onClose, onDone }:
 
             <div className="mt-5 flex flex-col-reverse sm:flex-row gap-2">
               <button type="button" onClick={onClose} disabled={busy}
-                className="pressable focus-ring flex-1 h-11 rounded-full text-sm font-semibold disabled:opacity-50"
+                className="pressable focus-ring w-full sm:flex-1 h-11 flex-shrink-0 rounded-full text-sm font-semibold disabled:opacity-50"
                 style={{ border: '1px solid var(--color-border-strong)', color: 'var(--color-text-primary)' }}>
                 {withdrawal ? 'Keep request' : 'Keep booking'}
               </button>
               <button type="button" onClick={confirm} disabled={busy}
-                className="pressable focus-ring flex-1 h-11 rounded-full text-sm font-semibold disabled:opacity-50"
+                className="pressable focus-ring w-full sm:flex-1 h-11 flex-shrink-0 rounded-full text-sm font-semibold disabled:opacity-50"
                 style={{ backgroundColor: '#991B1B', color: '#fff' }}>
                 {busy ? 'Cancelling' : withdrawal ? 'Withdraw request' : 'Cancel booking'}
               </button>
