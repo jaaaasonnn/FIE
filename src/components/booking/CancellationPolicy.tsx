@@ -6,11 +6,13 @@ import { POLICY_LABELS, asPolicy, commonRuleLines, policyRuleLines } from '@/lib
 /** Where the money sits. Only short stays have an automatic host payout so far. */
 export function heldNote(rentalMode: string): string {
   return rentalMode === 'SHORT_STAY'
-    ? 'Your payment is held by FieGH and paid to the host 24 hours after check-in.'
+    ? 'Your payment is held by FieGH and paid to the host 48 hours after check-in.'
     : 'Your payment is held by FieGH.'
 }
 
-export const SUPPORT_NOTE = 'If anything is wrong when you arrive, contact support at support@fiegh.com within 24 hours of check-in.'
+// A guest reports a problem from the booking itself (lib/disputes.ts); the
+// window is the check-in day and the day after.
+export const SUPPORT_NOTE = 'If anything is wrong when you arrive, report a problem from your booking by the end of the day after check-in.'
 
 /**
  * The cancellation policy for one rental type: its name, the refund rule for

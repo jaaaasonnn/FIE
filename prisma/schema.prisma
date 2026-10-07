@@ -48,6 +48,8 @@ model User {
   reviewsReceived Review[]       @relation("ReviewsReceived")
   verification    Verification?
   disputes        Dispute[]
+  disputeEvidence DisputeEvidence[]
+  disputeEvents   DisputeEvent[]
   payouts         Payout[]
   wishlists       Wishlist[]
   sessions        Session[]
@@ -173,7 +175,7 @@ model Booking {
   payments  Payment[]
   reviews   Review[]
   messages  Message[]
-  dispute   Dispute?
+  disputes  Dispute[]
   application RentalApplication?
   payouts   Payout[]
   refund    Refund?
@@ -223,7 +225,7 @@ model Refund {
   id               String   @id @default(cuid())
   bookingId        String   @unique
   paymentId        String
-  reason           String   // GUEST_CANCELLED | HOST_CANCELLED | LATE_PAYMENT
+  reason           String   // GUEST_CANCELLED | HOST_CANCELLED | LATE_PAYMENT | DISPUTE_FULL | DISPUTE_PARTIAL | DISPUTE_DEPOSIT
   policy           String?  // the policy applied, for guest cancellations
   stayRefund       Float
   serviceFeeRefund Float
@@ -322,18 +324,62 @@ model Message {
   listing  Listing? @relation(fields: [listingId], references: [id])
 }
 
+// A problem reported on a booking. One per side per booking: the guest can
+// raise one (the home is not as promised) and the host can raise one (damage,
+// about the deposit). Rules in src/lib/disputes.ts.
 model Dispute {
-  id         String   @id @default(cuid())
-  bookingId  String   @unique
-  raisedById String
-  reason     String
-  status     String   @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | CLOSED
-  resolution String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String    @id @default(cuid())
+  bookingId    String
+  raisedById   String
+  raisedByRole String    @default("GUEST") // GUEST | HOST
+  reason       String    // a code from GUEST_REASONS or HOST_REASONS
+  description  String?
+  response     String?   // the other party's one reply
+  respondedAt  DateTime?
+  status       String    @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | CLOSED
+  outcome      String?   // FULL_REFUND | PARTIAL_REFUND | DEPOSIT_RETURNED | DEPOSIT_KEPT | REJECTED
+  refundAmount Float?    // the amount the admin entered, for PARTIAL_REFUND and DEPOSIT_KEPT
+  resolution   String?   // why, shown to both parties
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
-  booking   Booking @relation(fields: [bookingId], references: [id])
-  raisedBy  User    @relation(fields: [raisedById], references: [id])
+  booking   Booking           @relation(fields: [bookingId], references: [id])
+  raisedBy  User              @relation(fields: [raisedById], references: [id])
+  evidence  DisputeEvidence[]
+  events    DisputeEvent[]
+
+  @@unique([bookingId, raisedByRole])
+}
+
+// A photo attached to a dispute by one of the two parties. The file lives in
+// the private dispute-evidence bucket; `path` is its key there.
+model DisputeEvidence {
+  id           String   @id @default(cuid())
+  disputeId    String
+  uploadedById String
+  path         String
+  contentType  String
+  sizeBytes    Int
+  createdAt    DateTime @default(now())
+
+  dispute    Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation(fields: [uploadedById], references: [id])
+}
+
+// The history of a dispute: who did what, and any note. ADMIN_NOTE is seen
+// by admins only; every other type is shown to both parties.
+model DisputeEvent {
+  id        String   @id @default(cuid())
+  disputeId String
+  actorId   String
+  type      String   // RAISED | REPLIED | UNDER_REVIEW | RESOLVED | CORRECTION | ADMIN_NOTE
+  note      String?
+  createdAt DateTime @default(now())
+
+  dispute Dispute @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  actor   User    @relation(fields: [actorId], references: [id])
 }
 
 model Verification {

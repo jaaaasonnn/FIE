@@ -27,3 +27,8 @@ export const LISTING_PHOTOS_BUCKET = 'listing-photos'
 // browsable. Never call getPublicUrl() against it; generate a short-lived
 // signed URL per read instead (see GET /api/admin/verifications).
 export const VERIFICATION_DOCS_BUCKET = 'verification-docs'
+
+// Private as well: photos the guest and host attach to a dispute. Only those
+// two and admins may see them, through short-lived signed URLs handed out by
+// routes that check who is asking (see /api/disputes/[id]).
+export const DISPUTE_EVIDENCE_BUCKET = 'dispute-evidence'

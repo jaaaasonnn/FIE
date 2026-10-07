@@ -40,11 +40,28 @@ vi.mock('@/lib/db', async () => {
   // A yield between "read" and "write", so two runs really can interleave
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
 
+  type RefundClause = { refund: { is: null | { reason: { in: string[] } } } }
   const bookingMatches = (b: Row, where: Row) => {
-    const { payouts, ...rest } = where as { payouts?: { none: Row } } & Row
+    const { payouts, disputes, OR, ...rest } = where as {
+      payouts?: { none: Row }
+      disputes?: { none: { raisedByRole: string; status: { in: string[] } } }
+      OR?: RefundClause[]
+    } & Row
     if (payouts && state.payouts.some((p) => p.bookingId === b.id)) return false
+    if (disputes) {
+      const { raisedByRole, status } = disputes.none
+      const held = ((b.disputes as Row[]) ?? []).some((d) => d.raisedByRole === raisedByRole && status.in.includes(d.status as string))
+      if (held) return false
+    }
+    if (OR) {
+      const refund = b.refund as { reason: string } | undefined
+      const ok = OR.some((c) => (c.refund.is === null ? !refund : !!refund && c.refund.is.reason.in.includes(refund.reason)))
+      if (!ok) return false
+    }
     return matches(b, rest)
   }
+  const openGuestDisputes = (b: Row) =>
+    ((b.disputes as Row[]) ?? []).filter((d) => d.raisedByRole === 'GUEST' && ['OPEN', 'UNDER_REVIEW'].includes(d.status as string))
 
   return {
     db: {
@@ -57,7 +74,8 @@ vi.mock('@/lib/db', async () => {
         },
         findUnique: async ({ where }: { where: Row }) => {
           const row = state.bookings.find((b) => b.id === where.id)
-          return row ? { ...row } : null
+          // As the real query does, only the guest's open disputes come back
+          return row ? { ...row, disputes: openGuestDisputes(row) } : null
         },
         updateMany: async ({ where, data }: { where: Row; data: Row }) => {
           const rows = state.bookings.filter((b) => bookingMatches(b, where))
@@ -121,12 +139,15 @@ const at = (iso: string) => new Date(iso)
 const paystackOk = () =>
   new Response(JSON.stringify({ status: true, data: { transfer_code: `TRF_${fetchMock.mock.calls.length}`, status: 'pending' } }), { status: 200 })
 
-/** A paid, confirmed one-night stay: 11 to 12 March 2027, so both jobs fall due at NOW. */
+/**
+ * A paid, confirmed one-night stay, 10 to 11 March 2027. Its payout falls due
+ * 48 hours after check-in, which is exactly NOW; its check-out passed a day ago.
+ */
 function booking(over: Row = {}): Row {
   const row = {
     id: `booking_${state.bookings.length + 1}`, hostId: 'host_1', rentalMode: 'SHORT_STAY',
     status: 'CONFIRMED', paymentStatus: 'PAID', subtotal: 100,
-    checkIn: at('2027-03-11T12:00:00Z'), checkOut: at('2027-03-12T12:00:00Z'),
+    checkIn: at('2027-03-10T12:00:00Z'), checkOut: at('2027-03-11T12:00:00Z'),
     createdAt: at('2027-02-01T09:00:00Z'),
     ...over,
   }
@@ -317,9 +338,9 @@ describe('one payout per paid stay', () => {
     expect(state.payouts[0]).toMatchObject({ amount: 220.8, currency: 'USD', status: 'PROCESSING' })
   })
 
-  it('pays stays of any length once, 24 hours after check-in', async () => {
-    booking({ checkIn: at('2027-03-11T12:00:00Z'), checkOut: at('2027-03-18T12:00:00Z') })
-    const notYet = booking({ checkIn: at('2027-03-11T13:00:00Z'), checkOut: at('2027-03-14T12:00:00Z') })
+  it('pays stays of any length once, 48 hours after check-in', async () => {
+    booking({ checkIn: at('2027-03-10T12:00:00Z'), checkOut: at('2027-03-18T12:00:00Z') })
+    const notYet = booking({ checkIn: at('2027-03-10T13:00:00Z'), checkOut: at('2027-03-14T12:00:00Z') })
     const run = await runPayouts()
     expect(run.results.map((r) => r.bookingId)).toEqual(['booking_1'])
     expect(transferCalls()).toHaveLength(1)
@@ -351,6 +372,8 @@ describe('bookings that are never paid by this job', () => {
     booking({ rentalMode: 'TEMP_STAY' })
     booking({ rentalMode: 'PERMANENT' })
     booking({ checkIn: at('2027-03-12T12:00:00Z'), checkOut: at('2027-03-13T12:00:00Z') })
+    // 24 hours after check-in is no longer enough
+    booking({ checkIn: at('2027-03-11T12:00:00Z'), checkOut: at('2027-03-12T12:00:00Z') })
     const run = await runPayouts()
     expect(run.checked).toBe(0)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -518,6 +541,78 @@ describe('a cancelled or refunded stay', () => {
     const run = await runPayouts()
     expect(run.resumed[0]).toMatchObject({ action: 'error', error: expect.stringMatching(/cancelled or refunded/) })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+// ─── Disputes ───────────────────────────────────────────────────────────────
+
+describe('disputes and payouts', () => {
+  beforeEach(switchesOn)
+  const guestDispute = (status: string) => [{ raisedByRole: 'GUEST', status }]
+
+  it("holds the payout while the guest's dispute is open or under review", async () => {
+    booking({ disputes: guestDispute('OPEN') })
+    booking({ disputes: guestDispute('UNDER_REVIEW') })
+    for (let i = 0; i < 3; i++) expect((await runPayouts()).checked).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+  })
+
+  it('refuses to start a transfer for a booking with an open guest dispute', async () => {
+    booking({ disputes: guestDispute('OPEN') })
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 92 })).rejects.toThrow(/open dispute: payout on hold/)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+  })
+
+  it('pays in full on the next run once the dispute is decided against the guest', async () => {
+    const b = booking({ disputes: guestDispute('OPEN') })
+    await runPayouts()
+    ;(b.disputes as Row[])[0].status = 'RESOLVED'
+    const run = await runPayouts()
+    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 92 })
+    expect(transferCalls()).toHaveLength(1)
+  })
+
+  it("is not held by a host's dispute, which is about the deposit", async () => {
+    booking({ disputes: [{ raisedByRole: 'HOST', status: 'OPEN' }] })
+    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid' })
+  })
+
+  it('pays the host 92% of what is left after a part refund', async () => {
+    booking({ subtotal: 400, paymentStatus: 'PARTIALLY_REFUNDED', disputes: guestDispute('RESOLVED'), refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
+    const run = await runPayouts()
+    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 230 })
+    // $230 at 15 cedis to the dollar
+    expect(sentBody().amount).toBe(345000)
+    expect(state.payouts[0]).toMatchObject({ amount: 230 })
+  })
+
+  it('pays the same share while the part refund is still on its way', async () => {
+    booking({ subtotal: 400, paymentStatus: 'PAID', refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
+    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid', amount: 230 })
+  })
+
+  it('pays in full when only the deposit went back to the guest', async () => {
+    booking({ subtotal: 400, paymentStatus: 'PARTIALLY_REFUNDED', refund: { reason: 'DISPUTE_DEPOSIT', stayRefund: 0 } })
+    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid', amount: 368 })
+  })
+
+  it('never pays after a full refund from a dispute', async () => {
+    booking({ subtotal: 400, paymentStatus: 'REFUNDED', refund: { reason: 'DISPUTE_FULL', stayRefund: 400 } })
+    booking({ subtotal: 400, paymentStatus: 'PAID', refund: { reason: 'DISPUTE_FULL', stayRefund: 400 } })
+    expect((await runPayouts()).checked).toBe(0)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_2', amount: 0 })).rejects.toThrow(/cancelled or refunded/)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it("refuses a transfer bigger than the host's share of what is left", async () => {
+    booking({ subtotal: 400, refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 368 })).rejects.toThrow(/more than the host's share/)
+    booking({ subtotal: 400 })
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_2', amount: 400 })).rejects.toThrow(/more than the host's share/)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
   })
 })
 

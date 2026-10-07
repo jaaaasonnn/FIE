@@ -9,6 +9,7 @@ import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
+import { NotificationsList } from '@/components/NotificationsList'
 
 type ApiListing = {
   id: string
@@ -175,6 +176,7 @@ function HostDashboardContent() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        <NotificationsList className="mb-6" />
         {/* Not required to host, so this is a prompt, not a gate */}
         {user && !user.isVerified && (
           <div className="p-5 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4"

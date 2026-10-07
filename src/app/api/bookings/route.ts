@@ -186,6 +186,7 @@ export async function GET(req: Request) {
           host:     { select: { id: true, name: true, profilePhoto: true, phone: true } },
           payments: true,
           refund:   true,
+          disputes: { select: { id: true, raisedByRole: true, status: true, outcome: true } },
         },
       })
       if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -229,6 +230,7 @@ export async function GET(req: Request) {
         host:     { select: { id: true, name: true, profilePhoto: true } },
         payments: true,
         refund:   true,
+        disputes: { select: { id: true, raisedByRole: true, status: true, outcome: true } },
       },
       orderBy: { createdAt: 'desc' },
     })

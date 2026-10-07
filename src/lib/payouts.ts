@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { Prisma, type Payout } from '@prisma/client'
 import { PayoutsOffError, payoutGate } from '@/lib/payoutSwitches'
+import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
@@ -69,7 +70,11 @@ export async function initiateHostPayout({
 
   const booking = await db.booking.findUnique({
     where: { id: bookingId },
-    select: { createdAt: true, status: true, refund: { select: { id: true } } },
+    select: {
+      createdAt: true, status: true, subtotal: true,
+      refund: { select: { reason: true, stayRefund: true } },
+      disputes: { where: { raisedByRole: 'GUEST', status: { in: OPEN_DISPUTE_STATUSES } }, select: { id: true } },
+    },
   })
   if (!booking) {
     throw new Error(`Booking ${bookingId} not found`)
@@ -77,8 +82,22 @@ export async function initiateHostPayout({
   // A cancelled or refunded stay is never paid out. The cron's own query
   // already leaves cancelled bookings out; this covers a payout row that was
   // created earlier and is being resumed or retried after the cancellation.
-  if (booking.status === 'CANCELLED' || booking.status === 'DECLINED' || booking.refund) {
+  // The exception is a refund that leaves the host owed something: a
+  // dispute's part refund, or a deposit going back to the guest.
+  const refundBlocks = !!booking.refund && !PAYABLE_REFUND_REASONS.includes(booking.refund.reason)
+  if (booking.status === 'CANCELLED' || booking.status === 'DECLINED' || refundBlocks) {
     throw new Error(`Booking ${bookingId} is cancelled or refunded: no payout`)
+  }
+  // A guest's open dispute holds the payout until an admin decides
+  if (booking.disputes?.length) {
+    throw new Error(`Booking ${bookingId} has an open dispute: payout on hold`)
+  }
+  // Never more than the host's share of what is left of the stay price
+  if (typeof booking.subtotal === 'number') {
+    const share = hostShare(booking.subtotal, booking.refund?.stayRefund ?? 0)
+    if (amount > share + 0.005) {
+      throw new Error(`Payout of ${amount} for booking ${bookingId} is more than the host's share of ${share}`)
+    }
   }
   if (booking.createdAt.getTime() < gate.notBefore.getTime()) {
     throw new PayoutsOffError(`booking ${bookingId} was made before PAYOUTS_NOT_BEFORE`)
@@ -242,6 +261,7 @@ const PERMANENT_PATTERNS: RegExp[] = [
   /amount too small/i,
   /no verified payout method|host .* not found/i,
   /is cancelled or refunded/i, // never retry a payout for a cancelled or refunded stay
+  /more than the host's share/i, // a wrong amount needs a person
 ]
 
 const TRANSIENT_PATTERNS: RegExp[] = [

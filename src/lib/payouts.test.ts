@@ -36,7 +36,7 @@ vi.mock('@/lib/db', () => ({
   db: {
     user: { findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null },
     // Every booking here was made after the PAYOUTS_NOT_BEFORE date set below
-    booking: { findUnique: async () => ({ createdAt: new Date('2026-09-01T00:00:00Z') }) },
+    booking: { findUnique: async () => ({ createdAt: new Date('2026-09-01T00:00:00Z'), status: 'CONFIRMED', subtotal: 1000, refund: null, disputes: [] }) },
     exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
     payout: {
       findFirst: async ({ where }: { where: Row }) => {

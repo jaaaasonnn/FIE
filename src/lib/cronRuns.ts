@@ -9,11 +9,16 @@ import type { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { STALE_CLAIM_MS, initiateHostPayout, retryFailedPayouts, type RetryResult } from '@/lib/payouts'
 import { completionEnabled, payoutGate } from '@/lib/payoutSwitches'
-import { PLATFORM_COMMISSION } from '@/lib/utils'
+import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 
 const HOUR_MS = 60 * 60 * 1000
-/** A short stay's payout falls due 24 hours after check-in, as the site says. */
-export const PAYOUT_DELAY_MS = 24 * HOUR_MS
+/**
+ * A short stay's payout falls due 48 hours after check-in (noon two days
+ * after), as the site says. A guest can report a problem until the end of
+ * the day after check-in, so the payout never goes out while that window is
+ * still open.
+ */
+export const PAYOUT_DELAY_MS = 48 * HOUR_MS
 /** A payout still not sent this long after it fell due raises an alert. */
 export const OVERDUE_ALERT_MS = 7 * 24 * HOUR_MS
 /** Overdue alerts go out on one run a day (09:00 UTC), not on all 24. */
@@ -39,17 +44,27 @@ export function duePayoutWhere(now: Date, notBefore: Date | null): Prisma.Bookin
   return {
     rentalMode: 'SHORT_STAY',
     status: { in: ['CONFIRMED', 'COMPLETED'] },
-    paymentStatus: 'PAID',
+    // PARTIALLY_REFUNDED is a stay whose dispute ended in a part refund: the
+    // host is still owed their share of what is left
+    paymentStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] },
     checkIn: { lte: new Date(now.getTime() - PAYOUT_DELAY_MS) },
     payouts: { none: {} },
+    // An open dispute from the guest holds the payout until an admin decides
+    disputes: { none: { raisedByRole: 'GUEST', status: { in: OPEN_DISPUTE_STATUSES } } },
+    // A refund means no payout, unless it is one that leaves the host owed
+    // something (a dispute's part refund, or a deposit going back)
+    OR: [{ refund: { is: null } }, { refund: { is: { reason: { in: PAYABLE_REFUND_REASONS } } } }],
     // Bookings from before payouts were switched on are never paid by this job
     ...(notBefore ? { createdAt: { gte: notBefore } } : {}),
   }
 }
 
-/** The host's share of a booking: the subtotal less the platform commission. */
-export function hostPayoutAmount(subtotal: number): number {
-  return subtotal * (1 - PLATFORM_COMMISSION)
+/**
+ * The host's share of a booking: the stay price, less any part of it
+ * refunded after a dispute, less the platform commission.
+ */
+export function hostPayoutAmount(subtotal: number, stayRefunded = 0): number {
+  return hostShare(subtotal, stayRefunded)
 }
 
 export type PayoutAction =
@@ -91,6 +106,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     where: duePayoutWhere(now, gate.notBefore),
     select: {
       id: true, hostId: true, subtotal: true, checkIn: true,
+      refund: { select: { stayRefund: true } },
       host: { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true } },
     },
   })
@@ -102,7 +118,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
   }
 
   for (const booking of due) {
-    const amount = hostPayoutAmount(booking.subtotal)
+    const amount = hostPayoutAmount(booking.subtotal, booking.refund?.stayRefund ?? 0)
     const base = { bookingId: booking.id, hostId: booking.hostId, amount }
     const dueAt = new Date(booking.checkIn.getTime() + PAYOUT_DELAY_MS)
 

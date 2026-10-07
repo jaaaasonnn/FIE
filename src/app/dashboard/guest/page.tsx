@@ -16,6 +16,8 @@ import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/m
 import { formatStayDate } from '@/lib/stayDates'
 import { CancelDialog } from '@/components/booking/CancelDialog'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
+import { NotificationsList } from '@/components/NotificationsList'
+import { problemLinkLabel } from '@/lib/disputes'
 
 type ApiBooking = {
   id: string
@@ -31,6 +33,7 @@ type ApiBooking = {
   listing: { id: string; title: string; photos: string; city: string; neighbourhood: string | null }
   host: { id: string; name: string | null; profilePhoto: string | null }
   refund?: RefundSummary | null
+  disputes?: { raisedByRole: string; status: string }[]
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
@@ -217,6 +220,7 @@ export default function GuestDashboardPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        <NotificationsList className="mb-6" />
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />}
@@ -344,12 +348,19 @@ export default function GuestDashboardPage() {
                         )}
                       </div>
                     </div>
-                    <div className="px-4 pb-4 flex gap-2">
+                    <div className="px-4 pb-4 flex gap-2 flex-wrap">
                       <Link href={`/listings/${b.listing?.id}`}
                         className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
                         style={{ borderColor: '#E5E7EB', color: '#374151' }}>
                         View Listing
                       </Link>
+                      {problemLinkLabel('GUEST', b) && (
+                        <Link href={`/bookings/${b.id}/problem`}
+                          className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
+                          style={{ borderColor: '#E5E7EB', color: '#374151' }}>
+                          {problemLinkLabel('GUEST', b)}
+                        </Link>
+                      )}
                       {(b.status === 'CONFIRMED' || b.status === 'PENDING') && (
                         <button onClick={() => setCancellingId(b.id)}
                           className="text-xs px-4 py-2 rounded-full font-medium"

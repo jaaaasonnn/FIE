@@ -45,12 +45,13 @@ _(none currently — Paystack and Supabase migration below are resolved)_
 
 ## Payout, completion and refund switches
 
-The hourly cron jobs do nothing risky until they are switched on in the environment. All four variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
+The hourly cron jobs do nothing risky until they are switched on in the environment. All five variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
 
 - `PAYOUTS_ENABLED`: must be exactly `true` before any Paystack transfer is attempted. Otherwise `process-payouts` runs as a dry run: it reports what it would pay, writes nothing and calls nothing. The same check sits inside `initiateHostPayout`, so no other caller can start a transfer.
 - `PAYOUTS_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be paid out. Required: without a valid date, payouts stay in dry run even when enabled. Set it to the launch date so no test booking is ever paid.
 - `COMPLETION_ENABLED`: must be exactly `true` before `complete-bookings` marks anything `COMPLETED`.
 - `REFUNDS_ENABLED`: must be exactly `true` before any refund is sent to Paystack. While off, cancelling still works and the refund is recorded as owed (`Refund` row, status `PENDING`); nothing is sent. The hourly `process-refunds` job sends those once it is on. The check sits inside `sendRefund` (`src/lib/refunds.ts`), the only place a refund is started.
+- `DISPUTE_DECISIONS_ENABLED`: must be exactly `true` before an admin's decision on a dispute takes effect. While off, deciding only reports what it would do and writes nothing. Reporting a problem and holding the payout are always on. A refund a decision creates is still behind `REFUNDS_ENABLED`, and a payout behind `PAYOUTS_ENABLED`.
 - `?dryRun=1` on any cron URL forces a report-only run whatever the switches say.
 
 Rules worth knowing:
@@ -59,9 +60,21 @@ Rules worth knowing:
 - A host with no verified payout method is skipped and retried every hour; the host payouts page shows the amount waiting, and Sentry is alerted once a day once a payout is 7 days overdue.
 - A guest cannot cancel online once the check-in day has arrived or a payout exists (`src/lib/cancelRules.ts`).
 - A cancelled or refunded booking is never paid out (guard in `initiateHostPayout`).
-- Still not built: payouts for monthly and long-term stays, disputes, refunds after check-in (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
+- Still not built: payouts for monthly and long-term stays, refunds after check-in outside a dispute (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
 
 Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries both transfer and refund events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+
+## Disputes
+
+- Rules are in `src/lib/disputes.ts`; applying a decision is `src/lib/disputeDecisions.ts`. One dispute per side per booking (unique index on `Dispute(bookingId, raisedByRole)`); the other party replies once.
+- A guest can report on the check-in day or the day after (Ghana dates). A host can report on the check-out day or the two days after, about the deposit.
+- The short-stay payout is 48 hours after check-in (`PAYOUT_DELAY_MS` in `src/lib/cronRuns.ts`), so it never goes out while the guest's window is open. An open guest dispute holds the payout in the job's query and in `initiateHostPayout`.
+- Guest outcomes: full refund (no payout), partial refund from the stay price only (the host is paid 92% of what is left), or rejected (paid as normal). Host outcomes: deposit returned, deposit kept (recorded; paid to the host by hand), or rejected. Decisions are final; mistakes are fixed by hand and written to the dispute as a correction.
+- Refund reasons added: `DISPUTE_FULL`, `DISPUTE_PARTIAL`, `DISPUTE_DEPOSIT`. The last two still allow a host payout.
+- Evidence: up to 6 photos a side, 5MB, JPEG/PNG/WebP, in the private `dispute-evidence` bucket, read only through 10-minute signed links by the two parties and admins.
+- Notifications are in-app only (`Notification` rows), shown on the guest dashboard, host dashboard and admin overview. There is no email or SMS.
+- `check-disputes` runs daily at 09:00 UTC and sends one Sentry alert per dispute still open after 3 days. The site says "we aim to decide within 3 working days", as an aim only.
+- The `DISPUTED` booking status is not used.
 
 ## Cancellation policies and refunds
 

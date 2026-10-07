@@ -443,7 +443,7 @@ export default function HostPayoutsPage() {
 
             <div className="mt-4 p-4 rounded-xl text-sm"
               style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)', color: 'var(--color-text-primary)' }}>
-              <strong>Payout schedule:</strong> Short stay payments are released 24 hours after guest check-in. Monthly and long-term payments are released on the agreed date. All amounts are in USD and converted at the current rate.
+              <strong>Payout schedule:</strong> Short stay payments are sent 48 hours after guest check-in. If the guest reports a problem, the payout waits for our decision. Monthly and long-term payments are made by our team. All amounts are in USD and converted at the current rate.
             </div>
           </>
         )}

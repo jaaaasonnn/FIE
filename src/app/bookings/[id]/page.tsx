@@ -10,6 +10,7 @@ import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 import { formatStayDate } from '@/lib/stayDates'
 import { CancellationPolicy, SUPPORT_NOTE, heldNote } from '@/components/booking/CancellationPolicy'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
+import { problemLinkLabel } from '@/lib/disputes'
 
 type BookingData = {
   id: string
@@ -27,6 +28,7 @@ type BookingData = {
   checkOut: string
   cancellationPolicy: string | null
   refund: RefundSummary | null
+  disputes?: { raisedByRole: string; status: string }[]
   listing: {
     id: string
     title: string
@@ -221,6 +223,19 @@ export default function BookingConfirmationPage() {
           <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
             <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Refund</p>
             <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{refundStatusText(booking.refund)}</p>
+          </div>
+        )}
+
+        {/* Reporting a problem with the stay, or seeing one that was reported */}
+        {problemLinkLabel('GUEST', booking) && (
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              {booking.disputes?.length ? 'A problem has been reported on this booking.' : 'Is something wrong with the home? You can report it until the end of the day after check-in.'}
+            </p>
+            <Link href={`/bookings/${booking.id}/problem`} className="focus-ring inline-block mt-2 text-sm font-semibold underline underline-offset-4"
+              style={{ color: 'var(--color-accent-deep)' }}>
+              {problemLinkLabel('GUEST', booking)}
+            </Link>
           </div>
         )}
 

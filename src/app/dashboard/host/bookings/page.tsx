@@ -8,6 +8,7 @@ import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { formatStayDate } from '@/lib/stayDates'
 import { CancelDialog } from '@/components/booking/CancelDialog'
+import { problemLinkLabel } from '@/lib/disputes'
 
 type ApiBooking = {
   id: string
@@ -17,6 +18,9 @@ type ApiBooking = {
   nightsOrMonths: number
   totalPrice: number
   status: string
+  paymentStatus: string
+  disputes?: { raisedByRole: string; status: string }[]
+  refund?: unknown
   guest: {
     id: string
     name: string
@@ -217,6 +221,12 @@ export default function HostBookingsPage() {
                       className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                       <MessageSquare size={13} /> Message Guest
                     </Link>
+                    {problemLinkLabel('HOST', b) && (
+                      <Link href={`/bookings/${b.id}/problem`}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
+                        {problemLinkLabel('HOST', b)}
+                      </Link>
+                    )}
                     {b.status === 'CONFIRMED' && (
                       <button onClick={() => setCancelId(b.id)}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold"

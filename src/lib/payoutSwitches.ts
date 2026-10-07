@@ -11,6 +11,11 @@
 //   REFUNDS_ENABLED=true        Refunds may be sent to Paystack. While off,
 //                               cancelling still works and the refund is
 //                               recorded as owed; nothing is sent.
+//   DISPUTE_DECISIONS_ENABLED=true
+//                               An admin's decision on a dispute takes
+//                               effect. While off, deciding only reports what
+//                               it would do and writes nothing. Reporting a
+//                               problem and holding the payout are always on.
 //
 // Either cron also accepts ?dryRun=1, which reports what it would do and
 // changes nothing, whatever the switches say.
@@ -47,6 +52,11 @@ export function payoutGate(): PayoutGate {
 
 export function completionEnabled(): boolean {
   return process.env.COMPLETION_ENABLED === 'true'
+}
+
+/** Exactly "true": while off, an admin's dispute decision is a dry run. */
+export function disputeDecisionsEnabled(): boolean {
+  return process.env.DISPUTE_DECISIONS_ENABLED === 'true'
 }
 
 /** Exactly "true", like the others: a typo must never switch refunds on. */

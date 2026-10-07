@@ -1,4 +1,17 @@
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
+import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
+
+// Built from the dispute rules in lib/disputes.ts
+const list = (reasons: Record<string, string>) => Object.values(reasons).map((r) => r.toLowerCase()).join('; ')
+const DISPUTE_TERMS =
+  `A guest can report a problem from the booking on the check-in day or the day after, for one of these reasons: ${list(GUEST_REASONS)}. `
+  + 'While a guest report is open, the host is not paid for that stay. '
+  + `A host can report a problem on the check-out day or within the two days after, for one of these reasons: ${list(HOST_REASONS)}. A host report concerns the damage deposit. `
+  + `Each side can report once per booking and attach up to ${MAX_EVIDENCE_PER_SIDE} photos, which only the guest, the host and FieGH can see. The other party can reply once. `
+  + 'FieGH reads both sides and decides. For a guest report the outcome is a full refund of everything paid, a partial refund taken from the stay price (the service fee is kept and the host is paid their share of the rest), or no refund. '
+  + 'For a host report the deposit is returned to the guest or kept, in full or in part, for the host. '
+  + `${DECISION_AIM} Decisions are final. Outside these times, or once a booking has a refund, contact support at support@fiegh.com. `
+  + 'Once the stay has started, a booking cannot be cancelled online.'
 
 // Built from the same table the refund is worked out from, so the terms
 // cannot drift from what the site does.
@@ -45,11 +58,11 @@ export default function TermsPage() {
             },
             {
               title: '5. Held payments and payouts',
-              body: 'Guest payments are held by FieGH. For short stays, the host is paid 24 hours after check-in. Payouts for monthly and long-term rentals are made by our team. A damage deposit is paid with the booking, held by FieGH, and returned by our team after check-out.'
+              body: 'Guest payments are held by FieGH. For short stays, the host is paid 48 hours after check-in, unless the guest has reported a problem that is still open. Payouts for monthly and long-term rentals are made by our team. A damage deposit is paid with the booking, held by FieGH, and returned by our team after check-out.'
             },
             {
-              title: '6. Problems at check-in',
-              body: 'If the property does not match the listing, contact support at support@fiegh.com within 24 hours of check-in. Our team will look at what both the guest and the host say. Once the stay has started, a booking cannot be cancelled online.'
+              title: '6. Reporting a problem',
+              body: DISPUTE_TERMS
             },
             {
               title: '7. Prohibited Activities',

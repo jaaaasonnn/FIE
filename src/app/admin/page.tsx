@@ -10,8 +10,10 @@ import { StatCard } from '@/components/ui/Card'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { useAuth } from '@/context/AuthContext'
 import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRate'
+import { AdminDisputes } from '@/components/admin/AdminDisputes'
+import { NotificationsList } from '@/components/NotificationsList'
 
-const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Reviews', 'Settings']
+const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Reviews', 'Settings']
 
 type AdminUser = {
   id: string
@@ -265,6 +267,10 @@ export default function AdminPage() {
             </div>
           ) : (
             <>
+              {activeTab === 'Disputes' && <AdminDisputes />}
+
+              {activeTab === 'Overview' && <NotificationsList className="mb-6" />}
+
               {activeTab === 'Overview' && (
                 <div>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

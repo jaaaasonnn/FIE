@@ -4,6 +4,19 @@ import { BadgeCheck, Shield, CreditCard, MessageSquare, ShieldAlert } from 'luci
 import { RENTAL_MODES } from '@/lib/rentalModes'
 import { FaqAccordion } from '@/components/faq/FaqAccordion'
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
+import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
+
+// Built from the dispute rules in lib/disputes.ts
+const PROBLEM_ANSWER =
+  'Open the booking and choose "Report a problem" on the check-in day or the day after. Tell us what is wrong ('
+  + Object.values(GUEST_REASONS).map((r) => r.toLowerCase()).join(', ')
+  + `) and add up to ${MAX_EVIDENCE_PER_SIDE} photos. The host can reply once, and the host is not paid while your report is open. ${DECISION_AIM}`
+const OUTCOME_ANSWER =
+  'Our team reads both sides and decides one of three things: a full refund of everything you paid, a partial refund taken from the stay price, or no refund, in which case the host is paid as normal. You will see the decision and the reason on the booking. Decisions are final.'
+const HOST_PROBLEM_ANSWER =
+  'Open the booking and choose "Report a problem" on the check-out day or within the two days after. A host report ('
+  + Object.values(HOST_REASONS).map((r) => r.toLowerCase()).join(', ')
+  + `) is about the damage deposit. Add up to ${MAX_EVIDENCE_PER_SIDE} photos; the guest can reply once. Our team then decides whether the deposit is returned to the guest or kept, in full or in part, for you. ${DECISION_AIM}`
 
 // Built from the same table the refund is worked out from
 const CANCEL_ANSWER =
@@ -47,7 +60,7 @@ const TRUST = [
   {
     icon: Shield,
     title: 'Payments held by FieGH',
-    desc: 'Your payment is held by FieGH, and for short stays the host is paid 24 hours after check-in. If anything is wrong when you arrive, contact support within 24 hours of check-in.',
+    desc: 'Your payment is held by FieGH, and for short stays the host is paid 48 hours after check-in. If anything is wrong when you arrive, report a problem from your booking by the end of the day after check-in.',
   },
   {
     icon: CreditCard,
@@ -76,7 +89,7 @@ const FAQS = [
     category: 'Payments',
     questions: [
       { q: 'What payment methods are accepted?', a: 'We accept MTN Mobile Money, Vodafone Cash, AirtelTigo Money, and Visa/Mastercard debit or credit cards. All payments are processed via Paystack, Ghana\'s leading payment gateway.' },
-      { q: 'Are my payments safe?', a: 'Yes. Your payment is held by FieGH, not paid straight to the host. For short stays the host is paid 24 hours after check-in. If there is a problem when you arrive, contact support at support@fiegh.com within 24 hours of check-in.' },
+      { q: 'Are my payments safe?', a: 'Yes. Your payment is held by FieGH, not paid straight to the host. For short stays the host is paid 48 hours after check-in. If there is a problem when you arrive, report it from your booking by the end of the day after check-in, and the host is not paid until we have decided.' },
       { q: 'What currencies are accepted?', a: 'Prices are listed in USD and shown in GHS (Ghana Cedis) for reference. The exchange rate updates automatically every 6 hours, and MoMo payments are converted at the current rate.' },
       { q: 'Can I pay in Ghana Cedis?', a: 'Yes. When paying via MoMo, the amount is charged in GHS at the current exchange rate shown at checkout.' },
       { q: 'Why can\'t I pay outside the app?', a: 'For your protection. Cash and direct bank transfers have no protection. If you pay outside FieGH, we cannot help you recover funds in case of a scam. Always book and pay through the app.' },
@@ -88,7 +101,8 @@ const FAQS = [
     questions: [
       { q: 'What\'s the difference between Short Stay, Monthly, and Long-Term?', a: 'Short Stay is nightly or weekly (like Airbnb). Monthly is 1 to 11 months, ideal for workers or diaspora visitors. Long-Term is 12 months and up, with a formal tenancy agreement. Hosts can enable one or more of these on each listing.' },
       { q: 'What is Instant Book?', a: 'Instant Book means your booking is confirmed automatically without waiting for host approval. Not all listings have this. Some hosts prefer to approve guests manually.' },
-      { q: 'What happens if the property doesn\'t match the listing?', a: 'Contact support at support@fiegh.com within 24 hours of check-in. Our team will look into it with you and the host.' },
+      { q: 'What happens if the property doesn\'t match the listing?', a: PROBLEM_ANSWER },
+      { q: 'What can happen after I report a problem?', a: OUTCOME_ANSWER },
       { q: 'Can I cancel my booking?', a: CANCEL_ANSWER },
       { q: 'How much do I get back if I cancel?', a: REFUND_ANSWER },
       { q: 'What if the host cancels?', a: 'You are refunded everything you paid: the stay price, the service fee and the damage deposit.' },
@@ -109,7 +123,9 @@ const FAQS = [
     questions: [
       { q: 'How much does it cost to list on FieGH?', a: 'Listing is completely free. We only charge 8% commission on successful payouts. No listing fees, no subscription.' },
       { q: 'What is Superhost status?', a: 'Superhost is automatically awarded to hosts with a 4.8+ average rating and at least 10 completed reviews. It shows as a gold badge on your profile and listings, and increases your bookings.' },
-      { q: 'How do I get paid?', a: 'You get paid 24 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). You\'ll see your net payout (after 8% commission) clearly in your dashboard.' },
+      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). You\'ll see your net payout (after 8% commission) clearly in your dashboard.' },
+      { q: 'What if a guest reports a problem with my home?', a: 'You are notified and can reply once, with photos. The payout for that stay waits until our team decides. ' + DECISION_AIM },
+      { q: 'What if a guest damages my home?', a: HOST_PROBLEM_ANSWER },
       { q: 'For long-term rentals, how do I collect advance payment?', a: 'Set your advance payment requirement (e.g. 6 months) when creating the listing. FieGH clearly shows this to tenants before they apply. The advance amount is collected through the platform on acceptance.' },
     ],
   },
