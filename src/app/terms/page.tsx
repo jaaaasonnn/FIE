@@ -1,5 +1,6 @@
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
+import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, serviceFeeRefundRule } from '@/lib/fees'
 
 // Built from the dispute rules in lib/disputes.ts
 const list = (reasons: Record<string, string>) => Object.values(reasons).map((r) => r.toLowerCase()).join('; ')
@@ -8,7 +9,7 @@ const DISPUTE_TERMS =
   + 'While a guest report is open, the host is not paid for that stay. '
   + `A host can report a problem on the check-out day or within the two days after, for one of these reasons: ${list(HOST_REASONS)}. A host report concerns the damage deposit. `
   + `Each side can report once per booking and attach up to ${MAX_EVIDENCE_PER_SIDE} photos, which only the guest, the host and FieGH can see. The other party can reply once. `
-  + 'FieGH reads both sides and decides. For a guest report the outcome is a full refund of everything paid, a partial refund taken from the stay price (the service fee is kept and the host is paid their share of the rest), or no refund. '
+  + 'FieGH reads both sides and decides. For a guest report the outcome is a full refund of everything paid, a partial refund taken from the stay price (' + (GUEST_FEE_CHARGED ? 'the service fee is kept and ' : '') + 'the host is paid their share of the rest), or no refund. '
   + 'For a host report the deposit is returned to the guest or kept, in full or in part, for the host. '
   + `${DECISION_AIM} Decisions are final. Outside these times, or once a booking has a refund, contact support at support@fiegh.com. `
   + 'Once the stay has started, a booking cannot be cancelled online.'
@@ -22,7 +23,8 @@ const CANCELLATION_TERMS =
   + `Monthly stays. ${policyText('TEMP_STAY')} `
   + `Long-term rentals. ${policyText('PERMANENT')} `
   + "For monthly and long-term stays we never keep more than one month's rent. "
-  + 'The service fee is refunded only when the whole stay price or rent is refunded. The damage deposit is always refunded in full when a booking is cancelled before check-in. '
+  + (serviceFeeRefundRule('stay price or rent') ? `${serviceFeeRefundRule('stay price or rent')} ` : '')
+  + 'The damage deposit is always refunded in full when a booking is cancelled before check-in. '
   + 'If a host cancels a confirmed booking, the guest is refunded everything they paid. '
   + 'Refunds go back to the card or mobile money number used to pay and can take up to 10 working days to arrive. '
   + 'From the check-in day onwards a booking cannot be cancelled online; contact support at support@fiegh.com.'
@@ -54,7 +56,7 @@ export default function TermsPage() {
             },
             {
               title: '4. Payments and Fees',
-              body: 'All payments are processed via Paystack or Mobile Money. FieGH charges a 12% service fee to guests and an 8% commission on host payouts. All monetary amounts are stored in USD and displayed in both USD and GHS. The USD/GHS exchange rate is updated weekly by FieGH administrators. FieGH does not support cash payments or direct bank transfers outside the platform.'
+              body: 'All payments are processed via Paystack or Mobile Money. ' + GUEST_FEE_LINE + ' ' + HOST_COMMISSION_LINE + ' All monetary amounts are stored in USD and displayed in both USD and GHS. The USD/GHS exchange rate is updated weekly by FieGH administrators. FieGH does not support cash payments or direct bank transfers outside the platform.'
             },
             {
               title: '5. Held payments and payouts',

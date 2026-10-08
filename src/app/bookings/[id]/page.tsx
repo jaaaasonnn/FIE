@@ -303,7 +303,7 @@ function BookingPageInner() {
         {/* The policy this booking was made under */}
         {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
           <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
-            <CancellationPolicy rentalMode={booking.rentalMode}
+            <CancellationPolicy rentalMode={booking.rentalMode} serviceFee={booking.serviceFee}
               policy={booking.cancellationPolicy ?? booking.listing.cancellationPolicy} />
             <p className="text-sm mt-3" style={{ color: 'var(--color-text-secondary)' }}>
               You can cancel from your bookings page, where you will see the exact refund before you confirm.

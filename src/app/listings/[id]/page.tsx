@@ -10,7 +10,7 @@ import {
   AlertCircle, Home, X,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
-import { formatUsd } from '@/lib/utils'
+import { calculateFees, formatUsd } from '@/lib/utils'
 import { dayKey, parseDay } from '@/lib/hostCalendar'
 import {
   addDays, addMonthsClamped, addYearClamped, daysBetween, fromDayKey, ghanaToday,
@@ -301,7 +301,8 @@ export default function ListingDetailPage() {
     : selectedMode === 'TEMP_STAY' ? (listing.priceMonthly ?? 0) * months
     : (listing.priceAnnual ?? 0)
 
-  const serviceFee = basePrice * 0.12
+  // The same sum the server stores on the booking, so the two cannot differ
+  const serviceFee = calculateFees(basePrice).serviceFee
   const total      = basePrice + serviceFee + (listing.damageDeposit ?? 0)
 
   // ── Book handler ──────────────────────────────────────────────────────

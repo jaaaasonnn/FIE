@@ -5,12 +5,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Percent, Wallet, ShieldCheck, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { COMMISSION_PERCENT, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
 
 const POINTS = [
   {
     icon: Percent,
-    title: 'FieGH keeps 8% of each booking',
-    body: 'The commission comes out of your payout. You see what you will earn before you publish a listing.',
+    title: `You keep ${HOST_KEEPS_PERCENT} of the rent`,
+    body: `FieGH takes a ${COMMISSION_PERCENT} commission, which comes out of your payout. ${GUEST_FEE_LINE} You see what you will earn on every booking.`,
   },
   {
     icon: Wallet,

@@ -10,6 +10,8 @@ import { formatStayDate } from '@/lib/stayDates'
 import { CancelDialog } from '@/components/booking/CancelDialog'
 import { problemLinkLabel } from '@/lib/disputes'
 import { payState } from '@/lib/payDeadline'
+import { hostShare } from '@/lib/disputes'
+import { formatUsd } from '@/lib/utils'
 
 type ApiBooking = {
   id: string
@@ -17,6 +19,8 @@ type ApiBooking = {
   checkIn: string
   checkOut: string
   nightsOrMonths: number
+  /** The stay price or rent alone: what the host's share is worked out from */
+  subtotal: number
   totalPrice: number
   status: string
   paymentStatus: string
@@ -209,7 +213,7 @@ export default function HostBookingsPage() {
                       <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         ${b.totalPrice.toLocaleString()}
                         <span className="text-xs font-normal text-stone-400 block">
-                          Net: ${(b.totalPrice * 0.92).toFixed(0)} after commission
+                          You earn {formatUsd(hostShare(b.subtotal))} after commission
                         </span>
                       </p>
                     </div>

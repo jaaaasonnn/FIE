@@ -20,10 +20,12 @@ export const SUPPORT_NOTE = 'If anything is wrong when you arrive, report a prob
  * sentences come from the same table the refund is worked out from.
  */
 export function CancellationPolicy({
-  policy, rentalMode, className = '', compact = false,
+  policy, rentalMode, serviceFee, className = '', compact = false,
 }: {
   policy: string | null | undefined
   rentalMode: string
+  /** A booking's own stored service fee. Left out on a listing, where new bookings' terms apply */
+  serviceFee?: number | null
   className?: string
   /** Smaller text, for the booking summary column */
   compact?: boolean
@@ -36,7 +38,7 @@ export function CancellationPolicy({
         Cancellation policy: {POLICY_LABELS[p]}
       </p>
       <ul className={`mt-2 space-y-1.5 ${text} leading-relaxed`} style={{ color: 'var(--color-text-secondary)' }}>
-        {[...policyRuleLines(rentalMode, p), ...commonRuleLines(rentalMode)].map((line) => (
+        {[...policyRuleLines(rentalMode, p), ...commonRuleLines(rentalMode, serviceFee == null ? undefined : serviceFee > 0)].map((line) => (
           <li key={line}>{line}</li>
         ))}
       </ul>

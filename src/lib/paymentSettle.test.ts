@@ -690,6 +690,8 @@ describe('pay deadlines', () => {
       expect(state.bookings[0]).toMatchObject(instantBook
         ? { status: 'CONFIRMED', paymentStatus: 'UNPAID', payBy: ahead(1 * HOUR) }
         : { status: 'PENDING', paymentStatus: 'UNPAID', payBy: null })
+      // Two nights at $200 and a $50 deposit: no service fee is added
+      expect(state.bookings[0]).toMatchObject({ subtotal: 400, serviceFee: 0, damageDeposit: 50, totalPrice: 450 })
     }
   })
 

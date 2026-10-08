@@ -17,8 +17,12 @@ const UNIT: Record<string, [string, string]> = {
 /**
  * The one price layout used on the listing page, checkout and confirmation.
  * Display only: every figure is passed in, nothing is calculated for charging.
- * "Stay total" is the cost of the stay; "Total due now" is the full charge,
- * which includes the deposit because it is collected with the booking.
+ * "Total due now" is the full charge, which includes the deposit because it
+ * is collected with the booking.
+ *
+ * A service fee line, and the "Stay total" that adds it to the stay price,
+ * appear only when there is a fee: guests pay none on new bookings, and a
+ * booking made when there was one still shows the fee it was charged.
  */
 export function PriceBreakdown({
   rentalMode, pricePerUnit, units, subtotal, serviceFee, deposit, total, ghsRate,
@@ -47,8 +51,12 @@ export function PriceBreakdown({
     <div className={`text-sm ${className}`}>
       <div className="space-y-2">
         <div className={row} style={secondary}><span>{stayLabel}</span><span>{formatUsd(subtotal)}</span></div>
-        <div className={row} style={secondary}><span>Service fee</span><span>{formatUsd(serviceFee)}</span></div>
-        <div className={`${row} font-bold`} style={primary}><span>Stay total</span><span>{formatUsd(subtotal + serviceFee)}</span></div>
+        {serviceFee > 0 && (
+          <>
+            <div className={row} style={secondary}><span>Service fee</span><span>{formatUsd(serviceFee)}</span></div>
+            <div className={`${row} font-bold`} style={primary}><span>Stay total</span><span>{formatUsd(subtotal + serviceFee)}</span></div>
+          </>
+        )}
       </div>
 
       {deposit > 0 && (

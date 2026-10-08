@@ -13,6 +13,7 @@ import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRate'
 import { AdminDisputes } from '@/components/admin/AdminDisputes'
 import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
+import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
 
 const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Messages', 'Reviews', 'Settings']
 
@@ -279,9 +280,9 @@ export default function AdminPage() {
                     <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value={stats?.totalUsers ?? '-'} />
                     <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value={stats?.totalListings ?? '-'} />
                     <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value={stats?.totalBookings ?? '-'}
-                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString()} total value` : undefined} />
+                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString()} paid for stays` : undefined} />
                     <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString()}` : '-'}
-                      sub="8% commission" />
+                      sub={`${COMMISSION_PERCENT} commission on stay prices`} />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
@@ -579,12 +580,12 @@ export default function AdminPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div className="p-4 rounded-xl" style={{ backgroundColor: '#FFF8EE' }}>
                         <p className="text-[#6B645C] text-xs mb-1">Guest Service Fee</p>
-                        <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>12%</p>
-                        <p className="text-xs text-stone-400">Added to listing price</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{GUEST_FEE_CHARGED ? GUEST_FEE_PERCENT : 'None'}</p>
+                        <p className="text-xs text-stone-400">{GUEST_FEE_CHARGED ? 'Added to listing price' : 'Guests pay the listing price'}</p>
                       </div>
                       <div className="p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4' }}>
                         <p className="text-[#6B645C] text-xs mb-1">Host Commission</p>
-                        <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>8%</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{COMMISSION_PERCENT}</p>
                         <p className="text-xs text-stone-400">Deducted from payout</p>
                       </div>
                     </div>

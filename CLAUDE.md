@@ -67,6 +67,14 @@ Rules worth knowing:
 
 Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries transfer, refund and payment events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
 
+## Fees
+
+- Two rates, both in `src/lib/utils.ts`: `SERVICE_FEE_RATE` (0: guests pay no service fee) and `PLATFORM_COMMISSION` (0.10, taken from the host's payout, so a host keeps 90% of the rent). Nothing else in the code states a percentage.
+- Sums read the constants through `calculateFees`, `hostShare` and `hostCommission` (`src/lib/disputes.ts`). Every sentence and figure on the site that states a fee is built from them in `src/lib/fees.ts`.
+- A booking stores its service fee in dollars, so a booking made at an older rate still shows and refunds the fee it was charged. A "Service fee" line appears only where the stored fee is above zero.
+- The commission is not stored. A payout is worked out at the rate in force when it is made, so changing the rate changes the payout of every booking not yet paid out.
+- Admin revenue is counted from stay prices of paid, standing bookings. Damage deposits are never counted.
+
 ## Payments and unpaid bookings
 
 - A booking is marked paid in one place, `settlePayment` in `src/lib/paymentSettle.ts`. The verify route (the guest's browser coming back), the `charge.success` webhook and the expiry job all call it, in any order or twice, and it confirms once.
@@ -109,7 +117,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - Rules are in `src/lib/disputes.ts`; applying a decision is `src/lib/disputeDecisions.ts`. One dispute per side per booking (unique index on `Dispute(bookingId, raisedByRole)`); the other party replies once.
 - A guest can report on the check-in day or the day after (Ghana dates). A host can report on the check-out day or the two days after, about the deposit.
 - The short-stay payout is 48 hours after check-in (`PAYOUT_DELAY_MS` in `src/lib/cronRuns.ts`), so it never goes out while the guest's window is open. An open guest dispute holds the payout in the job's query and in `initiateHostPayout`.
-- Guest outcomes: full refund (no payout), partial refund from the stay price only (the host is paid 92% of what is left), or rejected (paid as normal). Host outcomes: deposit returned, deposit kept (recorded; paid to the host by hand), or rejected. Decisions are final; mistakes are fixed by hand and written to the dispute as a correction.
+- Guest outcomes: full refund (no payout), partial refund from the stay price only (the host is paid their share of what is left: the stay price less the commission), or rejected (paid as normal). Host outcomes: deposit returned, deposit kept (recorded; paid to the host by hand), or rejected. Decisions are final; mistakes are fixed by hand and written to the dispute as a correction.
 - Refund reasons added: `DISPUTE_FULL`, `DISPUTE_PARTIAL`, `DISPUTE_DEPOSIT`. The last two still allow a host payout.
 - Evidence: up to 6 photos a side, 5MB, JPEG/PNG/WebP, in the private `dispute-evidence` bucket, read only through 10-minute signed links by the two parties and admins.
 - In-app notices (`Notification` rows) are shown on the guest dashboard, host dashboard and admin overview. Emails for the same events go through `notify` (see Messaging) and are only logged until messaging is switched on.
@@ -119,7 +127,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 ## Cancellation policies and refunds
 
 - The rules are one table in `src/lib/cancellationPolicy.ts`: Flexible, Moderate and Strict, with different notice periods for short stays, monthly stays and long-term rentals. Every page that states a policy builds its sentences from that table, so wording cannot drift from the sums.
-- The service fee is refunded only when the whole stay price is refunded. The damage deposit is always refunded on a cancellation before check-in. For monthly and long-term stays the amount kept is never more than one month's rent. FieGH absorbs Paystack's fee.
+- Guests pay no service fee on new bookings. A booking made when there was one stores it, and it is refunded only when the whole stay price is refunded. The damage deposit is always refunded on a cancellation before check-in. For monthly and long-term stays the amount kept is never more than one month's rent. FieGH absorbs Paystack's fee.
 - New listings default to Moderate (in code; the database column default is still `FLEXIBLE`). The policy is copied onto the booking when it is made (`Booking.cancellationPolicy`).
 - The refund is worked out on the server from stored values (`src/lib/cancellation.ts`), never from the request. The cancel request carries the amount the person was shown only so the server can refuse if it has changed.
 - One refund per booking (unique index on `Refund.bookingId`). `Payment.amountPesewas` and `usdToGhs` are saved at charge time so a refund returns the same share of the cedis paid.

@@ -5,6 +5,7 @@ import { RENTAL_MODES } from '@/lib/rentalModes'
 import { FaqAccordion } from '@/components/faq/FaqAccordion'
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
+import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
 
 // Built from the dispute rules in lib/disputes.ts
 const PROBLEM_ANSWER =
@@ -25,7 +26,8 @@ const REFUND_ANSWER =
   'For short stays: '
   + POLICIES.map((p) => `${POLICY_LABELS[p]}: ${policyRuleLines('SHORT_STAY', p).join(' ')}`).join(' ')
   + " Monthly and long-term stays have longer notice periods, shown on each listing, and we never keep more than one month's rent."
-  + ' The service fee is refunded only with a full refund. The damage deposit is always refunded if you cancel before check-in. Refunds go back to the card or mobile money number you paid with and can take up to 10 working days.'
+  + (GUEST_FEE_CHARGED ? ' The service fee is refunded only with a full refund.' : '')
+  + ' The damage deposit is always refunded if you cancel before check-in. Refunds go back to the card or mobile money number you paid with and can take up to 10 working days.'
 
 
 export const metadata: Metadata = {
@@ -105,7 +107,7 @@ const FAQS = [
       { q: 'What can happen after I report a problem?', a: OUTCOME_ANSWER },
       { q: 'Can I cancel my booking?', a: CANCEL_ANSWER },
       { q: 'How much do I get back if I cancel?', a: REFUND_ANSWER },
-      { q: 'What if the host cancels?', a: 'You are refunded everything you paid: the stay price, the service fee and the damage deposit.' },
+      { q: 'What if the host cancels?', a: `You are refunded everything you paid: the stay price${GUEST_FEE_CHARGED ? ', the service fee' : ''} and the damage deposit.` },
     ],
   },
   {
@@ -121,9 +123,9 @@ const FAQS = [
     id: 'hosting',
     category: 'Hosting',
     questions: [
-      { q: 'How much does it cost to list on FieGH?', a: 'Listing is completely free. We only charge 8% commission on successful payouts. No listing fees, no subscription.' },
+      { q: 'How much does it cost to list on FieGH?', a: `Listing is completely free. FieGH takes a ${COMMISSION_PERCENT} commission from each payout, so you keep ${HOST_KEEPS_PERCENT} of the rent. ${GUEST_FEE_LINE} No listing fees, no subscription.` },
       { q: 'What is Superhost status?', a: 'Superhost is automatically awarded to hosts with a 4.8+ average rating and at least 10 completed reviews. It shows as a gold badge on your profile and listings, and increases your bookings.' },
-      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). You\'ll see your net payout (after 8% commission) clearly in your dashboard.' },
+      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). You will see your net payout (after the ' + COMMISSION_PERCENT + ' commission) clearly in your dashboard.' },
       { q: 'What if a guest reports a problem with my home?', a: 'You are notified and can reply once, with photos. The payout for that stay waits until our team decides. ' + DECISION_AIM },
       { q: 'What if a guest damages my home?', a: HOST_PROBLEM_ANSWER },
       { q: 'For long-term rentals, how do I collect advance payment?', a: 'Set your advance payment requirement (e.g. 6 months) when creating the listing. FieGH clearly shows this to tenants before they apply. The advance amount is collected through the platform on acceptance.' },

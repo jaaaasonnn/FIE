@@ -4,6 +4,7 @@ import {
   UserPlus, Home, SlidersHorizontal, Bell, Wallet, BarChart3,
   type LucideIcon,
 } from 'lucide-react'
+import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT, HOST_KEEPS_PERCENT } from '@/lib/fees'
 
 type Step = { icon: LucideIcon; title: string; desc: string }
 
@@ -21,13 +22,15 @@ const hostSteps: Step[] = [
   { icon: Home, title: 'List your property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
   { icon: SlidersHorizontal, title: 'Set your preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
   { icon: Bell, title: 'Receive bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For permanent rentals, review tenant applications before approving.' },
-  { icon: Wallet, title: 'Get paid', desc: 'For short stays, you are paid 48 hours after guest check-in via MTN MoMo or bank transfer, minus the 8% platform commission. If the guest reports a problem, the payout waits for our decision.' },
+  { icon: Wallet, title: 'Get paid', desc: 'For short stays, you are paid 48 hours after guest check-in via MTN MoMo or bank transfer, minus the ' + COMMISSION_PERCENT + ' platform commission. If the guest reports a problem, the payout waits for our decision.' },
   { icon: BarChart3, title: 'Manage & grow', desc: 'Track bookings, earnings, and reviews from your host dashboard. Hit 4.8+ rating with 10+ reviews to earn Superhost status.' },
 ]
 
 const fees = [
-  { label: 'Guest service fee', value: '12%', desc: 'Added on top of the listing price. This covers payment processing and platform costs.' },
-  { label: 'Host commission', value: '8%', desc: 'Deducted from your payout. You always see your net earnings before listing. No hidden surprises.' },
+  GUEST_FEE_CHARGED
+    ? { label: 'Guest service fee', value: GUEST_FEE_PERCENT, desc: 'Added on top of the listing price. This covers payment processing and platform costs.' }
+    : { label: 'Guest service fee', value: 'None', desc: 'Guests pay the listing price and nothing on top. A damage deposit, where the host asks for one, is shown separately.' },
+  { label: 'Host commission', value: COMMISSION_PERCENT, desc: `Deducted from your payout, so you keep ${HOST_KEEPS_PERCENT} of the rent. You always see your net earnings. No hidden surprises.` },
   { label: 'Damage deposit', value: 'Optional', desc: 'Set by host. Paid with your booking and held by FieGH. Returned by our team after check-out.' },
 ]
 

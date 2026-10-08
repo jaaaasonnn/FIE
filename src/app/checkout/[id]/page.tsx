@@ -551,7 +551,7 @@ function CheckoutPageInner() {
 
               {/* The policy this booking was made under */}
               <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
-                <CancellationPolicy compact rentalMode={booking.rentalMode}
+                <CancellationPolicy compact rentalMode={booking.rentalMode} serviceFee={booking.serviceFee}
                   policy={booking.cancellationPolicy ?? booking.listing.cancellationPolicy} />
               </div>
 

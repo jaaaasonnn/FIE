@@ -74,8 +74,17 @@ export const RENTAL_MODES = {
   PERMANENT: { label: 'Permanent Rental', desc: '12+ months lease' }
 }
 
-export const SERVICE_FEE_RATE = 0.12
-export const PLATFORM_COMMISSION = 0.08
+// The two rates everything else follows. Guests pay no service fee; FieGH's
+// income is a commission taken from the host's payout. Sums read these
+// directly and the site's wording is built from them in lib/fees.ts, so
+// nothing else in the code states a percentage.
+//
+// A booking stores its own service fee in dollars when it is made, so a
+// booking from before a change still shows and refunds the fee it was charged.
+// The commission is not stored: a payout is worked out at the rate in force
+// when it is made.
+export const SERVICE_FEE_RATE: number = 0
+export const PLATFORM_COMMISSION: number = 0.10
 
 // Applied on top of the raw market rate when the exchange-rate cron stores a
 // freshly-fetched USD→GHS rate (see /api/cron/update-exchange-rate). Rounds

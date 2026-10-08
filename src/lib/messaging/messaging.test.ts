@@ -527,6 +527,8 @@ describe('recording an event', () => {
       expect((await writeMessages('payout.waiting', { bookingId: 'booking_1' })).written).toBe(0)
       ;(state.booking!.host as Row).paystackRecipientCode = null
       expect((await writeMessages('payout.waiting', { bookingId: 'booking_1' })).written).toBe(2)
+      // The host's share of the $300 stay price after the commission
+      expect(one({ event: 'payout.waiting', channel: 'EMAIL' }).body).toContain('Your payout of $270.00 for the stay')
       expect(one({ event: 'payout.waiting', channel: 'SMS' }).body).toBe('FieGH: A payout for "Sea-view apartment in Labadi" is waiting. Add a payout method in FieGH to be paid: https://fiegh.com/dashboard/host/payouts')
     })
 

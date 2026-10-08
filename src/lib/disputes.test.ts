@@ -189,14 +189,14 @@ describe("decisions on a guest's dispute", () => {
     expect(e.ok && e.summary).toEqual(['The guest is refunded $498.00: everything they paid.', 'The host is not paid for this stay.'])
   })
 
-  it('partial refund: from the stay price only, the fee kept, the host paid 92% of what is left', () => {
+  it('partial refund: from the stay price only, the fee kept, the host paid their share of what is left', () => {
     const e = effect({ outcome: 'PARTIAL_REFUND', amount: 150 })
     expect(e).toMatchObject({
-      ok: true, outcome: 'PARTIAL_REFUND', amount: 150, hostPayout: 230, manual: [],
+      ok: true, outcome: 'PARTIAL_REFUND', amount: 150, hostPayout: 225, manual: [],
       refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150, serviceFeeRefund: 0, depositRefund: 0, amount: 150, amountPesewas: 232_500 },
     })
-    expect(hostShare(400, 150)).toBeCloseTo(230)
-    expect(e.ok && e.summary.join(' ')).toMatch(/refunded \$150\.00 of the \$400\.00 stay price\. The service fee is kept\..*host is paid \$230\.00: 92% of the \$250\.00 left/)
+    expect(hostShare(400, 150)).toBeCloseTo(225)
+    expect(e.ok && e.summary.join(' ')).toMatch(/refunded \$150\.00 of the \$400\.00 stay price\. The service fee is kept\..*host is paid \$225\.00: 90% of the \$250\.00 left/)
   })
 
   it('partial refund: the amount must be real money within the stay price', () => {
@@ -211,22 +211,22 @@ describe("decisions on a guest's dispute", () => {
   it('rejected: no refund, the hold lifts and the host is paid in full', () => {
     const e = effect({ outcome: 'REJECTED' })
     expect(e).toMatchObject({ ok: true, refund: null, hostPayout: null, manual: [] })
-    expect(e.ok && e.summary).toEqual(['No refund.', 'The hold on the payout is lifted. The host is paid $368.00 by the next payout run.'])
+    expect(e.ok && e.summary).toEqual(['No refund.', 'The hold on the payout is lifted. The host is paid $360.00 by the next payout run.'])
   })
 
   it('says what is left to a person when the host has already been paid', () => {
-    const full = effect({ payout: { status: 'COMPLETED', amount: 368 } })
-    expect(full.ok && full.manual).toEqual(['The host has already been sent $368.00. Recover it by hand.'])
-    const part = effect({ outcome: 'PARTIAL_REFUND', amount: 150, payout: { status: 'PROCESSING', amount: 368 } })
-    expect(part.ok && part.manual).toEqual(['The host has already been sent $368.00 and is now owed $230.00. Recover $138.00 by hand.'])
+    const full = effect({ payout: { status: 'COMPLETED', amount: 360 } })
+    expect(full.ok && full.manual).toEqual(['The host has already been sent $360.00. Recover it by hand.'])
+    const part = effect({ outcome: 'PARTIAL_REFUND', amount: 150, payout: { status: 'PROCESSING', amount: 360 } })
+    expect(part.ok && part.manual).toEqual(['The host has already been sent $360.00 and is now owed $225.00. Recover $135.00 by hand.'])
     // A payout that failed moved no money
-    expect(effect({ payout: { status: 'FAILED', amount: 368 } })).toMatchObject({ ok: true, manual: [] })
+    expect(effect({ payout: { status: 'FAILED', amount: 360 } })).toMatchObject({ ok: true, manual: [] })
   })
 
   it('leaves monthly and long-term payouts to a person', () => {
     const e = effect({ outcome: 'PARTIAL_REFUND', amount: 900, booking: { rentalMode: 'TEMP_STAY', subtotal: 2700, serviceFee: 324, damageDeposit: 300 }, payment: { id: 'p', amount: 3324, amountPesewas: null } })
-    expect(e).toMatchObject({ ok: true, hostPayout: 1656, refund: { amount: 900, amountPesewas: null } })
-    expect(e.ok && e.manual[0]).toMatch(/^Pay the host \$1,656\.00 by hand/)
+    expect(e).toMatchObject({ ok: true, hostPayout: 1620, refund: { amount: 900, amountPesewas: null } })
+    expect(e.ok && e.manual[0]).toMatch(/^Pay the host \$1,620\.00 by hand/)
   })
 
   it('refuses to refund twice or without a payment', () => {
@@ -302,7 +302,7 @@ describe('decideDispute', () => {
     for (const value of ['', '1', 'TRUE', 'yes']) {
       vi.stubEnv('DISPUTE_DECISIONS_ENABLED', value)
       const r = await decide()
-      expect(r).toMatchObject({ ok: true, mode: 'dry-run', reason: 'DISPUTE_DECISIONS_ENABLED is not set to true', effect: { refund: { amount: 150 }, hostPayout: 230 } })
+      expect(r).toMatchObject({ ok: true, mode: 'dry-run', reason: 'DISPUTE_DECISIONS_ENABLED is not set to true', effect: { refund: { amount: 150 }, hostPayout: 225 } })
     }
     expect(state.writes).toBe(0)
     expect(state.disputes[0].status).toBe('OPEN')

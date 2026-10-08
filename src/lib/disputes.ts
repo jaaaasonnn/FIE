@@ -10,6 +10,7 @@ import { dayKey } from '@/lib/hostCalendar'
 import { addDays, ghanaToday } from '@/lib/stayDates'
 import { refundPesewas } from '@/lib/cancellationPolicy'
 import { PLATFORM_COMMISSION, formatUsd } from '@/lib/utils'
+import { HOST_KEEPS_PERCENT } from '@/lib/fees'
 
 export type DisputeRole = 'GUEST' | 'HOST'
 
@@ -163,6 +164,11 @@ export function hostShare(subtotal: number, stayRefunded = 0): number {
   return Math.max(0, subtotal - stayRefunded) * (1 - PLATFORM_COMMISSION)
 }
 
+/** FieGH's commission on a stay: what is left of the stay price once the host has their share. */
+export function hostCommission(subtotal: number, stayRefunded = 0): number {
+  return Math.max(0, subtotal - stayRefunded) * PLATFORM_COMMISSION
+}
+
 const cents = (n: number) => Math.round(n * 100) / 100
 
 export type DecisionInput = {
@@ -260,7 +266,7 @@ export function decisionEffect(input: DecisionInput): DecisionEffect {
       return { ok: true, outcome, amount: null, refund, hostPayout: 0, manual, summary: [...summary, ...manual] }
     }
 
-    // PARTIAL_REFUND: from the stay price only. The service fee and the deposit are untouched.
+    // PARTIAL_REFUND: from the stay price only. Any service fee and the deposit are untouched.
     const amount = readAmount(booking.subtotal, 'to refund')
     if (typeof amount === 'string') return { ok: false, error: amount }
     const refund: DecisionRefund = {
@@ -269,14 +275,15 @@ export function decisionEffect(input: DecisionInput): DecisionEffect {
       amount, amountPesewas: pesewas(amount),
     }
     const share = cents(hostShare(booking.subtotal, amount))
-    summary.push(`The guest is refunded ${formatUsd(amount)} of the ${formatUsd(booking.subtotal)} stay price. The service fee is kept.`)
+    // A fee is mentioned only on a booking that was charged one
+    summary.push(`The guest is refunded ${formatUsd(amount)} of the ${formatUsd(booking.subtotal)} stay price.${booking.serviceFee > 0 ? ' The service fee is kept.' : ''}`)
     if (paidOut) {
       const over = cents(paidOut.amount - share)
       if (over > 0) manual.push(`The host has already been sent ${formatUsd(paidOut.amount)} and is now owed ${formatUsd(share)}. Recover ${formatUsd(over)} by hand.`)
     } else if (shortStay) {
-      summary.push(`The host is paid ${formatUsd(share)}: 92% of the ${formatUsd(booking.subtotal - amount)} left. The next payout run sends it.`)
+      summary.push(`The host is paid ${formatUsd(share)}: ${HOST_KEEPS_PERCENT} of the ${formatUsd(booking.subtotal - amount)} left. The next payout run sends it.`)
     } else {
-      manual.push(`Pay the host ${formatUsd(share)} by hand: 92% of the ${formatUsd(booking.subtotal - amount)} left. Payouts for monthly and long-term stays are not automatic.`)
+      manual.push(`Pay the host ${formatUsd(share)} by hand: ${HOST_KEEPS_PERCENT} of the ${formatUsd(booking.subtotal - amount)} left. Payouts for monthly and long-term stays are not automatic.`)
     }
     return { ok: true, outcome, amount, refund, hostPayout: share, manual, summary: [...summary, ...manual] }
   }

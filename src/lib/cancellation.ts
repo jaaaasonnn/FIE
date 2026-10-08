@@ -41,6 +41,8 @@ export type CancelPreview =
       quote: RefundQuote | null
       /** What was paid, in USD */
       paidAmount: number
+      /** The service fee this booking was charged, in USD. Zero on a booking made with no guest fee */
+      serviceFee: number
       /** The refund in pesewas, when the payment has a stored cedi amount */
       refundPesewas: number | null
       /** Last day ("2027-03-09") on which this refund still applies, or null */
@@ -98,9 +100,10 @@ export function previewCancellation({
     daysBefore,
     quote,
     paidAmount: payment?.amount ?? 0,
+    serviceFee: booking.serviceFee,
     refundPesewas: quote && payment?.amountPesewas ? refundPesewas(quote.total, payment.amount, payment.amountPesewas) : null,
     appliesUntil: quote && tier ? addDays(dayKey(booking.checkIn), -tier.minDays) : null,
-    rules: [...policyRuleLines(booking.rentalMode, policy), ...commonRuleLines(booking.rentalMode)],
+    rules: [...policyRuleLines(booking.rentalMode, policy), ...commonRuleLines(booking.rentalMode, booking.serviceFee > 0)],
   }
 }
 

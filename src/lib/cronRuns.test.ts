@@ -228,7 +228,7 @@ describe('with the switches off', () => {
     booking()
     const run = await runPayouts()
     expect(run).toMatchObject({ mode: 'dry-run', reason: 'PAYOUTS_ENABLED is not set to true', checked: 1 })
-    expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 92, action: 'would-pay' }])
+    expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'would-pay' }])
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.writes).toBe(0)
     expect(state.payouts).toHaveLength(0)
@@ -255,14 +255,14 @@ describe('with the switches off', () => {
 
   it('refuses a direct call to start a transfer', async () => {
     booking()
-    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 92 })).rejects.toBeInstanceOf(PayoutsOffError)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toBeInstanceOf(PayoutsOffError)
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.writes).toBe(0)
   })
 
   it('does not retry failed payouts', async () => {
     state.payouts.push({
-      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 92, status: 'FAILED', retryCount: 0,
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'FAILED', retryCount: 0,
       alertedAt: null, lastFailedAt: at('2027-03-12T08:00:00Z'), failureReason: 'Network error calling Paystack: down',
       paystackTransferCode: null, paystackTransferReference: 'pyt-old',
     })
@@ -335,9 +335,9 @@ describe('one payout per paid stay', () => {
   it('sends the host their share in pesewas, with a reason naming the booking', async () => {
     booking({ subtotal: 240 })
     await runPayouts()
-    // $240 less 8% is $220.80, at 15 cedis to the dollar
-    expect(sentBody()).toMatchObject({ source: 'balance', amount: 331200, recipient: 'RCP_1' })
-    expect(state.payouts[0]).toMatchObject({ amount: 220.8, currency: 'USD', status: 'PROCESSING' })
+    // $240 less the 10% commission is $216, at 15 cedis to the dollar
+    expect(sentBody()).toMatchObject({ source: 'balance', amount: 324000, recipient: 'RCP_1' })
+    expect(state.payouts[0]).toMatchObject({ amount: 216, currency: 'USD', status: 'PROCESSING' })
   })
 
   it('pays stays of any length once, 48 hours after check-in', async () => {
@@ -393,14 +393,14 @@ describe('bookings that are never paid by this job', () => {
 
   it('refuses a direct call for a booking made before the cut-off', async () => {
     booking({ createdAt: at('2026-08-12T23:39:40Z') })
-    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 92 })).rejects.toThrow(/before PAYOUTS_NOT_BEFORE/)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toThrow(/before PAYOUTS_NOT_BEFORE/)
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.payouts).toHaveLength(0)
   })
 
   it('leaves a booking that already has a payout alone', async () => {
     booking()
-    state.payouts.push({ id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 92, status: 'COMPLETED', paystackTransferCode: 'TRF_done', createdAt: at('2027-03-12T11:00:00Z') })
+    state.payouts.push({ id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'COMPLETED', paystackTransferCode: 'TRF_done', createdAt: at('2027-03-12T11:00:00Z') })
     const run = await runPayouts()
     expect(run.checked).toBe(0)
     expect(fetchMock).not.toHaveBeenCalled()
@@ -419,7 +419,7 @@ describe('a host with no payout method', () => {
     booking()
     for (let i = 0; i < 3; i++) {
       const run = await runPayouts()
-      expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 92, action: 'waiting-for-payout-method' }])
+      expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-payout-method' }])
     }
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.payouts).toHaveLength(0)
@@ -454,7 +454,7 @@ describe('a host with no payout method', () => {
     const [message, options] = sentry.captureMessage.mock.calls[0]
     expect(message).toBe('Host payout still unpaid 7 days after it fell due')
     expect(options).toMatchObject({ level: 'warning', fingerprint: ['payout-overdue', 'booking_1'], tags: { area: 'payouts', payout_failure: 'OVERDUE' } })
-    expect(options.contexts.payout).toMatchObject({ bookingId: 'booking_1', hostId: 'host_1', amount: 92, why: 'the host has no verified payout method' })
+    expect(options.contexts.payout).toMatchObject({ bookingId: 'booking_1', hostId: 'host_1', amount: 90, why: 'the host has no verified payout method' })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -475,7 +475,7 @@ describe('a payout left PENDING by a run that died', () => {
   const stuck = (over: Row = {}) => {
     booking()
     state.payouts.push({
-      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 92, status: 'PENDING', retryCount: 0,
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'PENDING', retryCount: 0,
       paystackTransferCode: null, paystackTransferReference: 'pyt-original', failureReason: null,
       createdAt: new Date(NOW.getTime() - STALE_CLAIM_MS - 1000), initiatedAt: null, ...over,
     })
@@ -521,7 +521,7 @@ describe('a cancelled or refunded stay', () => {
   it('is refused a payout when called directly', async () => {
     for (const status of ['CANCELLED', 'DECLINED']) {
       const b = booking({ status })
-      await expect(initiateHostPayout({ hostId: 'host_1', bookingId: b.id as string, amount: 92 })).rejects.toThrow(/cancelled or refunded/)
+      await expect(initiateHostPayout({ hostId: 'host_1', bookingId: b.id as string, amount: 90 })).rejects.toThrow(/cancelled or refunded/)
     }
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.payouts).toHaveLength(0)
@@ -529,14 +529,14 @@ describe('a cancelled or refunded stay', () => {
 
   it('is refused a payout once a refund is on record, whatever its status says', async () => {
     booking({ refund: { id: 'refund_1' } })
-    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 92 })).rejects.toThrow(/cancelled or refunded/)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toThrow(/cancelled or refunded/)
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it('does not have a stuck payout resumed after the cancellation', async () => {
     booking({ status: 'CANCELLED', refund: { id: 'refund_1' } })
     state.payouts.push({
-      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 92, status: 'PENDING', retryCount: 0,
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'PENDING', retryCount: 0,
       paystackTransferCode: null, paystackTransferReference: 'pyt-original', failureReason: null,
       createdAt: new Date(NOW.getTime() - STALE_CLAIM_MS - 1000), initiatedAt: null,
     })
@@ -562,7 +562,7 @@ describe('disputes and payouts', () => {
 
   it('refuses to start a transfer for a booking with an open guest dispute', async () => {
     booking({ disputes: guestDispute('OPEN') })
-    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 92 })).rejects.toThrow(/open dispute: payout on hold/)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toThrow(/open dispute: payout on hold/)
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.payouts).toHaveLength(0)
   })
@@ -572,7 +572,7 @@ describe('disputes and payouts', () => {
     await runPayouts()
     ;(b.disputes as Row[])[0].status = 'RESOLVED'
     const run = await runPayouts()
-    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 92 })
+    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 90 })
     expect(transferCalls()).toHaveLength(1)
   })
 
@@ -581,23 +581,23 @@ describe('disputes and payouts', () => {
     expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid' })
   })
 
-  it('pays the host 92% of what is left after a part refund', async () => {
+  it('pays the host their share of what is left after a part refund', async () => {
     booking({ subtotal: 400, paymentStatus: 'PARTIALLY_REFUNDED', disputes: guestDispute('RESOLVED'), refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
     const run = await runPayouts()
-    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 230 })
-    // $230 at 15 cedis to the dollar
-    expect(sentBody().amount).toBe(345000)
-    expect(state.payouts[0]).toMatchObject({ amount: 230 })
+    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 225 })
+    // $225 at 15 cedis to the dollar
+    expect(sentBody().amount).toBe(337500)
+    expect(state.payouts[0]).toMatchObject({ amount: 225 })
   })
 
   it('pays the same share while the part refund is still on its way', async () => {
     booking({ subtotal: 400, paymentStatus: 'PAID', refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
-    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid', amount: 230 })
+    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid', amount: 225 })
   })
 
   it('pays in full when only the deposit went back to the guest', async () => {
     booking({ subtotal: 400, paymentStatus: 'PARTIALLY_REFUNDED', refund: { reason: 'DISPUTE_DEPOSIT', stayRefund: 0 } })
-    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid', amount: 368 })
+    expect((await runPayouts()).results[0]).toMatchObject({ action: 'paid', amount: 360 })
   })
 
   it('never pays after a full refund from a dispute', async () => {
@@ -610,7 +610,7 @@ describe('disputes and payouts', () => {
 
   it("refuses a transfer bigger than the host's share of what is left", async () => {
     booking({ subtotal: 400, refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
-    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 368 })).rejects.toThrow(/more than the host's share/)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 360 })).rejects.toThrow(/more than the host's share/)
     booking({ subtotal: 400 })
     await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_2', amount: 400 })).rejects.toThrow(/more than the host's share/)
     expect(fetchMock).not.toHaveBeenCalled()

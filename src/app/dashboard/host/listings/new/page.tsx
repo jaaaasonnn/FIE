@@ -11,6 +11,7 @@ import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
 import { POLICY_LABELS, policyRuleLines, type Policy } from '@/lib/cancellationPolicy'
+import { GUEST_FEE_CHARGED } from '@/lib/fees'
 
 const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Photos', 'Review']
 
@@ -349,7 +350,7 @@ export default function NewListingPage() {
             </div>
           ))}
           <p className="text-xs leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>
-            The service fee is refunded only with a full refund, and the damage deposit is always refunded if the guest cancels before arriving.
+            {GUEST_FEE_CHARGED ? 'The service fee is refunded only with a full refund, and the' : 'The'} damage deposit is always refunded if the guest cancels before arriving.
             If you cancel a confirmed booking yourself, the guest is refunded everything.
           </p>
         </div>

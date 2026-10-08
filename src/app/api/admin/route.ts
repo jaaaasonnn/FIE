@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
 import { getAutoFetchStatus } from '@/lib/exchangeRate'
 import { notify } from '@/lib/messaging/notify'
+import { hostCommission } from '@/lib/disputes'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -14,13 +15,19 @@ export async function GET(req: Request) {
 
     if (type === 'stats') {
       const [
-        totalUsers, totalListings, totalBookings, totalRevenue,
+        totalUsers, totalListings, totalBookings, paidStays,
         pendingVerifications, openDisputes, hostCancellations, refundsOwed,
       ] = await Promise.all([
         db.user.count(),
         db.listing.count({ where: { isActive: true } }),
         db.booking.count(),
-        db.payment.aggregate({ _sum: { amount: true }, where: { status: 'SUCCESS' } }),
+        // Stays that were paid for and still stand. Money is counted from the
+        // stay price, never from payments: a payment also carries the damage
+        // deposit, which is held for the guest and is not revenue.
+        db.booking.findMany({
+          where: { status: { in: ['CONFIRMED', 'COMPLETED'] }, paymentStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] } },
+          select: { subtotal: true, refund: { select: { stayRefund: true } } },
+        }),
         db.verification.count({ where: { status: 'PENDING' } }),
         db.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
         // Confirmed bookings a host cancelled. No penalty is applied yet.
@@ -29,11 +36,13 @@ export async function GET(req: Request) {
         db.refund.count({ where: { status: { in: ['PENDING', 'PROCESSING', 'FAILED', 'NEEDS_ATTENTION'] } } }),
       ])
 
-      const platformRevenue = (totalRevenue._sum.amount || 0) * 0.08
+      // What guests paid for the stays themselves, and FieGH's commission on it
+      const totalRevenue = paidStays.reduce((sum, b) => sum + Math.max(0, b.subtotal - (b.refund?.stayRefund ?? 0)), 0)
+      const platformRevenue = paidStays.reduce((sum, b) => sum + hostCommission(b.subtotal, b.refund?.stayRefund ?? 0), 0)
 
       return NextResponse.json({
         totalUsers, totalListings, totalBookings,
-        totalRevenue: totalRevenue._sum.amount || 0,
+        totalRevenue,
         platformRevenue,
         pendingVerifications, openDisputes, hostCancellations, refundsOwed,
       })

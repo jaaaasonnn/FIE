@@ -10,6 +10,8 @@ import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
 import { NotificationsList } from '@/components/NotificationsList'
+import { hostShare } from '@/lib/disputes'
+import { COMMISSION_PERCENT } from '@/lib/fees'
 
 type ApiListing = {
   id: string
@@ -30,6 +32,8 @@ type ApiBooking = {
   checkIn: string
   checkOut: string
   status: string
+  /** The stay price or rent alone: what the host's share is worked out from */
+  subtotal: number
   totalPrice: number
   rentalMode: string
   guest: { id: string; name: string | null; profilePhoto: string | null }
@@ -104,7 +108,9 @@ function HostDashboardContent() {
   monthStart.setHours(0, 0, 0, 0)
   const monthEarnings = bookings
     .filter((b) => b.status !== 'CANCELLED' && b.status !== 'DECLINED' && new Date(b.checkIn) >= monthStart)
-    .reduce((s, b) => s + b.totalPrice * 0.92, 0)
+    // The host's share of the stay price. The total a guest pays also holds
+    // the damage deposit, which is not the host's earnings.
+    .reduce((s, b) => s + hostShare(b.subtotal), 0)
 
   const firstName = user?.name?.split(' ')[0] ?? 'Host'
 
@@ -230,7 +236,7 @@ function HostDashboardContent() {
                 icon={<DollarSign size={18} style={{ color: 'var(--color-accent)' }} />}
                 label="This Month"
                 value={`$${monthEarnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                sub="After 8% commission"
+                sub={`After ${COMMISSION_PERCENT} commission`}
               />
               <StatCard
                 icon={<Calendar size={18} style={{ color: '#2563EB' }} />}

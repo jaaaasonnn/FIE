@@ -159,7 +159,10 @@ export function CancelDialog({ bookingId, listingTitle, role, onClose, onDone }:
                 </div>
                 <dl className="mt-2 space-y-1 text-sm" style={muted}>
                   <div className="flex justify-between gap-3"><dt>Stay price</dt><dd>{formatUsd(quote.stayRefund)}</dd></div>
-                  <div className="flex justify-between gap-3"><dt>Service fee</dt><dd>{formatUsd(quote.serviceFeeRefund)}</dd></div>
+                  {/* Only on a booking that was charged a service fee */}
+                  {preview.serviceFee > 0 && (
+                    <div className="flex justify-between gap-3"><dt>Service fee</dt><dd>{formatUsd(quote.serviceFeeRefund)}</dd></div>
+                  )}
                   {(quote.depositRefund > 0) && (
                     <div className="flex justify-between gap-3"><dt>Damage deposit</dt><dd>{formatUsd(quote.depositRefund)}</dd></div>
                   )}

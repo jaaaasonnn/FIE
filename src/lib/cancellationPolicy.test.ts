@@ -156,12 +156,17 @@ describe('wording', () => {
       "We never keep more than one month's rent.",
     ])
   })
-  it('states the fee, deposit and check-in day rules', () => {
-    expect(commonRuleLines('SHORT_STAY')).toEqual([
-      'The service fee is refunded only when the whole stay price is refunded.',
+  it('states the deposit and check-in day rules, and the fee rule only where a fee was charged', () => {
+    const always = [
       'The damage deposit is always refunded in full if you cancel before check-in.',
       'From the check-in day onwards you cannot cancel online. Contact support at support@fiegh.com.',
-    ])
+    ]
+    // New bookings carry no service fee, so a listing says nothing about one
+    expect(commonRuleLines('SHORT_STAY')).toEqual(always)
+    expect(commonRuleLines('SHORT_STAY', false)).toEqual(always)
+    // A booking that was charged one still states its rule
+    expect(commonRuleLines('SHORT_STAY', true)).toEqual(['The service fee is refunded only when the whole stay price is refunded.', ...always])
+    expect(commonRuleLines('PERMANENT', true)[0]).toBe('The service fee is refunded only when the whole rent is refunded.')
   })
   it('uses no em-dashes or arrows', () => {
     const all = ['SHORT_STAY', 'TEMP_STAY', 'PERMANENT'].flatMap((m) => ['FLEXIBLE', 'MODERATE', 'STRICT'].flatMap((p) => [...policyRuleLines(m, p), ...commonRuleLines(m)]))

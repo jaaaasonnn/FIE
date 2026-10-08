@@ -6,6 +6,8 @@
 // check-in day, in Ghana. From the check-in day onwards a booking cannot be
 // cancelled online at all (lib/cancelRules.ts).
 
+import { serviceFeeRefundRule } from '@/lib/fees'
+
 export type Policy = 'FLEXIBLE' | 'MODERATE' | 'STRICT'
 export type RentalMode = 'SHORT_STAY' | 'TEMP_STAY' | 'PERMANENT'
 
@@ -91,7 +93,8 @@ export type RefundQuote = {
  *
  *  - Stay price: the policy's percentage. For monthly and long-term stays the
  *    amount kept is never more than one month's rent.
- *  - Service fee: back only when the whole stay price comes back.
+ *  - Service fee, on a booking that was charged one: back only when the
+ *    whole stay price comes back.
  *  - Damage deposit: always back in full, since the guest never arrived.
  *  - A host cancelling: all three, in full.
  */
@@ -156,10 +159,13 @@ export function policyRuleLines(rentalModeRaw: unknown, policyRaw: unknown): str
 }
 
 /** What is true under every policy. */
-export function commonRuleLines(rentalModeRaw: unknown): string[] {
+export function commonRuleLines(rentalModeRaw: unknown, hasServiceFee?: boolean): string[] {
   const mode = asMode(rentalModeRaw)
+  // The service fee rule is stated only where there is a fee: on a booking
+  // that was charged one, or everywhere if new bookings are charged one
+  const feeRule = serviceFeeRefundRule(price(mode), hasServiceFee)
   return [
-    `The service fee is refunded only when the whole ${price(mode)} is refunded.`,
+    ...(feeRule ? [feeRule] : []),
     `The damage deposit is always refunded in full if you cancel before ${arrival(mode)}.`,
     `From the ${arrival(mode)} day onwards you cannot cancel online. Contact support at support@fiegh.com.`,
   ]
