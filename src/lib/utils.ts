@@ -36,6 +36,18 @@ export function normalizePhone(phone: string): string {
   return cleaned
 }
 
+/**
+ * An email address as it is stored: trimmed and lower-cased. Returns null when
+ * it is not a plausible address. This checks the shape only; nothing is sent
+ * to the address to prove it exists.
+ */
+export function normalizeEmail(email: unknown): string | null {
+  if (typeof email !== 'string') return null
+  const cleaned = email.trim().toLowerCase()
+  if (cleaned.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleaned)) return null
+  return cleaned
+}
+
 export const GHANA_REGIONS = [
   'Greater Accra', 'Ashanti', 'Central', 'Western', 'Eastern',
   'Volta', 'Northern', 'Upper East', 'Upper West', 'Brong-Ahafo',

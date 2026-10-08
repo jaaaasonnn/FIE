@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { MAX_DESCRIPTION, MIN_DESCRIPTION, OPEN_DISPUTE_STATUSES } from '@/lib/disputes'
 import { notifications } from '@/lib/disputeViews'
+import { notify } from '@/lib/messaging/notify'
 
 /**
  * POST /api/disputes/[id]  { response }
@@ -58,6 +59,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return true
     })
     if (!done) return NextResponse.json({ error: 'You have already replied' }, { status: 409 })
+    notify('dispute.replied', { disputeId: id })
 
     return NextResponse.json({ success: true })
   } catch (error) {

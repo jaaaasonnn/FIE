@@ -12,8 +12,9 @@ import { useAuth } from '@/context/AuthContext'
 import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRate'
 import { AdminDisputes } from '@/components/admin/AdminDisputes'
 import { NotificationsList } from '@/components/NotificationsList'
+import { AdminMessages } from '@/components/admin/AdminMessages'
 
-const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Reviews', 'Settings']
+const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Messages', 'Reviews', 'Settings']
 
 type AdminUser = {
   id: string
@@ -268,6 +269,7 @@ export default function AdminPage() {
           ) : (
             <>
               {activeTab === 'Disputes' && <AdminDisputes />}
+              {activeTab === 'Messages' && <AdminMessages />}
 
               {activeTab === 'Overview' && <NotificationsList className="mb-6" />}
 

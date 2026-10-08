@@ -3,6 +3,7 @@ import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
+import { notify } from '@/lib/messaging/notify'
 
 // Fields a host (or admin) may change via this route. Anything else in the
 // request body — hostId, id, avgRating, reviewCount, isFeatured, etc. — is
@@ -117,6 +118,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const updated = await db.listing.update({ where: { id }, data })
+    // Only when this edit is what put it on hold, not on every edit of a held listing
+    if (flagged && !listing.moderationHold) notify('listing.auto_held', { listingId: id })
 
     return NextResponse.json({ listing: updated, flagged, held })
   } catch (error) {

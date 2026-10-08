@@ -12,10 +12,12 @@ export async function POST(req: Request) {
     }
 
     const isPhone = /^[0-9+]/.test(identifier)
-    const normalizedId = isPhone ? normalizePhone(identifier) : identifier
+    const normalizedId = isPhone ? normalizePhone(identifier) : String(identifier).trim()
 
+    // Emails are stored lower-cased. An account made before that rule may
+    // still have capitals in it, so the address as typed is tried as well.
     const user = await db.user.findFirst({
-      where: isPhone ? { phone: normalizedId } : { email: normalizedId }
+      where: isPhone ? { phone: normalizedId } : { email: { in: [normalizedId.toLowerCase(), normalizedId] } }
     })
 
     if (!user || !user.passwordHash) {

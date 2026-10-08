@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
-import { validateGhanaPhone, normalizePhone } from '@/lib/utils'
+import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 
 /**
  * GET /api/users/me
@@ -18,7 +18,7 @@ export async function GET() {
     select: {
       id: true, name: true, email: true, phone: true, role: true,
       profilePhoto: true, bio: true, nationality: true, businessName: true,
-      isVerified: true, isSuperhost: true,
+      isVerified: true, isSuperhost: true, optionalEmails: true,
     },
   })
 
@@ -41,13 +41,29 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
     }
 
-    const { name, phone, bio, nationality, businessName } = await req.json()
+    const { name, phone, bio, nationality, businessName, email: rawEmail, optionalEmails } = await req.json()
 
     if (typeof name !== 'string' || !name.trim()) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 })
     }
 
-    if (!phone && !sessionUser.email) {
+    // An account with no email can add one here. One that already has an
+    // email keeps it: changing a sign-in address needs a confirmation step
+    // that does not exist yet.
+    let newEmail: string | undefined
+    if (!sessionUser.email && typeof rawEmail === 'string' && rawEmail.trim()) {
+      const email = normalizeEmail(rawEmail)
+      if (!email) {
+        return NextResponse.json({ error: 'Enter a valid email address (e.g. ama@example.com)' }, { status: 400 })
+      }
+      const taken = await db.user.findUnique({ where: { email } })
+      if (taken && taken.id !== sessionUser.id) {
+        return NextResponse.json({ error: 'Email already in use' }, { status: 409 })
+      }
+      newEmail = email
+    }
+
+    if (!phone && !sessionUser.email && !newEmail) {
       return NextResponse.json(
         { error: 'You need at least a phone number or email on file' },
         { status: 400 },
@@ -82,11 +98,14 @@ export async function PATCH(req: Request) {
         bio: bio?.trim() || null,
         nationality: nationality?.trim() || null,
         businessName: businessName?.trim() || null,
+        ...(newEmail ? { email: newEmail } : {}),
+        // Only the optional emails; everything about a booking is always sent
+        ...(typeof optionalEmails === 'boolean' ? { optionalEmails } : {}),
       },
       select: {
         id: true, name: true, email: true, phone: true, role: true,
         profilePhoto: true, bio: true, nationality: true, businessName: true,
-        isVerified: true, isSuperhost: true,
+        isVerified: true, isSuperhost: true, optionalEmails: true,
       },
     })
 

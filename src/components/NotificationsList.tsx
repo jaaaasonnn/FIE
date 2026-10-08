@@ -7,8 +7,8 @@ type Notification = { id: string; type: string; title: string; body: string; cre
 
 /**
  * The signed-in person's unread notifications, each with a dismiss button.
- * Shows nothing when there are none. These are in-app only: FieGH does not
- * send email or SMS yet.
+ * Shows nothing when there are none. Emails and SMS for the same events are
+ * handled separately (lib/messaging), and only once messaging is switched on.
  */
 export function NotificationsList({ className = '' }: { className?: string }) {
   const [items, setItems] = useState<Notification[]>([])

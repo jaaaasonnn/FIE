@@ -8,6 +8,7 @@ import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
+import { notify } from '@/lib/messaging/notify'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -150,6 +151,10 @@ export async function POST(req: Request) {
       }
       throw txErr
     }
+
+    // A request needs the host's answer. An instant booking says nothing
+    // until it is paid for, which is when it is really a booking.
+    if (booking.status === 'PENDING') notify('booking.requested', { bookingId: booking.id })
 
     return NextResponse.json({ booking }, { status: 201 })
   } catch (error) {

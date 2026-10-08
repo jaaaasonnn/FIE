@@ -1,14 +1,19 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
-import { validateGhanaPhone, normalizePhone } from '@/lib/utils'
+import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
+import { notify } from '@/lib/messaging/notify'
 
 export async function POST(req: Request) {
   try {
-    const { name, email, phone, password, role, businessName, nationality } = await req.json()
+    const { name, email: rawEmail, phone, password, role, businessName, nationality } = await req.json()
 
     if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
-    if (!phone && !email) return NextResponse.json({ error: 'Phone or email is required' }, { status: 400 })
+    if (!phone && !rawEmail) return NextResponse.json({ error: 'Phone or email is required' }, { status: 400 })
+    // Stored trimmed and lower-cased, so the same address cannot be registered
+    // twice in different capitals and messages always go to one spelling of it
+    const email = rawEmail ? normalizeEmail(rawEmail) : null
+    if (rawEmail && !email) return NextResponse.json({ error: 'Enter a valid email address (e.g. ama@example.com)' }, { status: 400 })
     if (phone && !validateGhanaPhone(phone)) {
       return NextResponse.json({ error: 'Invalid Ghana phone number format (e.g. 0241234567)' }, { status: 400 })
     }
@@ -48,6 +53,8 @@ export async function POST(req: Request) {
     })
 
     const { passwordHash: _, ...userWithoutPassword } = user
+
+    notify('account.welcome', { userId: user.id })
 
     return NextResponse.json({ user: userWithoutPassword, message: 'Account created successfully' }, { status: 201 })
   } catch (error) {

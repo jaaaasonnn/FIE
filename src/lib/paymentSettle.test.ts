@@ -15,6 +15,8 @@ const sentry = vi.hoisted(() => ({
 }))
 const sendRefund = vi.hoisted(() => vi.fn())
 vi.mock('@sentry/nextjs', () => sentry)
+// Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 vi.mock('@/lib/session', () => ({ getSessionUser: async () => state.user }))
 vi.mock('@/lib/refunds', async (original) => ({ ...(await original<typeof import('@/lib/refunds')>()), sendRefund }))
 

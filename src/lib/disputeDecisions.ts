@@ -12,6 +12,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { disputeDecisionsEnabled } from '@/lib/payoutSwitches'
 import { sendRefund } from '@/lib/refunds'
+import { notify } from '@/lib/messaging/notify'
 import {
   OPEN_DISPUTE_STATUSES, OVERDUE_DISPUTE_DAYS, decisionEffect, outcomeLabel,
   type DecisionEffect,
@@ -145,6 +146,7 @@ export async function decideDispute({
       console.error('[Disputes] sendRefund threw for refund', refundId, error)
     }
   }
+  notify('dispute.decided', { disputeId: dispute.id })
   return { ok: true, mode: 'applied', effect, refundId }
 }
 

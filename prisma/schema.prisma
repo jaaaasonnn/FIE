@@ -22,6 +22,9 @@ model User {
   trustScore    Int      @default(0)
   isVerified    Boolean  @default(false)
   isSuperhost   Boolean  @default(false)
+  // Off turns off the optional emails only (new-message alerts, review
+  // prompts, reviews received, welcome). Everything else is always sent.
+  optionalEmails Boolean @default(true)
 
   // Host payout destination — resolved + registered with Paystack before
   // being trusted. payoutMethodVerifiedAt is null until a successful
@@ -54,6 +57,7 @@ model User {
   wishlists       Wishlist[]
   sessions        Session[]
   notifications   Notification[]
+  messageLogs     MessageLog[]
 }
 
 // Minimal in-app notification — email isn't wired up yet, so this is the
@@ -71,6 +75,41 @@ model Notification {
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// One row per message to one person on one channel: what was (or would have
+// been) sent, to whom, and what became of it. Written by lib/messaging/notify.ts
+// and sent by the send-messages job (lib/messaging/deliver.ts). dedupeKey is
+// unique, so the same event can never produce the same message twice.
+// The real address is never stored here: recipientMasked is for reading only,
+// and the address is looked up from User when the message is sent.
+model MessageLog {
+  id                String    @id @default(cuid())
+  event             String
+  channel           String    // EMAIL | SMS | IN_APP
+  userId            String?
+  recipientRole     String    // GUEST | HOST | ADMIN
+  recipientMasked   String?
+  bookingId         String?   // no relation on purpose: a booking can be deleted without touching the log
+  dedupeKey         String    @unique
+  subject           String?
+  body              String
+  status            String    @default("QUEUED") // QUEUED | SENDING | LOGGED | SENT | FAILED | GAVE_UP | SKIPPED | UNKNOWN
+  provider          String?
+  providerMessageId String?
+  error             String?
+  attempts          Int       @default(0)
+  claimedAt         DateTime?
+  nextAttemptAt     DateTime?
+  sentAt            DateTime?
+  alertedAt         DateTime?
+  createdAt         DateTime  @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+  @@index([userId])
 }
 
 model Session {

@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
+import { notify } from '@/lib/messaging/notify'
 import { parseSearchRange, availabilityWhere } from '@/lib/searchDates'
 
 export async function GET(req: Request) {
@@ -183,6 +184,7 @@ export async function POST(req: Request) {
     })
 
     console.log('[POST /api/listings] created', listing.id, isFlagged ? '(flagged inactive)' : '')
+    if (isFlagged) notify('listing.auto_held', { listingId: listing.id })
     return NextResponse.json({ listing, flagged: isFlagged }, { status: 201 })
   } catch (error) {
     console.error('[POST /api/listings] error:', error)

@@ -10,6 +10,7 @@ import { db } from '@/lib/db'
 import { STALE_CLAIM_MS, initiateHostPayout, retryFailedPayouts, type RetryResult } from '@/lib/payouts'
 import { completionEnabled, payoutGate } from '@/lib/payoutSwitches'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
+import { notify } from '@/lib/messaging/notify'
 
 const HOUR_MS = 60 * 60 * 1000
 /**
@@ -126,6 +127,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     // list and is paid on the first run after the host adds one.
     if (!booking.host.paystackRecipientCode || !booking.host.payoutMethodVerifiedAt) {
       results.push({ ...base, action: 'waiting-for-payout-method' })
+      if (live) notify('payout.waiting', { bookingId: booking.id })
       noteIfOverdue(booking.id, booking.hostId, amount, dueAt, 'the host has no verified payout method')
       continue
     }
@@ -241,6 +243,7 @@ export async function runCompletion({ dryRun = false, now = new Date() }: { dryR
     where: { id: { in: bookingIds }, status: 'CONFIRMED', paymentStatus: 'PAID' },
     data: { status: 'COMPLETED' },
   })
+  for (const bookingId of bookingIds) notify('booking.completed', { bookingId })
   return { ...mode, transitioned: updated.count, bookingIds }
 }
 

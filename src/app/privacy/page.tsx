@@ -17,7 +17,7 @@ export default function PrivacyPage() {
             },
             {
               title: '2. How We Use Your Information',
-              body: 'We use your information to: operate the FieGH platform; verify your identity; process payments and payouts; send booking confirmations and notifications via SMS and in-app; calculate trust scores; improve the platform through analytics; comply with Ghanaian law.'
+              body: 'We use your information to: operate the FieGH platform; verify your identity; process payments and payouts; send booking confirmations and other messages about your bookings by email, SMS and in the app; calculate trust scores; improve the platform through analytics; comply with Ghanaian law.'
             },
             {
               title: '3. Identity Document Security',
@@ -32,8 +32,8 @@ export default function PrivacyPage() {
               body: 'We share limited information with: hosts (your name, profile photo, and trust score when you book); guests (host name, profile photo, verified status); Paystack and MoMo operators (for payment processing); government authorities (only when legally required). We do not sell your data to third parties.'
             },
             {
-              title: '6. SMS and Notifications',
-              body: 'We use Africa\'s Talking or Twilio to send SMS notifications for key events (booking confirmed, payment received, check-in reminders). You can opt out of non-critical SMS in your notification settings.'
+              title: '6. Emails, SMS and Notifications',
+              body: 'We send messages about your bookings, payments and account by email and in the app, and by SMS for the few that cannot wait, such as a new booking request, a confirmed booking, a cancellation or a payout. These are always sent, because they are about your booking or your money. A few emails are optional (new messages in your inbox, reminders to write a review, reviews you receive and welcome notes) and you can turn them off on your profile page. We do not send marketing messages. Messages are delivered by email and SMS providers acting on our behalf, who receive only what is needed to deliver them.'
             },
             {
               title: '7. Data Retention',

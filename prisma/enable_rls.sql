@@ -18,6 +18,7 @@ ALTER TABLE public."Dispute"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."ExchangeRate"       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Listing"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Message"            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."MessageLog"         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Notification"       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Payment"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Payout"             ENABLE ROW LEVEL SECURITY;

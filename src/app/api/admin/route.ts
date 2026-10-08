@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
 import { getAutoFetchStatus } from '@/lib/exchangeRate'
+import { notify } from '@/lib/messaging/notify'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -88,6 +89,7 @@ export async function POST(req: Request) {
         data: { isActive: false, moderationHold: true },
         select: { id: true, isActive: true, moderationHold: true },
       })
+      notify('listing.held', { listingId })
       return NextResponse.json({ success: true, listing })
     }
 
@@ -100,6 +102,7 @@ export async function POST(req: Request) {
         data: { isActive: true, moderationHold: false },
         select: { id: true, isActive: true, moderationHold: true },
       })
+      notify('listing.reactivated', { listingId })
       return NextResponse.json({ success: true, listing })
     }
 

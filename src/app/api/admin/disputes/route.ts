@@ -5,6 +5,7 @@ import { OPEN_DISPUTE_STATUSES, outcomesFor, outcomeLabel } from '@/lib/disputes
 import { disputeInclude, disputeView } from '@/lib/disputeViews'
 import { decideDispute } from '@/lib/disputeDecisions'
 import { disputeDecisionsEnabled } from '@/lib/payoutSwitches'
+import { notify } from '@/lib/messaging/notify'
 
 const MAX_NOTE = 1000
 
@@ -107,9 +108,11 @@ export async function POST(req: Request) {
       const note = typeof body.note === 'string' ? body.note.trim() : ''
       if (!note) return NextResponse.json({ error: 'Write the note' }, { status: 400 })
       if (note.length > MAX_NOTE) return NextResponse.json({ error: `A note can be at most ${MAX_NOTE} characters` }, { status: 400 })
-      await db.disputeEvent.create({
+      const event = await db.disputeEvent.create({
         data: { disputeId, actorId: admin.id, type: action === 'note' ? 'ADMIN_NOTE' : 'CORRECTION', note },
       })
+      // A correction is for both parties to see. A private note tells no one.
+      if (action === 'correction') notify('dispute.correction', { disputeId, eventId: event.id })
       return NextResponse.json({ success: true })
     }
 

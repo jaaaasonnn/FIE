@@ -11,6 +11,8 @@ const state = vi.hoisted(() => ({
   writes: [] as string[],
 }))
 vi.mock('@sentry/nextjs', () => ({ captureException: vi.fn(), captureMessage: vi.fn() }))
+// Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 vi.mock('@/lib/session', () => ({ getSessionUser: async () => state.user }))
 vi.mock('bcryptjs', () => ({ default: { compare: async () => true, hash: async () => 'hash' } }))
 vi.mock('@/lib/supabase', () => ({

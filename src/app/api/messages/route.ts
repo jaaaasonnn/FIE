@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { notify } from '@/lib/messaging/notify'
 
 const messageInclude = {
   sender:   { select: { id: true, name: true, profilePhoto: true } },
@@ -135,6 +136,8 @@ export async function POST(req: Request) {
       },
       include: messageInclude,
     })
+
+    notify('message.received', { messageId: message.id })
 
     return NextResponse.json({ message }, { status: 201 })
   } catch (error) {

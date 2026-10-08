@@ -109,8 +109,8 @@ NEXTAUTH_SECRET="your-secret"
 NEXTAUTH_URL="http://localhost:3000"
 PAYSTACK_SECRET_KEY="sk_test_..."
 PAYSTACK_PUBLIC_KEY="pk_test_..."
-AT_API_KEY="..."          # Africa's Talking (SMS)
-AT_USERNAME="sandbox"
+AT_API_KEY="..."          # Africa's Talking: not used by any code
+AT_USERNAME="sandbox"     # not used by any code
 CLOUDINARY_CLOUD_NAME="..."
 CLOUDINARY_API_KEY="..."
 CLOUDINARY_API_SECRET="..."
@@ -132,6 +132,15 @@ The hourly cron jobs are off until switched on. Leave these unset until launch (
 - `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`). Only bookings created on or after it can be ended by the expiry job. Required for the job to run.
 
 Add `?dryRun=1` to any cron URL for a report-only run.
+
+### Messaging (email and SMS)
+
+Nothing is sent until it is switched on. Leave these unset until a provider account exists (see `.env.example` and CLAUDE.md):
+
+- `MESSAGING_ENABLED`: must be exactly `true` before anything can be sent. While off, every message is still recorded in the message log (admin page, Messages tab) as `LOGGED`, and is never sent later.
+- `EMAIL_PROVIDER`, `SMS_PROVIDER`: the adapter each channel sends through. Unset means that channel only logs. No real adapter is written yet.
+- `EMAIL_FROM_NAME`, `EMAIL_FROM_ADDRESS`, `SUPPORT_EMAIL`, `SMS_SENDER_ID`: who messages come from. Defaults are FieGH, bookings@fiegh.com, support@fiegh.com and FieGH.
+- `ADMIN_ALERT_EMAIL`: one shared inbox for admin emails. Unset means they are skipped.
 
 ## Pages
 

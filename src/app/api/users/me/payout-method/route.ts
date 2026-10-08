@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
+import { notify } from '@/lib/messaging/notify'
 
 const MOMO_BANK_CODES: Record<string, string> = { MTN: 'MTN', VODAFONE: 'VOD', AIRTELTIGO: 'ATL' }
 
@@ -159,6 +160,8 @@ export async function POST(req: Request) {
             : `Your payout method was changed to a bank account (${accountName}, ending ${accountNumber.slice(-4)}). If this wasn't you, contact support immediately.`,
       },
     })
+
+    notify('payout_method.changed', { userId: sessionUser.id })
 
     return NextResponse.json({ payoutMethod: updated })
   } catch (error) {

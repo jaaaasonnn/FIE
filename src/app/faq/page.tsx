@@ -114,7 +114,7 @@ const FAQS = [
     questions: [
       { q: 'Why do I need to verify my identity?', a: 'Ghana\'s rental market has historically suffered from fraud. ID verification helps us ensure every guest and host on FieGH is a real, accountable person. It protects everyone.' },
       { q: 'What ID is accepted?', a: 'We accept Ghana Card (NIA), Passport, and Voter ID. Hosts outside Ghana can use their national passport.' },
-      { q: 'How long does verification take?', a: 'Usually within a few hours. Sometimes up to 24 hours. You\'ll be notified by SMS and in-app once approved.' },
+      { q: 'How long does verification take?', a: 'Usually within a few hours. Sometimes up to 24 hours. We will email you and show a notice in the app once it has been reviewed.' },
     ],
   },
   {

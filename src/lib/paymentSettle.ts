@@ -10,6 +10,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { paymentWebhookEnabled } from '@/lib/payoutSwitches'
 import { sendRefund } from '@/lib/refunds'
+import { notify } from '@/lib/messaging/notify'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 
@@ -127,6 +128,7 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
     if (action === 'fail') {
       const done = await db.payment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'FAILED' } })
       if (done.count === 0) continue
+      notify('payment.failed', ids)
       return { outcome, changed: true, dryRun, ...ids }
     }
 
@@ -195,6 +197,7 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
         console.error('[Payments] sendRefund threw for refund', refundId, error)
       }
     }
+    notify(action === 'confirm' ? 'booking.confirmed' : 'payment.late_refund', { bookingId: payment.bookingId })
     return { outcome, changed: true, dryRun, ...ids, ...(refundId ? { refundId } : {}) }
   }
   throw new Error(`Payment ${charge.reference} could not be settled: it kept changing underneath`)

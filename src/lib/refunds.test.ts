@@ -8,6 +8,8 @@ type Row = Record<string, unknown>
 const state = vi.hoisted(() => ({ refunds: [] as Row[], payments: [] as Row[], bookings: [] as Row[], writes: 0 }))
 const sentry = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }))
 vi.mock('@sentry/nextjs', () => sentry)
+// Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 
 vi.mock('@/lib/db', () => {
   const matches = (row: Row, where: Row = {}): boolean =>

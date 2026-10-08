@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({ payouts: [] as Row[], users: [] as Row[] }))
 const sentry = vi.hoisted(() => ({ captureException: vi.fn() }))
 
 vi.mock('@sentry/nextjs', () => sentry)
+// Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 
 function matches(row: Row, where: Row = {}): boolean {
   return Object.entries(where).every(([key, cond]) => {

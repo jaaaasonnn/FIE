@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { Prisma, type Payout } from '@prisma/client'
 import { PayoutsOffError, payoutGate } from '@/lib/payoutSwitches'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
+import { notify } from '@/lib/messaging/notify'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
@@ -307,6 +308,7 @@ export async function recordPayoutFailure(
   }
 
   alertPayoutFailure(failed, kind === 'PERMANENT' ? 'PERMANENT' : 'RETRIES_EXHAUSTED')
+  notify('payout.failed', { payoutId })
   return db.payout.update({ where: { id: payoutId }, data: { alertedAt: now } })
 }
 

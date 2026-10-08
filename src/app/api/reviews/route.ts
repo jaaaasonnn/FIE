@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { notify } from '@/lib/messaging/notify'
 
 export async function GET(req: Request) {
   try {
@@ -148,6 +149,8 @@ export async function POST(req: Request) {
         }
       }
     }
+
+    notify('review.received', { reviewId: review.id })
 
     return NextResponse.json({ review, bothSubmitted: !!otherReview }, { status: 201 })
   } catch (error) {

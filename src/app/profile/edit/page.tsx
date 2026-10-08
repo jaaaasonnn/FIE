@@ -8,7 +8,7 @@ import { useAuth } from '@/context/AuthContext'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
-import { validateGhanaPhone } from '@/lib/utils'
+import { validateGhanaPhone, normalizeEmail } from '@/lib/utils'
 import { compressImage, MAX_RAW_PHOTO_BYTES, IMAGE_MIME_TYPES } from '@/lib/image'
 
 type EditableUser = {
@@ -21,6 +21,7 @@ type EditableUser = {
   bio: string | null
   nationality: string | null
   businessName: string | null
+  optionalEmails?: boolean
 }
 
 type FormState = {
@@ -29,6 +30,8 @@ type FormState = {
   bio: string
   nationality: string
   businessName: string
+  email: string
+  optionalEmails: boolean
 }
 
 export default function EditProfilePage() {
@@ -37,7 +40,7 @@ export default function EditProfilePage() {
 
   const [profile, setProfile] = useState<EditableUser | null>(null)
   const [form, setForm] = useState<FormState>({
-    name: '', phone: '', bio: '', nationality: '', businessName: '',
+    name: '', phone: '', bio: '', nationality: '', businessName: '', email: '', optionalEmails: true,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -61,6 +64,8 @@ export default function EditProfilePage() {
             bio: data.user.bio ?? '',
             nationality: data.user.nationality ?? '',
             businessName: data.user.businessName ?? '',
+            email: '',
+            optionalEmails: data.user.optionalEmails !== false,
           })
         }
       })
@@ -112,6 +117,7 @@ export default function EditProfilePage() {
     if (form.phone && !validateGhanaPhone(form.phone)) {
       e.phone = 'Enter a valid Ghana phone number (e.g. 0241234567)'
     }
+    if (!profile?.email && form.email.trim() && !normalizeEmail(form.email)) e.email = 'Enter a valid email address (e.g. ama@example.com)'
     if (form.bio.length > 500) e.bio = 'Bio must be 500 characters or fewer'
     setErrors((prev) => ({ photo: prev.photo, ...e }))
     return Object.keys(e).length === 0
@@ -231,14 +237,26 @@ export default function EditProfilePage() {
             required
           />
 
-          <Input
-            label="Email Address"
-            type="email"
-            value={profile.email ?? ''}
-            disabled
-            className="opacity-60 cursor-not-allowed"
-            hint="Email can't be changed here yet."
-          />
+          {profile.email ? (
+            <Input
+              label="Email Address"
+              type="email"
+              value={profile.email}
+              disabled
+              className="opacity-60 cursor-not-allowed"
+              hint="Email can't be changed here yet."
+            />
+          ) : (
+            <Input
+              label="Email Address"
+              type="email"
+              placeholder="ama@example.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              error={errors.email}
+              hint="Add an email to get booking confirmations and receipts. You need one to pay."
+            />
+          )}
 
           <Input
             label="Ghana Phone Number"
@@ -273,6 +291,26 @@ export default function EditProfilePage() {
               onChange={(e) => setForm({ ...form, businessName: e.target.value })}
             />
           )}
+
+          {/* The few emails a person can turn off. Booking and payment messages are always sent. */}
+          <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.optionalEmails}
+                onChange={(e) => setForm({ ...form, optionalEmails: e.target.checked })}
+                className="mt-1 h-5 w-5 flex-shrink-0"
+                style={{ accentColor: 'var(--color-accent)' }}
+              />
+              <span>
+                <span className="block text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Optional emails</span>
+                <span className="block text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
+                  New messages in your inbox, reminders to write a review, reviews you receive and welcome notes.
+                  Messages about your bookings, payments and account are always sent. We never send marketing.
+                </span>
+              </span>
+            </label>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={saving} className="flex-1">

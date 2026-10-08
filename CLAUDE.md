@@ -78,6 +78,23 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - An ended booking is `CANCELLED` with `cancelledBy: 'SYSTEM'` and reason `UNPAID_EXPIRED` or `NO_HOST_RESPONSE`. Bookings with no `payBy` (made before deadlines existed) are never ended for being unpaid.
 - Before turning the webhook on: set the webhook URL in the Paystack dashboard (test and live each have their own), make one test payment with the switch off, and read the "would confirm" line in the logs.
 
+## Messaging (email, SMS, in-app)
+
+- One call tells people about an event: `notify('booking.confirmed', { bookingId })` in `src/lib/messaging/notify.ts`. Call sites pass IDs only; the facts are read from the database (`events.ts`) and the words come from one registry (`templates.ts`).
+- `notify` only writes rows to `MessageLog` (and an in-app `Notification` for events that had none before). It runs after the response, never throws, and is called after the action has committed. It never calls a provider.
+- `send-messages` runs every minute (`deliver.ts`) and is the only place a provider adapter is called. A refusal is retried at 5 minutes, 30 minutes and 2 hours, then given up with a Sentry alert. Anything unsure (a throw, a timeout, a run that died) is closed as `UNKNOWN` and never retried, so nothing can be sent twice. A message older than 24 hours is dropped.
+- **Off by default.** `MESSAGING_ENABLED` must be exactly `true`, and `EMAIL_PROVIDER` / `SMS_PROVIDER` must name an adapter, per channel. Otherwise every message is recorded as `LOGGED` and nothing leaves; a message logged while off is never sent later. None of these is set in `.env` or on Vercel.
+- Adapters live in `src/lib/messaging/providers`, behind one interface (`types.ts`). Only the log-only adapter and a drill adapter that refuses everything (`fail-drill-email`, `fail-drill-sms`) exist. Adding Arkesel, Resend or Postmark is one file plus one line in `providers/index.ts`.
+- Each row has a unique `dedupeKey` (event, occurrence, person, channel), so a job or webhook that fires twice writes nothing the second time.
+- The log stores the user id and a masked address only. The real address is read from `User` when the message is sent. Console and Sentry get IDs only.
+- SMS is for nine messages only: a new request (host), request accepted (guest), booking paid and confirmed (guest and host), the other side cancelled (guest or host), payout sent, payout waiting, and payout method changed. One plain 160-character segment, cedis written "GHS", no names or account details.
+- Optional emails (new messages, review prompts, reviews received, welcome notes) can be turned off on the profile page (`User.optionalEmails`). Everything else is always sent. No marketing.
+- Admin emails go to one shared inbox, `ADMIN_ALERT_EMAIL`; unset means they are `SKIPPED`. Sender values: `EMAIL_FROM_NAME`, `EMAIL_FROM_ADDRESS`, `SUPPORT_EMAIL`, `SMS_SENDER_ID`.
+- The admin page has a Messages tab: the log, and a preview of every template with sample data.
+- The five older in-app notices (host cancelled, dispute raised, replied and resolved, payout method changed) are still written where they always were.
+- Emails are stored trimmed and lower-cased (`normalizeEmail` in `src/lib/utils.ts`). Nothing verifies that an address or number belongs to the person yet, and there is no password reset.
+- `AT_API_KEY` and `AT_USERNAME` are not used by any code.
+
 ## Roles and host-only routes
 
 - One helper file, `src/lib/roles.ts`: `requireHost()` and `requireAdmin()` for API routes (401 signed out, 403 otherwise), and `hostAreaRedirect()` for pages. The role is read from the database on every request, so a guest who becomes a host is a host on the next request.
@@ -95,7 +112,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - Guest outcomes: full refund (no payout), partial refund from the stay price only (the host is paid 92% of what is left), or rejected (paid as normal). Host outcomes: deposit returned, deposit kept (recorded; paid to the host by hand), or rejected. Decisions are final; mistakes are fixed by hand and written to the dispute as a correction.
 - Refund reasons added: `DISPUTE_FULL`, `DISPUTE_PARTIAL`, `DISPUTE_DEPOSIT`. The last two still allow a host payout.
 - Evidence: up to 6 photos a side, 5MB, JPEG/PNG/WebP, in the private `dispute-evidence` bucket, read only through 10-minute signed links by the two parties and admins.
-- Notifications are in-app only (`Notification` rows), shown on the guest dashboard, host dashboard and admin overview. There is no email or SMS.
+- In-app notices (`Notification` rows) are shown on the guest dashboard, host dashboard and admin overview. Emails for the same events go through `notify` (see Messaging) and are only logged until messaging is switched on.
 - `check-disputes` runs daily at 09:00 UTC and sends one Sentry alert per dispute still open after 3 days. The site says "we aim to decide within 3 working days", as an aim only.
 - The `DISPUTED` booking status is not used.
 

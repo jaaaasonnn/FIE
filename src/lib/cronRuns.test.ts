@@ -13,6 +13,8 @@ const sentry = vi.hoisted(() => ({
   captureMessage: vi.fn(),
 }))
 vi.mock('@sentry/nextjs', () => sentry)
+// Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 
 vi.mock('@/lib/db', async () => {
   const { Prisma } = await import('@prisma/client')

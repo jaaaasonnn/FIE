@@ -24,6 +24,7 @@ import type { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { expiryGate } from '@/lib/payoutSwitches'
 import { fetchCharge, settlePayment } from '@/lib/paymentSettle'
+import { notify } from '@/lib/messaging/notify'
 import {
   CANCELLED_BY_SYSTEM, NO_HOST_RESPONSE, PAY_GRACE_MS, REQUEST_ANSWER_WINDOW_MS, UNPAID_EXPIRED,
 } from '@/lib/payDeadline'
@@ -166,6 +167,7 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
       })
       return true
     })
+    if (ended) notify('booking.expired', { bookingId: booking.id })
     results.push({ ...base, action: ended ? 'expired' : 'changed' })
   }
 

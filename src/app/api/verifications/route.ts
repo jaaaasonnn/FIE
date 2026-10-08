@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { requireAdmin } from '@/lib/roles'
+import { notify } from '@/lib/messaging/notify'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB
@@ -90,6 +91,8 @@ export async function POST(req: Request) {
           data: { userId: sessionUser.id, idType, idPhotoUrl, selfieUrl, status: 'PENDING' }
         })
 
+    notify('verification.submitted', { verificationId: verification.id })
+
     return NextResponse.json({ verification, message: 'Verification submitted. Review usually within 24 hours.' }, { status: 201 })
   } catch (error) {
     console.error('Verification POST error:', error)
@@ -164,6 +167,8 @@ export async function PATCH(req: Request) {
         }
       })
     }
+
+    notify('verification.decided', { verificationId: verification.id })
 
     return NextResponse.json({ verification })
   } catch (error) {

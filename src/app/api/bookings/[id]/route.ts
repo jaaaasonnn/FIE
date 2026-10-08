@@ -8,6 +8,7 @@ import { sendRefund } from '@/lib/refunds'
 import { formatUsd } from '@/lib/utils'
 import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
+import { notify } from '@/lib/messaging/notify'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -111,6 +112,7 @@ export async function PATCH(
             : { status: 'DECLINED' },
           include: bookingInclude,
         })
+        notify(action === 'accept' ? 'booking.accepted' : 'booking.declined', { bookingId: id })
         return NextResponse.json({ booking: updated })
       } catch (txErr) {
         if (txErr instanceof Prisma.PrismaClientKnownRequestError && txErr.code === 'P2025') {
@@ -225,6 +227,8 @@ export async function PATCH(
         console.error('[Booking cancel] sendRefund threw for refund', refundId, error)
       }
     }
+
+    notify(by === 'HOST' ? 'booking.cancelled_by_host' : preview.withdrawal ? 'booking.request_withdrawn' : 'booking.cancelled_by_guest', { bookingId: id })
 
     const message = !quote
       ? (preview.withdrawal ? 'Your request has been withdrawn. Nothing was charged.' : 'The booking is cancelled. Nothing was charged.')

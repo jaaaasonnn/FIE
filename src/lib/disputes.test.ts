@@ -13,6 +13,8 @@ const state = vi.hoisted(() => ({
 }))
 const sentry = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }))
 vi.mock('@sentry/nextjs', () => sentry)
+// Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 const sendRefund = vi.hoisted(() => vi.fn(async () => ({ sent: false, skipped: 'REFUNDS_ENABLED is not set to true' })))
 vi.mock('@/lib/refunds', () => ({ sendRefund }))
 

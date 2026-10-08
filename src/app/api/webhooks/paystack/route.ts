@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { recordPayoutFailure } from '@/lib/payouts'
 import { REFUND_EVENTS, handleRefundEvent, type RefundEvent } from '@/lib/refunds'
 import { handleChargeSuccess } from '@/lib/paymentSettle'
+import { notify } from '@/lib/messaging/notify'
 
 /**
  * POST /api/webhooks/paystack
@@ -96,6 +97,7 @@ async function handleTransferEvent(eventType: TransferEvent, data: Record<string
       where: { id: payout.id },
       data: { status: 'COMPLETED', completedAt: new Date(), failureReason: null },
     })
+    notify('payout.sent', { payoutId: payout.id, pesewas: data.amount })
     return
   }
 

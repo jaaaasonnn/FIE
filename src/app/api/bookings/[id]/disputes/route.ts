@@ -7,6 +7,7 @@ import {
   type DisputeRole,
 } from '@/lib/disputes'
 import { disputeInclude, disputeView, notifications } from '@/lib/disputeViews'
+import { notify } from '@/lib/messaging/notify'
 
 async function load(id: string) {
   return db.booking.findUnique({
@@ -114,6 +115,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       throw error
     }
 
+    notify('dispute.raised', { disputeId: dispute.id })
     return NextResponse.json({ dispute: { id: dispute.id, status: dispute.status } }, { status: 201 })
   } catch (error) {
     console.error('Disputes POST error:', error)

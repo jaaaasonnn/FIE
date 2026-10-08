@@ -9,6 +9,7 @@ import * as Sentry from '@sentry/nextjs'
 import type { Refund } from '@prisma/client'
 import { db } from '@/lib/db'
 import { refundsEnabled } from '@/lib/payoutSwitches'
+import { notify } from '@/lib/messaging/notify'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 
@@ -69,6 +70,7 @@ export async function recordRefundFailure(refundId: string, reason: string): Pro
   if (kind === 'TRANSIENT' && failed.retryCount < MAX_REFUND_RETRIES) return failed
 
   alertRefund(failed, kind === 'PERMANENT' ? 'permanent failure, not retried' : `still failing after ${failed.retryCount} automatic retries`)
+  notify('refund.needs_attention', { refundId })
   return db.refund.update({ where: { id: refundId }, data: { alertedAt: now } })
 }
 
@@ -122,6 +124,7 @@ export async function sendRefund(refundId: string): Promise<SendRefundResult> {
       data: { status: 'NEEDS_ATTENTION', failureReason: 'The payment has no stored cedi amount, so a part refund cannot be worked out', alertedAt: new Date() },
     })
     alertRefund(stuck, 'cannot be sent automatically')
+    notify('refund.needs_attention', { refundId: refund.id })
     return { refund: stuck, sent: false, skipped: 'needs attention' }
   }
   if (!refund.payment.gatewayReference) {
@@ -229,6 +232,7 @@ async function applyPaystackStatus(refundId: string, data: PaystackRefund): Prom
     },
     include: { payment: { select: { amount: true } } },
   })
+  notify(status === 'PROCESSED' ? 'refund.arrived' : 'refund.sent', { refundId })
   if (status === 'PROCESSED') {
     await db.booking.update({
       where: { id: updated.bookingId },

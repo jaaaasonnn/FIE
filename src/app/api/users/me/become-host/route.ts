@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { notify } from '@/lib/messaging/notify'
 
 /**
  * POST /api/users/me/become-host
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This account cannot become a host' }, { status: 403 })
     }
 
+    notify('account.became_host', { userId: user.id })
     return NextResponse.json({ role: 'HOST', changed: true })
   } catch (error) {
     console.error('Become host error:', error)
