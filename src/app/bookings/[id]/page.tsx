@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useParams, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { CheckCircle, Clock, Calendar, MapPin, MessageSquare, Download, Shield, SearchX, Phone } from 'lucide-react'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
@@ -11,6 +11,7 @@ import { formatStayDate } from '@/lib/stayDates'
 import { CancellationPolicy, SUPPORT_NOTE, heldNote } from '@/components/booking/CancellationPolicy'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 import { problemLinkLabel } from '@/lib/disputes'
+import { EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, PAY_WINDOW_PASSED, formatPayBy, payState } from '@/lib/payDeadline'
 
 type BookingData = {
   id: string
@@ -24,6 +25,9 @@ type BookingData = {
   totalPrice: number
   status: string
   paymentStatus: string
+  payBy: string | null
+  cancelledBy: string | null
+  cancelReason: string | null
   checkIn: string
   checkOut: string
   cancellationPolicy: string | null
@@ -47,7 +51,17 @@ type BookingData = {
 }
 
 export default function BookingConfirmationPage() {
+  return (
+    <Suspense fallback={null}>
+      <BookingPageInner />
+    </Suspense>
+  )
+}
+
+function BookingPageInner() {
   const { id } = useParams<{ id: string }>()
+  // Set by the listing page when a request has just been sent
+  const justRequested = useSearchParams().get('requested') === '1'
   const { rate: ghsRate } = useExchangeRate()
   const [booking, setBooking] = useState<BookingData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -95,7 +109,28 @@ export default function BookingConfirmationPage() {
   const photo  = photos[0] ?? null
   const ref    = booking.paymentReference ?? booking.id.slice(-8).toUpperCase()
   const address = [booking.listing.neighbourhood, booking.listing.city].filter(Boolean).join(', ')
-  const confirmed = booking.status === 'CONFIRMED'
+  const pay = payState(booking)
+  // Confirmed means paid for: an accepted or instant booking that is still
+  // unpaid is not yet the guest's
+  const confirmed = booking.status === 'CONFIRMED' && pay === null
+  const heading = confirmed ? 'Booking Confirmed!'
+    : pay === 'AWAITING_HOST' ? (justRequested ? 'Request sent' : 'Waiting for the host')
+    : pay === 'AWAITING_PAYMENT' ? 'Pay to confirm your booking'
+    : pay === 'PAY_WINDOW_PASSED' ? 'The time to pay has passed'
+    : pay === 'EXPIRED_UNPAID' ? 'Booking expired'
+    : pay === 'EXPIRED_UNANSWERED' ? 'Request expired'
+    : booking.status === 'CANCELLED' ? 'Booking cancelled'
+    : booking.status === 'DECLINED' ? 'Request declined'
+    : booking.status === 'COMPLETED' ? 'Stay completed'
+    : 'Booking Pending'
+  const payNote = pay === 'AWAITING_HOST' ? `${HOST_MUST_ACCEPT} Nothing has been charged. Once they accept, a Pay now button will appear here and on your bookings page.`
+    : pay === 'AWAITING_PAYMENT' ? (booking.payBy
+        ? `Pay by ${formatPayBy(booking.payBy)} to keep these dates. After that they are released for other guests.`
+        : 'This booking is not paid for yet. Pay to confirm it.')
+    : pay === 'PAY_WINDOW_PASSED' ? PAY_WINDOW_PASSED
+    : pay === 'EXPIRED_UNPAID' ? (booking.refund ? 'This booking was not paid in time, so the dates were released.' : EXPIRED_UNPAID)
+    : pay === 'EXPIRED_UNANSWERED' ? EXPIRED_UNANSWERED
+    : null
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -108,17 +143,27 @@ export default function BookingConfirmationPage() {
               : <Clock size={32} style={{ color: '#92400E' }} />}
           </div>
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--cream)' }}>
-            {confirmed ? 'Booking Confirmed!'
-              : booking.status === 'CANCELLED' ? 'Booking cancelled'
-              : booking.status === 'DECLINED' ? 'Request declined'
-              : booking.status === 'COMPLETED' ? 'Stay completed'
-              : 'Booking Pending'}
+            {heading}
           </h1>
           <p style={{ color: 'rgba(250,247,242,0.7)' }}>Ref: {ref}</p>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-5">
+        {/* Where an unpaid booking stands, and the way to pay for it */}
+        {payNote && (
+          <div className="p-5 rounded-2xl" style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
+            <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{payNote}</p>
+            {pay === 'AWAITING_PAYMENT' && (
+              <Link href={`/checkout/${booking.id}`}
+                className="focus-ring mt-4 inline-flex items-center justify-center w-full sm:w-auto px-6 py-3 rounded-full text-sm font-semibold"
+                style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+                Pay now
+              </Link>
+            )}
+          </div>
+        )}
+
         {/* Property */}
         <div className="bg-white rounded-2xl border border-stone-100 shadow-sm overflow-hidden">
           {photo && <img src={photo} alt="" className="w-full h-48 object-cover" />}
@@ -212,7 +257,11 @@ export default function BookingConfirmationPage() {
                   backgroundColor: booking.paymentStatus === 'PAID' ? '#D1FAE5' : '#FEF3C7',
                   color:           booking.paymentStatus === 'PAID' ? '#065F46' : '#92400E',
                 }}>
-                {booking.paymentStatus === 'PAID' ? 'Paid' : booking.paymentStatus}
+                {booking.paymentStatus === 'PAID' ? 'Paid'
+                  : booking.paymentStatus === 'UNPAID' ? 'Not paid yet'
+                  : booking.paymentStatus === 'REFUNDED' ? 'Refunded'
+                  : booking.paymentStatus === 'PARTIALLY_REFUNDED' ? 'Partly refunded'
+                  : booking.paymentStatus}
               </span>
             </div>
           </div>

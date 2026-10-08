@@ -165,9 +165,15 @@ model Booking {
   // time of booking, so a host changing the listing later does not change
   // this guest's terms (null on bookings made before policies were enforced).
   cancellationPolicy String?   // FLEXIBLE | MODERATE | STRICT
-  cancelledBy        String?   // GUEST | HOST
+  cancelledBy        String?   // GUEST | HOST | SYSTEM (not paid or not answered in time)
   cancelledAt        DateTime?
-  cancelReason       String?   // host cancellations: a reason code, then an optional note
+  cancelReason       String?   // host cancellations: a reason code, then an optional note. SYSTEM: UNPAID_EXPIRED | NO_HOST_RESPONSE
+
+  // The moment an unpaid booking must be paid by: set when an instant booking
+  // is made and when a host accepts a request (lib/payDeadline.ts). Null on
+  // requests not yet accepted and on bookings from before deadlines existed,
+  // which the expiry job never touches.
+  payBy              DateTime?
 
   listing   Listing   @relation(fields: [listingId], references: [id])
   guest     User      @relation("GuestBookings", fields: [guestId], references: [id])
@@ -205,8 +211,8 @@ model Payment {
   method           String   // MOMO | CARD
   momoNetwork      String?  // MTN | VODAFONE | AIRTELTIGO
   momoNumber       String?
-  status           String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED
-  gatewayReference String?
+  status           String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED | MISMATCH | DUPLICATE
+  gatewayReference String?  @unique
   createdAt        DateTime @default(now())
 
   // What Paystack was actually asked to charge, in pesewas, and the rate used.

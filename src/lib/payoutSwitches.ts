@@ -16,21 +16,38 @@
 //                               effect. While off, deciding only reports what
 //                               it would do and writes nothing. Reporting a
 //                               problem and holding the payout are always on.
+//   PAYMENT_WEBHOOK_ENABLED=true
+//                               Paystack's charge.success webhook may confirm
+//                               a payment. While off, the event is still
+//                               signature-checked and logged as what it would
+//                               do; nothing is written.
+//   BOOKING_EXPIRY_ENABLED=true Unpaid bookings and unanswered requests may
+//                               be ended once their time is up. While off,
+//                               the job is a dry run and never calls Paystack.
+//   BOOKING_EXPIRY_NOT_BEFORE=2027-01-15
+//                               Only bookings created on or after this day
+//                               (UTC) can ever be ended by the job. Required:
+//                               without it the job stays in dry run.
 //
 // Either cron also accepts ?dryRun=1, which reports what it would do and
 // changes nothing, whatever the switches say.
 
 const DAY_RE = /^(\d{4})-(\d{2})-(\d{2})$/
 
-/** PAYOUTS_NOT_BEFORE as the start of that day in UTC, or null if unset or not a real date. */
-export function payoutsNotBefore(): Date | null {
-  const raw = process.env.PAYOUTS_NOT_BEFORE?.trim()
+/** A YYYY-MM-DD setting as the start of that day in UTC, or null if unset or not a real date. */
+function dayFromEnv(value: string | undefined): Date | null {
+  const raw = value?.trim()
   const m = raw ? DAY_RE.exec(raw) : null
   if (!m) return null
   const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
   const date = new Date(Date.UTC(y, mo - 1, d))
   if (date.getUTCFullYear() !== y || date.getUTCMonth() !== mo - 1 || date.getUTCDate() !== d) return null
   return date
+}
+
+/** PAYOUTS_NOT_BEFORE as the start of that day in UTC, or null if unset or not a real date. */
+export function payoutsNotBefore(): Date | null {
+  return dayFromEnv(process.env.PAYOUTS_NOT_BEFORE)
 }
 
 export type PayoutGate =
@@ -62,6 +79,27 @@ export function disputeDecisionsEnabled(): boolean {
 /** Exactly "true", like the others: a typo must never switch refunds on. */
 export function refundsEnabled(): boolean {
   return process.env.REFUNDS_ENABLED === 'true'
+}
+
+/** Exactly "true": while off, a charge.success webhook is checked and logged but changes nothing. */
+export function paymentWebhookEnabled(): boolean {
+  return process.env.PAYMENT_WEBHOOK_ENABLED === 'true'
+}
+
+export type ExpiryGate =
+  | { live: true; notBefore: Date }
+  | { live: false; notBefore: Date | null; reason: string }
+
+/** Whether the expiry job may end bookings right now, and if not, why. */
+export function expiryGate(): ExpiryGate {
+  const notBefore = dayFromEnv(process.env.BOOKING_EXPIRY_NOT_BEFORE)
+  if (process.env.BOOKING_EXPIRY_ENABLED !== 'true') {
+    return { live: false, notBefore, reason: 'BOOKING_EXPIRY_ENABLED is not set to true' }
+  }
+  if (!notBefore) {
+    return { live: false, notBefore, reason: 'BOOKING_EXPIRY_NOT_BEFORE is not set to a date (YYYY-MM-DD)' }
+  }
+  return { live: true, notBefore }
 }
 
 /** Thrown when something tries to start a transfer while payouts are off. */

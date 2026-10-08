@@ -45,13 +45,16 @@ _(none currently — Paystack and Supabase migration below are resolved)_
 
 ## Payout, completion and refund switches
 
-The hourly cron jobs do nothing risky until they are switched on in the environment. All five variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
+The cron jobs do nothing risky until they are switched on in the environment. All of these variables are **off when unset**, and none is set in `.env` or on Vercel yet. Names and notes are in `.env.example`; the code is `src/lib/payoutSwitches.ts` and `src/lib/cronRuns.ts`.
 
 - `PAYOUTS_ENABLED`: must be exactly `true` before any Paystack transfer is attempted. Otherwise `process-payouts` runs as a dry run: it reports what it would pay, writes nothing and calls nothing. The same check sits inside `initiateHostPayout`, so no other caller can start a transfer.
 - `PAYOUTS_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be paid out. Required: without a valid date, payouts stay in dry run even when enabled. Set it to the launch date so no test booking is ever paid.
 - `COMPLETION_ENABLED`: must be exactly `true` before `complete-bookings` marks anything `COMPLETED`.
 - `REFUNDS_ENABLED`: must be exactly `true` before any refund is sent to Paystack. While off, cancelling still works and the refund is recorded as owed (`Refund` row, status `PENDING`); nothing is sent. The hourly `process-refunds` job sends those once it is on. The check sits inside `sendRefund` (`src/lib/refunds.ts`), the only place a refund is started.
 - `DISPUTE_DECISIONS_ENABLED`: must be exactly `true` before an admin's decision on a dispute takes effect. While off, deciding only reports what it would do and writes nothing. Reporting a problem and holding the payout are always on. A refund a decision creates is still behind `REFUNDS_ENABLED`, and a payout behind `PAYOUTS_ENABLED`.
+- `PAYMENT_WEBHOOK_ENABLED`: must be exactly `true` before Paystack's `charge.success` webhook confirms a payment. While off, the event is signature-checked and logged as what it would do; nothing is written. The verify route confirms payments either way.
+- `BOOKING_EXPIRY_ENABLED`: must be exactly `true` before `expire-bookings` ends anything. While off it is a dry run and never calls Paystack.
+- `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be ended by the job. Required: without a valid date the job stays in dry run. Set it to the launch date.
 - `?dryRun=1` on any cron URL forces a report-only run whatever the switches say.
 
 Rules worth knowing:
@@ -62,7 +65,18 @@ Rules worth knowing:
 - A cancelled or refunded booking is never paid out (guard in `initiateHostPayout`).
 - Still not built: payouts for monthly and long-term stays, refunds after check-in outside a dispute (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
 
-Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries both transfer and refund events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries transfer, refund and payment events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+
+## Payments and unpaid bookings
+
+- A booking is marked paid in one place, `settlePayment` in `src/lib/paymentSettle.ts`. The verify route (the guest's browser coming back), the `charge.success` webhook and the expiry job all call it, in any order or twice, and it confirms once.
+- It refuses a charge whose reference, amount (pesewas) or currency (GHS) does not match the stored `Payment`: the payment becomes `MISMATCH` and Sentry is alerted. A second successful payment on one booking becomes `DUPLICATE`, alerts, and is refunded by hand.
+- Success wins over failed. A payment still in progress at Paystack stays `PENDING` and the guest sees "still processing".
+- Money that lands on a cancelled, declined or expired booking, or on a request the host has not accepted, is recorded as a `LATE_PAYMENT` refund in full; the booking is never revived.
+- A request (`PENDING`) cannot be paid: "The host needs to accept your request first." Accepting it gives the guest 24 hours. An instant booking has one hour. The deadline is `Booking.payBy` (`src/lib/payDeadline.ts`), never later than the end of the check-in day, and a payment cannot be started after it.
+- `expire-bookings` runs every 15 minutes (`src/lib/bookingExpiry.ts`). It acts 15 minutes after `payBy`, and on requests unanswered after 48 hours or the end of the check-in day. Before ending a booking it asks Paystack (read-only) about each payment still open and settles it; if Paystack cannot be reached or a payment is still in progress, the booking waits for the next run.
+- An ended booking is `CANCELLED` with `cancelledBy: 'SYSTEM'` and reason `UNPAID_EXPIRED` or `NO_HOST_RESPONSE`. Bookings with no `payBy` (made before deadlines existed) are never ended for being unpaid.
+- Before turning the webhook on: set the webhook URL in the Paystack dashboard (test and live each have their own), make one test payment with the switch off, and read the "would confirm" line in the logs.
 
 ## Roles and host-only routes
 

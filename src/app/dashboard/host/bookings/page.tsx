@@ -9,6 +9,7 @@ import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { formatStayDate } from '@/lib/stayDates'
 import { CancelDialog } from '@/components/booking/CancelDialog'
 import { problemLinkLabel } from '@/lib/disputes'
+import { payState } from '@/lib/payDeadline'
 
 type ApiBooking = {
   id: string
@@ -19,6 +20,9 @@ type ApiBooking = {
   totalPrice: number
   status: string
   paymentStatus: string
+  payBy?: string | null
+  cancelledBy?: string | null
+  cancelReason?: string | null
   disputes?: { raisedByRole: string; status: string }[]
   refund?: unknown
   guest: {
@@ -40,6 +44,15 @@ const STATUS_UI: Record<string, { bg: string; color: string; label: string }> = 
   COMPLETED: { bg: '#DBEAFE', color: '#1E40AF', label: 'Completed' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
   DECLINED:  { bg: '#FEE2E2', color: '#991B1B', label: 'Declined' },
+}
+
+// An accepted or instant booking is not the guest's until it is paid for,
+// and one that ran out of time is shown as expired rather than cancelled
+const PAY_STATE_UI: Record<string, { bg: string; color: string; label: string }> = {
+  AWAITING_PAYMENT:   { bg: '#FEF3C7', color: '#92400E', label: 'Awaiting payment' },
+  PAY_WINDOW_PASSED:  { bg: '#FEF3C7', color: '#92400E', label: 'Awaiting payment' },
+  EXPIRED_UNPAID:     { bg: '#FEE2E2', color: '#991B1B', label: 'Expired, not paid' },
+  EXPIRED_UNANSWERED: { bg: '#FEE2E2', color: '#991B1B', label: 'Expired, not answered' },
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -154,7 +167,8 @@ export default function HostBookingsPage() {
         {!loading && (
           <div className="space-y-4">
             {bookings.map((b) => {
-              const s         = STATUS_UI[b.status] ?? STATUS_UI['PENDING']
+              const pay       = payState(b)
+              const s         = (pay && PAY_STATE_UI[pay]) ?? STATUS_UI[b.status] ?? STATUS_UI['PENDING']
               const trustScore = b.guest.trustScore ?? 0
               return (
                 <div key={b.id} className="soft-panel p-5">

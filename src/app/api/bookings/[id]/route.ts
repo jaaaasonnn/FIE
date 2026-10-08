@@ -7,6 +7,7 @@ import { HOST_CANCEL_REASONS, MAX_CANCEL_NOTE, isHostCancelReason } from '@/lib/
 import { sendRefund } from '@/lib/refunds'
 import { formatUsd } from '@/lib/utils'
 import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
+import { payDeadline } from '@/lib/payDeadline'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -20,7 +21,8 @@ const VALID_ACTIONS: Action[] = ['accept', 'decline', 'cancel', 'host-cancel']
 /**
  * PATCH /api/bookings/[id]
  * Auth required. Transitions a booking's status:
- *   - accept:      PENDING   -> CONFIRMED  (host only)
+ *   - accept:      PENDING   -> CONFIRMED  (host only). The guest then has
+ *                  24 hours to pay (Booking.payBy, lib/payDeadline.ts).
  *   - decline:     PENDING   -> DECLINED   (host only)
  *   - cancel:      CONFIRMED -> CANCELLED  (guest only), or PENDING -> CANCELLED
  *                  when the guest withdraws a request the host has not answered.
@@ -92,10 +94,21 @@ export async function PATCH(
           { status: 409 },
         )
       }
+      // Money that reached a request before it was accepted is on its way
+      // back to the guest (lib/paymentSettle.ts); accepting over the top of
+      // that would leave a confirmed booking with a refund in flight
+      if (action === 'accept' && booking.paymentStatus !== 'UNPAID') {
+        return NextResponse.json(
+          { error: 'This request cannot be accepted online because a payment on it is being refunded. Please contact support at support@fiegh.com.' },
+          { status: 409 },
+        )
+      }
       try {
         const updated = await db.booking.update({
           where: { id, status: 'PENDING' },
-          data: { status: action === 'accept' ? 'CONFIRMED' : 'DECLINED' },
+          data: action === 'accept'
+            ? { status: 'CONFIRMED', payBy: payDeadline('ACCEPTED', booking.checkIn) }
+            : { status: 'DECLINED' },
           include: bookingInclude,
         })
         return NextResponse.json({ booking: updated })

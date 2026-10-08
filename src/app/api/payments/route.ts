@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import {
+  CANCELLED_BY_SYSTEM, EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, NO_HOST_RESPONSE, PAY_WINDOW_PASSED, pastPayBy,
+} from '@/lib/payDeadline'
 
 /**
  * GET /api/payments?guestId=…
@@ -48,7 +51,8 @@ export async function GET(req: Request) {
  *
  * Flow:
  *  1. Require a valid session
- *  2. Load booking; must belong to the logged-in guest, unpaid, not cancelled
+ *  2. Load booking; must belong to the logged-in guest, unpaid, not cancelled,
+ *     accepted by the host if it was a request, and still inside its time to pay
  *  3. Convert USD total → GHS pesewas
  *  4. Create Payment (PENDING) + stamp booking.paymentReference
  *  5. Call Paystack Initialize Transaction
@@ -109,8 +113,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Booking already paid' }, { status: 400 })
     }
     if (booking.status === 'CANCELLED') {
+      const expired = booking.cancelledBy === CANCELLED_BY_SYSTEM
       return NextResponse.json(
-        { error: 'This booking has been cancelled. Please start a new booking with available dates.' },
+        {
+          error: !expired
+            ? 'This booking has been cancelled. Please start a new booking with available dates.'
+            : booking.cancelReason === NO_HOST_RESPONSE ? EXPIRED_UNANSWERED : EXPIRED_UNPAID,
+        },
         { status: 409 },
       )
     }
@@ -119,6 +128,18 @@ export async function POST(req: Request) {
         { error: 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.' },
         { status: 409 },
       )
+    }
+    // A request is paid for only once the host has accepted it: paying is
+    // what confirms a booking, and that is the host's decision to make first
+    if (booking.status === 'PENDING') {
+      return NextResponse.json({ error: HOST_MUST_ACCEPT }, { status: 409 })
+    }
+    if (booking.status !== 'CONFIRMED') {
+      return NextResponse.json({ error: 'This booking can no longer be paid for.' }, { status: 409 })
+    }
+    // Past its time to pay: the expiry job is about to release the dates
+    if (pastPayBy(booking.payBy)) {
+      return NextResponse.json({ error: PAY_WINDOW_PASSED }, { status: 409 })
     }
 
     // Prefer session email, then guest record email. Paystack requires a valid email.

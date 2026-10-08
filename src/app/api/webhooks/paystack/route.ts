@@ -3,16 +3,19 @@ import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { recordPayoutFailure } from '@/lib/payouts'
 import { REFUND_EVENTS, handleRefundEvent, type RefundEvent } from '@/lib/refunds'
+import { handleChargeSuccess } from '@/lib/paymentSettle'
 
 /**
  * POST /api/webhooks/paystack
  *
- * Handles transfer.success / transfer.failed / transfer.reversed (host payouts)
- * and refund.pending / refund.processing / refund.processed / refund.failed
- * (guest refunds, see lib/refunds.ts). Payment
- * confirmation still goes through the browser-redirect flow in
- * /api/payments/verify — this endpoint is new and specific to transfers,
- * which have no browser redirect to hang verification off of.
+ * Handles transfer.success / transfer.failed / transfer.reversed (host payouts),
+ * refund.pending / refund.processing / refund.processed / refund.failed
+ * (guest refunds, see lib/refunds.ts) and charge.success (a guest's payment,
+ * see lib/paymentSettle.ts). A payment is also settled when the guest's
+ * browser comes back through /api/payments/verify; both go through the same
+ * settlePayment, so whichever arrives first confirms it and the other
+ * changes nothing. charge.success is a dry run until PAYMENT_WEBHOOK_ENABLED
+ * is set (lib/payoutSwitches.ts).
  *
  * Signature verification: Paystack signs the raw request body with our
  * secret key (HMAC-SHA512) and sends the result in the x-paystack-signature
@@ -46,6 +49,10 @@ export async function POST(req: Request) {
     await handleTransferEvent(event.event, event.data ?? {})
   } else if (REFUND_EVENTS.includes(event.event as RefundEvent)) {
     await handleRefundEvent(event.event as RefundEvent, event.data ?? {})
+  } else if (event.event === 'charge.success') {
+    const result = await handleChargeSuccess(event.data ?? {})
+    // A dry run says so, and what it would have done, to whoever sent it
+    if (result?.dryRun) return NextResponse.json({ received: true, dryRun: true, would: result.outcome })
   }
   // Any other (recognized-signature) event type is intentionally a no-op —
   // still 200, since a non-2xx makes Paystack retry, and there's nothing

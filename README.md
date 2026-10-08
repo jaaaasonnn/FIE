@@ -127,6 +127,9 @@ The hourly cron jobs are off until switched on. Leave these unset until launch (
 - `COMPLETION_ENABLED`: must be exactly `true` before bookings are marked completed.
 - `REFUNDS_ENABLED`: must be exactly `true` before any refund is sent to Paystack. While off, cancelling still works and the refund is recorded as owed.
 - `DISPUTE_DECISIONS_ENABLED`: must be exactly `true` before an admin's decision on a dispute takes effect. While off, deciding only reports what it would do. Reporting a problem and holding the payout are always on.
+- `PAYMENT_WEBHOOK_ENABLED`: must be exactly `true` before Paystack's `charge.success` webhook confirms a payment. While off, the event is signature-checked and logged as what it would do, and nothing is written.
+- `BOOKING_EXPIRY_ENABLED`: must be exactly `true` before the expiry job ends unpaid bookings and unanswered requests. While off, it only reports and never calls Paystack.
+- `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`). Only bookings created on or after it can be ended by the expiry job. Required for the job to run.
 
 Add `?dryRun=1` to any cron URL for a report-only run.
 

@@ -16,6 +16,7 @@ import { groupConversations, formatRelativeTime, type ApiMessage } from '@/lib/m
 import { formatStayDate } from '@/lib/stayDates'
 import { CancelDialog } from '@/components/booking/CancelDialog'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
+import { HOST_MUST_ACCEPT, formatPayBy, payState } from '@/lib/payDeadline'
 import { NotificationsList } from '@/components/NotificationsList'
 import { problemLinkLabel } from '@/lib/disputes'
 
@@ -29,6 +30,9 @@ type ApiBooking = {
   totalPrice: number
   damageDeposit: number
   paymentStatus: string
+  payBy?: string | null
+  cancelledBy?: string | null
+  cancelReason?: string | null
   rentalMode: string
   listing: { id: string; title: string; photos: string; city: string; neighbourhood: string | null }
   host: { id: string; name: string | null; profilePhoto: string | null }
@@ -42,6 +46,14 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }
   PENDING: { bg: '#FEF3C7', color: '#92400E', label: 'Pending' },
   CANCELLED: { bg: '#FEE2E2', color: '#991B1B', label: 'Cancelled' },
   DECLINED: { bg: '#FEE2E2', color: '#991B1B', label: 'Declined' },
+}
+// Where an unpaid booking stands (lib/payDeadline.ts), shown in place of the plain status
+const PAY_STATE_STYLES: Record<string, { bg: string; color: string; label: string }> = {
+  AWAITING_HOST: { bg: '#FEF3C7', color: '#92400E', label: 'Waiting for host' },
+  AWAITING_PAYMENT: { bg: '#FEF3C7', color: '#92400E', label: 'Awaiting payment' },
+  PAY_WINDOW_PASSED: { bg: '#FEE2E2', color: '#991B1B', label: 'Not paid in time' },
+  EXPIRED_UNPAID: { bg: '#FEE2E2', color: '#991B1B', label: 'Expired' },
+  EXPIRED_UNANSWERED: { bg: '#FEE2E2', color: '#991B1B', label: 'Expired' },
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -67,7 +79,11 @@ function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userI
   for (const b of bookings) {
     const title = b.listing?.title ?? 'your listing'
     let message: string | null = null
-    if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed`
+    const pay = payState(b)
+    if (pay === 'AWAITING_PAYMENT') message = `Your booking at ${title} is waiting for payment`
+    else if (pay === 'EXPIRED_UNPAID' || pay === 'PAY_WINDOW_PASSED') message = `Your booking at ${title} was not paid in time`
+    else if (pay === 'EXPIRED_UNANSWERED') message = `Your request at ${title} expired without an answer`
+    else if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed`
     else if (b.status === 'CANCELLED') message = `Your booking at ${title} was cancelled`
     else if (b.status === 'DECLINED') message = `Your booking request at ${title} was declined`
     else if (b.status === 'COMPLETED') message = `Your stay at ${title} is complete. Leave a review!`
@@ -308,7 +324,8 @@ export default function GuestDashboardPage() {
           ) : (
             <div className="space-y-4">
               {bookings.map((b) => {
-                const s = STATUS_STYLES[b.status] ?? STATUS_STYLES.PENDING
+                const pay = payState(b)
+                const s = (pay && PAY_STATE_STYLES[pay]) ?? STATUS_STYLES[b.status] ?? STATUS_STYLES.PENDING
                 const photo = firstPhoto(b.listing?.photos ?? '[]')
                 return (
                   <div key={b.id} className="soft-panel overflow-hidden">
@@ -343,12 +360,25 @@ export default function GuestDashboardPage() {
                         {b.damageDeposit > 0 && (
                           <p className="text-xs text-[#6B645C] mt-0.5">{depositIncludedNote(b.damageDeposit)}</p>
                         )}
+                        {pay === 'AWAITING_PAYMENT' && b.payBy && (
+                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>Pay by {formatPayBy(b.payBy)} to keep these dates.</p>
+                        )}
+                        {pay === 'AWAITING_HOST' && (
+                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{HOST_MUST_ACCEPT} Nothing has been charged.</p>
+                        )}
                         {b.refund && (
                           <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{refundStatusText(b.refund)}</p>
                         )}
                       </div>
                     </div>
                     <div className="px-4 pb-4 flex gap-2 flex-wrap">
+                      {pay === 'AWAITING_PAYMENT' && (
+                        <Link href={`/checkout/${b.id}`}
+                          className="focus-ring text-xs px-4 py-2 rounded-full font-semibold"
+                          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+                          Pay now
+                        </Link>
+                      )}
                       <Link href={`/listings/${b.listing?.id}`}
                         className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
                         style={{ borderColor: '#E5E7EB', color: '#374151' }}>

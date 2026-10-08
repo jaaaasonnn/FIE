@@ -351,7 +351,9 @@ export default function ListingDetailPage() {
       }
       if (!res.ok) { setBookError(data.error ?? 'Failed to create booking.'); return }
 
-      router.push(`/checkout/${data.booking.id}`)
+      // A request waits for the host, so there is nothing to pay yet: the
+      // guest sees it was sent. Only an instant booking goes straight to payment.
+      router.push(data.booking.status === 'PENDING' ? `/bookings/${data.booking.id}?requested=1` : `/checkout/${data.booking.id}`)
     } catch {
       setBookError('Network error. Please try again.')
     } finally {

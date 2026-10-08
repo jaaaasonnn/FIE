@@ -7,6 +7,7 @@ import { quoteStay } from '@/lib/bookingQuote'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
+import { payDeadline } from '@/lib/payDeadline'
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -112,6 +113,9 @@ export async function POST(req: Request) {
             // instantBook listings go straight to CONFIRMED; others start PENDING
             status: listing.instantBook ? 'CONFIRMED' : 'PENDING',
             paymentStatus: 'UNPAID',
+            // An instant booking holds its dates for an hour while it is paid
+            // for. A request gets its deadline when the host accepts it.
+            payBy: listing.instantBook ? payDeadline('INSTANT', checkInDate) : null,
             specialRequests: specialRequests ?? null,
             // The listing's policy as it stands now: a later change by the
             // host does not alter this guest's terms

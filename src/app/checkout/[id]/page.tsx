@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, MessageSquare, Lock, Check, AlertTriangle } from 'lucide-react'
+import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, MessageSquare, Lock, Check, AlertTriangle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { validateGhanaPhone, formatUsd } from '@/lib/utils'
 import { PriceBreakdown, depositIncludedNote } from '@/components/booking/PriceBreakdown'
@@ -11,6 +11,10 @@ import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { formatStayDate } from '@/lib/stayDates'
 import { CancellationPolicy, SUPPORT_NOTE, heldNote } from '@/components/booking/CancellationPolicy'
+import {
+  EXPIRED_UNANSWERED, EXPIRED_UNPAID, EXPIRED_UNPAID_REFUNDED, HOST_MUST_ACCEPT, PAYMENT_STILL_PROCESSING, PAY_WINDOW_PASSED,
+  formatPayBy, payState,
+} from '@/lib/payDeadline'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -26,6 +30,10 @@ type BookingData = {
   damageDeposit: number
   totalPrice:    number
   status:        string
+  paymentStatus: string
+  payBy:         string | null
+  cancelledBy:   string | null
+  cancelReason:  string | null
   cancellationPolicy: string | null
   listing: {
     id:            string
@@ -75,6 +83,8 @@ function CheckoutPageInner() {
   // Booking data
   const [booking,      setBooking]      = useState<BookingData | null>(null)
   const [bookingError, setBookingError] = useState('')
+  // A booking that cannot be paid for right now, for a reason that is not an error
+  const [notice,       setNotice]       = useState<{ title: string; body: string; retry?: boolean } | null>(null)
   const [dataLoading,  setDataLoading]  = useState(true)
 
   // Payment form
@@ -104,6 +114,19 @@ function CheckoutPageInner() {
           return
         }
 
+        const state = payState(data.booking)
+        const returned = new URLSearchParams(window.location.search).get('payment')
+
+        // Not paid, or not answered, in time: the dates have been released
+        if (state === 'EXPIRED_UNPAID') {
+          setNotice({ title: 'This booking has expired', body: returned === 'refunded' ? EXPIRED_UNPAID_REFUNDED : EXPIRED_UNPAID })
+          return
+        }
+        if (state === 'EXPIRED_UNANSWERED') {
+          setNotice({ title: 'This request has expired', body: EXPIRED_UNANSWERED })
+          return
+        }
+
         // A cancelled or declined booking cannot be paid for
         if (data.booking.status === 'CANCELLED') {
           setBookingError(
@@ -119,6 +142,26 @@ function CheckoutPageInner() {
               ? 'The host declined this request before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
               : 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.',
           )
+          return
+        }
+
+        // Paid already (the guest came back to this page, or Paystack's
+        // confirmation reached us before their browser did)
+        if (data.booking.paymentStatus === 'PAID') setSuccess(true)
+        else if (state === 'AWAITING_HOST') {
+          // A request is paid for only after the host accepts it
+          setNotice({
+            title: 'Waiting for the host',
+            body: returned === 'refunded'
+              ? 'The host has not accepted this request yet, so your payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
+              : `${HOST_MUST_ACCEPT} Once they do, you will find a Pay now button on your bookings page.`,
+          })
+          return
+        } else if (returned === 'pending') {
+          setNotice({ title: 'Payment still processing', body: PAYMENT_STILL_PROCESSING, retry: true })
+          return
+        } else if (state === 'PAY_WINDOW_PASSED') {
+          setNotice({ title: 'The time to pay has passed', body: PAY_WINDOW_PASSED })
           return
         }
 
@@ -200,6 +243,31 @@ function CheckoutPageInner() {
         <div className="flex flex-col items-center gap-3">
           <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
           <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading booking details…</p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Not payable right now: waiting for the host, still processing, expired ──
+  if (notice) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <div className="max-w-md w-full text-center">
+          <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
+            style={{ backgroundColor: '#FEF3C7' }}>
+            <Clock size={36} aria-hidden style={{ color: '#92400E' }} />
+          </div>
+          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>{notice.title}</h2>
+          <p className="mb-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>{notice.body}</p>
+          <div className="flex flex-col gap-3">
+            {notice.retry && (
+              <Button size="lg" className="w-full" onClick={() => window.location.reload()}>Check again</Button>
+            )}
+            <Button variant={notice.retry ? 'outline' : undefined} size="lg" className="w-full"
+              onClick={() => router.push('/dashboard/guest')}>
+              View my bookings
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -312,6 +380,16 @@ function CheckoutPageInner() {
           {/* ── Left: payment form ──────────────────────────────── */}
           <div>
             <form onSubmit={handlePay} className="space-y-6">
+              {/* How long these dates are held for */}
+              {booking.payBy && (
+                <div className="p-4 rounded-2xl flex items-start gap-3"
+                  style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
+                  <Clock size={17} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
+                  <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                    <strong>Pay by {formatPayBy(booking.payBy)}</strong> to keep these dates. After that they are released for other guests.
+                  </p>
+                </div>
+              )}
               {/* Payment method toggle */}
               <div>
                 <p className="text-sm font-semibold mb-3" style={{ color: 'var(--color-text-primary)' }}>Payment Method</p>
