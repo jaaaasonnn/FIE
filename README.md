@@ -138,9 +138,19 @@ Add `?dryRun=1` to any cron URL for a report-only run.
 Nothing is sent until it is switched on. Leave these unset until a provider account exists (see `.env.example` and CLAUDE.md):
 
 - `MESSAGING_ENABLED`: must be exactly `true` before anything can be sent. While off, every message is still recorded in the message log (admin page, Messages tab) as `LOGGED`, and is never sent later.
-- `EMAIL_PROVIDER`, `SMS_PROVIDER`: the adapter each channel sends through. Unset means that channel only logs. No real adapter is written yet.
-- `EMAIL_FROM_NAME`, `EMAIL_FROM_ADDRESS`, `SUPPORT_EMAIL`, `SMS_SENDER_ID`: who messages come from. Defaults are FieGH, bookings@fiegh.com, support@fiegh.com and FieGH.
+- `EMAIL_PROVIDER`, `SMS_PROVIDER`: the adapter each channel sends through. Unset (or `log`) means that channel only logs. `resend` is the one real email adapter: real email goes out only with `MESSAGING_ENABLED=true` and `EMAIL_PROVIDER=resend`. There is no real SMS adapter yet.
+- `RESEND_API_KEY`: the Resend API key. Read from the environment only; never logged or stored. If it is missing while email is switched on, nothing is called and each email is retried, then given up with an alert.
+- `EMAIL_FROM`: the whole From line. Default `FieGH <support@fiegh.com>`. The address must be on a domain verified in Resend.
+- `SUPPORT_EMAIL`, `SMS_SENDER_ID`: the reply-to (also shown in messages) and the SMS sender name. Defaults are support@fiegh.com and FieGH.
 - `ADMIN_ALERT_EMAIL`: one shared inbox for admin emails. Unset means they are skipped.
+
+To send one test email by hand, before switching anything on:
+
+```
+npm run email:test -- you@example.com --confirm
+```
+
+It sends a real email through Resend to that address, so it refuses without `--confirm`, a valid address and `RESEND_API_KEY` (from the environment or `.env`). It writes nothing to the database and ignores `MESSAGING_ENABLED` and `EMAIL_PROVIDER`.
 
 ## Pages
 

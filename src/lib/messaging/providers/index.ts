@@ -4,8 +4,10 @@
 
 import type { MessageProvider } from './types'
 import { failDrillEmail, failDrillSms } from './failing'
+import { resendEmail } from './resend'
 
 export const PROVIDERS: Record<string, MessageProvider> = {
+  [resendEmail.name]: resendEmail,
   [failDrillEmail.name]: failDrillEmail,
   [failDrillSms.name]: failDrillSms,
 }

@@ -10,6 +10,9 @@
 //
 // Sender names and addresses are settings too, so they can change without a
 // code change. None of this is set in .env yet.
+//
+// The one real email adapter is "resend" (providers/resend.ts). Its key,
+// RESEND_API_KEY, is read by the adapter alone and is not part of this file.
 
 import { PROVIDERS } from '@/lib/messaging/providers'
 
@@ -48,8 +51,8 @@ export function appUrl(): string {
 export function messagingConfig() {
   return {
     appUrl: appUrl(),
-    emailFromName: setting('EMAIL_FROM_NAME', 'FieGH'),
-    emailFromAddress: setting('EMAIL_FROM_ADDRESS', 'bookings@fiegh.com'),
+    /** The whole From line, name and address together */
+    emailFrom: setting('EMAIL_FROM', 'FieGH <support@fiegh.com>'),
     supportEmail: setting('SUPPORT_EMAIL', 'support@fiegh.com'),
     smsSenderId: setting('SMS_SENDER_ID', 'FieGH'),
     /** One shared inbox for everything admins are emailed about. Unset: those emails are skipped. */

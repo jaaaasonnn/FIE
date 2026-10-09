@@ -348,14 +348,14 @@ describe('the messaging switch', () => {
 
   it('stays log-only when switched on with no provider, the log provider, or a name with no adapter', () => {
     vi.stubEnv('MESSAGING_ENABLED', 'true')
-    for (const provider of ['', 'log', 'resend', 'fake-sms']) {
+    for (const provider of ['', 'log', 'postmark', 'fake-sms']) {
       vi.stubEnv('EMAIL_PROVIDER', provider)
       expect(channelGate('EMAIL')).toMatchObject({ live: false, provider: 'log' })
     }
     // Each says why, so the admin page can
     vi.stubEnv('EMAIL_PROVIDER', '')
     expect(channelGate('EMAIL')).toMatchObject({ reason: 'EMAIL_PROVIDER is not set, so messages are only logged' })
-    vi.stubEnv('EMAIL_PROVIDER', 'resend')
+    vi.stubEnv('EMAIL_PROVIDER', 'postmark')
     expect(channelGate('EMAIL')).toMatchObject({ reason: 'EMAIL_PROVIDER names no email adapter' })
   })
 
@@ -612,8 +612,7 @@ describe('the send-messages job', () => {
   })
 
   it('sends each queued message once, to the real address, from the configured sender', async () => {
-    vi.stubEnv('EMAIL_FROM_NAME', 'FieGH Bookings')
-    vi.stubEnv('EMAIL_FROM_ADDRESS', 'hello@mail.fiegh.com')
+    vi.stubEnv('EMAIL_FROM', 'FieGH Bookings <hello@mail.fiegh.com>')
     vi.stubEnv('SUPPORT_EMAIL', 'help@fiegh.com')
     vi.stubEnv('SMS_SENDER_ID', 'FieHome')
     await queued()
@@ -640,7 +639,7 @@ describe('the send-messages job', () => {
   it('uses sensible sender defaults when nothing is configured', async () => {
     await queued()
     await runMessages()
-    expect(fake.email.mock.calls[0][0]).toMatchObject({ from: 'FieGH <bookings@fiegh.com>', replyTo: 'support@fiegh.com' })
+    expect(fake.email.mock.calls[0][0]).toMatchObject({ from: 'FieGH <support@fiegh.com>', replyTo: 'support@fiegh.com' })
     expect(fake.sms.mock.calls[0][0].from).toBe('FieGH')
   })
 

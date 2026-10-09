@@ -58,7 +58,7 @@ export async function GET(req: Request) {
       })
       return NextResponse.json({
         templates, switches,
-        sender: { email: `${config.emailFromName} <${config.emailFromAddress}>`, replyTo: config.supportEmail, sms: config.smsSenderId },
+        sender: { email: config.emailFrom, replyTo: config.supportEmail, sms: config.smsSenderId },
       })
     }
 

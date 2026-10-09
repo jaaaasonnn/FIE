@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:tz": "for tz in UTC Europe/London America/New_York America/Los_Angeles Africa/Accra Pacific/Auckland; do echo \"== $tz\"; TZ=$tz vitest run || exit 1; done",
+    "email:test": "vite-node -c vitest.config.mts scripts/send-test-email.ts",
     "db:seed": "node prisma/seed.mjs",
     "db:push": "npx prisma db push",
     "db:studio": "npx prisma studio"

@@ -147,7 +147,7 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
       outcome = await Promise.race([
         PROVIDERS[gate.provider].send({
           to,
-          from: channel === 'EMAIL' ? `${config.emailFromName} <${config.emailFromAddress}>` : config.smsSenderId,
+          from: channel === 'EMAIL' ? config.emailFrom : config.smsSenderId,
           ...(channel === 'EMAIL' ? { replyTo: config.supportEmail, subject: row.subject ?? 'FieGH', html: emailHtml(row.subject ?? 'FieGH', row.body) } : {}),
           text: row.body,
           idempotencyKey: row.dedupeKey,

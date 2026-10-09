@@ -1,10 +1,11 @@
-// What every provider adapter looks like. Adding Arkesel, Resend or Postmark
-// later is one file that implements this, plus one line in ./index.ts.
+// What every provider adapter looks like. Resend (./resend.ts) is the one
+// real adapter so far. Adding Arkesel or Postmark is one file that implements
+// this, plus one line in ./index.ts.
 
 export type OutgoingMessage = {
   /** The real address: an email address, or a phone number as +233XXXXXXXXX */
   to: string
-  /** The sender: "FieGH <bookings@fiegh.com>" for email, the sender name for SMS */
+  /** The sender: "FieGH <support@fiegh.com>" for email, the sender name for SMS */
   from: string
   replyTo?: string
   subject?: string
