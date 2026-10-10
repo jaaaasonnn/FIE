@@ -230,10 +230,14 @@ async function applyPaystackStatus(refundId: string, data: PaystackRefund): Prom
       ...(data.id !== undefined ? { paystackRefundId: String(data.id) } : {}),
       ...(status === 'PROCESSED' ? { processedAt: new Date() } : {}),
     },
-    include: { payment: { select: { amount: true } } },
+    include: { payment: { select: { amount: true, instalment: { select: { sequence: true } } } } },
   })
   notify(status === 'PROCESSED' ? 'refund.arrived' : 'refund.sent', { refundId })
-  if (status === 'PROCESSED') {
+  // A refund of one month's rent paid after the first payment (money that
+  // reached a tenancy already ended) says nothing about the booking as a
+  // whole, which was paid for and lived in: its payment status stays as it is.
+  const laterInstalment = (updated.payment.instalment?.sequence ?? 1) > 1
+  if (status === 'PROCESSED' && !laterInstalment) {
     await db.booking.update({
       where: { id: updated.bookingId },
       data: { paymentStatus: updated.amount >= updated.payment.amount ? 'REFUNDED' : 'PARTIALLY_REFUNDED' },

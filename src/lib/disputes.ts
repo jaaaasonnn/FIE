@@ -183,6 +183,16 @@ export type DecisionInput = {
   existingRefund: { reason: string; amount: number } | null
   /** A payout already created for the booking, if any */
   payout: { status: string; amount: number } | null
+  /**
+   * True when the payout job pays this booking by itself: a short stay, or a
+   * stay paid in instalments. Left out, it is true for short stays only.
+   */
+  automaticPayout?: boolean
+  /**
+   * Rent paid after the first payment, on a stay paid in instalments. A full
+   * refund returns the first payment; this has to go back by hand.
+   */
+  laterRentPaid?: number
 }
 
 export type DecisionRefund = {
@@ -223,7 +233,7 @@ export function decisionEffect(input: DecisionInput): DecisionEffect {
   if (!outcomesFor(role).includes(outcome)) return { ok: false, error: 'Choose an outcome for this dispute' }
 
   const { booking, payment, existingRefund, payout } = input
-  const shortStay = booking.rentalMode === 'SHORT_STAY'
+  const shortStay = input.automaticPayout ?? booking.rentalMode === 'SHORT_STAY'
   const paidOut = payout && payout.status !== 'FAILED' ? payout : null
   const manual: string[] = []
   const summary: string[] = []
@@ -257,7 +267,8 @@ export function decisionEffect(input: DecisionInput): DecisionEffect {
         stayRefund: cents(booking.subtotal), serviceFeeRefund: cents(booking.serviceFee), depositRefund: cents(booking.damageDeposit),
         amount: cents(payment.amount), amountPesewas: pesewas(payment.amount),
       }
-      summary.push(`The guest is refunded ${formatUsd(refund.amount)}: everything they paid.`)
+      summary.push(`The guest is refunded ${formatUsd(refund.amount)}: everything they paid${input.laterRentPaid ? ' in their first payment' : ''}.`)
+      if (input.laterRentPaid) manual.push(`The guest has also paid ${formatUsd(input.laterRentPaid)} of rent since. Refund it by hand.`)
       if (paidOut) {
         manual.push(`The host has already been sent ${formatUsd(paidOut.amount)}. Recover it by hand.`)
       } else {

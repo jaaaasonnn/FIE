@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { previewCancellation } from '@/lib/cancellation'
+import { refundableRent } from '@/lib/rentRules'
 
 /**
  * GET /api/bookings/[id]/cancellation
@@ -25,6 +26,7 @@ export async function GET(
       include: {
         listing: { select: { cancellationPolicy: true } },
         payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
+        instalments: { select: { sequence: true, amount: true } },
       },
     })
     if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -34,7 +36,9 @@ export async function GET(
 
     const payout = await db.payout.findFirst({ where: { bookingId: id }, select: { id: true } })
     const preview = previewCancellation({
-      booking,
+      // Paid in instalments: the refund is worked out from the rent paid so
+      // far (the first instalment), not the rent for the whole tenancy
+      booking: { ...booking, subtotal: refundableRent(booking.subtotal, booking.instalments) },
       payment: booking.payments[0] ?? null,
       hasPayout: !!payout,
       by: user.id === booking.hostId ? 'HOST' : 'GUEST',

@@ -2,7 +2,8 @@ import crypto from 'crypto'
 import * as Sentry from '@sentry/nextjs'
 import { db } from '@/lib/db'
 import { Prisma, type Payout } from '@prisma/client'
-import { PayoutsOffError, payoutGate } from '@/lib/payoutSwitches'
+import { PayoutsOffError, payoutGate, payoutLimitPesewas } from '@/lib/payoutSwitches'
+import { isSettled } from '@/lib/rentRules'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 import { notify } from '@/lib/messaging/notify'
 
@@ -56,15 +57,24 @@ export type InitiateHostPayoutResult = {
  *
  * `amount` is the USD amount to actually pay the host — i.e. already net
  * of platform commission — not the booking's gross price.
+ *
+ * With `instalmentId` the payout is for one rent instalment of a monthly or
+ * long-term booking, which must be settled. There is one payout per
+ * instalment; a booking with none has one payout, stored with instalmentSeq 0.
+ *
+ * A payout above PAYOUT_LIMIT_GHS is not sent: it is marked HELD, an alert is
+ * raised once, and a person pays it. It is never split or retried.
  */
 export async function initiateHostPayout({
   hostId,
   bookingId,
   amount,
+  instalmentId,
 }: {
   hostId: string
   bookingId: string
   amount: number
+  instalmentId?: string | null
 }): Promise<InitiateHostPayoutResult> {
   const gate = payoutGate()
   if (!gate.live) throw new PayoutsOffError(gate.reason)
@@ -93,8 +103,27 @@ export async function initiateHostPayout({
   if (booking.disputes?.length) {
     throw new Error(`Booking ${bookingId} has an open dispute: payout on hold`)
   }
-  // Never more than the host's share of what is left of the stay price
-  if (typeof booking.subtotal === 'number') {
+  const instalment = instalmentId
+    ? await db.instalment.findUnique({ where: { id: instalmentId }, select: { id: true, bookingId: true, sequence: true, status: true, amount: true } })
+    : null
+  if (instalmentId) {
+    if (!instalment || instalment.bookingId !== bookingId) {
+      throw new Error(`Instalment ${instalmentId} not found on booking ${bookingId}`)
+    }
+    // Rent that has not been paid or covered in full is never paid out
+    if (!isSettled(instalment)) {
+      throw new Error(`Instalment ${instalmentId} is not settled: no payout`)
+    }
+  }
+  // Never more than the host's share: of this instalment's rent, or of what
+  // is left of the stay price. A dispute's part refund comes out of the first
+  // payment, so it reduces the first instalment only.
+  if (instalment) {
+    const share = hostShare(instalment.amount, instalment.sequence === 1 ? booking.refund?.stayRefund ?? 0 : 0)
+    if (amount > share + 0.005) {
+      throw new Error(`Payout of ${amount} for instalment ${instalment.id} is more than the host's share of ${share}`)
+    }
+  } else if (typeof booking.subtotal === 'number') {
     const share = hostShare(booking.subtotal, booking.refund?.stayRefund ?? 0)
     if (amount > share + 0.005) {
       throw new Error(`Payout of ${amount} for booking ${bookingId} is more than the host's share of ${share}`)
@@ -114,13 +143,16 @@ export async function initiateHostPayout({
 
   // Find-or-create the Payout row for this booking FIRST, before any
   // network call — this is the record that survives a crash mid-call.
-  let payout = await db.payout.findFirst({ where: { hostId, bookingId } })
+  const instalmentSeq = instalment?.sequence ?? 0
+  let payout = await db.payout.findFirst({ where: { hostId, bookingId, instalmentSeq } })
   if (!payout) {
     try {
       payout = await db.payout.create({
         data: {
           hostId,
           bookingId,
+          instalmentId: instalment?.id ?? null,
+          instalmentSeq,
           amount,
           currency: 'USD',
           method: host.payoutMethod ?? 'MOMO',
@@ -136,10 +168,10 @@ export async function initiateHostPayout({
         },
       })
     } catch (error) {
-      // Another run created this booking's payout a moment ago: the unique
-      // index on bookingId refused ours, so use theirs.
+      // Another run created this payout a moment ago: the unique index on
+      // (bookingId, instalmentSeq) refused ours, so use theirs.
       if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2002') throw error
-      payout = await db.payout.findFirst({ where: { bookingId } })
+      payout = await db.payout.findFirst({ where: { bookingId, instalmentSeq } })
       if (!payout) throw error
     }
   }
@@ -147,8 +179,9 @@ export async function initiateHostPayout({
   // Idempotency guard: already has a real Paystack transfer code, or has
   // already reached a terminal state from a prior real attempt — do not
   // call Paystack again no matter how many times this is retried.
-  if (payout.paystackTransferCode || payout.status === 'COMPLETED' || payout.status === 'FAILED') {
-    return { ok: payout.status !== 'FAILED', payout, alreadyInitiated: true }
+  // A HELD payout is over the transfer limit and waits for a person.
+  if (payout.paystackTransferCode || payout.status === 'COMPLETED' || payout.status === 'FAILED' || payout.status === 'HELD') {
+    return { ok: payout.status !== 'FAILED' && payout.status !== 'HELD', payout, alreadyInitiated: true }
   }
 
   // Claim the row before any network call, so two runs holding the same
@@ -180,6 +213,14 @@ export async function initiateHostPayout({
     return { ok: false, payout: failed, error: 'Amount too small to transfer via Paystack' }
   }
 
+  // Over the most one transfer may be: held for a person, never split into
+  // smaller transfers and never sent to Paystack to be refused.
+  const limit = payoutLimitPesewas()
+  if (limit !== null && amountPesewas > limit) {
+    const held = await holdPayout(payout.id, amountPesewas, limit)
+    return { ok: false, payout: held, error: held.failureReason ?? 'Over the transfer limit' }
+  }
+
   try {
     const res = await fetch(`${PAYSTACK_BASE}/transfer`, {
       method: 'POST',
@@ -189,7 +230,7 @@ export async function initiateHostPayout({
         amount: amountPesewas,
         recipient: host.paystackRecipientCode,
         reference: payout.paystackTransferReference,
-        reason: `FieGH host payout — booking ${bookingId}`,
+        reason: `FieGH host payout — booking ${bookingId}${instalment ? `, rent ${instalment.sequence}` : ''}`,
       }),
     })
     const raw = await res.text()
@@ -230,6 +271,37 @@ export async function initiateHostPayout({
     )
     return { ok: false, payout: failed, error: 'Network error calling Paystack' }
   }
+}
+
+/**
+ * Marks a payout HELD because it is over the transfer limit. One alert, and
+ * the admins are told; the job never picks a HELD payout up again.
+ */
+async function holdPayout(payoutId: string, amountPesewas: number, limitPesewas: number): Promise<Payout> {
+  const now = new Date()
+  const held = await db.payout.update({
+    where: { id: payoutId },
+    data: {
+      status: 'HELD',
+      failureReason: `Over the transfer limit: GHS ${(amountPesewas / 100).toFixed(2)} is more than the GHS ${(limitPesewas / 100).toFixed(2)} one transfer may be. Pay it by hand.`,
+      alertedAt: now,
+    },
+  })
+  console.error(`[Payouts] Payout ${held.id} is over the transfer limit and is held`)
+  Sentry.captureMessage('A host payout is over the transfer limit and is held: pay it by hand', {
+    level: 'error',
+    tags: { area: 'payouts', payout_failure: 'OVER_LIMIT' },
+    fingerprint: ['payout-held', held.id],
+    // IDs and amounts only: no account or mobile money numbers
+    contexts: {
+      payout: {
+        payoutId: held.id, hostId: held.hostId, bookingId: held.bookingId, instalmentSeq: held.instalmentSeq,
+        amount: held.amount, currency: held.currency, amountPesewas, limitPesewas,
+      },
+    },
+  })
+  notify('payout.held', { payoutId: held.id })
+  return held
 }
 
 // ─── Failure handling & retry policy ────────────────────────────────────────
@@ -367,6 +439,8 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
   const results: RetryResult[] = []
   for (const payout of candidates) {
     if (classifyPayoutFailure(payout.failureReason) !== 'TRANSIENT') continue
+    // An instalment's payout whose instalment is gone cannot be checked: a person looks at it
+    if (payout.instalmentSeq > 0 && !payout.instalmentId) continue
 
     // Claim the row atomically so two overlapping cron runs can't both retry
     // it — only the run whose update matches the current retryCount wins.
@@ -397,6 +471,7 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
         hostId: payout.hostId,
         bookingId: payout.bookingId!,
         amount: payout.amount,
+        instalmentId: payout.instalmentId,
       })
       results.push({
         payoutId: payout.id,

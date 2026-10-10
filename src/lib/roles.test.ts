@@ -35,7 +35,7 @@ vi.mock('@/lib/db', () => {
     id: 'booking_1', listingId: 'listing_1', guestId: 'guest_1', hostId: 'host_1', status: 'PENDING', paymentStatus: 'UNPAID',
     rentalMode: 'SHORT_STAY', checkIn: new Date('2099-03-10T12:00:00Z'), checkOut: new Date('2099-03-12T12:00:00Z'),
     subtotal: 200, serviceFee: 24, damageDeposit: 0, pricePerUnit: 100, cancellationPolicy: 'MODERATE',
-    listing: { title: 'A home', cancellationPolicy: 'MODERATE' }, payments: [],
+    listing: { title: 'A home', cancellationPolicy: 'MODERATE' }, payments: [], instalments: [],
   }
   const db: Record<string, Record<string, (...args: never[]) => unknown>> = {
     listing: {
@@ -57,6 +57,7 @@ vi.mock('@/lib/db', () => {
       deleteMany: async () => { wrote('blockedDate.deleteMany'); return { count: 1 } },
     },
     payout: { findMany: async () => [], findFirst: async () => null },
+    instalment: { findMany: async () => [], updateMany: async () => ({ count: 0 }) },
     user: {
       findUnique: async () => ({ id: 'someone', passwordHash: 'hash', payoutMethod: null, paystackRecipientCode: null, payoutMethodVerifiedAt: null }),
       findMany: async () => [],

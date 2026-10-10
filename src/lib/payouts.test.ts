@@ -34,6 +34,8 @@ function apply(row: Row, data: Row) {
   }
 }
 
+// instalmentSeq is 0 unless set, as the column's default has it
+const payoutRows = () => state.payouts.map((p) => (p.instalmentSeq === undefined ? Object.assign(p, { instalmentSeq: 0 }) : p))
 vi.mock('@/lib/db', () => ({
   db: {
     user: { findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null },
@@ -42,15 +44,16 @@ vi.mock('@/lib/db', () => ({
     exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
     payout: {
       findFirst: async ({ where }: { where: Row }) => {
-        const row = state.payouts.find((p) => matches(p, where))
+        const row = payoutRows().find((p) => matches(p, where))
         return row ? { ...row } : null
       },
-      findMany: async ({ where }: { where: Row }) => state.payouts.filter((p) => matches(p, where)).map((p) => ({ ...p })),
+      findMany: async ({ where }: { where: Row }) => payoutRows().filter((p) => matches(p, where)).map((p) => ({ ...p })),
       create: async ({ data }: { data: Row }) => {
         const row = {
           id: `payout_${state.payouts.length + 1}`,
           retryCount: 0, lastFailedAt: null, alertedAt: null, paystackTransferCode: null,
           failureReason: null, initiatedAt: null, completedAt: null, createdAt: new Date(),
+          instalmentSeq: 0,
           ...data,
         }
         state.payouts.push(row)

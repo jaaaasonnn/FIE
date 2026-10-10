@@ -12,6 +12,8 @@ import { problemLinkLabel } from '@/lib/disputes'
 import { payState } from '@/lib/payDeadline'
 import { hostShare } from '@/lib/disputes'
 import { formatUsd } from '@/lib/utils'
+import { RentSchedule, type ScheduleInstalment } from '@/components/booking/RentSchedule'
+import { endTenancyQuote, rentStatus } from '@/lib/rentRules'
 
 type ApiBooking = {
   id: string
@@ -29,6 +31,9 @@ type ApiBooking = {
   cancelReason?: string | null
   disputes?: { raisedByRole: string; status: string }[]
   refund?: unknown
+  /** Rent instalments, on a monthly or long-term booking. Empty on any other. */
+  instalments?: ScheduleInstalment[]
+  endedEarlyAt?: string | null
   guest: {
     id: string
     name: string
@@ -94,6 +99,48 @@ export default function HostBookingsPage() {
   // The booking a host is in the middle of cancelling, if any
   const [cancelId, setCancelId] = useState<string | null>(null)
   const cancelBooking = allBookings.find((b) => b.id === cancelId)
+
+  // Ending a tenancy early: the host is shown the end date before confirming
+  const [ending, setEnding] = useState<{ id: string; endsOn: string; busy: boolean; error: string } | null>(null)
+
+  async function previewEnd(bookingId: string) {
+    try {
+      const res = await fetch(`/api/bookings/${bookingId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'end-tenancy', preview: true }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'This tenancy cannot be ended')
+      setEnding({ id: bookingId, endsOn: data.preview.endsOn, busy: false, error: '' })
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'This tenancy cannot be ended')
+    }
+  }
+
+  async function confirmEnd() {
+    if (!ending) return
+    setEnding({ ...ending, busy: true, error: '' })
+    try {
+      const res = await fetch(`/api/bookings/${ending.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'end-tenancy', expectedEnd: ending.endsOn }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        // The date moved (a month was paid for in the meantime): show the new one
+        setEnding({ ...ending, endsOn: data.preview?.endsOn ?? ending.endsOn, busy: false, error: data.error || 'The tenancy could not be ended' })
+        return
+      }
+      // Read the bookings again: the end date and the months still owed have changed
+      const fresh = await fetch(`/api/bookings?hostId=${user!.id}`).then((r) => r.json())
+      if (Array.isArray(fresh.bookings)) setAllBookings(fresh.bookings)
+      setEnding(null)
+    } catch {
+      setEnding({ ...ending, busy: false, error: 'Network error. Please try again.' })
+    }
+  }
 
   async function handleRespond(bookingId: string, action: 'accept' | 'decline') {
     setRespondingId(bookingId)
@@ -174,6 +221,12 @@ export default function HostBookingsPage() {
               const pay       = payState(b)
               const s         = (pay && PAY_STATE_UI[pay]) ?? STATUS_UI[b.status] ?? STATUS_UI['PENDING']
               const trustScore = b.guest.trustScore ?? 0
+              const rent      = rentStatus(b.instalments, b)
+              // Shown only where ending would do something; the server decides again
+              const canEnd    = endTenancyQuote({
+                booking: { ...b, checkIn: new Date(b.checkIn), checkOut: new Date(b.checkOut), endedEarlyAt: b.endedEarlyAt ? new Date(b.endedEarlyAt) : null },
+                instalments: b.instalments ?? [],
+              }).ok
               return (
                 <div key={b.id} className="soft-panel p-5">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -213,11 +266,50 @@ export default function HostBookingsPage() {
                       <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         ${b.totalPrice.toLocaleString()}
                         <span className="text-xs font-normal text-stone-400 block">
-                          You earn {formatUsd(hostShare(b.subtotal))} after commission
+                          You earn {formatUsd(hostShare(b.subtotal))} after commission{rent ? ', month by month' : ''}
                         </span>
+                        {rent?.kind === 'NEXT' && (
+                          <span className="text-xs font-normal block" style={{ color: rent.overdue ? '#991B1B' : '#6B645C' }}>
+                            {rent.overdue ? 'Rent late, was due' : 'Next rent due'} {formatStayDate(rent.instalment.dueDate, { day: 'numeric', month: 'short' })}
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
+
+                  {/* Rent, month by month, on a monthly or long-term stay */}
+                  {b.instalments && b.instalments.length > 0 && b.status !== 'DECLINED' && (
+                    <details className="mt-4 pt-3 border-t border-stone-50">
+                      <summary className="text-xs font-semibold cursor-pointer" style={{ color: 'var(--color-text-primary)' }}>
+                        Rent payments{b.endedEarlyAt ? ' (tenancy ended early)' : ''}
+                      </summary>
+                      <RentSchedule instalments={b.instalments} booking={b} role="HOST" className="mt-1" />
+                      <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+                        You are paid for the first payment 48 hours after move-in, and for each later month once its rent has been paid and has fallen due.
+                      </p>
+                    </details>
+                  )}
+
+                  {ending?.id === b.id && (
+                    <div className="mt-4 p-4 rounded-xl text-sm" style={{ backgroundColor: '#FEF3C7', color: '#78350F' }}>
+                      <p className="font-semibold">End this tenancy on {formatStayDate(`${ending.endsOn}T12:00:00.000Z`, { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}?</p>
+                      <p className="mt-1 text-xs leading-relaxed">
+                        That is the end of the last month paid for. No more rent is owed after it, nothing already paid is refunded, and the later dates open for booking again. You are still paid for every month already paid for. This cannot be undone.
+                      </p>
+                      {ending.error && <p className="mt-2 text-xs font-semibold" style={{ color: '#991B1B' }}>{ending.error}</p>}
+                      <div className="flex gap-2 mt-3">
+                        <button onClick={confirmEnd} disabled={ending.busy}
+                          className="px-4 py-2 rounded-full text-xs font-semibold disabled:opacity-50"
+                          style={{ backgroundColor: '#991B1B', color: '#FFFFFF' }}>
+                          {ending.busy ? 'Ending…' : 'End tenancy'}
+                        </button>
+                        <button onClick={() => setEnding(null)} disabled={ending.busy}
+                          className="px-4 py-2 rounded-full text-xs font-semibold border border-stone-300">
+                          Keep tenancy
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Actions */}
                   <div className="flex gap-2 mt-4 pt-4 border-t border-stone-50 flex-wrap">
@@ -244,6 +336,12 @@ export default function HostBookingsPage() {
                         className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
                         {problemLinkLabel('HOST', b)}
                       </Link>
+                    )}
+                    {canEnd && ending?.id !== b.id && (
+                      <button onClick={() => previewEnd(b.id)}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold border border-stone-200 text-[#6B645C] hover:bg-stone-50">
+                        End tenancy
+                      </button>
                     )}
                     {b.status === 'CONFIRMED' && (
                       <button onClick={() => setCancelId(b.id)}

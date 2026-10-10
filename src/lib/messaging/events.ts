@@ -6,6 +6,8 @@
 import { db } from '@/lib/db'
 import { HOST_CANCEL_REASONS } from '@/lib/cancellationPolicy'
 import { hostShare, outcomeLabel, reasonLabel } from '@/lib/disputes'
+import { OVERDUE_REMINDER_DAYS, daysPastDue, depositLeft, isOpen, outstanding, tenancyStands } from '@/lib/rentRules'
+import { ghanaDate, usd } from '@/lib/messaging/format'
 import type { Audience, EventName, Facts } from '@/lib/messaging/templates'
 
 /** The IDs each event is raised with. */
@@ -26,7 +28,17 @@ export type EventIds = {
   /** `pesewas` is the amount Paystack says it transferred, when the webhook carries it */
   'payout.sent': { payoutId: string; pesewas?: unknown }
   'payout.failed': { payoutId: string }
-  'payout.waiting': { bookingId: string }
+  'payout.waiting': { bookingId: string; instalmentId?: string }
+  'payout.held': { payoutId: string }
+  'rent.due_soon': { instalmentId: string }
+  'rent.due_today': { instalmentId: string }
+  /** `day` is the Ghana date the reminder is for: one a day and no more */
+  'rent.overdue': { instalmentId: string; day: string }
+  'rent.overdue_notice': { instalmentId: string }
+  'rent.reminders_stopped': { instalmentId: string }
+  'rent.paid': { instalmentId: string }
+  'rent.covered_from_deposit': { instalmentId: string }
+  'tenancy.ended_early': { bookingId: string }
   'payout_method.changed': { userId: string }
   'dispute.raised': { disputeId: string }
   'dispute.replied': { disputeId: string }
@@ -63,11 +75,20 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       listing: { select: { id: true, title: true } },
       guest: { select: { id: true, name: true } },
       host: { select: { id: true, name: true, paystackRecipientCode: true, payoutMethodVerifiedAt: true } },
-      payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
+      // The payment that confirmed the booking: on a booking paid in
+      // instalments, later rent payments are not what "was paid" for it
+      payments: { where: { status: 'SUCCESS', OR: [{ instalmentId: null }, { instalment: { sequence: 1 } }] }, orderBy: { createdAt: 'desc' }, take: 1 },
       refund: true,
+      instalments: { orderBy: { sequence: 'asc' }, take: 2 },
     },
   })
   if (!b) return null
+  // Paid in instalments: what is paid now is the first one, not the whole tenancy
+  const [first, second] = b.instalments
+  const dueNow = first ? first.amount + first.depositAmount : b.totalPrice
+  const rentPlan = !first ? undefined
+    : !second ? undefined
+    : `That first payment covers the rent to ${ghanaDate(first.periodEnd)}${first.depositAmount > 0 ? ' and the damage deposit' : ''}. After that the rent is ${usd(second.amount)} a month, due from ${ghanaDate(second.dueDate)}.`
   const rate = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
   const reasonCode = (b.cancelReason ?? '').split(':')[0]
   return {
@@ -82,7 +103,8 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       checkOut: b.checkOut,
       guestName: b.guest.name,
       hostName: b.host.name,
-      totalUsd: b.totalPrice,
+      totalUsd: dueNow,
+      rentPlan,
       usdToGhs: rate?.usdToGhs,
       paidPesewas: b.payments[0]?.amountPesewas ?? null,
       payBy: b.payBy,
@@ -93,9 +115,59 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       refundPesewas: b.refund?.amountPesewas ?? null,
       refundId: b.refund?.id,
       expiredFor: b.cancelReason === 'NO_HOST_RESPONSE' ? 'NO_HOST_RESPONSE' : 'UNPAID_EXPIRED',
-      payoutUsd: hostShare(b.subtotal, b.refund?.stayRefund ?? 0),
+      payoutUsd: hostShare(first ? first.amount : b.subtotal, b.refund?.stayRefund ?? 0),
     },
   }
+}
+
+/** A rent instalment and its booking. `key` is the instalment, so each one is its own occurrence. */
+async function instalment({ instalmentId }: { instalmentId: string }): Promise<Loaded | null> {
+  const i = await db.instalment.findUnique({
+    where: { id: instalmentId },
+    include: {
+      payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
+      booking: {
+        select: {
+          status: true, paymentStatus: true, damageDeposit: true,
+          refund: { select: { depositRefund: true } },
+          instalments: { select: { sequence: true, status: true, coveredFromDeposit: true } },
+        },
+      },
+    },
+  })
+  if (!i) return null
+  const loaded = await booking(i.bookingId)
+  if (!loaded) return null
+  const payment = i.payments[0]
+  const days = daysPastDue(i.dueDate)
+  return {
+    ...loaded,
+    key: i.id,
+    facts: {
+      ...loaded.facts,
+      instalmentId: i.id,
+      // Still owed: what is left to pay. Settled: what was paid for it.
+      rentUsd: isOpen(i) ? outstanding(i) : payment?.amount ?? i.amount + i.depositAmount,
+      paidPesewas: payment?.amountPesewas ?? null,
+      rentDue: i.dueDate,
+      rentPeriodStart: i.periodStart,
+      rentDaysLate: days,
+      rentLastReminder: days >= OVERDUE_REMINDER_DAYS,
+      coveredUsd: i.coveredFromDeposit,
+      shortfallUsd: outstanding(i),
+      depositLeftUsd: depositLeft(i.booking.damageDeposit, i.booking.instalments, i.booking.refund?.depositRefund ?? 0),
+      payoutUsd: hostShare(i.amount),
+    },
+  }
+}
+
+/** A reminder is only worth sending while the rent is still owed on a tenancy that stands. */
+async function owedInstalment(ids: { instalmentId: string }): Promise<Loaded | null> {
+  const state = await db.instalment.findUnique({
+    where: { id: ids.instalmentId },
+    select: { status: true, booking: { select: { status: true, paymentStatus: true } } },
+  })
+  return state && isOpen(state) && tenancyStands(state.booking) ? instalment(ids) : null
 }
 
 /** A booking event that only makes sense while the booking is in a given state. */
@@ -112,7 +184,10 @@ async function refund({ refundId }: { refundId: string }): Promise<Loaded | null
 }
 
 async function payout({ payoutId, pesewas }: { payoutId: string; pesewas?: unknown }): Promise<Loaded | null> {
-  const p = await db.payout.findUnique({ where: { id: payoutId }, select: { id: true, bookingId: true, amount: true, failureReason: true } })
+  const p = await db.payout.findUnique({
+    where: { id: payoutId },
+    select: { id: true, bookingId: true, amount: true, failureReason: true, instalment: { select: { periodStart: true } } },
+  })
   if (!p?.bookingId) return null
   const loaded = await booking(p.bookingId)
   const sent = Number(pesewas)
@@ -122,6 +197,8 @@ async function payout({ payoutId, pesewas }: { payoutId: string; pesewas?: unkno
     recipients: { host: loaded.recipients.host },
     facts: {
       ...loaded.facts, payoutId: p.id, payoutUsd: p.amount, failureReason: p.failureReason,
+      // Set when the payout is for one instalment of rent
+      rentPeriodStart: p.instalment?.periodStart,
       payoutPesewas: Number.isInteger(sent) && sent > 0 ? sent : null,
     },
   }
@@ -203,9 +280,36 @@ export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded |
   'payout.sent': payout,
   'payout.failed': payout,
   // Only while the host still has nothing to be paid into
-  'payout.waiting': async ({ bookingId }) => {
-    const loaded = await booking(bookingId)
+  'payout.waiting': async ({ bookingId, instalmentId }) => {
+    // One notice per payout that is waiting: the booking's, or each rent instalment's
+    const loaded = instalmentId ? await instalment({ instalmentId }) : await booking(bookingId)
     return loaded && !loaded.facts.hostHasPayoutMethod ? { ...loaded, recipients: { host: loaded.recipients.host } } : null
+  },
+  'payout.held': payout,
+  'rent.due_soon': async (ids) => {
+    const loaded = await owedInstalment(ids)
+    return loaded && { ...loaded, recipients: { guest: loaded.recipients.guest } }
+  },
+  'rent.due_today': async (ids) => {
+    const loaded = await owedInstalment(ids)
+    return loaded && { ...loaded, recipients: { guest: loaded.recipients.guest } }
+  },
+  'rent.overdue': async ({ instalmentId, day }) => {
+    const loaded = await owedInstalment({ instalmentId })
+    return loaded && { ...loaded, key: `${instalmentId}:${day}`, recipients: { guest: loaded.recipients.guest } }
+  },
+  'rent.overdue_notice': async (ids) => {
+    const loaded = await owedInstalment(ids)
+    return loaded && { ...loaded, recipients: { host: loaded.recipients.host } }
+  },
+  'rent.reminders_stopped': owedInstalment,
+  'rent.paid': instalment,
+  'rent.covered_from_deposit': instalment,
+  'tenancy.ended_early': async ({ bookingId }) => {
+    const ended = await db.booking.findUnique({ where: { id: bookingId }, select: { checkOut: true, endedEarlyBy: true, endedEarlyAt: true } })
+    if (!ended?.endedEarlyAt) return null
+    const loaded = await booking(bookingId)
+    return loaded && { ...loaded, facts: { ...loaded.facts, tenancyEndsOn: ended.checkOut, endedBy: ended.endedEarlyBy === 'ADMIN' ? 'ADMIN' : 'HOST' } }
   },
   'payout_method.changed': async (ids) => {
     const loaded = await user(ids)

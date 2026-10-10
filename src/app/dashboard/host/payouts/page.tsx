@@ -17,6 +17,9 @@ type ApiPayout = {
   status: string
   reference: string | null
   createdAt: string
+  booking?: { listing: { title: string } } | null
+  /** Set when the payout is for one instalment of rent */
+  instalment?: { sequence: number; periodStart: string; periodEnd: string } | null
 }
 
 type SavedPayoutMethod = {
@@ -44,6 +47,7 @@ const STATUS_UI: Record<string, { bg: string; color: string; label: string; icon
   PROCESSING: { bg: '#FEF3C7', color: '#92400E', label: 'Processing', icon: <Clock size={13} /> },
   PENDING:    { bg: '#F3F4F6', color: '#6B7280', label: 'Pending',    icon: <Clock size={13} /> },
   FAILED:     { bg: '#FEE2E2', color: '#991B1B', label: 'Failed',     icon: <Clock size={13} /> },
+  HELD:       { bg: '#FEF3C7', color: '#92400E', label: 'Sent by our team', icon: <Clock size={13} /> },
 }
 
 function methodLabel(p: ApiPayout): string {
@@ -415,8 +419,20 @@ export default function HostPayoutsPage() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                              Payout {p.reference ? `· ${p.reference}` : ''}
+                              {p.booking?.listing.title ?? 'Payout'} {p.reference ? `· ${p.reference}` : ''}
                             </p>
+                            {p.instalment && (
+                              <p className="text-xs text-[#6B645C] mt-0.5">
+                                Rent from {new Date(p.instalment.periodStart).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                                {' to '}
+                                {new Date(p.instalment.periodEnd).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                              </p>
+                            )}
+                            {p.status === 'HELD' && (
+                              <p className="text-xs mt-0.5" style={{ color: '#92400E' }}>
+                                Too large for one automatic transfer. Our team is sending it to you directly.
+                              </p>
+                            )}
                             <p className="text-xs text-[#6B645C] mt-0.5">
                               {methodLabel(p)} · {new Date(p.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>
@@ -443,7 +459,7 @@ export default function HostPayoutsPage() {
 
             <div className="mt-4 p-4 rounded-xl text-sm"
               style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)', color: 'var(--color-text-primary)' }}>
-              <strong>Payout schedule:</strong> Short stay payments are sent 48 hours after guest check-in. If the guest reports a problem, the payout waits for our decision. Monthly and long-term payments are made by our team. All amounts are in USD and converted at the current rate.
+              <strong>Payout schedule:</strong> Short stay payments are sent 48 hours after guest check-in. If the guest reports a problem, the payout waits for our decision. For monthly and long-term stays, the first payment is paid out 48 hours after move-in, and each later month once its rent has been paid and has fallen due. All amounts are in USD and converted at the current rate.
             </div>
           </>
         )}

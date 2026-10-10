@@ -15,6 +15,8 @@ import {
   EXPIRED_UNANSWERED, EXPIRED_UNPAID, EXPIRED_UNPAID_REFUNDED, HOST_MUST_ACCEPT, PAYMENT_STILL_PROCESSING, PAY_WINDOW_PASSED,
   formatPayBy, payState,
 } from '@/lib/payDeadline'
+import { isSettled, laterInstalmentRefusal, outstanding, rentPlan, tenancyMonths } from '@/lib/rentRules'
+import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -44,6 +46,8 @@ type BookingData = {
     cancellationPolicy: string
   }
   host: { name: string }
+  /** Rent instalments, on a monthly or long-term booking. Empty on any other. */
+  instalments?: ScheduleInstalment[]
 }
 
 const MOMO_NETWORKS = [
@@ -100,6 +104,9 @@ function CheckoutPageInner() {
   // load, so the result is read once when the state is created.
   const [error,       setError]       = useState(() => paymentReturnError(searchParams.get('payment')))
   const [success,     setSuccess]     = useState(() => searchParams.get('payment') === 'success')
+  // ?instalment=… is a rent payment after the first: the page then pays that
+  // one instalment instead of the booking's first payment
+  const instalmentId = searchParams.get('instalment')
 
   // ── Fetch booking from API ────────────────────────────────────────────
   useEffect(() => {
@@ -116,6 +123,33 @@ function CheckoutPageInner() {
 
         const state = payState(data.booking)
         const returned = new URLSearchParams(window.location.search).get('payment')
+
+        // A rent payment after the first. The server decides whether it can
+        // be paid; this only says why not before the tenant tries.
+        const rent = ((data.booking.instalments ?? []) as ScheduleInstalment[]).find((i) => i.id === instalmentId && i.sequence > 1)
+        if (instalmentId && !rent) {
+          setBookingError('That rent payment could not be found on this booking.')
+          return
+        }
+        if (rent) {
+          if (isSettled(rent)) {
+            setSuccess(true)
+          } else if (returned === 'refunded') {
+            setBookingError('This tenancy has ended, so that rent is no longer owed and your payment is being refunded in full. Refunds can take up to 10 working days to arrive.')
+            return
+          } else if (returned === 'pending') {
+            setNotice({ title: 'Payment still processing', body: PAYMENT_STILL_PROCESSING, retry: true })
+            return
+          } else {
+            const refusal = laterInstalmentRefusal({ instalment: rent, instalments: data.booking.instalments, booking: data.booking })
+            if (refusal) {
+              setNotice({ title: 'This rent cannot be paid right now', body: refusal })
+              return
+            }
+          }
+          setBooking(data.booking)
+          return
+        }
 
         // Not paid, or not answered, in time: the dates have been released
         if (state === 'EXPIRED_UNPAID') {
@@ -173,7 +207,16 @@ function CheckoutPageInner() {
       }
     }
     load()
-  }, [bookingId])
+  }, [bookingId, instalmentId])
+
+  // What this page pays: a later rent instalment, the first payment of a
+  // booking paid in instalments, or the whole booking
+  const instalments = booking?.instalments ?? []
+  const rent = instalments.find((i) => i.id === instalmentId && i.sequence > 1) ?? null
+  const plan = booking && !rent ? rentPlan(instalments, tenancyMonths(booking.rentalMode, booking.nightsOrMonths)) : null
+  const paidRent = rent ? rent.amount - (isSettled(rent) ? rent.coveredFromDeposit : 0) : 0
+  const payAmount = rent ? (isSettled(rent) ? paidRent : outstanding(rent)) : plan ? plan.dueNow : booking?.totalPrice ?? 0
+  const dayText = (value: string | Date) => formatStayDate(value, { day: 'numeric', month: 'short', year: 'numeric' })
 
   // ── Handle payment submission ─────────────────────────────────────────
   async function handlePay(e: React.FormEvent) {
@@ -194,11 +237,12 @@ function CheckoutPageInner() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           bookingId: booking.id,
+          ...(rent ? { instalmentId: rent.id } : {}),
           method:    payMethod,
           momoNetwork: payMethod === 'MOMO' ? momoNetwork : undefined,
           momoNumber:  payMethod === 'MOMO' ? momoNumber  : undefined,
           email:    'guest@fiegh.com', // replace with auth session email
-          amount:   booking.totalPrice,
+          amount:   payAmount,
         }),
       })
       const data = await res.json()
@@ -220,7 +264,7 @@ function CheckoutPageInner() {
       }
 
       // Send the guest to Paystack's hosted checkout to actually pay.
-      window.location.href = data.authorizationUrl
+      window.location.assign(data.authorizationUrl)
     } catch {
       setError('Network error. Please check your connection and try again.')
     } finally {
@@ -315,16 +359,23 @@ function CheckoutPageInner() {
             <CheckCircle size={48} style={{ color: '#059669' }} />
           </div>
           <h2 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            Booking Confirmed!
+            {rent ? 'Rent received' : 'Booking Confirmed!'}
           </h2>
           <p className="mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-            Your payment of <strong>{formatUsd(booking.totalPrice)}</strong> has been received.
+            {rent
+              ? <>Your rent from {dayText(rent.periodStart)} to {dayText(rent.periodEnd)} is paid.</>
+              : <>Your payment of <strong>{formatUsd(payAmount)}</strong> has been received.</>}
           </p>
-          {booking.damageDeposit > 0 && (
+          {!rent && booking.damageDeposit > 0 && (
             <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>{depositIncludedNote(booking.damageDeposit)}.</p>
           )}
+          {!rent && plan && plan.laterCount > 0 && plan.firstLaterDue && (
+            <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+              Your next rent payment of {formatUsd(plan.laterAmount)} is due on {dayText(plan.firstLaterDue)}. We will remind you.
+            </p>
+          )}
           <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
-            {heldNote(booking.rentalMode)}
+            {heldNote(booking.rentalMode, instalments.length > 0)}
           </p>
 
           <div className="p-5 rounded-2xl text-left mb-6 space-y-2"
@@ -338,13 +389,15 @@ function CheckoutPageInner() {
             </p>
           </div>
 
-          <div className="p-4 rounded-2xl mb-6 text-sm flex items-start gap-2"
-            style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF' }}>
-            <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
-            <span>
-              {SUPPORT_NOTE}
-            </span>
-          </div>
+          {!rent && (
+            <div className="p-4 rounded-2xl mb-6 text-sm flex items-start gap-2"
+              style={{ backgroundColor: '#EFF6FF', border: '1px solid #BFDBFE', color: '#1E40AF' }}>
+              <AlertCircle size={16} className="flex-shrink-0 mt-0.5" />
+              <span>
+                {SUPPORT_NOTE}
+              </span>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3">
             <Button size="lg" className="w-full" onClick={() => router.push('/dashboard/guest')}>
@@ -367,9 +420,9 @@ function CheckoutPageInner() {
       {/* Header bar */}
       <div style={{ backgroundColor: 'var(--color-accent)' }} className="py-8 px-4">
         <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl font-bold text-white">Complete Your Booking</h1>
+          <h1 className="text-2xl font-bold text-white">{rent ? 'Pay Your Rent' : 'Complete Your Booking'}</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            Your payment is held by FieGH until after check-in
+            {rent ? 'Your rent is held by FieGH and paid to your host once it is due' : 'Your payment is held by FieGH until after check-in'}
           </p>
         </div>
       </div>
@@ -381,7 +434,7 @@ function CheckoutPageInner() {
           <div>
             <form onSubmit={handlePay} className="space-y-6">
               {/* How long these dates are held for */}
-              {booking.payBy && (
+              {!rent && booking.payBy && (
                 <div className="p-4 rounded-2xl flex items-start gap-3"
                   style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
                   <Clock size={17} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
@@ -495,7 +548,7 @@ function CheckoutPageInner() {
                 style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid #E5D0A8' }}>
                 <AlertTriangle size={18} aria-hidden className="flex-shrink-0" style={{ color: 'var(--color-accent-deep)' }} />
                 <p className="text-xs" style={{ color: 'var(--color-text-primary)' }}>
-                  <strong>Safety reminder:</strong> Never pay a host directly outside FieGH. Payments made here are held by FieGH until after check-in.
+                  <strong>Safety reminder:</strong> Never pay a host directly outside FieGH. {rent ? 'Rent paid here is held by FieGH and paid to your host once it is due.' : 'Payments made here are held by FieGH until after check-in.'}
                 </p>
               </div>
 
@@ -511,7 +564,7 @@ function CheckoutPageInner() {
               >
                 {loading
                   ? <><Loader2 size={18} className="animate-spin" /> Processing…</>
-                  : <><Lock size={16} aria-hidden /> {`Pay ${formatUsd(booking.totalPrice)} Securely`}</>}
+                  : <><Lock size={16} aria-hidden /> {`Pay ${formatUsd(payAmount)} Securely`}</>}
               </button>
             </form>
           </div>
@@ -521,7 +574,7 @@ function CheckoutPageInner() {
             <div className="sticky top-24 space-y-4">
               <div className="p-5 rounded-2xl border shadow-sm"
                 style={{ backgroundColor: 'var(--color-bg-card)', borderColor: 'var(--color-border)' }}>
-                <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Booking Summary</h3>
+                <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>{rent ? 'Rent Payment' : 'Booking Summary'}</h3>
 
                 <div className="flex gap-3 mb-5">
                   <img src={photo} alt="" className="w-20 h-16 rounded-xl object-cover flex-shrink-0" />
@@ -536,6 +589,26 @@ function CheckoutPageInner() {
                   </div>
                 </div>
 
+                {rent ? (
+                  <div className="border-t pt-4 text-sm" style={{ borderColor: 'var(--color-border)' }}>
+                    <div className="flex justify-between gap-4" style={{ color: 'var(--color-text-secondary)' }}>
+                      <span>Rent from {dayText(rent.periodStart)} to {dayText(rent.periodEnd)}</span>
+                      <span>{formatUsd(rent.amount)}</span>
+                    </div>
+                    {rent.coveredFromDeposit > 0 && (
+                      <div className="flex justify-between gap-4 mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+                        <span>Already taken from your deposit</span>
+                        <span>-{formatUsd(rent.coveredFromDeposit)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between gap-4 font-semibold mt-4 pt-3 border-t" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}>
+                      <span>Total due now</span><span>{formatUsd(payAmount)}</span>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
+                      About GH₵ {(payAmount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}. Charged in cedis at today&apos;s rate. Due {dayText(rent.dueDate)}.
+                    </p>
+                  </div>
+                ) : (
                 <PriceBreakdown
                   className="border-t pt-4"
                   rentalMode={booking.rentalMode}
@@ -544,16 +617,18 @@ function CheckoutPageInner() {
                   subtotal={booking.subtotal}
                   serviceFee={booking.serviceFee}
                   deposit={booking.damageDeposit}
-                  total={booking.totalPrice}
+                  total={payAmount}
+                  plan={plan}
                   ghsRate={ghsRate}
                 />
+                )}
               </div>
 
               {/* The policy this booking was made under */}
-              <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+              {!rent && <div className="p-4 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
                 <CancellationPolicy compact rentalMode={booking.rentalMode} serviceFee={booking.serviceFee}
                   policy={booking.cancellationPolicy ?? booking.listing.cancellationPolicy} />
-              </div>
+              </div>}
 
               {/* How the money is held */}
               <div className="p-4 rounded-2xl" style={{ backgroundColor: '#F0FDF4', border: '1px solid #86EFAC' }}>
@@ -562,9 +637,9 @@ function CheckoutPageInner() {
                   <p className="font-semibold text-sm" style={{ color: '#065F46' }}>How your payment is held</p>
                 </div>
                 <ul className="space-y-1 text-xs" style={{ color: '#15803D' }}>
-                  <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />{heldNote(booking.rentalMode)}</li>
-                  <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />{SUPPORT_NOTE}</li>
-                  {booking.damageDeposit > 0 && (
+                  <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />{heldNote(booking.rentalMode, instalments.length > 0)}</li>
+                  {!rent && <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />{SUPPORT_NOTE}</li>}
+                  {!rent && booking.damageDeposit > 0 && (
                     <li className="flex items-start gap-1.5"><Check size={12} aria-hidden className="flex-shrink-0 mt-0.5" />The deposit is returned by our team after check-out.</li>
                   )}
                 </ul>

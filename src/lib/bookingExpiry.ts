@@ -28,6 +28,7 @@ import { notify } from '@/lib/messaging/notify'
 import {
   CANCELLED_BY_SYSTEM, NO_HOST_RESPONSE, PAY_GRACE_MS, REQUEST_ANSWER_WINDOW_MS, UNPAID_EXPIRED,
 } from '@/lib/payDeadline'
+import { OPEN_INSTALMENT_STATUSES } from '@/lib/rentRules'
 
 const HOUR_MS = 60 * 60 * 1000
 /** A booking still waiting on Paystack this long after it fell due raises an alert. */
@@ -157,6 +158,8 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
         },
       })
       if (updated.count === 0) return false
+      // Rent instalments of a booking that never started are no longer owed
+      await tx.instalment.updateMany({ where: { bookingId: booking.id, status: { in: OPEN_INSTALMENT_STATUSES } }, data: { status: 'CANCELLED' } })
       await tx.blockedDate.deleteMany({
         where: {
           listingId: booking.listingId,

@@ -3,9 +3,10 @@
 // admin preview and the real thing render from exactly the same code.
 //
 // Rules the templates keep to:
-//  - Email carries the detail. SMS is for the few events that cannot wait,
-//    fits one plain 160-character segment, writes cedis as "GHS", and never
-//    carries a name, an address, a phone number or an account detail.
+//  - Email carries the detail. SMS is for the few events that cannot wait
+//    (and for rent reminders), fits one plain 160-character segment, writes
+//    cedis as "GHS", and never carries a name, an address, a phone number or
+//    an account detail.
 //  - In-app rows are written only for events that had none before; the five
 //    older in-app notices are still written where they always were.
 //  - An event marked `optional` is one a person can turn off in their profile.
@@ -49,6 +50,22 @@ export type Facts = {
   outcomeLabel?: string
   resolution?: string | null
   note?: string | null
+  // Rent instalments (monthly and long-term bookings)
+  /** How the rent is paid, in one sentence, on a booking paid in instalments */
+  rentPlan?: string
+  instalmentId?: string
+  /** What is owed on the instalment, or what was paid for it */
+  rentUsd?: number
+  rentDue?: Date
+  rentPeriodStart?: Date
+  rentDaysLate?: number
+  /** True on the last day a late reminder is sent */
+  rentLastReminder?: boolean
+  coveredUsd?: number
+  shortfallUsd?: number
+  depositLeftUsd?: number
+  tenancyEndsOn?: Date
+  endedBy?: 'HOST' | 'ADMIN'
   // People and listings
   userName?: string | null
   verificationStatus?: string
@@ -88,6 +105,19 @@ const paid = (f: Facts) => (f.paidPesewas ? `${ghs(f.paidPesewas)} (${usd(f.tota
 const refund = (f: Facts) => (f.refundPesewas ? `${ghs(f.refundPesewas)} (${usd(f.refundUsd ?? 0)})` : usd(f.refundUsd ?? 0))
 const payout = (f: Facts) => (f.payoutPesewas ? `${ghs(f.payoutPesewas)}${f.payoutUsd ? ` (${usd(f.payoutUsd)})` : ''}` : usd(f.payoutUsd ?? 0))
 const payByText = (f: Facts) => `${ghanaDate(f.payBy!)} at ${ghanaTime(f.payBy!)} (Ghana time)`
+/** "The stay comes to" for a booking paid at once; "The first payment comes to" for one paid in instalments. */
+const comesTo = (f: Facts) => `${f.rentPlan ? 'The first payment' : 'The stay'} comes to ${price(f)}.`
+const rentPlan = (f: Facts) => (f.rentPlan ? [f.rentPlan] : [])
+/** What a payout is for: a stay, or one instalment of rent. */
+const payoutFor = (f: Facts) => (f.rentPeriodStart
+  ? `the rent at ${home(f)} for the period starting ${ghanaDate(f.rentPeriodStart)}`
+  : `the stay at ${home(f)} from ${stay(f)}`)
+/** Rent not yet paid: dollars, with cedis at today's rate as a guide. */
+const rent = (f: Facts) => `${usd(f.rentUsd ?? 0)}${f.usdToGhs ? ` (${aboutGhs(f.rentUsd ?? 0, f.usdToGhs)})` : ''}`
+const rentPaid = (f: Facts) => (f.paidPesewas ? `${ghs(f.paidPesewas)} (${usd(f.rentUsd ?? 0)})` : usd(f.rentUsd ?? 0))
+const rentMonth = (f: Facts) => `the period starting ${ghanaDate(f.rentPeriodStart!)}`
+const rentLink = (f: Facts) => ({ label: 'Pay your rent', path: `/checkout/${f.bookingId}?instalment=${f.instalmentId}` })
+const RENT_HOW = 'Rent is charged in cedis at the rate on the day you pay. Nothing is taken automatically: you pay each month yourself, by card or mobile money.'
 const REFUND_TIMING = 'Refunds go back to the card or mobile money number you paid with, and can take up to 10 working days to arrive.'
 
 const bookingLink = (f: Facts, label = 'View your booking') => ({ label, path: `/bookings/${f.bookingId}` })
@@ -111,7 +141,8 @@ export const TEMPLATES = {
           lines: [
             hello(f.hostName),
             `${firstName(f.guestName) || 'A guest'} would like to stay at ${home(f)} from ${stay(f)}.`,
-            `The stay comes to ${price(f)}. Nothing is charged until you accept and the guest pays.`,
+            `${comesTo(f)} Nothing is charged until you accept and the guest pays.`,
+            ...rentPlan(f),
             'Please accept or decline within 48 hours. After that the request ends on its own and the dates open up again.',
           ],
           link: hostBookingsLink,
@@ -143,7 +174,8 @@ export const TEMPLATES = {
         lines: [
           hello(f.guestName),
           `Good news: your host accepted your request to stay at ${home(f)} from ${stay(f)}.`,
-          `The booking is not confirmed until it is paid for. The total is ${price(f)}.`,
+          `The booking is not confirmed until it is paid for. ${f.rentPlan ? 'The first payment' : 'The total'} is ${price(f)}.`,
+          ...rentPlan(f),
           f.payBy ? `Please pay by ${payByText(f)}. After that the dates are released for other guests.` : 'Please pay to confirm it.',
         ],
         link: { label: 'Pay now', path: `/checkout/${f.bookingId}` },
@@ -180,6 +212,8 @@ export const TEMPLATES = {
             hello(f.guestName),
             `Your booking is confirmed. You are staying at ${home(f)} from ${stay(f)}.`,
             `We received your payment of ${paid(f)}. This email is your receipt. Your reference is ${f.bookingId}.`,
+            ...rentPlan(f),
+            ...(f.rentPlan ? [RENT_HOW] : []),
             'FieGH holds your payment and pays the host after you have checked in.',
             'If something is wrong with the home when you arrive, tell us from your booking page by the end of the day after check-in.',
           ],
@@ -194,7 +228,9 @@ export const TEMPLATES = {
           lines: [
             hello(f.hostName),
             `${firstName(f.guestName) || 'Your guest'} has paid, so the booking for ${home(f)} from ${stay(f)} is confirmed.`,
-            'For a short stay, your payout is sent 48 hours after check-in.',
+            f.rentPlan
+              ? 'Your payout for the first payment is sent 48 hours after move-in. Each later month is paid out once its rent has been paid and has fallen due.'
+              : 'For a short stay, your payout is sent 48 hours after check-in.',
             ...(f.hostHasPayoutMethod === false ? ['You have not added a payout method yet. Please add one so we can pay you.'] : []),
           ],
           link: f.hostHasPayoutMethod === false ? payoutsLink : hostBookingsLink,
@@ -453,7 +489,7 @@ export const TEMPLATES = {
         subject: `Your payout for ${home(f)} has been sent`,
         lines: [
           hello(f.hostName),
-          `We have sent your payout of ${payout(f)} for the stay at ${home(f)} from ${stay(f)}.`,
+          `We have sent your payout of ${payout(f)} for ${payoutFor(f)}.`,
           'It went to the payout method on your account. Mobile money usually arrives within minutes; a bank account can take a working day.',
         ],
         link: payoutsLink,
@@ -471,7 +507,7 @@ export const TEMPLATES = {
           subject: `Your payout for ${home(f)} is delayed`,
           lines: [
             hello(f.hostName),
-            `We could not send your payout of ${usd(f.payoutUsd ?? 0)} for the stay at ${home(f)} from ${stay(f)}.`,
+            `We could not send your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)}.`,
             'Our team has been told and is looking into it. Please check that the payout method on your account is still correct.',
             `If you have questions, write to ${f.supportEmail}.`,
           ],
@@ -501,13 +537,258 @@ export const TEMPLATES = {
         subject: `A payout is waiting for you: ${home(f)}`,
         lines: [
           hello(f.hostName),
-          `Your payout of ${usd(f.payoutUsd ?? 0)} for the stay at ${home(f)} from ${stay(f)} is ready, but there is no payout method on your account yet.`,
+          `Your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)} is ready, but there is no payout method on your account yet.`,
           'Add a mobile money number or a bank account and we will send it within the hour.',
         ],
         link: { label: 'Add a payout method', path: '/dashboard/host/payouts' },
       },
       sms: sms(f.title, (t) => `FieGH: A payout for "${t}" is waiting. Add a payout method in FieGH to be paid: ${payoutsUrl(f)}`),
     }],
+  },
+
+  'payout.held': {
+    label: 'A payout is over the transfer limit and is held',
+    render: (f) => [
+      {
+        to: 'host',
+        email: {
+          subject: `Your payout for ${home(f)} is being sent by our team`,
+          lines: [
+            hello(f.hostName),
+            `Your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)} is larger than we can send in one automatic transfer.`,
+            'Our team has been told and will send it to you directly. You do not need to do anything.',
+            `If you have questions, write to ${f.supportEmail}.`,
+          ],
+          link: payoutsLink,
+        },
+      },
+      {
+        to: 'admin',
+        email: {
+          subject: 'A host payout is held: over the transfer limit',
+          lines: [
+            `A payout of ${usd(f.payoutUsd ?? 0)} for ${home(f)} is over the transfer limit. It was not sent and will not be split or retried.`,
+            'Pay it to the host by hand.',
+            `Payout ${f.payoutId}. Booking ${f.bookingId}.`,
+          ],
+          link: adminLink,
+        },
+        inApp: { title: 'A payout is held: over the transfer limit', body: `${usd(f.payoutUsd ?? 0)} for ${home(f)}. Pay it to the host by hand. Payout ${f.payoutId}.` },
+      },
+    ],
+  },
+
+  'rent.due_soon': {
+    label: 'Rent falls due in a few days',
+    render: (f) => [{
+      to: 'guest',
+      email: {
+        subject: `Rent for ${home(f)} is due on ${ghanaDate(f.rentDue!)}`,
+        lines: [
+          hello(f.guestName),
+          `Your rent of ${rent(f)} for ${home(f)} is due on ${ghanaDate(f.rentDue!)}. It covers ${rentMonth(f)}.`,
+          RENT_HOW,
+        ],
+        link: rentLink(f),
+      },
+      sms: sms(f.title, (t) => `FieGH: Rent of ${usd(f.rentUsd ?? 0)} for "${t}" is due on ${ghanaDate(f.rentDue!, true)}. Pay from your booking: ${bookingUrl(f)}`),
+    }],
+  },
+
+  'rent.due_today': {
+    label: 'Rent falls due today',
+    render: (f) => [{
+      to: 'guest',
+      email: {
+        subject: `Rent for ${home(f)} is due today`,
+        lines: [
+          hello(f.guestName),
+          `Your rent of ${rent(f)} for ${home(f)} is due today. It covers ${rentMonth(f)}.`,
+          RENT_HOW,
+        ],
+        link: rentLink(f),
+      },
+      sms: sms(f.title, (t) => `FieGH: Rent of ${usd(f.rentUsd ?? 0)} for "${t}" is due today. Pay from your booking: ${bookingUrl(f)}`),
+    }],
+  },
+
+  'rent.overdue': {
+    label: 'Rent is late (sent daily to the tenant)',
+    render: (f) => [{
+      to: 'guest',
+      email: {
+        subject: `Your rent for ${home(f)} is late`,
+        lines: [
+          hello(f.guestName),
+          `Your rent of ${rent(f)} for ${home(f)} was due on ${ghanaDate(f.rentDue!)} and has not been paid. It covers ${rentMonth(f)}.`,
+          'Please pay it today. If rent stays unpaid, it can be taken from your damage deposit, and your host can end the tenancy at the end of the last month paid for.',
+          ...(f.rentLastReminder ? ['This is our last reminder. Our team has been told and will be in touch.'] : []),
+          `If you have already paid, or something is wrong, write to ${f.supportEmail}.`,
+        ],
+        link: rentLink(f),
+      },
+      sms: sms(f.title, (t) => `FieGH: Rent of ${usd(f.rentUsd ?? 0)} for "${t}" was due on ${ghanaDate(f.rentDue!, true)} and is late. Please pay today: ${bookingUrl(f)}`),
+    }],
+  },
+
+  'rent.overdue_notice': {
+    label: 'Rent is late (the host and the admins are told once)',
+    render: (f) => [
+      {
+        to: 'host',
+        email: {
+          subject: `Rent for ${home(f)} is late`,
+          lines: [
+            hello(f.hostName),
+            `Your tenant's rent of ${usd(f.rentUsd ?? 0)} for ${home(f)}, due on ${ghanaDate(f.rentDue!)}, has not been paid.`,
+            'We are reminding them every day. You are paid for a month once its rent has been paid.',
+            'You can end the tenancy from your bookings page. It then ends at the end of the last month paid for.',
+          ],
+          link: hostBookingsLink,
+        },
+      },
+      {
+        to: 'admin',
+        email: {
+          subject: 'A rent payment is late',
+          lines: [`${home(f)}: rent of ${usd(f.rentUsd ?? 0)} due on ${ghanaDate(f.rentDue!)} is unpaid.`, `Booking ${f.bookingId}.`],
+          link: adminLink,
+        },
+      },
+    ],
+  },
+
+  'rent.reminders_stopped': {
+    label: 'Late rent reminders end and the admins are told',
+    render: (f) => [{
+      to: 'admin',
+      email: {
+        subject: 'Rent is still unpaid and reminders have stopped',
+        lines: [
+          `${home(f)}: rent of ${usd(f.rentUsd ?? 0)} due on ${ghanaDate(f.rentDue!)} is still unpaid. The tenant is no longer being reminded.`,
+          'It can be covered from the damage deposit on the Rent tab, or the host can end the tenancy.',
+          `Booking ${f.bookingId}.`,
+        ],
+        link: adminLink,
+      },
+      inApp: { title: 'Rent is still unpaid and reminders have stopped', body: `${home(f)}: ${usd(f.rentUsd ?? 0)} due on ${ghanaDate(f.rentDue!)}. Open the Rent tab. Booking ${f.bookingId}.` },
+    }],
+  },
+
+  'rent.paid': {
+    label: 'A rent payment is received',
+    render: (f) => [
+      {
+        to: 'guest',
+        email: {
+          subject: `We received your rent for ${home(f)}`,
+          lines: [
+            hello(f.guestName),
+            `We received your rent payment of ${rentPaid(f)} for ${home(f)}. It covers ${rentMonth(f)}.`,
+            `This email is your receipt. Your reference is ${f.bookingId}.`,
+          ],
+          link: bookingLink(f),
+        },
+      },
+      {
+        to: 'host',
+        email: {
+          subject: `Rent received for ${home(f)}`,
+          lines: [
+            hello(f.hostName),
+            `Your tenant has paid the rent for ${home(f)} for ${rentMonth(f)}.`,
+            'Your payout is sent once that rent has fallen due.',
+            ...(f.hostHasPayoutMethod === false ? ['You have not added a payout method yet. Please add one so we can pay you.'] : []),
+          ],
+          link: payoutsLink,
+        },
+      },
+    ],
+  },
+
+  'rent.covered_from_deposit': {
+    label: 'A missed rent payment is covered from the deposit',
+    render: (f) => {
+      const left = (f.shortfallUsd ?? 0) > 0
+      return [
+        {
+          to: 'guest',
+          email: {
+            subject: `Rent for ${home(f)} was taken from your deposit`,
+            lines: [
+              hello(f.guestName),
+              `Your rent for ${home(f)}, due on ${ghanaDate(f.rentDue!)}, was not paid, so ${usd(f.coveredUsd ?? 0)} has been taken from your damage deposit to cover it.`,
+              left
+                ? `That did not cover all of it. ${usd(f.shortfallUsd ?? 0)} is still owed for that period. Please pay it from your booking.`
+                : 'That period is now paid for.',
+              `${usd(f.depositLeftUsd ?? 0)} of your deposit is left.`,
+              `If you think this is wrong, write to ${f.supportEmail}.`,
+            ],
+            link: left ? rentLink(f) : bookingLink(f),
+          },
+        },
+        {
+          to: 'host',
+          email: {
+            subject: `Missed rent for ${home(f)} was covered from the deposit`,
+            lines: [
+              hello(f.hostName),
+              `Your tenant's rent for ${home(f)}, due on ${ghanaDate(f.rentDue!)}, was not paid. Our team has taken ${usd(f.coveredUsd ?? 0)} from the damage deposit to cover it.`,
+              left
+                ? `${usd(f.shortfallUsd ?? 0)} is still owed by the tenant for that period. You are paid for it once it has been paid in full.`
+                : 'That period is now paid for, and your payout follows as usual.',
+              `${usd(f.depositLeftUsd ?? 0)} of the deposit is left.`,
+            ],
+            link: hostBookingsLink,
+          },
+        },
+        {
+          to: 'admin',
+          inApp: {
+            title: 'Rent was covered from a deposit',
+            body: `${home(f)}: ${usd(f.coveredUsd ?? 0)} taken from the deposit for rent due on ${ghanaDate(f.rentDue!)}. ${left ? `${usd(f.shortfallUsd ?? 0)} still owed.` : 'Covered in full.'} Booking ${f.bookingId}.`,
+          },
+        },
+      ]
+    },
+  },
+
+  'tenancy.ended_early': {
+    label: 'A host or an admin ends a tenancy early',
+    render: (f) => {
+      const by = f.endedBy === 'ADMIN' ? 'FieGH' : 'Your host'
+      return [
+        {
+          to: 'guest',
+          email: {
+            subject: `Your tenancy at ${home(f)} ends on ${ghanaDate(f.tenancyEndsOn!)}`,
+            lines: [
+              hello(f.guestName),
+              `${by} has ended your tenancy at ${home(f)}. It now ends on ${ghanaDate(f.tenancyEndsOn!)}, the end of the last month that was paid for.`,
+              'No more rent is due after that date, and nothing already paid is refunded. Your damage deposit is returned by our team after you move out.',
+              `If you have questions, write to ${f.supportEmail}.`,
+            ],
+            link: bookingLink(f),
+          },
+        },
+        {
+          to: 'host',
+          email: {
+            subject: `The tenancy at ${home(f)} ends on ${ghanaDate(f.tenancyEndsOn!)}`,
+            lines: [
+              hello(f.hostName),
+              `The tenancy at ${home(f)} has been ended${f.endedBy === 'ADMIN' ? ' by our team' : ''}. It now ends on ${ghanaDate(f.tenancyEndsOn!)}, the end of the last month that was paid for.`,
+              'The dates after that are open for booking again. You are still paid for every month already paid for.',
+            ],
+            link: hostBookingsLink,
+          },
+        },
+        {
+          to: 'admin',
+          inApp: { title: 'A tenancy was ended early', body: `${home(f)} now ends on ${ghanaDate(f.tenancyEndsOn!)}. Ended by ${f.endedBy === 'ADMIN' ? 'an admin' : 'the host'}. Booking ${f.bookingId}.` },
+        },
+      ]
+    },
   },
 
   'payout_method.changed': {
@@ -878,4 +1159,15 @@ export const SAMPLE_FACTS: Facts = {
   verificationStatus: 'APPROVED',
   inboxPath: '/dashboard/guest/messages',
   reviewPublished: true,
+  instalmentId: 'cmexampleinstalment0000001',
+  rentUsd: 1333.33,
+  rentDue: new Date('2027-06-09T12:00:00Z'),
+  rentPeriodStart: new Date('2027-06-09T12:00:00Z'),
+  rentDaysLate: 3,
+  rentLastReminder: false,
+  coveredUsd: 600,
+  shortfallUsd: 733.33,
+  depositLeftUsd: 0,
+  tenancyEndsOn: new Date('2027-07-09T12:00:00Z'),
+  endedBy: 'HOST',
 }

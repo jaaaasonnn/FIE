@@ -13,6 +13,8 @@ FieGH is Ghana's premier full-stack rental marketplace combining short-term holi
 - 📅 **Temporary Stay** — Monthly rentals, 1–11 months (relocation, diaspora visits, students)
 - 🏠 **Permanent Rental** — 12+ months with tenancy agreements and clear advance payment terms
 
+Monthly and long-term stays are paid in instalments: the months paid up front and the deposit first, then month by month through a pay link, with reminders. Nothing is charged automatically.
+
 ### For Guests
 - Sign up with Ghana phone number or email
 - Ghana Card / Passport / Voter ID verification
@@ -130,6 +132,9 @@ The hourly cron jobs are off until switched on. Leave these unset until launch (
 - `PAYMENT_WEBHOOK_ENABLED`: must be exactly `true` before Paystack's `charge.success` webhook confirms a payment. While off, the event is signature-checked and logged as what it would do, and nothing is written.
 - `BOOKING_EXPIRY_ENABLED`: must be exactly `true` before the expiry job ends unpaid bookings and unanswered requests. While off, it only reports and never calls Paystack.
 - `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`). Only bookings created on or after it can be ended by the expiry job. Required for the job to run.
+- `RENT_REMINDERS_ENABLED`: must be exactly `true` before the daily rent reminder job writes any reminder. While off, it only reports and never calls Paystack.
+- `RENT_DEPOSIT_COVER_ENABLED`: must be exactly `true` before an admin can cover a missed rent payment from the damage deposit. While off, the button only reports what it would do.
+- `PAYOUT_LIMIT_GHS`: not a switch. The most one transfer to a host may be, in cedis. A payout above it is held for a person and an alert is raised; it is never split or retried. Unset: nothing is held for its size.
 
 Add `?dryRun=1` to any cron URL for a report-only run.
 

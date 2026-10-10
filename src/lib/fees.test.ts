@@ -308,7 +308,10 @@ describe('site copy', () => {
   it('counts admin revenue from stay prices, never from payments that carry deposits', () => {
     const route = fs.readFileSync(path.resolve(__dirname, '../app/api/admin/route.ts'), 'utf8')
     expect(route).not.toMatch(/payment\.aggregate/)
-    expect(route).toContain('hostCommission(b.subtotal, b.refund?.stayRefund ?? 0)')
+    // Through hostCommission, on the rent received: the stay price, or for a stay
+    // paid in instalments the instalments settled so far
+    expect(route).toContain('hostCommission(received(b), b.refund?.stayRefund ?? 0)')
+    expect(route).toContain('b.instalments.length > 0 ? rentReceived(b.instalments) : b.subtotal')
     expect(route).not.toMatch(/damageDeposit|totalPrice/)
   })
 

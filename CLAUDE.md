@@ -55,17 +55,35 @@ The cron jobs do nothing risky until they are switched on in the environment. Al
 - `PAYMENT_WEBHOOK_ENABLED`: must be exactly `true` before Paystack's `charge.success` webhook confirms a payment. While off, the event is signature-checked and logged as what it would do; nothing is written. The verify route confirms payments either way.
 - `BOOKING_EXPIRY_ENABLED`: must be exactly `true` before `expire-bookings` ends anything. While off it is a dry run and never calls Paystack.
 - `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be ended by the job. Required: without a valid date the job stays in dry run. Set it to the launch date.
+- `RENT_REMINDERS_ENABLED`: must be exactly `true` before `rent-reminders` writes anything. While off it is a dry run and never calls Paystack.
+- `RENT_DEPOSIT_COVER_ENABLED`: must be exactly `true` before an admin can cover a missed rent payment from the damage deposit. While off, the action only reports what it would do and writes nothing.
+- `PAYOUT_LIMIT_GHS`: not a switch. The most one transfer may be, in cedis. A payout above it becomes `HELD`, raises one Sentry alert and an admin notice, and is paid by hand; it is never split or retried. Unset or not a positive number: nothing is held for its size. The check sits inside `initiateHostPayout`, so it covers short stays too.
 - `?dryRun=1` on any cron URL forces a report-only run whatever the switches say.
 
 Rules worth knowing:
 - The payout job pays short stays that are `CONFIRMED` or `COMPLETED`, so the order the two jobs run in does not matter.
-- One payout per booking is enforced by a unique index on `Payout.bookingId`.
+- One payout per booking, or per rent instalment, is enforced by a unique index on `Payout(bookingId, instalmentSeq)`. `instalmentSeq` is 0 (never null) on a whole-booking payout, because nulls would not count as equal.
 - A host with no verified payout method is skipped and retried every hour; the host payouts page shows the amount waiting, and Sentry is alerted once a day once a payout is 7 days overdue.
 - A guest cannot cancel online once the check-in day has arrived or a payout exists (`src/lib/cancelRules.ts`).
 - A cancelled or refunded booking is never paid out (guard in `initiateHostPayout`).
-- Still not built: payouts for monthly and long-term stays, refunds after check-in outside a dispute (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
+- Still not built: payouts for a monthly or long-term stay made before instalments existed (it has no `Instalment` rows), refunds after check-in outside a dispute (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
 
 Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries transfer, refund and payment events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+
+## Rent instalments (monthly and long-term stays)
+
+- The rules are one pure file, `src/lib/rentRules.ts`. A monthly or long-term booking gets its `Instalment` rows when it is made (`POST /api/bookings`). The first covers the months paid up front and carries the damage deposit; each later one covers one month and is due the day that month starts (12:00 UTC, counted from the move-in day). The amounts add up to `Booking.subtotal` to the cent. Short stays have none.
+- A booking with no `Instalment` rows is paid in one payment, as before. That includes the two long-stay bookings that existed before this was built, which are left exactly as they were.
+- The advance: long-term defaults to 3 months and a host can set 1 to 6 (`Listing.advanceMonthsRequired`, `MAX_ADVANCE_MONTHS`). A tenancy of 6 months or less is capped at 2. A monthly booking pays 1. The listing routes refuse anything outside 1 to 6, and the booking route clamps again from the stored value. (Long-term is always booked for 12 months today, so the 2-month cap cannot trigger yet.)
+- `Booking.subtotal` and `totalPrice` are for the whole tenancy. What is due now is instalment 1. The price is still yearly (`priceAnnual`) and shown per month as yearly / 12. No service fee line.
+- Paying: `POST /api/payments` takes an optional `instalmentId` and charges exactly what is owed on it. A later instalment can be paid only from the move-in day (Ghana date), only the earliest one owed, and never in part. The pay link is `/checkout/[bookingId]?instalment=[id]`. Nothing is charged automatically.
+- `settlePayment` is still the one place anything is marked paid. The first instalment's payment confirms the booking and marks the instalment `PAID` in the same transaction. A later one marks only its instalment. A second payment on a settled instalment is `DUPLICATE`; rent that lands on a cancelled or ended tenancy is a `LATE_PAYMENT` refund.
+- Payouts: one per settled instalment, through the same `process-payouts` job and `initiateHostPayout`, for `hostShare` of the rent (never the deposit). Instalment 1 is released 48 hours after move-in; each later one on the later of the day it was paid and its due date. The same holds apply as for short stays.
+- `rent-reminders` runs daily at 08:00 UTC (`src/lib/rentReminders.ts`): 3 days before, on the day, then daily from the day after the 1-day grace until 14 days after the due date, then it stops and the admins are told once. The host and admins hear once when a payment first becomes late. Before chasing, it asks Paystack (read-only) about any open payment on the instalment and settles it.
+- Covering from the deposit: admin Rent tab, `POST /api/admin/rent`, `src/lib/depositCover.ts`. It takes the smaller of what is owed and the deposit left; a shortfall stays owed (`PART_COVERED`) and the tenant pays the rest in one payment. The record is on the instalment (`coveredFromDeposit`, `coveredById`, `coveredAt`). The host is paid for an instalment only once it is settled in full; if a part-covered one never is, the covered share is paid by hand.
+- Ending a tenancy: the host or an admin (`end-tenancy` on `PATCH /api/bookings/[id]`), after move-in. `checkOut` moves to the end of the last month paid or covered, the agreed date is kept in `originalCheckOut`, the months not paid are `CANCELLED`, and nothing is refunded. A tenant who leaves early goes through support; nothing is refunded automatically.
+- Cancelling before move-in works the refund out from the rent in the first payment, not the whole tenancy, and cancels the instalments. A dispute is decided on the first payment and what is left of the deposit; a full refund also cancels the rent still owed. One refund per booking still holds: a second one is an alert and a by-hand job.
+- Admin revenue counts the rent actually received on a booking paid in instalments.
 
 ## Fees
 
@@ -77,7 +95,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 
 ## Payments and unpaid bookings
 
-- A booking is marked paid in one place, `settlePayment` in `src/lib/paymentSettle.ts`. The verify route (the guest's browser coming back), the `charge.success` webhook and the expiry job all call it, in any order or twice, and it confirms once.
+- A booking is marked paid in one place, `settlePayment` in `src/lib/paymentSettle.ts`. The verify route (the guest's browser coming back), the `charge.success` webhook, the expiry job and the rent reminder job all call it, in any order or twice, and it confirms once. A rent instalment is settled there too (see Rent instalments).
 - It refuses a charge whose reference, amount (pesewas) or currency (GHS) does not match the stored `Payment`: the payment becomes `MISMATCH` and Sentry is alerted. A second successful payment on one booking becomes `DUPLICATE`, alerts, and is refunded by hand.
 - Success wins over failed. A payment still in progress at Paystack stays `PENDING` and the guest sees "still processing".
 - Money that lands on a cancelled, declined or expired booking, or on a request the host has not accepted, is recorded as a `LATE_PAYMENT` refund in full; the booking is never revived.
@@ -98,7 +116,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - `npm run email:test -- you@example.com --confirm` (`scripts/send-test-email.ts`) sends one real test email through the adapter. It ignores the switches, writes nothing to the database, and refuses without `--confirm`. Never run it from Claude Code.
 - Each row has a unique `dedupeKey` (event, occurrence, person, channel), so a job or webhook that fires twice writes nothing the second time.
 - The log stores the user id and a masked address only. The real address is read from `User` when the message is sent. Console and Sentry get IDs only.
-- SMS is for nine messages only: a new request (host), request accepted (guest), booking paid and confirmed (guest and host), the other side cancelled (guest or host), payout sent, payout waiting, and payout method changed. One plain 160-character segment, cedis written "GHS", no names or account details.
+- SMS is for nine messages, plus the three rent reminders to a tenant (due soon, due today, late): a new request (host), request accepted (guest), booking paid and confirmed (guest and host), the other side cancelled (guest or host), payout sent, payout waiting, and payout method changed. One plain 160-character segment, cedis written "GHS", no names or account details.
 - Optional emails (new messages, review prompts, reviews received, welcome notes) can be turned off on the profile page (`User.optionalEmails`). Everything else is always sent. No marketing.
 - Admin emails go to one shared inbox, `ADMIN_ALERT_EMAIL`; unset means they are `SKIPPED`. Sender values: `EMAIL_FROM` (the whole From line, default `FieGH <support@fiegh.com>`), `SUPPORT_EMAIL` (reply-to, default `support@fiegh.com`), `SMS_SENDER_ID`.
 - The admin page has a Messages tab: the log, and a preview of every template with sample data.
@@ -143,5 +161,4 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 
 ## Working Preferences
 - Prefer direct, concrete fixes with specific values/file paths over abstract suggestions
-- Update `FIEGH-CHECKLIST.md` in this repo as tasks are completed — treat it as the source of truth for progress tracking
 - Plain-English explanations welcome when asked, but default to just doing the work

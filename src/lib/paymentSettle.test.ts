@@ -50,6 +50,8 @@ vi.mock('@/lib/db', async () => {
       guest: { id: b.guestId, email: 'guest@example.test' },
       payments: state.payments.filter((p) => p.bookingId === b.id && matches(p, paymentsWhere)).map((p) => ({ ...p })),
       refund: state.refunds.find((r) => r.bookingId === b.id) ?? null,
+      // None of these bookings is paid in instalments: those are covered in rentInstalments.test.ts
+      instalments: [],
     }
   }
 
@@ -129,6 +131,7 @@ vi.mock('@/lib/db', async () => {
     listing: { findUnique: async () => ({ ...state.listing, host: { id: state.listing.hostId } }) },
     exchangeRate: { findFirst: async () => ({ usdToGhs: 15.5 }) },
     payout: { findFirst: async () => null },
+    instalment: { updateMany: async () => ({ count: 0 }) },
     user: { findMany: async () => [] },
     notification: { createMany: async () => ({ count: 0 }) },
   }

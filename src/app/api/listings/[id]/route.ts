@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
+import { parseAdvanceMonths } from '@/lib/rentRules'
 
 // Fields a host (or admin) may change via this route. Anything else in the
 // request body — hostId, id, avgRating, reviewCount, isFeatured, etc. — is
@@ -98,6 +99,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     for (const field of EDITABLE_FIELDS) {
       if (body[field] === undefined) continue
       data[field] = JSON_ARRAY_FIELDS.has(field) ? JSON.stringify(body[field]) : body[field]
+    }
+    // The advance a long-term tenant pays: 1 to 6 months, or nothing for the default
+    if (body.advanceMonthsRequired !== undefined) {
+      const advance = parseAdvanceMonths(body.advanceMonthsRequired)
+      if (!advance.ok) return NextResponse.json({ error: advance.error }, { status: 400 })
+      data.advanceMonthsRequired = advance.value
     }
 
     // A host's new description gets the same contact-details check as at

@@ -226,6 +226,26 @@ describe('sendRefund', () => {
     expect(state.bookings[0].paymentStatus).toBe('REFUNDED')
   })
 
+  it('leaves the booking as it is when the refund is of one later month\'s rent', async () => {
+    // Rent for a later month reached a tenancy that had already ended. The
+    // booking itself was paid for and lived in, so it is not "refunded".
+    fetchMock.mockImplementation(async () => created('processed'))
+    owed({ reason: 'LATE_PAYMENT', stayRefund: 498, serviceFeeRefund: 0, depositRefund: 0 })
+    state.bookings[0].status = 'CONFIRMED'
+    state.payments[0].instalment = { sequence: 4 }
+    await sendRefund('refund_1')
+    expect(refund().status).toBe('PROCESSED')
+    expect(state.bookings[0].paymentStatus).toBe('PAID')
+  })
+
+  it('still marks the booking refunded when the refund is of its first payment', async () => {
+    fetchMock.mockImplementation(async () => created('processed'))
+    owed()
+    state.payments[0].instalment = { sequence: 1 }
+    await sendRefund('refund_1')
+    expect(state.bookings[0].paymentStatus).toBe('REFUNDED')
+  })
+
   it('marks a part refund as partially refunded', async () => {
     fetchMock.mockImplementation(async () => created('processed'))
     owed(partRefund)

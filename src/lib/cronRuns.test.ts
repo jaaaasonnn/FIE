@@ -62,6 +62,8 @@ vi.mock('@/lib/db', async () => {
     }
     return matches(b, rest)
   }
+  // instalmentSeq is 0 unless set, as the column's default has it
+  const payoutRows = () => state.payouts.map((p) => (p.instalmentSeq === undefined ? Object.assign(p, { instalmentSeq: 0 }) : p))
   const openGuestDisputes = (b: Row) =>
     ((b.disputes as Row[]) ?? []).filter((d) => d.raisedByRole === 'GUEST' && ['OPEN', 'UNDER_REVIEW'].includes(d.status as string))
 
@@ -88,23 +90,26 @@ vi.mock('@/lib/db', async () => {
       },
       user: { findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null },
       exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
+      // None of these bookings is paid in instalments: those are covered in rentInstalments.test.ts
+      instalment: { findMany: async () => [] },
       payout: {
         findFirst: async ({ where }: { where: Row }) => {
           await tick()
-          const row = state.payouts.find((p) => matches(p, where))
+          const row = payoutRows().find((p) => matches(p, where))
           return row ? { ...row } : null
         },
-        findMany: async ({ where }: { where: Row }) => state.payouts.filter((p) => matches(p, where)).map((p) => ({ ...p })),
+        findMany: async ({ where }: { where: Row }) => payoutRows().filter((p) => matches(p, where)).map((p) => ({ ...p })),
         create: async ({ data }: { data: Row }) => {
           await tick()
-          // The real table has a unique index on bookingId
-          if (state.payouts.some((p) => p.bookingId === data.bookingId)) {
+          // The real table has a unique index on (bookingId, instalmentSeq)
+          if (payoutRows().some((p) => p.bookingId === data.bookingId && p.instalmentSeq === (data.instalmentSeq ?? 0))) {
             throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' })
           }
           const row = {
             id: `payout_${state.payouts.length + 1}`,
             retryCount: 0, lastFailedAt: null, alertedAt: null, paystackTransferCode: null,
             failureReason: null, initiatedAt: null, completedAt: null, createdAt: new Date(),
+            instalmentSeq: 0,
             ...data,
           }
           state.payouts.push(row)
@@ -118,7 +123,7 @@ vi.mock('@/lib/db', async () => {
           return { ...row }
         },
         updateMany: async ({ where, data }: { where: Row; data: Row }) => {
-          const rows = state.payouts.filter((p) => matches(p, where))
+          const rows = payoutRows().filter((p) => matches(p, where))
           rows.forEach((r) => apply(r, data))
           state.writes += rows.length
           return { count: rows.length }

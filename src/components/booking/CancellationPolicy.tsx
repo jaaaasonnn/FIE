@@ -3,10 +3,16 @@ import { POLICY_LABELS, asPolicy, commonRuleLines, policyRuleLines } from '@/lib
 // Wording shared by every page that talks about what happens to a guest's
 // money. Each sentence says only what the code does.
 
-/** Where the money sits. Only short stays have an automatic host payout so far. */
-export function heldNote(rentalMode: string): string {
-  return rentalMode === 'SHORT_STAY'
-    ? 'Your payment is held by FieGH and paid to the host 48 hours after check-in.'
+/**
+ * Where the money sits. A monthly or long-term booking paid in instalments
+ * (`instalments`, true unless the booking has none) pays the host for the
+ * first payment 48 hours after move-in and for each later month once its rent
+ * has fallen due. One made before instalments existed has no automatic payout.
+ */
+export function heldNote(rentalMode: string, instalments = true): string {
+  if (rentalMode === 'SHORT_STAY') return 'Your payment is held by FieGH and paid to the host 48 hours after check-in.'
+  return instalments
+    ? 'Your first payment is held by FieGH and paid to the host 48 hours after move-in. Each later month is paid to the host once its rent is due.'
     : 'Your payment is held by FieGH.'
 }
 

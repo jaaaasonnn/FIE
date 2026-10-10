@@ -11,6 +11,7 @@ import { STALE_CLAIM_MS, initiateHostPayout, retryFailedPayouts, type RetryResul
 import { completionEnabled, payoutGate } from '@/lib/payoutSwitches'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 import { notify } from '@/lib/messaging/notify'
+import { SETTLED_INSTALMENT_STATUSES, payoutReleaseAt } from '@/lib/rentRules'
 
 const HOUR_MS = 60 * 60 * 1000
 /**
@@ -39,7 +40,9 @@ export type Mode = { mode: 'live' } | { mode: 'dry-run'; reason: string }
  * order never matters, and a host who adds a payout method after check-out
  * is still paid on the next run.
  *
- * Monthly and long-term stays are not paid by this job yet.
+ * Monthly and long-term stays are paid instalment by instalment instead
+ * (dueInstalmentPayoutWhere). One made before instalments existed has none,
+ * and is not paid by this job.
  */
 export function duePayoutWhere(now: Date, notBefore: Date | null): Prisma.BookingWhereInput {
   return {
@@ -68,6 +71,87 @@ export function hostPayoutAmount(subtotal: number, stayRefunded = 0): number {
   return hostShare(subtotal, stayRefunded)
 }
 
+/** The conditions a booking must meet for any payout on it, short stay or instalment. */
+function payableBookingWhere(notBefore: Date | null): Prisma.BookingWhereInput {
+  return {
+    status: { in: ['CONFIRMED', 'COMPLETED'] },
+    paymentStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] },
+    disputes: { none: { raisedByRole: 'GUEST', status: { in: OPEN_DISPUTE_STATUSES } } },
+    OR: [{ refund: { is: null } }, { refund: { is: { reason: { in: PAYABLE_REFUND_REASONS } } } }],
+    ...(notBefore ? { createdAt: { gte: notBefore } } : {}),
+  }
+}
+
+/**
+ * Rent instalments that have been settled (paid, or covered from the deposit)
+ * and have no payout yet, on tenancies that stand. The same holds apply as for
+ * a short stay: an open guest dispute, a refund that ends the stay, and
+ * PAYOUTS_NOT_BEFORE. Whether each one's release time has come is decided by
+ * payoutReleaseAt; the due date here only narrows the search.
+ */
+export function dueInstalmentPayoutWhere(now: Date, notBefore: Date | null): Prisma.InstalmentWhereInput {
+  return {
+    status: { in: SETTLED_INSTALMENT_STATUSES },
+    dueDate: { lte: now },
+    payouts: { none: {} },
+    booking: payableBookingWhere(notBefore),
+  }
+}
+
+/** One payout that has fallen due: for a short stay, or for one rent instalment. */
+export type DuePayout = {
+  bookingId: string
+  hostId: string
+  amount: number
+  dueAt: Date
+  hasPayoutMethod: boolean
+  instalmentId?: string
+  instalmentSeq?: number
+}
+
+/**
+ * Every payout that has fallen due and has not been made, for all hosts or one.
+ * Reads only.
+ */
+export async function duePayouts(now: Date, notBefore: Date | null, hostId?: string): Promise<DuePayout[]> {
+  const host = { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true } }
+  const hasMethod = (h: { paystackRecipientCode: string | null; payoutMethodVerifiedAt: Date | null }) =>
+    !!h.paystackRecipientCode && !!h.payoutMethodVerifiedAt
+
+  const stays = await db.booking.findMany({
+    where: { ...duePayoutWhere(now, notBefore), ...(hostId ? { hostId } : {}) },
+    select: { id: true, hostId: true, subtotal: true, checkIn: true, refund: { select: { stayRefund: true } }, host },
+  })
+  const instalments = await db.instalment.findMany({
+    where: { ...dueInstalmentPayoutWhere(now, notBefore), ...(hostId ? { booking: { ...payableBookingWhere(notBefore), hostId } } : {}) },
+    select: {
+      id: true, sequence: true, amount: true, dueDate: true, paidAt: true,
+      booking: { select: { id: true, hostId: true, checkIn: true, refund: { select: { stayRefund: true } }, host } },
+    },
+    orderBy: [{ bookingId: 'asc' }, { sequence: 'asc' }],
+  })
+
+  const due: DuePayout[] = stays.map((b) => ({
+    bookingId: b.id, hostId: b.hostId,
+    amount: hostPayoutAmount(b.subtotal, b.refund?.stayRefund ?? 0),
+    dueAt: new Date(b.checkIn.getTime() + PAYOUT_DELAY_MS),
+    hasPayoutMethod: hasMethod(b.host),
+  }))
+  for (const i of instalments) {
+    const dueAt = payoutReleaseAt(i, i.booking.checkIn, PAYOUT_DELAY_MS)
+    if (dueAt.getTime() > now.getTime()) continue
+    due.push({
+      bookingId: i.booking.id, hostId: i.booking.hostId,
+      // A dispute's part refund comes out of the first payment only
+      amount: hostPayoutAmount(i.amount, i.sequence === 1 ? i.booking.refund?.stayRefund ?? 0 : 0),
+      dueAt,
+      hasPayoutMethod: hasMethod(i.booking.host),
+      instalmentId: i.id, instalmentSeq: i.sequence,
+    })
+  }
+  return due
+}
+
 export type PayoutAction =
   | 'paid'                        // transfer started (or already under way)
   | 'failed'                      // attempted, recorded as failed
@@ -80,6 +164,9 @@ export type PayoutRunResult = {
   hostId: string
   amount: number
   action: PayoutAction
+  /** Set when the payout is for one rent instalment */
+  instalmentId?: string
+  instalmentSeq?: number
   payoutId?: string
   status?: string
   error?: string
@@ -103,14 +190,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       : { mode: 'live' }
   const live = mode.mode === 'live'
 
-  const due = await db.booking.findMany({
-    where: duePayoutWhere(now, gate.notBefore),
-    select: {
-      id: true, hostId: true, subtotal: true, checkIn: true,
-      refund: { select: { stayRefund: true } },
-      host: { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true } },
-    },
-  })
+  const due = await duePayouts(now, gate.notBefore)
 
   const results: PayoutRunResult[] = []
   const overdue: { bookingId: string; hostId: string; amount: number; dueAt: Date; why: string }[] = []
@@ -118,16 +198,19 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     if (now.getTime() - dueAt.getTime() >= OVERDUE_ALERT_MS) overdue.push({ bookingId, hostId, amount, dueAt, why })
   }
 
-  for (const booking of due) {
-    const amount = hostPayoutAmount(booking.subtotal, booking.refund?.stayRefund ?? 0)
-    const base = { bookingId: booking.id, hostId: booking.hostId, amount }
-    const dueAt = new Date(booking.checkIn.getTime() + PAYOUT_DELAY_MS)
+  for (const item of due) {
+    const { amount, dueAt } = item
+    const booking = { id: item.bookingId, hostId: item.hostId }
+    const base = {
+      bookingId: booking.id, hostId: booking.hostId, amount,
+      ...(item.instalmentId ? { instalmentId: item.instalmentId, instalmentSeq: item.instalmentSeq } : {}),
+    }
 
     // No payout method yet: nothing is written, so the stay stays in this
     // list and is paid on the first run after the host adds one.
-    if (!booking.host.paystackRecipientCode || !booking.host.payoutMethodVerifiedAt) {
+    if (!item.hasPayoutMethod) {
       results.push({ ...base, action: 'waiting-for-payout-method' })
-      if (live) notify('payout.waiting', { bookingId: booking.id })
+      if (live) notify('payout.waiting', { bookingId: booking.id, instalmentId: item.instalmentId })
       noteIfOverdue(booking.id, booking.hostId, amount, dueAt, 'the host has no verified payout method')
       continue
     }
@@ -136,7 +219,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       continue
     }
     try {
-      const result = await initiateHostPayout({ hostId: booking.hostId, bookingId: booking.id, amount })
+      const result = await initiateHostPayout({ hostId: booking.hostId, bookingId: booking.id, amount, instalmentId: item.instalmentId })
       results.push({
         ...base,
         action: result.ok ? 'paid' : 'failed',
@@ -166,13 +249,15 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
   })
   const resumed: PayoutRunResult[] = []
   for (const payout of stuck) {
+    // An instalment's payout whose instalment is gone cannot be checked: a person looks at it
+    if (payout.instalmentSeq > 0 && !payout.instalmentId) continue
     const base = { bookingId: payout.bookingId!, hostId: payout.hostId, amount: payout.amount, payoutId: payout.id }
     if (!live) {
       resumed.push({ ...base, action: 'would-pay', status: payout.status })
       continue
     }
     try {
-      const result = await initiateHostPayout({ hostId: payout.hostId, bookingId: payout.bookingId!, amount: payout.amount })
+      const result = await initiateHostPayout({ hostId: payout.hostId, bookingId: payout.bookingId!, amount: payout.amount, instalmentId: payout.instalmentId })
       resumed.push({ ...base, action: result.ok ? 'paid' : 'failed', status: result.payout.status, error: result.error })
     } catch (error) {
       console.error('[Payout cron] could not resume payout', payout.id, error)

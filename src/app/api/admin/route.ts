@@ -4,6 +4,7 @@ import { requireAdmin } from '@/lib/roles'
 import { getAutoFetchStatus } from '@/lib/exchangeRate'
 import { notify } from '@/lib/messaging/notify'
 import { hostCommission } from '@/lib/disputes'
+import { rentReceived } from '@/lib/rentRules'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -26,7 +27,10 @@ export async function GET(req: Request) {
         // deposit, which is held for the guest and is not revenue.
         db.booking.findMany({
           where: { status: { in: ['CONFIRMED', 'COMPLETED'] }, paymentStatus: { in: ['PAID', 'PARTIALLY_REFUNDED'] } },
-          select: { subtotal: true, refund: { select: { stayRefund: true } } },
+          select: {
+            subtotal: true, refund: { select: { stayRefund: true } },
+            instalments: { select: { status: true, amount: true, coveredFromDeposit: true } },
+          },
         }),
         db.verification.count({ where: { status: 'PENDING' } }),
         db.dispute.count({ where: { status: { in: ['OPEN', 'UNDER_REVIEW'] } } }),
@@ -37,8 +41,11 @@ export async function GET(req: Request) {
       ])
 
       // What guests paid for the stays themselves, and FieGH's commission on it
-      const totalRevenue = paidStays.reduce((sum, b) => sum + Math.max(0, b.subtotal - (b.refund?.stayRefund ?? 0)), 0)
-      const platformRevenue = paidStays.reduce((sum, b) => sum + hostCommission(b.subtotal, b.refund?.stayRefund ?? 0), 0)
+      // A stay paid in instalments counts only the rent received so far, not
+      // the rent for the months still to come
+      const received = (b: (typeof paidStays)[number]) => (b.instalments.length > 0 ? rentReceived(b.instalments) : b.subtotal)
+      const totalRevenue = paidStays.reduce((sum, b) => sum + Math.max(0, received(b) - (b.refund?.stayRefund ?? 0)), 0)
+      const platformRevenue = paidStays.reduce((sum, b) => sum + hostCommission(received(b), b.refund?.stayRefund ?? 0), 0)
 
       return NextResponse.json({
         totalUsers, totalListings, totalBookings,

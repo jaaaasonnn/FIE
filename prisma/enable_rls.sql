@@ -15,13 +15,17 @@
 ALTER TABLE public."BlockedDate"        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Booking"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Dispute"            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."DisputeEvent"       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."DisputeEvidence"    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."ExchangeRate"       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Instalment"         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Listing"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Message"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."MessageLog"         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Notification"       ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Payment"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Payout"             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Refund"             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."RentalApplication"  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Review"             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Session"            ENABLE ROW LEVEL SECURITY;

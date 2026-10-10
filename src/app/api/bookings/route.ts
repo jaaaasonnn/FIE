@@ -9,6 +9,13 @@ import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
+import { buildSchedule } from '@/lib/rentRules'
+
+/** What a guest or host is shown of a rent instalment: no admin's id. */
+const instalmentSelect = {
+  id: true, sequence: true, periodStart: true, periodEnd: true, dueDate: true,
+  amount: true, depositAmount: true, status: true, paidAt: true, coveredFromDeposit: true,
+} as const
 
 // ── POST /api/bookings — create a new PENDING booking ─────────────────────
 export async function POST(req: Request) {
@@ -124,6 +131,18 @@ export async function POST(req: Request) {
           },
         })
 
+        // A monthly or long-term booking is paid in instalments: the advance
+        // (worked out here from the listing, within the limits in
+        // lib/rentRules.ts, never from the request) and then month by month.
+        // Short stays get no rows and are paid in one payment.
+        const schedule = buildSchedule({
+          rentalMode, checkIn: checkInDate, units, subtotal, damageDeposit,
+          advanceMonthsRequired: listing.advanceMonthsRequired,
+        })
+        if (schedule.length > 0) {
+          await tx.instalment.createMany({ data: schedule.map((row) => ({ ...row, bookingId: newBooking.id })) })
+        }
+
         // For instant-book, also stamp blocked dates immediately
         if (listing.instantBook) {
           const dates: { listingId: string; date: Date; reason: string }[] = []
@@ -197,6 +216,7 @@ export async function GET(req: Request) {
           payments: true,
           refund:   true,
           disputes: { select: { id: true, raisedByRole: true, status: true, outcome: true } },
+          instalments: { orderBy: { sequence: 'asc' }, select: instalmentSelect },
         },
       })
       if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -246,6 +266,7 @@ export async function GET(req: Request) {
         payments: true,
         refund:   true,
         disputes: { select: { id: true, raisedByRole: true, status: true, outcome: true } },
+        instalments: { orderBy: { sequence: 'asc' }, select: instalmentSelect },
       },
       orderBy: { createdAt: 'desc' },
     })

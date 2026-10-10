@@ -13,9 +13,11 @@ import { runPayouts, wantsDryRun } from '@/lib/cronRuns'
  * entry in the meantime) is a deployment-time step, not something to set
  * up against a local dev server.
  *
- * SHORT_STAY only for now — long-stay (TEMP_STAY/PERMANENT) payout
- * periods need a data-model decision that hasn't been made yet, so those
- * bookings are deliberately left untouched by this query.
+ * Short stays are paid once, 48 hours after check-in. Monthly and long-term
+ * stays are paid one rent instalment at a time (lib/rentRules.ts): the first
+ * 48 hours after move-in, each later one on the later of the day it was paid
+ * and the day it fell due. A long stay made before instalments existed has
+ * none and is left untouched.
  *
  * The rules live in lib/cronRuns.ts (runPayouts). Nothing is paid until
  * PAYOUTS_ENABLED and PAYOUTS_NOT_BEFORE are set (lib/payoutSwitches.ts);

@@ -9,6 +9,8 @@ import { formatUsd } from '@/lib/utils'
 import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
+import { dayKey } from '@/lib/hostCalendar'
+import { OPEN_INSTALMENT_STATUSES, SETTLED_INSTALMENT_STATUSES, endTenancyQuote, refundableRent } from '@/lib/rentRules'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -16,8 +18,8 @@ const bookingInclude = {
   host:    { select: { id: true, name: true, profilePhoto: true } },
 } as const
 
-type Action = 'accept' | 'decline' | 'cancel' | 'host-cancel'
-const VALID_ACTIONS: Action[] = ['accept', 'decline', 'cancel', 'host-cancel']
+type Action = 'accept' | 'decline' | 'cancel' | 'host-cancel' | 'end-tenancy'
+const VALID_ACTIONS: Action[] = ['accept', 'decline', 'cancel', 'host-cancel', 'end-tenancy']
 
 /**
  * PATCH /api/bookings/[id]
@@ -29,6 +31,14 @@ const VALID_ACTIONS: Action[] = ['accept', 'decline', 'cancel', 'host-cancel']
  *                  when the guest withdraws a request the host has not answered.
  *   - host-cancel: CONFIRMED -> CANCELLED  (host only). Needs a reason from
  *                  HOST_CANCEL_REASONS; the guest gets everything back.
+ *   - end-tenancy: the host, or an admin, ends a monthly or long-term tenancy
+ *                  after move-in. It ends at the end of the last month paid
+ *                  for or covered (lib/rentRules.ts): checkOut moves there,
+ *                  the agreed date is kept in originalCheckOut, the months
+ *                  not yet paid are no longer owed, and nothing is refunded.
+ *                  With `preview: true` it only reports the end date. The
+ *                  real thing needs `expectedEnd` ("2027-03-09"), the date
+ *                  the person was shown, and is refused if it has changed.
  *
  * Cancelling releases the booking's BlockedDate rows and, if the booking was
  * paid, records the refund owed. The refund is worked out here from the
@@ -67,10 +77,65 @@ export async function PATCH(
       include: {
         listing: { select: { title: true, cancellationPolicy: true } },
         payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
+        instalments: { select: { sequence: true, status: true, amount: true, periodEnd: true } },
       },
     })
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+    }
+
+    // ── End a tenancy early: its host, or an admin ──────────────────────
+    if (action === 'end-tenancy') {
+      const isAdmin = sessionUser.role === 'ADMIN'
+      if (!isAdmin && sessionUser.role !== 'HOST') {
+        return NextResponse.json({ error: HOSTS_ONLY_MESSAGE }, { status: 403 })
+      }
+      if (!isAdmin && sessionUser.id !== booking.hostId) {
+        return NextResponse.json({ error: 'Only the host can end this tenancy' }, { status: 403 })
+      }
+      const quote = endTenancyQuote({ booking, instalments: booking.instalments })
+      if (!quote.ok) return NextResponse.json({ error: quote.error }, { status: 409 })
+      const endsOn = quote.endsOn
+      if (body.preview === true) return NextResponse.json({ preview: { endsOn: dayKey(endsOn) } })
+      // The date the person was shown must still be the date it would end
+      if (body.expectedEnd !== dayKey(endsOn)) {
+        return NextResponse.json(
+          { error: 'The end date has changed since you were shown it. Please review it and confirm again.', preview: { endsOn: dayKey(endsOn) } },
+          { status: 409 },
+        )
+      }
+
+      const settled = booking.instalments.filter((i) => SETTLED_INSTALMENT_STATUSES.includes(i.status)).length
+      const ended = await db.$transaction(async (tx) => {
+        // Part of the where: ended, cancelled or completed by someone else
+        // in the meantime changes nothing
+        const updated = await tx.booking.updateMany({
+          where: { id, status: 'CONFIRMED', endedEarlyAt: null, checkOut: booking.checkOut },
+          data: { originalCheckOut: booking.checkOut, checkOut: endsOn, endedEarlyBy: isAdmin ? 'ADMIN' : 'HOST', endedEarlyAt: new Date() },
+        })
+        if (updated.count === 0) return false
+        // A month paid for since the date was worked out would be cut off: start again
+        const settledNow = await tx.instalment.count({ where: { bookingId: id, status: { in: SETTLED_INSTALMENT_STATUSES } } })
+        if (settledNow !== settled) throw new Error('RENT_CHANGED')
+        // The months not paid for are no longer owed
+        await tx.instalment.updateMany({ where: { bookingId: id, status: { in: OPEN_INSTALMENT_STATUSES } }, data: { status: 'CANCELLED' } })
+        // Open the dates after the new end, never a host's own blocks
+        await tx.blockedDate.deleteMany({
+          where: { listingId: booking.listingId, reason: 'BOOKED', date: { gte: endsOn, lt: booking.checkOut } },
+        })
+        return true
+      }).catch((error) => {
+        if (error instanceof Error && error.message === 'RENT_CHANGED') return false
+        throw error
+      })
+      if (!ended) {
+        return NextResponse.json({ error: 'This tenancy changed a moment ago. Nothing was ended. Please look again.' }, { status: 409 })
+      }
+      notify('tenancy.ended_early', { bookingId: id })
+      return NextResponse.json({
+        endsOn: dayKey(endsOn),
+        message: 'The tenancy now ends at the end of the last month paid for. Nothing is refunded, and no more rent is owed after that date.',
+      })
     }
 
     if (action === 'cancel') {
@@ -139,7 +204,12 @@ export async function PATCH(
 
     const payout = await db.payout.findFirst({ where: { bookingId: id }, select: { id: true } })
     const payment = booking.payments[0] ?? null
-    const preview = previewCancellation({ booking, payment, hasPayout: !!payout, by })
+    // Paid in instalments: the refund is worked out from the rent paid so far
+    // (the first instalment), not the rent for the whole tenancy
+    const preview = previewCancellation({
+      booking: { ...booking, subtotal: refundableRent(booking.subtotal, booking.instalments) },
+      payment, hasPayout: !!payout, by,
+    })
     if (!preview.canCancel) {
       return NextResponse.json({ error: preview.message }, { status: 409 })
     }
@@ -165,6 +235,9 @@ export async function PATCH(
           data: { status: 'CANCELLED', cancelledBy: by, cancelledAt: new Date(), cancelReason },
           include: bookingInclude,
         })
+
+        // Rent instalments of a cancelled booking are no longer owed
+        await tx.instalment.updateMany({ where: { bookingId: id, status: { in: OPEN_INSTALMENT_STATUSES } }, data: { status: 'CANCELLED' } })
 
         await tx.blockedDate.deleteMany({
           where: {

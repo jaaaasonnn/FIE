@@ -44,6 +44,14 @@ vi.mock('@/lib/db', async () => {
         return row
       },
     },
+    instalment: {
+      updateMany: async ({ where, data }: { where: Row; data: Row }) => {
+        const rows = ((state.booking.instalments as Row[]) ?? []).filter((i) => (where.status as { in: string[] }).in.includes(i.status as string))
+        rows.forEach((i) => { const before = i.status; Object.assign(i, data); undo.push(() => { i.status = before }) })
+        state.writes += rows.length
+        return { count: rows.length }
+      },
+    },
     disputeEvent: { create: async ({ data }: { data: Row }) => { state.events.push(data); undo.push(() => { state.events.splice(state.events.indexOf(data), 1) }); state.writes++; return data } },
     notification: { createMany: async ({ data }: { data: Row[] }) => { state.notifications.push(...data); undo.push(() => { state.notifications.splice(state.notifications.length - data.length, data.length) }); state.writes += data.length; return { count: data.length } } },
   })
@@ -56,7 +64,7 @@ vi.mock('@/lib/db', async () => {
           const found = state.refunds.find((r) => r.bookingId === state.booking.id)
           const refund = state.missRefundOnce ? undefined : found
           state.missRefundOnce = false
-          return { ...d, booking: { ...state.booking, payments: state.payments, refund: refund ? { reason: refund.reason, amount: refund.amount } : null, payouts: state.payouts } }
+          return { ...d, booking: { ...state.booking, payments: state.payments, refund: refund ? { reason: refund.reason, amount: refund.amount } : null, payouts: state.payouts, instalments: ((state.booking.instalments as Row[]) ?? []).map((i) => ({ ...i })) } }
         },
         findMany: async () => state.disputes.filter((d) => ['OPEN', 'UNDER_REVIEW'].includes(d.status as string)).map((d) => ({ ...d })),
       },
@@ -78,6 +86,7 @@ import {
 } from './disputes'
 import { decideDispute, runDisputeCheck } from './disputeDecisions'
 import { PAYOUT_DELAY_MS } from './cronRuns'
+import { formatUsd } from './utils'
 
 const at = (iso: string) => new Date(iso)
 
@@ -330,6 +339,50 @@ describe('decideDispute', () => {
     // Sent only through lib/refunds, which has its own switch
     expect(sendRefund).toHaveBeenCalledTimes(1)
     expect(sendRefund).toHaveBeenCalledWith('refund_1')
+  })
+
+  describe('on a stay paid in instalments', () => {
+    // A year at $12,000 with a $500 deposit: $3,000 and the deposit paid up front, then $1,000 a month
+    const instalment = (sequence: number, status: string, over: Row = {}) => ({
+      sequence, status, amount: sequence === 1 ? 3000 : 1000, depositAmount: sequence === 1 ? 500 : 0, coveredFromDeposit: 0, ...over,
+    })
+    beforeEach(() => {
+      vi.stubEnv('DISPUTE_DECISIONS_ENABLED', 'true')
+      Object.assign(state.booking, {
+        rentalMode: 'PERMANENT', subtotal: 12_000, serviceFee: 0, damageDeposit: 500,
+        instalments: [instalment(1, 'PAID'), instalment(2, 'PENDING'), instalment(3, 'PENDING')],
+      })
+      state.payments.splice(0, 1, { id: 'payment_1', amount: 3500, amountPesewas: 5_250_000 })
+    })
+
+    it('refunds the first payment in full, not the rent for the whole year, and ends the rent still owed', async () => {
+      const r = await decide({ outcome: 'FULL_REFUND', amount: undefined })
+      expect(r).toMatchObject({ ok: true, mode: 'applied' })
+      expect(state.refunds[0]).toMatchObject({ reason: 'DISPUTE_FULL', stayRefund: 3000, serviceFeeRefund: 0, depositRefund: 500, amount: 3500, amountPesewas: 5_250_000 })
+      expect((state.booking.instalments as Row[]).map((i) => i.status)).toEqual(['PAID', 'CANCELLED', 'CANCELLED'])
+    })
+
+    it('limits a part refund to the rent in the first payment, and pays the host their share of what is left of it', async () => {
+      const over = await decide({ amount: 3000.01 })
+      expect(over).toMatchObject({ ok: false, status: 400, error: 'The amount cannot be more than $3,000.00' })
+      const r = await decide({ amount: 600 })
+      expect(r.ok && r.mode === 'applied' && r.effect.hostPayout).toBeCloseTo(hostShare(3000, 600), 6)
+      expect(r.ok && r.effect.summary.join(' ')).toContain('The next payout run sends it.')
+      // The rent still to come is untouched by a part refund
+      expect((state.booking.instalments as Row[]).map((i) => i.status)).toEqual(['PAID', 'PENDING', 'PENDING'])
+    })
+
+    it('says that rent paid since the first payment has to go back by hand', async () => {
+      ;(state.booking.instalments as Row[])[1].status = 'PAID'
+      const r = await decide({ outcome: 'FULL_REFUND', amount: undefined, dryRun: true })
+      expect(r.ok && r.effect.manual).toEqual(['The guest has also paid $1,000.00 of rent since. Refund it by hand.'])
+      expect(state.refunds).toHaveLength(0)
+    })
+
+    it('lifts the hold with an automatic payout when the report is rejected', async () => {
+      const r = await decide({ outcome: 'REJECTED', amount: undefined })
+      expect(r.ok && r.effect.summary.join(' ')).toBe(`No refund. The hold on the payout is lifted. The host is paid ${formatUsd(hostShare(3000))} by the next payout run.`)
+    })
   })
 
   it('creates no refund when the dispute is not upheld', async () => {

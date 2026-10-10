@@ -12,6 +12,8 @@ import { CancellationPolicy, SUPPORT_NOTE, heldNote } from '@/components/booking
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 import { problemLinkLabel } from '@/lib/disputes'
 import { EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, PAY_WINDOW_PASSED, formatPayBy, payState } from '@/lib/payDeadline'
+import { RentSchedule, type ScheduleInstalment } from '@/components/booking/RentSchedule'
+import { rentPlan, tenancyMonths } from '@/lib/rentRules'
 
 type BookingData = {
   id: string
@@ -33,6 +35,9 @@ type BookingData = {
   cancellationPolicy: string | null
   refund: RefundSummary | null
   disputes?: { raisedByRole: string; status: string }[]
+  /** Rent instalments, on a monthly or long-term booking. Empty on any other. */
+  instalments?: ScheduleInstalment[]
+  endedEarlyAt?: string | null
   listing: {
     id: string
     title: string
@@ -131,6 +136,9 @@ function BookingPageInner() {
     : pay === 'EXPIRED_UNPAID' ? (booking.refund ? 'This booking was not paid in time, so the dates were released.' : EXPIRED_UNPAID)
     : pay === 'EXPIRED_UNANSWERED' ? EXPIRED_UNANSWERED
     : null
+
+  const instalments = booking.instalments ?? []
+  const plan = rentPlan(instalments, tenancyMonths(booking.rentalMode, booking.nightsOrMonths))
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -245,9 +253,10 @@ function BookingPageInner() {
             subtotal={booking.subtotal}
             serviceFee={booking.serviceFee}
             deposit={booking.damageDeposit}
-            total={booking.totalPrice}
+            total={plan ? plan.dueNow : booking.totalPrice}
+            plan={plan}
             ghsRate={ghsRate}
-            totalLabel={booking.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}
+            totalLabel={booking.paymentStatus === 'UNPAID' ? 'Total due now' : plan ? 'First payment' : 'Total paid'}
           />
           <div className="mt-4 text-sm">
             <div className="flex justify-between items-center pt-2 border-t border-stone-100">
@@ -266,6 +275,19 @@ function BookingPageInner() {
             </div>
           </div>
         </div>
+
+        {/* Every rent payment of a monthly or long-term stay, and the one to pay next */}
+        {instalments.length > 0 && booking.status !== 'DECLINED' && (
+          <div className="bg-white rounded-2xl border border-stone-100 p-5 shadow-sm">
+            <h3 className="font-bold mb-1" style={{ color: 'var(--color-text-primary)' }}>Rent payments</h3>
+            {booking.endedEarlyAt && (
+              <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+                This tenancy was ended early. It ends on {formatStayDate(booking.checkOut, { day: 'numeric', month: 'long', year: 'numeric' })}, the end of the last month paid for, and no more rent is owed after that.
+              </p>
+            )}
+            <RentSchedule instalments={instalments} booking={booking} role="GUEST" />
+          </div>
+        )}
 
         {/* Refund, once the booking has been cancelled */}
         {booking.refund && (
@@ -295,7 +317,7 @@ function BookingPageInner() {
             <Shield size={18} style={{ color: '#2563EB', flexShrink: 0, marginTop: 2 }} />
             <div>
               <p className="font-semibold text-sm" style={{ color: '#1E40AF' }}>How your payment is held</p>
-              <p className="text-xs text-blue-600 mt-0.5">{heldNote(booking.rentalMode)} {SUPPORT_NOTE}</p>
+              <p className="text-xs text-blue-600 mt-0.5">{heldNote(booking.rentalMode, instalments.length > 0)} {SUPPORT_NOTE}</p>
             </div>
           </div>
         )}

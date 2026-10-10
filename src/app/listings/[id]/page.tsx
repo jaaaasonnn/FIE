@@ -12,6 +12,7 @@ import {
 import { MODE_ICONS } from '@/lib/rentalModes'
 import { calculateFees, formatUsd } from '@/lib/utils'
 import { dayKey, parseDay } from '@/lib/hostCalendar'
+import { advanceSummary, buildSchedule, rentPlan, tenancyMonths } from '@/lib/rentRules'
 import {
   addDays, addMonthsClamped, addYearClamped, daysBetween, fromDayKey, ghanaToday,
   lastCheckOut, nightsAreFree, takenNights, toDayKey,
@@ -303,7 +304,22 @@ export default function ListingDetailPage() {
 
   // The same sum the server stores on the booking, so the two cannot differ
   const serviceFee = calculateFees(basePrice).serviceFee
-  const total      = basePrice + serviceFee + (listing.damageDeposit ?? 0)
+
+  // A monthly or long-term stay is paid in instalments. The schedule is built
+  // by the same code the server uses when the booking is made, so the first
+  // payment shown here is the one that will be charged.
+  const units = selectedMode === 'SHORT_STAY' ? nightsCount : selectedMode === 'TEMP_STAY' ? months : 1
+  const tenancy = tenancyMonths(selectedMode, units)
+  // Before a move-in date is picked the amounts are already known; only the
+  // date the monthly payments start from is not, so it is left out.
+  const schedule = selectedMode !== 'SHORT_STAY' && basePrice > 0 && Number.isInteger(tenancy) && tenancy >= 1
+    ? rentPlan(buildSchedule({
+        rentalMode: selectedMode, checkIn: parseDay(checkInKey ?? todayKey)!, units, subtotal: basePrice,
+        damageDeposit: listing.damageDeposit ?? 0, advanceMonthsRequired: listing.advanceMonthsRequired,
+      }), tenancy)
+    : null
+  const plan = schedule && !checkInKey ? { ...schedule, firstLaterDue: null } : schedule
+  const total      = plan ? plan.dueNow : basePrice + serviceFee + (listing.damageDeposit ?? 0)
 
   // ── Book handler ──────────────────────────────────────────────────────
   async function handleBook() {
@@ -504,7 +520,7 @@ export default function ListingDetailPage() {
                         )}
                         {m === 'TEMP_STAY' && listing.priceMonthly && (
                           <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
-                            <strong>{formatUsd(listing.priceMonthly)}</strong>/month · 1 to 11 months
+                            <strong>{formatUsd(listing.priceMonthly)}</strong>/month · 1 to 11 months. First month up front, then monthly
                           </p>
                         )}
                         {m === 'PERMANENT' && (
@@ -516,7 +532,7 @@ export default function ListingDetailPage() {
                             )}
                             {listing.priceAnnual && (
                               <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                                Paid as one year upfront
+                                {advanceSummary('PERMANENT', 12, listing.advanceMonthsRequired)}
                               </p>
                             )}
                           </>
@@ -713,11 +729,11 @@ export default function ListingDetailPage() {
                 {selectedMode === 'PERMANENT' && listing.priceAnnual && (
                   <>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(listing.priceAnnual)}</span>
-                      <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>/year</span>
+                      <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(listing.priceAnnual / 12)}</span>
+                      <span className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>/month</span>
                     </div>
                     <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                      About {formatUsd(listing.priceAnnual / 12)} a month. Paid as one year upfront.
+                      {formatUsd(listing.priceAnnual)} a year. {advanceSummary('PERMANENT', 12, listing.advanceMonthsRequired)}
                     </p>
                   </>
                 )}
@@ -725,7 +741,7 @@ export default function ListingDetailPage() {
                   About GH₵ {(
                     (selectedMode === 'SHORT_STAY' ? listing.priceNightly ?? 0
                      : selectedMode === 'TEMP_STAY' ? listing.priceMonthly ?? 0
-                     : listing.priceAnnual ?? 0) * ghsRate
+                     : (listing.priceAnnual ?? 0) / 12) * ghsRate
                   ).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                 </p>
               </div>
@@ -809,7 +825,8 @@ export default function ListingDetailPage() {
                   className="mb-4"
                   rentalMode={selectedMode}
                   pricePerUnit={selectedMode === 'SHORT_STAY' ? (listing.priceNightly ?? 0) : selectedMode === 'TEMP_STAY' ? (listing.priceMonthly ?? 0) : (listing.priceAnnual ?? 0)}
-                  units={selectedMode === 'SHORT_STAY' ? nightsCount : selectedMode === 'TEMP_STAY' ? months : 1}
+                  units={units}
+                  plan={plan}
                   subtotal={basePrice}
                   serviceFee={serviceFee}
                   deposit={listing.damageDeposit ?? 0}
@@ -846,10 +863,6 @@ export default function ListingDetailPage() {
                 >
                   Log in to Book
                 </Link>
-              )}
-
-              {selectedMode === 'PERMANENT' && (
-                <Button variant="outline" size="lg" className="w-full mb-3">Submit Rental Application</Button>
               )}
 
               <p className="text-xs text-center" style={{ color: 'var(--color-text-muted)' }}>

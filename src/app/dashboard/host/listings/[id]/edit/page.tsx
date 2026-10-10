@@ -10,6 +10,7 @@ import { Input, Textarea, Select } from '@/components/ui/Input'
 import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST } from '@/lib/utils'
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
+import { ADVANCE_RULE_NOTE, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from '@/lib/rentRules'
 
 type FormState = {
   title: string
@@ -360,11 +361,14 @@ export default function EditListingPage() {
                 <Input label="Price per Month ($)" type="number" value={form.priceMonthly} onChange={(e) => setForm({ ...form, priceMonthly: e.target.value })} />
               )}
               {form.rentalModes.includes('PERMANENT') && (
-                <div className="grid grid-cols-2 gap-4">
-                  <Input label="Annual Rent ($)" type="number" value={form.priceAnnual} onChange={(e) => setForm({ ...form, priceAnnual: e.target.value })} />
-                  <Select label="Advance Months Required" value={form.advanceMonthsRequired}
-                    onChange={(e) => setForm({ ...form, advanceMonthsRequired: e.target.value })}
-                    options={[1,2,3,6,12].map((n) => ({ value: String(n), label: `${n} month${n > 1 ? 's' : ''}` }))} />
+                <div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Annual Rent ($)" type="number" value={form.priceAnnual} onChange={(e) => setForm({ ...form, priceAnnual: e.target.value })} />
+                    <Select label="Rent paid up front (months)" value={form.advanceMonthsRequired || String(DEFAULT_ADVANCE_MONTHS)}
+                      onChange={(e) => setForm({ ...form, advanceMonthsRequired: e.target.value })}
+                      options={Array.from({ length: MAX_ADVANCE_MONTHS }, (_, i) => i + 1).map((n) => ({ value: String(n), label: `${n} month${n > 1 ? 's' : ''}` }))} />
+                  </div>
+                  <p className="text-xs mt-2" style={{ color: 'var(--color-text-secondary)' }}>{ADVANCE_RULE_NOTE}</p>
                 </div>
               )}
               <Input label="Damage Deposit ($, optional)" type="number" value={form.damageDeposit} onChange={(e) => setForm({ ...form, damageDeposit: e.target.value })} />

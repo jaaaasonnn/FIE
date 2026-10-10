@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session'
 import {
   CANCELLED_BY_SYSTEM, EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, NO_HOST_RESPONSE, PAY_WINDOW_PASSED, pastPayBy,
 } from '@/lib/payDeadline'
+import { laterInstalmentRefusal, nextPayable, outstanding, RENT_ALREADY_SETTLED } from '@/lib/rentRules'
 
 /**
  * GET /api/payments?guestId=…
@@ -47,7 +48,13 @@ export async function GET(req: Request) {
 /**
  * POST /api/payments — Initialize a real Paystack transaction.
  *
- * Body: { bookingId: string, method: "MOMO" | "CARD" }
+ * Body: { bookingId: string, method: "MOMO" | "CARD", instalmentId?: string }
+ *
+ * A monthly or long-term booking is paid one rent instalment at a time
+ * (lib/rentRules.ts). Its first instalment is the booking's own first payment
+ * and follows the rules below. A later one is named by `instalmentId` and can
+ * be paid only after move-in, in order, and in full: the amount is always
+ * worked out here from the stored instalment, never taken from the request.
  *
  * Flow:
  *  1. Require a valid session
@@ -66,7 +73,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json()
-    const { bookingId, method } = body as { bookingId?: string; method?: string }
+    const { bookingId, method, instalmentId } = body as { bookingId?: string; method?: string; instalmentId?: unknown }
 
     if (!bookingId || !method) {
       return NextResponse.json({ error: 'Missing bookingId or method' }, { status: 400 })
@@ -100,7 +107,7 @@ export async function POST(req: Request) {
 
     const booking = await db.booking.findUnique({
       where: { id: bookingId },
-      include: { guest: true, listing: true },
+      include: { guest: true, listing: true, instalments: { orderBy: { sequence: 'asc' } } },
     })
 
     if (!booking) {
@@ -109,37 +116,68 @@ export async function POST(req: Request) {
     if (booking.guestId !== user.id) {
       return NextResponse.json({ error: 'You can only pay for your own bookings.' }, { status: 403 })
     }
-    if (booking.paymentStatus === 'PAID') {
-      return NextResponse.json({ error: 'Booking already paid' }, { status: 400 })
+
+    // Which instalment this payment is for, on a booking that has them. With
+    // none named it is the next one owed, which on an unpaid booking is the first.
+    let instalment: (typeof booking.instalments)[number] | null = null
+    if (booking.instalments.length > 0) {
+      if (instalmentId !== undefined && instalmentId !== null) {
+        instalment = booking.instalments.find((i) => i.id === instalmentId) ?? null
+        if (!instalment) return NextResponse.json({ error: 'That rent payment does not belong to this booking' }, { status: 404 })
+      } else {
+        instalment = booking.paymentStatus === 'UNPAID' ? booking.instalments[0] : nextPayable(booking.instalments)
+        if (!instalment) return NextResponse.json({ error: RENT_ALREADY_SETTLED }, { status: 400 })
+      }
+    } else if (instalmentId !== undefined && instalmentId !== null) {
+      return NextResponse.json({ error: 'This booking is not paid in instalments' }, { status: 400 })
     }
-    if (booking.status === 'CANCELLED') {
-      const expired = booking.cancelledBy === CANCELLED_BY_SYSTEM
-      return NextResponse.json(
-        {
-          error: !expired
-            ? 'This booking has been cancelled. Please start a new booking with available dates.'
-            : booking.cancelReason === NO_HOST_RESPONSE ? EXPIRED_UNANSWERED : EXPIRED_UNPAID,
-        },
-        { status: 409 },
-      )
+    const laterInstalment = instalment !== null && instalment.sequence > 1
+
+    if (laterInstalment) {
+      // Rent after the first payment: only on a tenancy that stands, after
+      // move-in, the earliest one owed, and nothing else
+      const refusal = laterInstalmentRefusal({ instalment: instalment!, instalments: booking.instalments, booking })
+      if (refusal) return NextResponse.json({ error: refusal }, { status: 409 })
+    } else {
+      // The booking's own first payment: these checks are as they were before instalments
+      if (booking.paymentStatus === 'PAID') {
+        return NextResponse.json({ error: 'Booking already paid' }, { status: 400 })
+      }
+      if (booking.status === 'CANCELLED') {
+        const expired = booking.cancelledBy === CANCELLED_BY_SYSTEM
+        return NextResponse.json(
+          {
+            error: !expired
+              ? 'This booking has been cancelled. Please start a new booking with available dates.'
+              : booking.cancelReason === NO_HOST_RESPONSE ? EXPIRED_UNANSWERED : EXPIRED_UNPAID,
+          },
+          { status: 409 },
+        )
+      }
+      if (booking.status === 'DECLINED') {
+        return NextResponse.json(
+          { error: 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.' },
+          { status: 409 },
+        )
+      }
+      // A request is paid for only once the host has accepted it: paying is
+      // what confirms a booking, and that is the host's decision to make first
+      if (booking.status === 'PENDING') {
+        return NextResponse.json({ error: HOST_MUST_ACCEPT }, { status: 409 })
+      }
+      if (booking.status !== 'CONFIRMED') {
+        return NextResponse.json({ error: 'This booking can no longer be paid for.' }, { status: 409 })
+      }
+      // Past its time to pay: the expiry job is about to release the dates
+      if (pastPayBy(booking.payBy)) {
+        return NextResponse.json({ error: PAY_WINDOW_PASSED }, { status: 409 })
+      }
     }
-    if (booking.status === 'DECLINED') {
-      return NextResponse.json(
-        { error: 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.' },
-        { status: 409 },
-      )
-    }
-    // A request is paid for only once the host has accepted it: paying is
-    // what confirms a booking, and that is the host's decision to make first
-    if (booking.status === 'PENDING') {
-      return NextResponse.json({ error: HOST_MUST_ACCEPT }, { status: 409 })
-    }
-    if (booking.status !== 'CONFIRMED') {
-      return NextResponse.json({ error: 'This booking can no longer be paid for.' }, { status: 409 })
-    }
-    // Past its time to pay: the expiry job is about to release the dates
-    if (pastPayBy(booking.payBy)) {
-      return NextResponse.json({ error: PAY_WINDOW_PASSED }, { status: 409 })
+
+    // What is charged: the whole booking, or exactly what is owed on the instalment
+    const amountUsd = instalment ? outstanding(instalment) : booking.totalPrice
+    if (instalment && amountUsd <= 0) {
+      return NextResponse.json({ error: RENT_ALREADY_SETTLED }, { status: 400 })
     }
 
     // Prefer session email, then guest record email. Paystack requires a valid email.
@@ -154,7 +192,7 @@ export async function POST(req: Request) {
     // Convert USD → GHS (Paystack Ghana settles in GHS / pesewas)
     const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
     const usdToGhs = rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
-    const amountGhs = booking.totalPrice * usdToGhs
+    const amountGhs = amountUsd * usdToGhs
     const amountPesewas = Math.round(amountGhs * 100)
 
     if (amountPesewas < 100) {
@@ -170,7 +208,8 @@ export async function POST(req: Request) {
       db.payment.create({
         data: {
           bookingId,
-          amount:           booking.totalPrice,
+          instalmentId:     instalment?.id ?? null,
+          amount:           amountUsd,
           currency:         'USD',
           method,
           status:           'PENDING',
@@ -181,9 +220,11 @@ export async function POST(req: Request) {
           usdToGhs,
         },
       }),
+      // The booking's reference is that of its first payment: a later rent
+      // payment leaves it alone
       db.booking.update({
         where: { id: bookingId },
-        data:  { paymentReference: reference },
+        data:  laterInstalment ? {} : { paymentReference: reference },
       }),
     ])
 
@@ -199,7 +240,8 @@ export async function POST(req: Request) {
         listingId:  booking.listingId,
         guestId:    user.id,
         method,
-        amountUsd:  booking.totalPrice,
+        ...(instalment ? { instalmentId: instalment.id, instalmentSeq: instalment.sequence } : {}),
+        amountUsd,
         usdToGhs,
       },
     }
@@ -229,7 +271,7 @@ export async function POST(req: Request) {
       })
       await db.$transaction([
         db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
-        db.booking.update({ where: { id: bookingId }, data: { paymentReference: null } }),
+        db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
       ])
       return NextResponse.json(
         { error: 'Unexpected response from Paystack.' },
@@ -245,7 +287,7 @@ export async function POST(req: Request) {
       // Roll back the pending payment so the guest can retry cleanly
       await db.$transaction([
         db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
-        db.booking.update({ where: { id: bookingId }, data: { paymentReference: null } }),
+        db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
       ])
       return NextResponse.json(
         { error: paystackJson.message || 'Failed to initialize Paystack payment.' },

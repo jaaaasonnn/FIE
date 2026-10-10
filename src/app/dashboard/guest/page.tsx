@@ -19,6 +19,8 @@ import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 import { HOST_MUST_ACCEPT, formatPayBy, payState } from '@/lib/payDeadline'
 import { NotificationsList } from '@/components/NotificationsList'
 import { problemLinkLabel } from '@/lib/disputes'
+import { rentStatus } from '@/lib/rentRules'
+import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 
 type ApiBooking = {
   id: string
@@ -38,6 +40,8 @@ type ApiBooking = {
   host: { id: string; name: string | null; profilePhoto: string | null }
   refund?: RefundSummary | null
   disputes?: { raisedByRole: string; status: string }[]
+  /** Rent instalments, on a monthly or long-term booking. Empty on any other. */
+  instalments?: ScheduleInstalment[]
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; label: string }> = {
@@ -327,6 +331,8 @@ export default function GuestDashboardPage() {
                 const pay = payState(b)
                 const s = (pay && PAY_STATE_STYLES[pay]) ?? STATUS_STYLES[b.status] ?? STATUS_STYLES.PENDING
                 const photo = firstPhoto(b.listing?.photos ?? '[]')
+                // Paid in instalments: what is due now, or next, in place of the whole tenancy's rent
+                const rent = rentStatus(b.instalments, b)
                 return (
                   <div key={b.id} className="soft-panel overflow-hidden">
                     <div className="flex gap-4 p-4">
@@ -352,12 +358,27 @@ export default function GuestDashboardPage() {
                           {' to '}
                           {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
                         </p>
-                        <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
-                          <span className="font-normal text-xs text-[#6B645C] mr-1.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
-                          {formatUsd(b.totalPrice)}
-                          <span className="font-normal text-xs text-stone-400 ml-1">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                        </p>
-                        {b.damageDeposit > 0 && (
+                        {rent ? (
+                          rent.kind === 'DONE' ? (
+                            <p className="text-xs mt-2 text-[#6B645C]">All rent is paid.</p>
+                          ) : (
+                            <p className="text-sm font-bold mt-2" style={{ color: rent.kind === 'NEXT' && rent.overdue ? '#991B1B' : 'var(--color-text-primary)' }}>
+                              <span className="font-normal text-xs text-[#6B645C] mr-1.5">
+                                {rent.kind === 'FIRST' ? 'First payment, due now'
+                                  : `${rent.overdue ? 'Rent late, was due' : 'Next rent, due'} ${formatStayDate(rent.instalment.dueDate, { day: 'numeric', month: 'short' })}`}
+                              </span>
+                              {formatUsd(rent.amount)}
+                              <span className="font-normal text-xs text-stone-400 ml-1">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                            </p>
+                          )
+                        ) : (
+                          <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
+                            <span className="font-normal text-xs text-[#6B645C] mr-1.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
+                            {formatUsd(b.totalPrice)}
+                            <span className="font-normal text-xs text-stone-400 ml-1">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                          </p>
+                        )}
+                        {b.damageDeposit > 0 && (!rent || rent.kind === 'FIRST') && (
                           <p className="text-xs text-[#6B645C] mt-0.5">{depositIncludedNote(b.damageDeposit)}</p>
                         )}
                         {pay === 'AWAITING_PAYMENT' && b.payBy && (
@@ -377,6 +398,20 @@ export default function GuestDashboardPage() {
                           className="focus-ring text-xs px-4 py-2 rounded-full font-semibold"
                           style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                           Pay now
+                        </Link>
+                      )}
+                      {rent?.kind === 'NEXT' && rent.payable && (
+                        <Link href={`/checkout/${b.id}?instalment=${rent.instalment.id}`}
+                          className="focus-ring text-xs px-4 py-2 rounded-full font-semibold"
+                          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+                          Pay rent
+                        </Link>
+                      )}
+                      {rent && (
+                        <Link href={`/bookings/${b.id}`}
+                          className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
+                          style={{ borderColor: '#E5E7EB', color: '#374151' }}>
+                          Rent payments
                         </Link>
                       )}
                       <Link href={`/listings/${b.listing?.id}`}

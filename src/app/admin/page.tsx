@@ -13,9 +13,10 @@ import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRate'
 import { AdminDisputes } from '@/components/admin/AdminDisputes'
 import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
+import { AdminRent } from '@/components/admin/AdminRent'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
 
-const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Messages', 'Reviews', 'Settings']
+const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Rent', 'Messages', 'Reviews', 'Settings']
 
 type AdminUser = {
   id: string
@@ -270,6 +271,7 @@ export default function AdminPage() {
           ) : (
             <>
               {activeTab === 'Disputes' && <AdminDisputes />}
+              {activeTab === 'Rent' && <AdminRent />}
               {activeTab === 'Messages' && <AdminMessages />}
 
               {activeTab === 'Overview' && <NotificationsList className="mb-6" />}

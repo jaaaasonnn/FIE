@@ -21,8 +21,8 @@ const hostSteps: Step[] = [
   { icon: UserPlus, title: 'Create your account', desc: 'Sign up with your phone number or email. Add your Ghana Card, Passport, or Voter ID to get the Verified Host badge.' },
   { icon: Home, title: 'List your property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
   { icon: SlidersHorizontal, title: 'Set your preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
-  { icon: Bell, title: 'Receive bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For permanent rentals, review tenant applications before approving.' },
-  { icon: Wallet, title: 'Get paid', desc: 'For short stays, you are paid 48 hours after guest check-in via MTN MoMo or bank transfer, minus the ' + COMMISSION_PERCENT + ' platform commission. If the guest reports a problem, the payout waits for our decision.' },
+  { icon: Bell, title: 'Receive bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For long-term rentals, the tenant pays the advance up front and then monthly.' },
+  { icon: Wallet, title: 'Get paid', desc: 'For short stays, you are paid 48 hours after guest check-in via MTN MoMo or bank transfer, minus the ' + COMMISSION_PERCENT + ' platform commission. Monthly and long-term stays are paid out month by month as the rent comes in. If the guest reports a problem, the payout waits for our decision.' },
   { icon: BarChart3, title: 'Manage & grow', desc: 'Track bookings, earnings, and reviews from your host dashboard. Hit 4.8+ rating with 10+ reviews to earn Superhost status.' },
 ]
 

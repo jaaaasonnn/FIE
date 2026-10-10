@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
-import { duePayoutWhere, hostPayoutAmount } from '@/lib/cronRuns'
+import { duePayouts } from '@/lib/cronRuns'
 import { payoutGate } from '@/lib/payoutSwitches'
 
 /**
@@ -26,6 +26,10 @@ export async function GET(req: Request) {
     const payouts = await db.payout.findMany({
       where: { hostId },
       orderBy: { createdAt: 'desc' },
+      include: {
+        booking: { select: { listing: { select: { title: true } } } },
+        instalment: { select: { sequence: true, periodStart: true, periodEnd: true } },
+      },
     })
 
     // Stays whose payout has fallen due but cannot be sent because the host
@@ -39,15 +43,10 @@ export async function GET(req: Request) {
         select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true },
       })
       if (!host?.paystackRecipientCode || !host.payoutMethodVerifiedAt) {
-        const due = await db.booking.findMany({
-          where: { ...duePayoutWhere(new Date(), gate.notBefore), hostId },
-          select: { subtotal: true },
-        })
+        // Short stays and rent instalments alike
+        const due = await duePayouts(new Date(), gate.notBefore, hostId)
         if (due.length > 0) {
-          waitingForMethod = {
-            count: due.length,
-            amount: due.reduce((sum, b) => sum + hostPayoutAmount(b.subtotal), 0),
-          }
+          waitingForMethod = { count: due.length, amount: due.reduce((sum, p) => sum + p.amount, 0) }
         }
       }
     }

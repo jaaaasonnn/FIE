@@ -54,6 +54,7 @@ model User {
   disputeEvidence DisputeEvidence[]
   disputeEvents   DisputeEvent[]
   payouts         Payout[]
+  instalmentsCovered Instalment[]
   wishlists       Wishlist[]
   sessions        Session[]
   notifications   Notification[]
@@ -214,6 +215,13 @@ model Booking {
   // which the expiry job never touches.
   payBy              DateTime?
 
+  // A tenancy a host or an admin ended before its agreed last day. checkOut
+  // becomes the end of the last month paid or covered, and the agreed date is
+  // kept here. Null on every booking that ran, or will run, its full length.
+  originalCheckOut   DateTime?
+  endedEarlyBy       String?   // HOST | ADMIN
+  endedEarlyAt       DateTime?
+
   listing   Listing   @relation(fields: [listingId], references: [id])
   guest     User      @relation("GuestBookings", fields: [guestId], references: [id])
   host      User      @relation("HostBookings", fields: [hostId], references: [id])
@@ -224,9 +232,41 @@ model Booking {
   application RentalApplication?
   payouts   Payout[]
   refund    Refund?
+  instalments Instalment[]
 
   // Search by dates looks for a listing's stays that overlap a range
   @@index([listingId, checkIn, checkOut])
+}
+
+// One rent payment of a monthly or long-term booking. Written when the booking
+// is made (lib/rentRules.ts) and never for short stays. The first covers the
+// months paid in advance and carries the damage deposit; each later one covers
+// one month and falls due on the day that month starts. A booking with no rows
+// here is paid in one payment, as before instalments existed.
+model Instalment {
+  id                 String    @id @default(cuid())
+  bookingId          String
+  sequence           Int       // 1, 2, 3 ...
+  periodStart        DateTime  // first day covered, at 12:00 UTC like every stay date
+  periodEnd          DateTime  // the day after the last day covered
+  dueDate            DateTime
+  amount             Float     // rent only, in USD
+  depositAmount      Float     @default(0) // the damage deposit, on the first instalment only
+  status             String    @default("PENDING") // PENDING | PAID | PART_COVERED | COVERED | CANCELLED
+  paidAt             DateTime? // when it was settled in full, by a payment or from the deposit
+  // Rent an admin took from the damage deposit for a missed payment, by whom and when
+  coveredFromDeposit Float     @default(0)
+  coveredById        String?
+  coveredAt          DateTime?
+  createdAt          DateTime  @default(now())
+
+  booking   Booking   @relation(fields: [bookingId], references: [id])
+  coveredBy User?     @relation(fields: [coveredById], references: [id])
+  payments  Payment[]
+  payouts   Payout[]
+
+  @@unique([bookingId, sequence])
+  @@index([status, dueDate])
 }
 
 model RentalApplication {
@@ -259,8 +299,14 @@ model Payment {
   amountPesewas    Int?
   usdToGhs         Float?
 
-  booking Booking  @relation(fields: [bookingId], references: [id])
-  refunds Refund[]
+  // The rent instalment this payment is for. Null on a payment for a whole booking.
+  instalmentId     String?
+
+  booking    Booking     @relation(fields: [bookingId], references: [id])
+  instalment Instalment? @relation(fields: [instalmentId], references: [id])
+  refunds    Refund[]
+
+  @@index([instalmentId])
 }
 
 // Money owed back to a guest for one booking. Written when the booking is
@@ -303,7 +349,7 @@ model Payout {
   bankName      String?
   accountNumber String?
   accountName   String?
-  status        String   @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED
+  status        String   @default("PENDING") // PENDING | PROCESSING | COMPLETED | FAILED | HELD (over the transfer limit: paid by hand)
   reference     String?
   createdAt     DateTime @default(now())
 
@@ -312,9 +358,14 @@ model Payout {
   // several bookings in one Payout row). paystackTransferReference is our
   // own idempotent key generated before calling Paystack; paystackTransferCode
   // is Paystack's own transfer_code, only present once the call succeeds.
-  // Unique: the database refuses a second payout for the same booking, so
-  // two overlapping cron runs can never pay one stay twice.
-  bookingId                 String?  @unique
+  // Unique with instalmentSeq: the database refuses a second payout for the
+  // same booking (seq 0, a stay paid in one go) or the same instalment of it,
+  // so two overlapping cron runs can never pay the same thing twice.
+  // instalmentSeq is 0, never null, on a whole-booking payout: nulls would
+  // not count as equal and the guard would be lost.
+  bookingId                 String?
+  instalmentId              String?
+  instalmentSeq             Int      @default(0)
   paystackTransferCode      String?
   paystackTransferReference String?  @unique
   failureReason             String?
@@ -330,8 +381,11 @@ model Payout {
   lastFailedAt              DateTime?
   alertedAt                 DateTime?
 
-  host    User     @relation(fields: [hostId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  host       User        @relation(fields: [hostId], references: [id])
+  booking    Booking?    @relation(fields: [bookingId], references: [id])
+  instalment Instalment? @relation(fields: [instalmentId], references: [id])
+
+  @@unique([bookingId, instalmentSeq])
 }
 
 model Review {

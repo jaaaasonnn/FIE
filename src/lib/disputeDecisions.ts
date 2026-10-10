@@ -17,6 +17,7 @@ import {
   OPEN_DISPUTE_STATUSES, OVERDUE_DISPUTE_DAYS, decisionEffect, outcomeLabel,
   type DecisionEffect,
 } from '@/lib/disputes'
+import { OPEN_INSTALMENT_STATUSES, depositLeft } from '@/lib/rentRules'
 
 export const MAX_RESOLUTION = 1000
 const DAY_MS = 86_400_000
@@ -34,9 +35,13 @@ async function loadForDecision(disputeId: string) {
       booking: {
         include: {
           listing: { select: { title: true } },
-          payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
+          // The payment that confirmed the booking: on a stay paid in
+          // instalments that is the first one, whatever has been paid since
+          payments: { where: { status: 'SUCCESS', OR: [{ instalmentId: null }, { instalment: { sequence: 1 } }] }, orderBy: { createdAt: 'desc' }, take: 1 },
           refund: { select: { reason: true, amount: true } },
-          payouts: { select: { status: true, amount: true }, take: 1 },
+          // And the payout for it: the booking's own, or the first instalment's
+          payouts: { where: { instalmentSeq: { lte: 1 } }, select: { status: true, amount: true }, take: 1 },
+          instalments: { orderBy: { sequence: 'asc' } },
         },
       },
     },
@@ -69,11 +74,18 @@ export async function decideDispute({
 
   const booking = dispute.booking
   const payment = booking.payments[0] ?? null
+  // A stay paid in instalments is decided on its first payment: the rent in
+  // it, and what is left of the deposit. Rent paid since is not touched here.
+  const first = booking.instalments.find((i) => i.sequence === 1)
+  const laterRentPaid = booking.instalments.reduce((sum, i) => sum + (i.sequence > 1 && i.status === 'PAID' ? i.amount - i.coveredFromDeposit : 0), 0)
   const effect = decisionEffect({
     role: dispute.raisedByRole,
     outcome,
     amount,
-    booking,
+    booking: first
+      ? { ...booking, subtotal: first.amount, damageDeposit: depositLeft(booking.damageDeposit, booking.instalments) }
+      : booking,
+    ...(first ? { automaticPayout: true, laterRentPaid } : {}),
     payment: payment ? { id: payment.id, amount: payment.amount, amountPesewas: payment.amountPesewas } : null,
     existingRefund: booking.refund,
     payout: booking.payouts[0] ?? null,
@@ -112,6 +124,11 @@ export async function decideDispute({
           },
         })
         refundId = refund.id
+      }
+
+      // A full refund ends the stay: the rent not yet paid is no longer owed
+      if (effect.outcome === 'FULL_REFUND' && first) {
+        await tx.instalment.updateMany({ where: { bookingId: booking.id, status: { in: OPEN_INSTALMENT_STATUSES } }, data: { status: 'CANCELLED' } })
       }
 
       await tx.disputeEvent.create({

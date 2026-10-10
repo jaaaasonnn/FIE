@@ -29,6 +29,17 @@
 //                               (UTC) can ever be ended by the job. Required:
 //                               without it the job stays in dry run.
 //
+//   RENT_REMINDERS_ENABLED=true Rent reminders may be written for instalments
+//                               that are coming due or late. While off, the
+//                               job is a dry run and never calls Paystack.
+//   RENT_DEPOSIT_COVER_ENABLED=true
+//                               An admin may cover a missed rent payment from
+//                               the damage deposit. While off, the action only
+//                               reports what it would do and writes nothing.
+//   PAYOUT_LIMIT_GHS=50000      Not a switch: the most a single transfer may
+//                               be, in cedis. A payout above it is held for a
+//                               person and never split. Unset: nothing is held.
+//
 // Either cron also accepts ?dryRun=1, which reports what it would do and
 // changes nothing, whatever the switches say.
 
@@ -100,6 +111,27 @@ export function expiryGate(): ExpiryGate {
     return { live: false, notBefore, reason: 'BOOKING_EXPIRY_NOT_BEFORE is not set to a date (YYYY-MM-DD)' }
   }
   return { live: true, notBefore }
+}
+
+/** Exactly "true": while off, the rent reminder job is a dry run. */
+export function rentRemindersEnabled(): boolean {
+  return process.env.RENT_REMINDERS_ENABLED === 'true'
+}
+
+/** Exactly "true": while off, covering rent from a deposit only reports what it would do. */
+export function rentDepositCoverEnabled(): boolean {
+  return process.env.RENT_DEPOSIT_COVER_ENABLED === 'true'
+}
+
+/**
+ * PAYOUT_LIMIT_GHS as pesewas: the most one transfer may be. Null when unset
+ * or not a positive number, in which case no payout is held for its size.
+ */
+export function payoutLimitPesewas(): number | null {
+  const raw = process.env.PAYOUT_LIMIT_GHS?.trim()
+  if (!raw || !/^\d+(\.\d+)?$/.test(raw)) return null
+  const pesewas = Math.round(Number(raw) * 100)
+  return pesewas > 0 ? pesewas : null
 }
 
 /** Thrown when something tries to start a transfer while payouts are off. */

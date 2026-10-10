@@ -12,6 +12,7 @@ import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/l
 import { useAuth } from '@/context/AuthContext'
 import { POLICY_LABELS, policyRuleLines, type Policy } from '@/lib/cancellationPolicy'
 import { GUEST_FEE_CHARGED } from '@/lib/fees'
+import { ADVANCE_RULE_NOTE, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from '@/lib/rentRules'
 
 const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Photos', 'Review']
 
@@ -19,6 +20,8 @@ const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Pho
 // step so photo uploads have a real listingId to attach to, rather than
 // holding raw files in memory for the whole wizard.
 const PHOTOS_STEP = 4
+
+const ADVANCE_OPTIONS = Array.from({ length: MAX_ADVANCE_MONTHS }, (_, i) => i + 1)
 
 export default function NewListingPage() {
   const [step, setStep] = useState(0)
@@ -42,7 +45,7 @@ export default function NewListingPage() {
     bedrooms: '1', bathrooms: '1', maxGuests: '2',
     rentalModes: [] as string[],
     priceNightly: '', priceMonthly: '', priceAnnual: '',
-    advanceMonthsRequired: '6',
+    advanceMonthsRequired: String(DEFAULT_ADVANCE_MONTHS),
     amenities: [] as string[],
     rules: [] as string[],
     cancellationPolicy: 'MODERATE',
@@ -312,12 +315,12 @@ export default function NewListingPage() {
           <h4 className="font-semibold text-sm" style={{ color: '#065F46' }}>Permanent Rental Pricing</h4>
           <Input label="Annual Rent (USD $)" type="number" placeholder="e.g. 9600"
             value={form.priceAnnual} onChange={(e) => setForm({ ...form, priceAnnual: e.target.value })} />
-          <Select label="Advance Payment Required (months)" value={form.advanceMonthsRequired}
+          <Select label="Rent paid up front (months)" value={form.advanceMonthsRequired}
             onChange={(e) => setForm({ ...form, advanceMonthsRequired: e.target.value })}
-            options={[1,2,3,6,12].map((n) => ({ value: String(n), label: `${n} month${n > 1 ? 's' : ''} advance` }))} />
-          <p className="flex items-center gap-1.5 text-xs text-green-700">
-            <AlertTriangle size={12} aria-hidden className="flex-shrink-0" />
-            This will be shown clearly to tenants before they apply.
+            options={ADVANCE_OPTIONS.map((n) => ({ value: String(n), label: `${n} month${n > 1 ? 's' : ''} up front` }))} />
+          <p className="flex items-start gap-1.5 text-xs text-green-700">
+            <AlertTriangle size={12} aria-hidden className="flex-shrink-0 mt-0.5" />
+            {ADVANCE_RULE_NOTE} Tenants see this before they book.
           </p>
         </div>
       )}

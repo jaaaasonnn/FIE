@@ -4,6 +4,11 @@
 //   - the charge.success webhook, which arrives whether or not it does;
 //   - the expiry job, which asks Paystack before it releases unpaid dates.
 // They can arrive in any order, or twice, and the result is the same.
+//
+// A rent instalment (lib/rentRules.ts) is settled here too, and nowhere else.
+// The first instalment of a booking is the payment that confirms it, so it
+// follows the booking's rules and marks the instalment paid in the same step.
+// A later one marks only its instalment paid: the booking is already confirmed.
 
 import * as Sentry from '@sentry/nextjs'
 import { Prisma } from '@prisma/client'
@@ -11,6 +16,7 @@ import { db } from '@/lib/db'
 import { paymentWebhookEnabled } from '@/lib/payoutSwitches'
 import { sendRefund } from '@/lib/refunds'
 import { notify } from '@/lib/messaging/notify'
+import { OPEN_INSTALMENT_STATUSES, isSettled, tenancyStands } from '@/lib/rentRules'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 
@@ -18,12 +24,12 @@ const PAYSTACK_BASE = 'https://api.paystack.co'
 export type PaystackCharge = { reference: string; status: unknown; amount: unknown; currency: unknown }
 
 export type SettleOutcome =
-  | 'confirmed'          // the booking is paid
+  | 'confirmed'          // the booking, or the rent instalment, is paid
   | 'refunded'           // paid, but the booking no longer stands: the whole amount is owed back
   | 'failed'             // Paystack says the payment did not go through
   | 'pending'            // Paystack has not finished with it yet
   | 'mismatch'           // paid, but not the amount or currency we asked for
-  | 'duplicate'          // paid, on a booking another payment had already paid
+  | 'duplicate'          // paid, on a booking or an instalment another payment had already paid
   | 'unknown-reference'  // no payment of ours carries this reference
 
 export type SettleResult = {
@@ -36,7 +42,7 @@ export type SettleResult = {
   refundId?: string
 }
 
-type Action = 'none' | 'fail' | 'mismatch' | 'duplicate' | 'confirm' | 'refund'
+type Action = 'none' | 'fail' | 'mismatch' | 'duplicate' | 'confirm' | 'instalment' | 'refund'
 
 /** Statuses a payment can still move on from. Success always wins over failed. */
 const OPEN = ['PENDING', 'FAILED']
@@ -44,7 +50,10 @@ const OPEN = ['PENDING', 'FAILED']
 async function load(reference: string) {
   return db.payment.findUnique({
     where: { gatewayReference: reference },
-    include: { booking: { include: { refund: { select: { paymentId: true, reason: true } } } } },
+    include: {
+      booking: { include: { refund: { select: { paymentId: true, reason: true } } } },
+      instalment: { select: { id: true, sequence: true, status: true } },
+    },
   })
 }
 type Loaded = NonNullable<Awaited<ReturnType<typeof load>>>
@@ -80,6 +89,19 @@ export function decideSettlement(payment: Loaded, charge: PaystackCharge): { act
   const expected = payment.amountPesewas
   if (charge.currency !== 'GHS' || !Number.isInteger(expected) || Number(charge.amount) !== expected) {
     return { action: 'mismatch', outcome: 'mismatch' }
+  }
+  // Rent after the first payment: the booking is already paid and confirmed,
+  // so this settles the instalment alone
+  const instalment = payment.instalment
+  if (instalment && instalment.sequence > 1) {
+    // Another payment, or the deposit, has already settled it
+    if (isSettled(instalment)) return { action: 'duplicate', outcome: 'duplicate' }
+    if (OPEN_INSTALMENT_STATUSES.includes(instalment.status) && tenancyStands(payment.booking)) {
+      return { action: 'instalment', outcome: 'confirmed' }
+    }
+    // The tenancy was cancelled or ended, so this month is no longer owed:
+    // the whole amount goes back
+    return { action: 'refund', outcome: 'refunded' }
   }
   // Another payment has already paid for this booking
   if (payment.booking.paymentStatus !== 'UNPAID') return { action: 'duplicate', outcome: 'duplicate' }
@@ -141,6 +163,9 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
       return { outcome, changed: true, dryRun, ...ids }
     }
 
+    const instalment = payment.instalment
+    const later = !!instalment && instalment.sequence > 1
+    const paidAt = new Date()
     let refundId: string | undefined
     try {
       await db.$transaction(async (tx) => {
@@ -148,13 +173,38 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
         const claim = await tx.payment.updateMany({ where: { id: payment.id, status: { in: OPEN } }, data: { status: 'SUCCESS' } })
         if (claim.count === 0) throw new Raced()
 
-        // The booking must still be exactly as it was read: not cancelled,
-        // accepted, expired or paid by another payment in the meantime
-        const booking = await tx.booking.updateMany({
-          where: { id: payment.bookingId, status: payment.booking.status, paymentStatus: 'UNPAID' },
-          data: { paymentStatus: 'PAID' },
-        })
-        if (booking.count === 0) throw new Raced()
+        if (later) {
+          // The booking stays as it is. The tenancy must still stand as it
+          // was read, and the instalment must still be owed.
+          const standing = await tx.booking.count({
+            where: { id: payment.bookingId, status: payment.booking.status, paymentStatus: payment.booking.paymentStatus },
+          })
+          if (standing === 0) throw new Raced()
+          if (action === 'instalment') {
+            const settled = await tx.instalment.updateMany({
+              where: { id: instalment.id, status: { in: OPEN_INSTALMENT_STATUSES } },
+              data: { status: 'PAID', paidAt },
+            })
+            if (settled.count === 0) throw new Raced()
+          }
+        } else {
+          // The booking must still be exactly as it was read: not cancelled,
+          // accepted, expired or paid by another payment in the meantime
+          const booking = await tx.booking.updateMany({
+            where: { id: payment.bookingId, status: payment.booking.status, paymentStatus: 'UNPAID' },
+            data: { paymentStatus: 'PAID' },
+          })
+          if (booking.count === 0) throw new Raced()
+
+          // The first instalment is paid by the payment that confirms the booking
+          if (action === 'confirm' && instalment) {
+            const settled = await tx.instalment.updateMany({
+              where: { id: instalment.id, status: 'PENDING' },
+              data: { status: 'PAID', paidAt },
+            })
+            if (settled.count === 0) throw new Raced()
+          }
+        }
 
         if (action === 'refund') {
           const refund = await tx.refund.create({
@@ -162,9 +212,11 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
               bookingId: payment.bookingId,
               paymentId: payment.id,
               reason: 'LATE_PAYMENT',
-              stayRefund: payment.booking.subtotal,
-              serviceFeeRefund: payment.booking.serviceFee,
-              depositRefund: payment.booking.damageDeposit,
+              // An instalment's payment carries only its own rent, and its
+              // deposit if it is the first: never the whole tenancy's rent
+              stayRefund: instalment ? Math.max(0, payment.amount - (later ? 0 : payment.booking.damageDeposit)) : payment.booking.subtotal,
+              serviceFeeRefund: instalment ? 0 : payment.booking.serviceFee,
+              depositRefund: later ? 0 : payment.booking.damageDeposit,
               amount: payment.amount,
               amountPesewas: payment.amountPesewas,
             },
@@ -197,7 +249,8 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
         console.error('[Payments] sendRefund threw for refund', refundId, error)
       }
     }
-    notify(action === 'confirm' ? 'booking.confirmed' : 'payment.late_refund', { bookingId: payment.bookingId })
+    if (action === 'instalment') notify('rent.paid', { instalmentId: instalment!.id })
+    else notify(action === 'confirm' ? 'booking.confirmed' : 'payment.late_refund', { bookingId: payment.bookingId })
     return { outcome, changed: true, dryRun, ...ids, ...(refundId ? { refundId } : {}) }
   }
   throw new Error(`Payment ${charge.reference} could not be settled: it kept changing underneath`)

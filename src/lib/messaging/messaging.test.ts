@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   booking: null as Row | null, refund: null as Row | null, payout: null as Row | null,
   dispute: null as Row | null, disputeEvent: null as Row | null, message: null as Row | null,
   listing: null as Row | null, verification: null as Row | null, review: null as Row | null,
+  instalment: null as Row | null,
   breakOn: '' as string, writes: 0,
 }))
 const sentry = vi.hoisted(() => ({
@@ -51,7 +52,7 @@ vi.mock('@/lib/db', async () => {
     }
     state.writes++
   }
-  const one = (name: 'booking' | 'refund' | 'payout' | 'dispute' | 'disputeEvent' | 'message' | 'listing' | 'verification' | 'review') => ({
+  const one = (name: 'booking' | 'refund' | 'payout' | 'dispute' | 'disputeEvent' | 'message' | 'listing' | 'verification' | 'review' | 'instalment') => ({
     findUnique: async () => {
       if (state.breakOn === name) throw new Error(`${name} table is down`)
       return state[name] ? { ...state[name] } : null
@@ -61,7 +62,7 @@ vi.mock('@/lib/db', async () => {
     db: {
       booking: one('booking'), refund: one('refund'), payout: one('payout'), dispute: one('dispute'),
       disputeEvent: one('disputeEvent'), message: one('message'), listing: one('listing'),
-      verification: one('verification'), review: one('review'),
+      verification: one('verification'), review: one('review'), instalment: one('instalment'),
       exchangeRate: { findFirst: async () => ({ usdToGhs: 15.5 }) },
       user: {
         findMany: async ({ where }: { where: Row }) => state.users.filter((u) => matches(u, where)).map((u) => ({ ...u })),
@@ -166,13 +167,14 @@ function world(over: { guest?: Row; host?: Row; booking?: Row } = {}) {
     host: { id: 'host_1', name: 'Kwame Mensah', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: NOW },
     payments: [{ amountPesewas: 598_300 }],
     refund: null,
+    instalments: [],
     ...over.booking,
   }
 }
 
 beforeEach(() => {
   for (const key of ['logs', 'notifications', 'users'] as const) state[key].length = 0
-  for (const key of ['booking', 'refund', 'payout', 'dispute', 'disputeEvent', 'message', 'listing', 'verification', 'review'] as const) state[key] = null
+  for (const key of ['booking', 'refund', 'payout', 'dispute', 'disputeEvent', 'message', 'listing', 'verification', 'review', 'instalment'] as const) state[key] = null
   state.breakOn = ''
   state.writes = 0
   sentry.captureException.mockReset()
@@ -244,6 +246,10 @@ describe('templates', () => {
       'payout.sent > host',
       'payout.waiting > host',
       'payout_method.changed > user',
+      // Rent reminders, to the tenant
+      'rent.due_soon > guest',
+      'rent.due_today > guest',
+      'rent.overdue > guest',
     ])
     // ID outcomes are email (and in-app) only
     expect(render('verification.decided')[0].sms).toBeUndefined()
@@ -511,6 +517,129 @@ describe('recording an event', () => {
       state.message!.createdAt = at(MESSAGE_ALERT_WINDOW_MS + MIN)
       await writeMessages('message.received', { messageId: 'message_3' })
       expect(log({ event: 'message.received' })).toHaveLength(2)
+    })
+  })
+
+  describe('rent on a stay paid in instalments', () => {
+    // A year at $12,000 with a $500 deposit: $3,000 and the deposit up front, then $1,000 a month from 9 June
+    const first = { sequence: 1, status: 'PAID', amount: 3000, depositAmount: 500, coveredFromDeposit: 0, periodEnd: new Date('2027-06-09T12:00:00Z'), dueDate: new Date('2027-03-09T12:00:00Z') }
+    const second = { id: 'inst_2', bookingId: 'booking_1', sequence: 2, status: 'PENDING', amount: 1000, depositAmount: 0, coveredFromDeposit: 0, periodStart: new Date('2027-06-09T12:00:00Z'), periodEnd: new Date('2027-07-09T12:00:00Z'), dueDate: new Date('2027-06-09T12:00:00Z') }
+    function tenancy(over: Row = {}) {
+      world({ booking: { subtotal: 12_000, totalPrice: 12_500, damageDeposit: 500, checkOut: new Date('2028-03-09T12:00:00Z'), payments: [{ amountPesewas: 5_425_000 }], instalments: [first, second] } })
+      state.instalment = {
+        ...second, payments: [],
+        booking: { status: 'CONFIRMED', paymentStatus: 'PAID', damageDeposit: 500, refund: null, instalments: [first, second] },
+        ...over,
+      }
+    }
+
+    it('tells the guest and the host what the first payment is and what follows, not the price of the whole year', async () => {
+      tenancy()
+      await writeMessages('booking.confirmed', { bookingId: 'booking_1' })
+      const guest = one({ userId: 'guest_1', channel: 'EMAIL' }).body as string
+      expect(guest).toContain('We received your payment of GH₵ 54,250.00 ($3,500.00).')
+      expect(guest).toContain('That first payment covers the rent to Wed 9 Jun 2027 and the damage deposit. After that the rent is $1,000.00 a month, due from Wed 9 Jun 2027.')
+      expect(guest).not.toContain('12,500')
+      const host = one({ userId: 'host_1', channel: 'EMAIL' }).body as string
+      expect(host).toContain('Your payout for the first payment is sent 48 hours after move-in.')
+      expect(host).not.toContain('For a short stay')
+    })
+
+    it('reminds the tenant by email and SMS, and only logs both while messaging is off', async () => {
+      vi.setSystemTime(new Date('2027-06-09T08:00:00Z'))
+      tenancy()
+      expect(await writeMessages('rent.due_today', { instalmentId: 'inst_2' })).toEqual({ written: 2, failed: false })
+      expect(log({}).map((l) => `${l.userId} ${l.channel} ${l.status}`).sort()).toEqual(['guest_1 EMAIL LOGGED', 'guest_1 SMS LOGGED'])
+      expect(one({ channel: 'EMAIL' })).toMatchObject({ subject: 'Rent for Sea-view apartment in Labadi is due today', bookingId: 'booking_1', recipientRole: 'GUEST' })
+      expect(one({ channel: 'EMAIL' }).body).toContain('Your rent of $1,000.00 (about GH₵ 15,500) for Sea-view apartment in Labadi is due today.')
+      expect(one({ channel: 'EMAIL' }).body).toContain('Pay your rent: https://fiegh.com/checkout/booking_1?instalment=inst_2')
+      expect(one({ channel: 'SMS' }).body).toBe('FieGH: Rent of $1,000.00 for "Sea-view apartment in Labadi" is due today. Pay from your booking: https://fiegh.com/bookings/booking_1')
+      expect(fake.email).not.toHaveBeenCalled()
+      expect(fake.sms).not.toHaveBeenCalled()
+    })
+
+    it('writes the daily reminder once a day, however often the job runs', async () => {
+      vi.setSystemTime(new Date('2027-06-12T08:00:00Z'))
+      tenancy()
+      expect((await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-12' })).written).toBe(2)
+      expect((await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-12' })).written).toBe(0)
+      expect((await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-13' })).written).toBe(2)
+      expect(state.logs).toHaveLength(4)
+      expect(one({ channel: 'SMS', dedupeKey: 'rent.overdue:inst_2:2027-06-12:guest_1:SMS' }).body).toBe(
+        'FieGH: Rent of $1,000.00 for "Sea-view apartment in Labadi" was due on 9 Jun and is late. Please pay today: https://fiegh.com/bookings/booking_1',
+      )
+    })
+
+    it('tells the host and the admins once that rent is late, and the admins once that reminders have stopped', async () => {
+      vi.stubEnv('ADMIN_ALERT_EMAIL', 'ops@fiegh.com')
+      vi.setSystemTime(new Date('2027-06-12T08:00:00Z'))
+      tenancy()
+      expect((await writeMessages('rent.overdue_notice', { instalmentId: 'inst_2' })).written).toBe(2)
+      expect((await writeMessages('rent.overdue_notice', { instalmentId: 'inst_2' })).written).toBe(0)
+      expect(log({ event: 'rent.overdue_notice' }).map((l) => `${l.recipientRole} ${l.channel}`).sort()).toEqual(['ADMIN EMAIL', 'HOST EMAIL'])
+      vi.setSystemTime(new Date('2027-06-24T08:00:00Z'))
+      // One email to the shared inbox and an in-app notice for each admin, once
+      expect((await writeMessages('rent.reminders_stopped', { instalmentId: 'inst_2' })).written).toBe(3)
+      expect((await writeMessages('rent.reminders_stopped', { instalmentId: 'inst_2' })).written).toBe(0)
+      expect(log({ event: 'rent.reminders_stopped' }).map((l) => `${l.recipientRole} ${l.channel}`).sort()).toEqual(['ADMIN EMAIL', 'ADMIN IN_APP', 'ADMIN IN_APP'])
+    })
+
+    it('says the last reminder is the last', async () => {
+      tenancy()
+      vi.setSystemTime(new Date('2027-06-22T08:00:00Z'))   // 13 days after
+      await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-22' })
+      vi.setSystemTime(new Date('2027-06-23T08:00:00Z'))   // 14 days after
+      await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-23' })
+      const [before, last] = log({ channel: 'EMAIL' }).map((l) => (l.body as string).includes('This is our last reminder.'))
+      expect([before, last]).toEqual([false, true])
+    })
+
+    it('reminds nobody about rent that is paid, cancelled, or on a tenancy that no longer stands', async () => {
+      for (const over of [{ status: 'PAID' }, { status: 'COVERED' }, { status: 'CANCELLED' }, { booking: { status: 'CANCELLED', paymentStatus: 'PAID', instalments: [] } }, { booking: { status: 'CONFIRMED', paymentStatus: 'REFUNDED', instalments: [] } }]) {
+        state.users.length = 0
+        tenancy(over)
+        for (const event of ['rent.due_soon', 'rent.due_today', 'rent.overdue_notice', 'rent.reminders_stopped'] as const) {
+          expect((await writeMessages(event, { instalmentId: 'inst_2' })).written, `${event} ${JSON.stringify(over)}`).toBe(0)
+        }
+        expect((await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-12' })).written).toBe(0)
+      }
+    })
+
+    it('gives the tenant a receipt in the cedis charged, and tells the host', async () => {
+      tenancy({ status: 'PAID', payments: [{ amount: 1000, amountPesewas: 1_580_000 }] })
+      expect((await writeMessages('rent.paid', { instalmentId: 'inst_2' })).written).toBe(2)
+      expect(one({ userId: 'guest_1', channel: 'EMAIL' }).body).toContain('We received your rent payment of GH₵ 15,800.00 ($1,000.00) for Sea-view apartment in Labadi.')
+      expect(one({ userId: 'host_1', channel: 'EMAIL' }).subject).toBe('Rent received for Sea-view apartment in Labadi')
+      expect(log({ channel: 'SMS' })).toHaveLength(0)
+    })
+
+    it('tells the tenant, the host and the admins what was taken from the deposit and what is still owed', async () => {
+      const covered = { ...second, status: 'PART_COVERED', coveredFromDeposit: 500 }
+      tenancy({ ...covered, booking: { status: 'CONFIRMED', paymentStatus: 'PAID', damageDeposit: 500, refund: null, instalments: [first, covered] } })
+      expect((await writeMessages('rent.covered_from_deposit', { instalmentId: 'inst_2' })).written).toBe(4)
+      const guest = one({ userId: 'guest_1', channel: 'EMAIL' }).body as string
+      expect(guest).toContain('$500.00 has been taken from your damage deposit')
+      expect(guest).toContain('$500.00 is still owed for that period.')
+      expect(guest).toContain('$0.00 of your deposit is left.')
+      expect(log({ recipientRole: 'ADMIN', channel: 'IN_APP' })).toHaveLength(2)
+    })
+
+    it('tells both sides when a tenancy is ended early, and only then', async () => {
+      tenancy()
+      expect((await writeMessages('tenancy.ended_early', { bookingId: 'booking_1' })).written).toBe(0)
+      Object.assign(state.booking!, { endedEarlyAt: NOW, endedEarlyBy: 'HOST', checkOut: new Date('2027-06-09T12:00:00Z') })
+      expect((await writeMessages('tenancy.ended_early', { bookingId: 'booking_1' })).written).toBe(4)
+      expect(one({ userId: 'guest_1', channel: 'EMAIL' }).subject).toBe('Your tenancy at Sea-view apartment in Labadi ends on Wed 9 Jun 2027')
+      expect(one({ userId: 'guest_1', channel: 'EMAIL' }).body).toContain('nothing already paid is refunded')
+    })
+
+    it('keys a waiting payout on the instalment, so each month gets its own notice', async () => {
+      tenancy({ status: 'PAID' })
+      ;(state.booking!.host as Row).paystackRecipientCode = null
+      expect((await writeMessages('payout.waiting', { bookingId: 'booking_1', instalmentId: 'inst_2' })).written).toBe(2)
+      expect((await writeMessages('payout.waiting', { bookingId: 'booking_1', instalmentId: 'inst_2' })).written).toBe(0)
+      expect(one({ channel: 'EMAIL' }).dedupeKey).toBe('payout.waiting:inst_2:host_1:EMAIL')
+      expect(one({ channel: 'EMAIL' }).body).toContain('Your payout of $900.00 for the rent at Sea-view apartment in Labadi for the period starting Wed 9 Jun 2027 is ready')
     })
   })
 
@@ -861,8 +990,8 @@ describe('call sites', () => {
       "'refund.needs_attention', { refundId: refund.id }",
       "status === 'PROCESSED' ? 'refund.arrived' : 'refund.sent', { refundId }",
     ])
-    expect(calls('src/lib/payouts.ts')).toEqual(["'payout.failed', { payoutId }"])
-    expect(calls('src/lib/cronRuns.ts')).toEqual(["'payout.waiting', { bookingId: booking.id }", "'booking.completed', { bookingId }"])
+    expect(calls('src/lib/payouts.ts')).toEqual(["'payout.held', { payoutId: held.id }", "'payout.failed', { payoutId }"])
+    expect(calls('src/lib/cronRuns.ts')).toEqual(["'payout.waiting', { bookingId: booking.id, instalmentId: item.instalmentId }", "'booking.completed', { bookingId }"])
     expect(calls('src/lib/disputeDecisions.ts')).toEqual(["'dispute.decided', { disputeId: dispute.id }"])
     expect(calls('src/app/api/webhooks/paystack/route.ts')).toEqual(["'payout.sent', { payoutId: payout.id, pesewas: data.amount }"])
   })

@@ -43,25 +43,28 @@ export async function GET(req: Request) {
 
   const payment = await db.payment.findUnique({
     where: { gatewayReference: reference },
-    select: { bookingId: true },
+    select: { bookingId: true, instalment: { select: { id: true, sequence: true } } },
   })
 
   if (!payment) {
     return NextResponse.redirect(`${baseUrl}/dashboard/guest`)
   }
 
-  const redirectTo = `${baseUrl}/checkout/${payment.bookingId}`
+  // A rent payment after the first comes back to that instalment's own page
+  const later = payment.instalment && payment.instalment.sequence > 1 ? payment.instalment.id : null
+  const page = `${baseUrl}/checkout/${payment.bookingId}`
+  const back = (flag: string) => `${page}?${later ? `instalment=${later}&` : ''}payment=${flag}`
 
   try {
     const lookup = await fetchCharge(reference)
     if (!lookup.ok) {
       console.error('[Paystack] Verify Transaction failed:', lookup.error)
-      return NextResponse.redirect(`${redirectTo}?payment=error`)
+      return NextResponse.redirect(back('error'))
     }
     const result = await settlePayment(lookup.charge)
-    return NextResponse.redirect(`${redirectTo}?payment=${RETURN_FLAG[result.outcome]}`)
+    return NextResponse.redirect(back(RETURN_FLAG[result.outcome]))
   } catch (error) {
     console.error('[Paystack] Verify Transaction error:', error)
-    return NextResponse.redirect(`${redirectTo}?payment=error`)
+    return NextResponse.redirect(back('error'))
   }
 }
