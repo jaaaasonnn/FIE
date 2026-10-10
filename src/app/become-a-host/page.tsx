@@ -20,8 +20,8 @@ const POINTS = [
   },
   {
     icon: ShieldCheck,
-    title: 'Verifying your ID earns the Verified badge',
-    body: 'It is not required to start hosting, but guests can filter for verified hosts.',
+    title: 'Having your ID checked earns the "Host ID checked" badge',
+    body: 'It is not required to start hosting, but guests can filter for hosts whose ID has been checked.',
   },
 ]
 

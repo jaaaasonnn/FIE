@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { liveChecksInclude, publicListing } from '@/lib/listingChecks'
 
 export async function GET(_req: Request) {
   try {
@@ -12,19 +13,24 @@ export async function GET(_req: Request) {
     // session user's own, never anyone else's by request.
     const userId = user.id
 
+    const now = new Date()
     const wishlists = await db.wishlist.findMany({
       where: { userId },
       include: {
         listing: {
           include: {
-            host: { select: { id: true, name: true, isVerified: true, isSuperhost: true } }
+            host: { select: { id: true, name: true, isVerified: true, isSuperhost: true } },
+            checks: liveChecksInclude(now),
           }
         }
       },
       orderBy: { createdAt: 'desc' }
     })
 
-    return NextResponse.json({ wishlists })
+    // Only the fields of a listing the public may see (lib/listingChecks.ts)
+    return NextResponse.json({
+      wishlists: wishlists.map((w) => ({ ...w, listing: { ...publicListing(w.listing, now), host: w.listing.host } })),
+    })
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch wishlist' }, { status: 500 })
   }

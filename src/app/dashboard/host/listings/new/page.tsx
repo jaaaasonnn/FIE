@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext'
 import { POLICY_LABELS, policyRuleLines, type Policy } from '@/lib/cancellationPolicy'
 import { GUEST_FEE_CHARGED } from '@/lib/fees'
 import { ADVANCE_RULE_NOTE, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from '@/lib/rentRules'
+import { DIGITAL_ADDRESS_ERROR, DIGITAL_ADDRESS_EXAMPLE, parseDigitalAddress } from '@/lib/digitalAddress'
 
 const STEPS = ['Property Info', 'Location', 'Pricing', 'Amenities & Rules', 'Photos', 'Review']
 
@@ -41,7 +42,7 @@ export default function NewListingPage() {
 
   const [form, setForm] = useState({
     title: '', description: '', propertyType: '',
-    region: '', city: '', neighbourhood: '',
+    region: '', city: '', neighbourhood: '', digitalAddress: '',
     bedrooms: '1', bathrooms: '1', maxGuests: '2',
     rentalModes: [] as string[],
     priceNightly: '', priceMonthly: '', priceAnnual: '',
@@ -65,6 +66,7 @@ export default function NewListingPage() {
       region: form.region,
       city: form.city.trim(),
       neighbourhood: form.neighbourhood || null,
+      digitalAddress: form.digitalAddress.trim() || null,
       bedrooms: parseInt(form.bedrooms, 10),
       bathrooms: parseInt(form.bathrooms, 10),
       maxGuests: parseInt(form.maxGuests, 10),
@@ -105,6 +107,7 @@ export default function NewListingPage() {
     if (s === 1) {
       if (!form.region) return 'Please select a region.'
       if (!form.city.trim()) return 'Please enter a city / town.'
+      if (!parseDigitalAddress(form.digitalAddress).ok) return DIGITAL_ADDRESS_ERROR + '.'
     }
     if (s === 2) {
       if (form.rentalModes.length === 0) return 'Select at least one rental mode.'
@@ -260,6 +263,9 @@ export default function NewListingPage() {
         value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
       <Input label="Neighbourhood (optional)" placeholder="e.g. East Legon, Cantonments"
         value={form.neighbourhood} onChange={(e) => setForm({ ...form, neighbourhood: e.target.value })} />
+      <Input label="Ghana Post digital address (optional)" placeholder={`e.g. ${DIGITAL_ADDRESS_EXAMPLE}`} autoCapitalize="characters"
+        value={form.digitalAddress} onChange={(e) => setForm({ ...form, digitalAddress: e.target.value })}
+        hint="Optional. Guests never see it on your listing: they see it only once their booking is confirmed. Our team needs it before we can check your listing's address and photos." />
       <div className="p-4 rounded-xl border border-dashed border-stone-300 text-center">
         <MapPin size={22} strokeWidth={1.75} aria-hidden className="mx-auto mb-2" style={{ color: 'var(--color-text-secondary)' }} />
         <p className="text-sm font-medium text-[#4A4540]">Map Pin (Coming Soon)</p>

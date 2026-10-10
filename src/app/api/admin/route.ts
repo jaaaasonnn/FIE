@@ -5,6 +5,7 @@ import { getAutoFetchStatus } from '@/lib/exchangeRate'
 import { notify } from '@/lib/messaging/notify'
 import { hostCommission } from '@/lib/disputes'
 import { rentReceived } from '@/lib/rentRules'
+import { clearChecks, tellCleared } from '@/lib/listingChecks'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -95,12 +96,17 @@ export async function POST(req: Request) {
     if (type === 'hold-listing' || type === 'flag-listing') {
       const { listingId } = data
       if (typeof listingId !== 'string') return NextResponse.json({ error: 'listingId required' }, { status: 400 })
-      const listing = await db.listing.update({
-        where: { id: listingId },
-        data: { isActive: false, moderationHold: true },
-        select: { id: true, isActive: true, moderationHold: true },
-      })
+      // A hold also removes "Address and photos checked", in the same transaction
+      const [listing, cleared] = await db.$transaction(async (tx) => [
+        await tx.listing.update({
+          where: { id: listingId },
+          data: { isActive: false, moderationHold: true },
+          select: { id: true, isActive: true, moderationHold: true },
+        }),
+        await clearChecks(tx, listingId, 'LISTING_HELD'),
+      ] as const)
       notify('listing.held', { listingId })
+      tellCleared(cleared)
       return NextResponse.json({ success: true, listing })
     }
 

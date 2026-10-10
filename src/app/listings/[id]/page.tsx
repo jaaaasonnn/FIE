@@ -22,11 +22,13 @@ import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import { CancellationPolicy, heldNote } from '@/components/booking/CancellationPolicy'
 import Link from 'next/link'
 import Image from 'next/image'
-import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
+import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { CheckedBadge } from '@/components/listing/CheckedBadge'
+import { DIGITAL_ADDRESS_PUBLIC, checkExplanation, type PublicCheck } from '@/lib/listingCheckRules'
 
 // ── API types ────────────────────────────────────────────────────────────────
 type ApiListing = {
@@ -54,6 +56,10 @@ type ApiListing = {
   damageDeposit: number | null
   avgRating:     number
   reviewCount:   number
+  /** True when the host has given a Ghana Post digital address. The address itself is never public. */
+  hasDigitalAddress?: boolean
+  /** Set while FieGH's check of the address and photos stands */
+  check?: PublicCheck | null
   host: {
     id:           string
     name:         string
@@ -412,8 +418,18 @@ export default function ListingDetailPage() {
               <span>·</span>
               <span className="flex items-center gap-1"><MapPin size={14} />{listing.neighbourhood ?? listing.city}, {listing.city}</span>
               {listing.host.isSuperhost && <SuperhostBadge />}
-              {listing.host.isVerified  && <VerifiedBadge />}
+              {listing.host.isVerified  && <HostIdBadge />}
+              <CheckedBadge check={listing.check} />
             </div>
+            {/* What the badge means, in full, wherever it is shown on this page */}
+            {listing.check && (
+              <p className="text-xs mt-2 max-w-2xl" style={{ color: 'var(--color-text-secondary)' }}>{checkExplanation(listing.check)}</p>
+            )}
+            {listing.hasDigitalAddress && (
+              <p className="text-sm mt-2" style={{ color: 'var(--color-text-secondary)' }}>
+                <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>Digital address:</span> {DIGITAL_ADDRESS_PUBLIC}
+              </p>
+            )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} /></button>
@@ -611,7 +627,7 @@ export default function ListingDetailPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <h4 className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{listing.host.name}</h4>
-                    {listing.host.isVerified  && <VerifiedBadge />}
+                    {listing.host.isVerified  && <HostIdBadge />}
                     {listing.host.isSuperhost && <SuperhostBadge />}
                   </div>
                   <p className="text-xs mb-3" style={{ color: 'var(--color-text-secondary)' }}>

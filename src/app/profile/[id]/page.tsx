@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { Star, MapPin, Calendar, Shield, Flag, Loader2, Pencil, SearchX, MessageSquare } from 'lucide-react'
 import Link from 'next/link'
-import { VerifiedBadge, SuperhostBadge, Badge } from '@/components/ui/Badge'
+import { HostIdBadge, SuperhostBadge, Badge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 
@@ -142,7 +142,7 @@ export default function ProfilePage() {
                     {displayName}
                   </h1>
                   <div className="flex items-center gap-2 mt-1">
-                    {profile.isVerified && <VerifiedBadge />}
+                    {profile.isVerified && <HostIdBadge host={profile.role === 'HOST'} />}
                     {profile.isSuperhost && <SuperhostBadge />}
                     <Badge variant="gray">{profile.role}</Badge>
                   </div>

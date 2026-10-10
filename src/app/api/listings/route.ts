@@ -7,6 +7,9 @@ import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
 import { parseAdvanceMonths } from '@/lib/rentRules'
 import { parseSearchRange, availabilityWhere } from '@/lib/searchDates'
+import { parseDigitalAddress } from '@/lib/digitalAddress'
+import { liveCheckWhere } from '@/lib/listingCheckRules'
+import { liveChecksInclude, publicListing } from '@/lib/listingChecks'
 
 export async function GET(req: Request) {
   try {
@@ -18,7 +21,10 @@ export async function GET(req: Request) {
     const maxPrice = searchParams.get('maxPrice')
     const bedrooms = searchParams.get('bedrooms')
     const propertyType = searchParams.get('propertyType')
-    const verified = searchParams.get('verified') === 'true'
+    // Hosts whose ID FieGH has checked. ("verified" is the older name for the same filter.)
+    const hostIdChecked = searchParams.get('hostIdChecked') === 'true' || searchParams.get('verified') === 'true'
+    // Listings whose address and photos FieGH has checked, and the check still stands
+    const checked = searchParams.get('checked') === 'true'
     const superhost = searchParams.get('superhost') === 'true'
     const featured = searchParams.get('featured') === 'true'
     const hostId = searchParams.get('hostId')
@@ -65,7 +71,11 @@ export async function GET(req: Request) {
       if (mode === 'SHORT_STAY') where.minStayNights = { lte: range.nights }
     }
 
-    if (verified) where.host = { isVerified: true }
+    if (hostIdChecked) where.host = { isVerified: true }
+    // Decided here, from the dates, at the moment of the search: a check that
+    // expired a second ago is already left out
+    const now = new Date()
+    if (checked) where.checks = { some: liveCheckWhere(now) }
     if (superhost) where.host = { ...(where.host as object || {}), isSuperhost: true }
 
     const [listings, total] = await Promise.all([
@@ -74,7 +84,8 @@ export async function GET(req: Request) {
         include: {
           host: {
             select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true }
-          }
+          },
+          checks: liveChecksInclude(now),
         },
         orderBy: { createdAt: 'desc' },
         skip: (page - 1) * limit,
@@ -83,8 +94,12 @@ export async function GET(req: Request) {
       db.listing.count({ where }),
     ])
 
+    // Only the fields the public may see (lib/listingChecks.ts). The host
+    // looking at their own listings, or an admin, also gets the digital address.
     const parsed = listings.map((l) => ({
-      ...l,
+      ...publicListing(l, now),
+      host: l.host,
+      ...(ownerView ? { digitalAddress: l.digitalAddress } : {}),
       amenities: JSON.parse(l.amenities || '[]'),
       rentalModes: JSON.parse(l.rentalModes || '[]'),
       photos: JSON.parse(l.photos || '[]'),
@@ -115,7 +130,7 @@ export async function POST(req: Request) {
     const {
       title, description, propertyType, region, city, neighbourhood,
       lat, lng, bedrooms, bathrooms, maxGuests, rentalModes, priceNightly,
-      priceMonthly, priceAnnual, advanceMonthsRequired, amenities, rules,
+      priceMonthly, priceAnnual, advanceMonthsRequired, amenities, rules, digitalAddress,
       cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage,
       isActive: requestedIsActive,
     } = body
@@ -149,6 +164,10 @@ export async function POST(req: Request) {
     const advance = parseAdvanceMonths(advanceMonthsRequired)
     if (!advance.ok) return NextResponse.json({ error: advance.error }, { status: 400 })
 
+    // The Ghana Post digital address is optional; if given it must be one
+    const address = parseDigitalAddress(digitalAddress)
+    if (!address.ok) return NextResponse.json({ error: address.error }, { status: 400 })
+
     // Auto-flag listings with contact details in description
     const isFlagged = hasContactDetails(description)
 
@@ -163,6 +182,7 @@ export async function POST(req: Request) {
         region,
         city: city.trim(),
         neighbourhood: neighbourhood || null,
+        digitalAddress: address.value,
         lat: lat ?? null,
         lng: lng ?? null,
         bedrooms: beds,

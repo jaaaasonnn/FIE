@@ -2,6 +2,7 @@ import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPoli
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
 import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, serviceFeeRefundRule } from '@/lib/fees'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { CHECK_TERMS } from '@/lib/listingCheckRules'
 
 // Built from the dispute rules in lib/disputes.ts
 const list = (reasons: Record<string, string>) => Object.values(reasons).map((r) => r.toLowerCase()).join('; ')
@@ -86,6 +87,10 @@ export default function TermsPage() {
             {
               title: '11. Contact',
               body: `For legal questions, or any other help, contact ${SUPPORT_EMAIL}.`
+            },
+            {
+              title: '12. Listing checks',
+              body: CHECK_TERMS
             },
           ].map(({ title, body }) => (
             <div key={title}>

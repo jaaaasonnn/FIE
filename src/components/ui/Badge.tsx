@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils'
 import { Star } from 'lucide-react'
+import { HOST_ID_BADGE, ID_BADGE } from '@/lib/listingCheckRules'
 
 interface BadgeProps {
   children: React.ReactNode
@@ -35,7 +36,11 @@ export function Badge({ children, variant = 'accent', className }: BadgeProps) {
   )
 }
 
-export function VerifiedBadge() {
+/**
+ * Someone whose ID FieGH has checked: "Host ID checked" beside a host, "ID checked"
+ * for anyone else. About the person: it says nothing about any home.
+ */
+export function HostIdBadge({ host = true }: { host?: boolean }) {
   return (
     <Badge variant="blue">
       <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
@@ -45,7 +50,7 @@ export function VerifiedBadge() {
           clipRule="evenodd"
         />
       </svg>
-      Verified
+      {host ? HOST_ID_BADGE : ID_BADGE}
     </Badge>
   )
 }

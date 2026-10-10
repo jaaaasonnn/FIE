@@ -31,7 +31,7 @@ export default function PrivacyPage() {
             },
             {
               title: '5. Sharing Your Information',
-              body: 'We share limited information with: hosts (your name, profile photo, and trust score when you book); guests (host name, profile photo, verified status); Paystack and MoMo operators (for payment processing); government authorities (only when legally required). We do not sell your data to third parties.'
+              body: 'We share limited information with: hosts (your name, profile photo, and trust score when you book); guests (host name, profile photo, whether their ID has been checked); Paystack and MoMo operators (for payment processing); government authorities (only when legally required). We do not sell your data to third parties.'
             },
             {
               title: '6. Emails, SMS and Notifications',

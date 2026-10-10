@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
 import { supabaseAdmin, LISTING_PHOTOS_BUCKET } from '@/lib/supabase'
+import { clearChecks, tellCleared } from '@/lib/listingChecks'
+
+/**
+ * Saves the new photo list and, in the same transaction, removes "Address and
+ * photos checked": the photos are no longer the ones that were checked.
+ */
+async function savePhotos(id: string, photos: string[]) {
+  const cleared = await db.$transaction(async (tx) => {
+    await tx.listing.update({ where: { id }, data: { photos: JSON.stringify(photos) } })
+    return clearChecks(tx, id, 'PHOTOS_CHANGED')
+  })
+  tellCleared(cleared)
+}
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024 // 5MB — matches the bucket's own file_size_limit
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -89,7 +102,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const photos = [...existing, ...newUrls]
-    await db.listing.update({ where: { id }, data: { photos: JSON.stringify(photos) } })
+    await savePhotos(id, photos)
 
     return NextResponse.json({ photos })
   } catch (error) {
@@ -127,7 +140,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     }
 
     const photos = existing.filter((p) => p !== url)
-    await db.listing.update({ where: { id }, data: { photos: JSON.stringify(photos) } })
+    await savePhotos(id, photos)
 
     return NextResponse.json({ photos })
   } catch (error) {

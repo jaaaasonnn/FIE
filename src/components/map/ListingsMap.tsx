@@ -27,6 +27,8 @@ import Supercluster from 'supercluster'
 import { Star, X, Map as MapIcon } from 'lucide-react'
 import { formatUsdCompact } from '@/lib/utils'
 import { shortUsd, clusterLabel } from '@/lib/mapLabels'
+import { CheckedBadge } from '@/components/listing/CheckedBadge'
+import type { PublicCheck } from '@/lib/listingCheckRules'
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -41,6 +43,8 @@ export type MapListing = {
   /** USD price and unit, exactly as the listing card shows them */
   price: number
   unit: string
+  /** Set while FieGH's check of the address and photos stands */
+  check?: PublicCheck | null
   coordinates: [number, number]   // [lng, lat]
 }
 
@@ -285,6 +289,7 @@ function PopupCard({
               About {formatUsdCompact(listing.price / 12)} a month
             </p>
           )}
+          {listing.check && <div style={{ marginTop: 8 }}><CheckedBadge check={listing.check} /></div>}
         </div>
       </Link>
 

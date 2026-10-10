@@ -8,6 +8,7 @@ import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
 import { ADVANCE_RULE_NOTE } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { CHECK_FAQ } from '@/lib/listingCheckRules'
 
 // Built from the dispute rules in lib/disputes.ts
 const PROBLEM_ANSWER =
@@ -58,8 +59,8 @@ const RENTAL_DETAILS: Record<string, { length: string; desc: string }> = {
 const TRUST = [
   {
     icon: BadgeCheck,
-    title: 'ID verified hosts',
-    desc: 'Every host goes through Ghana Card, Passport, or Voter ID verification before listing a property.',
+    title: 'Host ID checks',
+    desc: 'Hosts can have their Ghana Card, Passport or Voter ID checked by FieGH. Those who have show "Host ID checked".',
   },
   {
     icon: Shield,
@@ -114,12 +115,17 @@ const FAQS = [
   },
   {
     id: 'verification',
-    category: 'Verification',
+    category: 'ID checks',
     questions: [
-      { q: 'Why do I need to verify my identity?', a: 'Ghana\'s rental market has historically suffered from fraud. ID verification helps us ensure every guest and host on FieGH is a real, accountable person. It protects everyone.' },
+      { q: 'Why should I have my ID checked?', a: 'Ghana\'s rental market has historically suffered from fraud. An ID check helps us know that a guest or host is a real, accountable person. It is not required, and it protects everyone.' },
       { q: 'What ID is accepted?', a: 'We accept Ghana Card (NIA), Passport, and Voter ID. Hosts outside Ghana can use their national passport.' },
-      { q: 'How long does verification take?', a: 'Usually within a few hours. Sometimes up to 24 hours. We will email you and show a notice in the app once it has been reviewed.' },
+      { q: 'How long does an ID check take?', a: 'Usually within a few hours. Sometimes up to 24 hours. We will email you and show a notice in the app once it has been reviewed.' },
     ],
+  },
+  {
+    id: 'listing-checks',
+    category: 'Listing checks',
+    questions: CHECK_FAQ,
   },
   {
     id: 'hosting',

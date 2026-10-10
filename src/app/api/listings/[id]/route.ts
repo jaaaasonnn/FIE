@@ -5,6 +5,10 @@ import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
 import { parseAdvanceMonths } from '@/lib/rentRules'
+import { getSessionUser } from '@/lib/session'
+import { parseDigitalAddress } from '@/lib/digitalAddress'
+import { editRevokes } from '@/lib/listingCheckRules'
+import { clearChecks, liveChecksInclude, publicListing, tellCleared } from '@/lib/listingChecks'
 
 // Fields a host (or admin) may change via this route. Anything else in the
 // request body — hostId, id, avgRating, reviewCount, isFeatured, etc. — is
@@ -15,7 +19,7 @@ import { parseAdvanceMonths } from '@/lib/rentRules'
 // below, and moderationHold can never be set through this route.
 const EDITABLE_FIELDS = [
   'title', 'description', 'propertyType', 'region', 'city', 'neighbourhood',
-  'lat', 'lng', 'bedrooms', 'bathrooms', 'maxGuests', 'rentalModes',
+  'lat', 'lng', 'bedrooms', 'bathrooms', 'maxGuests', 'rentalModes', 'digitalAddress',
   'priceNightly', 'priceMonthly', 'priceAnnual', 'advanceMonthsRequired',
   'amenities', 'rules', 'cancellationPolicy', 'instantBook',
   'minStayNights', 'damageDeposit', 'welcomeMessage',
@@ -40,6 +44,7 @@ async function requireOwnedListing(id: string) {
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const now = new Date()
     const listing = await db.listing.findUnique({
       where: { id },
       include: {
@@ -61,15 +66,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
           orderBy: { createdAt: 'desc' },
           take: 10
         },
-        blockedDates: { select: { date: true } }
+        blockedDates: { select: { date: true } },
+        checks: liveChecksInclude(now),
       }
     })
 
     if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
+    // Only the fields the public may see (lib/listingChecks.ts). The host of
+    // the listing, and an admin, also get the digital address, to edit it.
+    const viewer = await getSessionUser()
+    const ownerView = !!viewer && (viewer.id === listing.hostId || viewer.role === 'ADMIN')
+
     return NextResponse.json({
       listing: {
-        ...listing,
+        ...publicListing(listing, now),
+        host: listing.host,
+        reviews: listing.reviews,
+        ...(ownerView ? { digitalAddress: listing.digitalAddress } : {}),
         amenities: JSON.parse(listing.amenities || '[]'),
         rentalModes: JSON.parse(listing.rentalModes || '[]'),
         photos: JSON.parse(listing.photos || '[]'),
@@ -107,6 +121,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       data.advanceMonthsRequired = advance.value
     }
 
+    // The Ghana Post digital address is optional; if given it must be one
+    if (body.digitalAddress !== undefined) {
+      const address = parseDigitalAddress(body.digitalAddress)
+      if (!address.ok) return NextResponse.json({ error: address.error }, { status: 400 })
+      data.digitalAddress = address.value
+    }
+
     // A host's new description gets the same contact-details check as at
     // creation. Failing it puts the listing on hold, exactly as creation does.
     const flagged = !isAdmin && typeof body.description === 'string' && hasContactDetails(body.description)
@@ -124,11 +145,19 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       else data.isActive = body.isActive
     }
 
-    const updated = await db.listing.update({ where: { id }, data })
+    // "Address and photos checked" stands only while the listing is what was
+    // checked. An edit that changes where or what the home is said to be, or
+    // a hold, removes it in the same transaction as the edit, whoever makes it.
+    const revokes = flagged ? 'LISTING_HELD' : editRevokes(listing, data)
+    const [updated, cleared] = await db.$transaction(async (tx) => [
+      await tx.listing.update({ where: { id }, data }),
+      revokes ? await clearChecks(tx, id, revokes) : [],
+    ] as const)
+    tellCleared(cleared)
     // Only when this edit is what put it on hold, not on every edit of a held listing
     if (flagged && !listing.moderationHold) notify('listing.auto_held', { listingId: id })
 
-    return NextResponse.json({ listing: updated, flagged, held })
+    return NextResponse.json({ listing: updated, flagged, held, checkRemoved: cleared.length > 0 })
   } catch (error) {
     console.error('Listing PATCH error:', error)
     return NextResponse.json({ error: 'Failed to update listing' }, { status: 500 })

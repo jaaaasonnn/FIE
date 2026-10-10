@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     // Check for existing pending/approved verification before touching Storage
     const existing = await db.verification.findUnique({ where: { userId: sessionUser.id } })
     if (existing?.status === 'APPROVED') {
-      return NextResponse.json({ error: 'You are already verified' }, { status: 409 })
+      return NextResponse.json({ error: 'Your ID has already been checked' }, { status: 409 })
     }
 
     let idPhotoUrl: string

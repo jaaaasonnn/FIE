@@ -58,6 +58,8 @@ vi.mock('@/lib/db', () => {
     },
     payout: { findMany: async () => [], findFirst: async () => null },
     instalment: { findMany: async () => [], updateMany: async () => ({ count: 0 }) },
+    // No listing here has a check: those are covered in listingChecks.test.ts
+    listingCheck: { findMany: async () => [], updateMany: async () => ({ count: 0 }) },
     user: {
       findUnique: async () => ({ id: 'someone', passwordHash: 'hash', payoutMethod: null, paystackRecipientCode: null, payoutMethodVerifiedAt: null }),
       findMany: async () => [],

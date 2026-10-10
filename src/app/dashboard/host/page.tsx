@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Plus, Home, Calendar, DollarSign, Star, Users, Eye, Loader2, CheckCircle } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
-import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
+import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
@@ -163,7 +163,7 @@ function HostDashboardContent() {
                   {firstName}&apos;s Dashboard
                 </h1>
                 <div className="flex items-center gap-2 mt-1">
-                  {user?.isVerified && <VerifiedBadge />}
+                  {user?.isVerified && <HostIdBadge />}
                   {user?.isSuperhost && <SuperhostBadge />}
                   <span className="text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>
                     {user?.role === 'HOST' ? 'Host account' : 'Guest account'}
@@ -189,9 +189,9 @@ function HostDashboardContent() {
           <div className="p-5 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4"
             style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-text-primary)' }}>
             <div>
-              <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Verify your ID to earn the Verified badge</p>
+              <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Have your ID checked to earn the &quot;Host ID checked&quot; badge</p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
-                It is not required to host, but guests can filter for verified hosts.
+                It is not required to host, but guests can filter for hosts whose ID has been checked.
               </p>
             </div>
             <Link href="/auth/verify-id"

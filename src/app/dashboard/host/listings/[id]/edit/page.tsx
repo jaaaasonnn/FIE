@@ -12,6 +12,8 @@ import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST } from '@/lib/utils'
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { ADVANCE_RULE_NOTE, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { DIGITAL_ADDRESS_ERROR, DIGITAL_ADDRESS_EXAMPLE, parseDigitalAddress } from '@/lib/digitalAddress'
+import { EDIT_REMOVES_CHECK } from '@/lib/listingCheckRules'
 
 type FormState = {
   title: string
@@ -20,6 +22,7 @@ type FormState = {
   region: string
   city: string
   neighbourhood: string
+  digitalAddress: string
   bedrooms: string
   bathrooms: string
   maxGuests: string
@@ -40,7 +43,7 @@ type FormState = {
 
 const EMPTY_FORM: FormState = {
   title: '', description: '', propertyType: 'Apartment', region: 'Greater Accra',
-  city: '', neighbourhood: '', bedrooms: '1', bathrooms: '1', maxGuests: '2',
+  city: '', neighbourhood: '', digitalAddress: '', bedrooms: '1', bathrooms: '1', maxGuests: '2',
   rentalModes: [], priceNightly: '', priceMonthly: '', priceAnnual: '',
   advanceMonthsRequired: '', amenities: [], rules: [], cancellationPolicy: 'MODERATE',
   instantBook: false, minStayNights: '1', damageDeposit: '', welcomeMessage: '', isActive: true,
@@ -57,6 +60,9 @@ export default function EditListingPage() {
   const [loading,   setLoading]   = useState(false)
   const [saved,     setSaved]     = useState(false)
   const [saveError, setSaveError] = useState('')
+  // True while the listing shows "Address and photos checked": the host is
+  // told which edits remove it before they make one
+  const [checked, setChecked] = useState(false)
   // On moderation hold: the host can edit, but only FieGH can switch it back on
   const [onHold, setOnHold] = useState(false)
 
@@ -81,6 +87,7 @@ export default function EditListingPage() {
           return []
         }
 
+        setChecked(!!l.check)
         setForm({
           title:                  l.title                ?? '',
           description:            l.description          ?? '',
@@ -88,6 +95,7 @@ export default function EditListingPage() {
           region:                 l.region               ?? 'Greater Accra',
           city:                   l.city                 ?? '',
           neighbourhood:          l.neighbourhood        ?? '',
+          digitalAddress:         l.digitalAddress       ?? '',
           bedrooms:               String(l.bedrooms      ?? 1),
           bathrooms:              String(l.bathrooms     ?? 1),
           maxGuests:              String(l.maxGuests     ?? 2),
@@ -164,6 +172,7 @@ export default function EditListingPage() {
       region:                 form.region,
       city:                   form.city,
       neighbourhood:          form.neighbourhood || null,
+      digitalAddress:         form.digitalAddress.trim() || null,
       bedrooms:               parseInt(form.bedrooms),
       bathrooms:              parseInt(form.bathrooms),
       maxGuests:              parseInt(form.maxGuests),
@@ -193,6 +202,7 @@ export default function EditListingPage() {
         setSaveError(data.error ?? `Save failed (${res.status}). Please try again.`)
         return
       }
+      if (data.checkRemoved) setChecked(false)
       if (data.held) {
         setOnHold(true)
         setForm((f) => ({ ...f, isActive: false }))
@@ -273,6 +283,12 @@ export default function EditListingPage() {
             <AlertCircle size={16} aria-hidden className="flex-shrink-0" /> {saveError}
           </div>
         )}
+        {checked && (
+          <div className="flex items-start gap-2 p-4 rounded-xl mb-6 text-sm" role="note"
+            style={{ backgroundColor: '#ECFDF5', color: '#065F46', border: '1px solid #A7F3D0' }}>
+            <AlertTriangle size={16} aria-hidden className="flex-shrink-0 mt-0.5" /> {EDIT_REMOVES_CHECK}
+          </div>
+        )}
 
         {onHold && (
           <div className="flex items-start gap-2 p-4 rounded-xl mb-6 text-sm" role="status"
@@ -326,6 +342,12 @@ export default function EditListingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <Input label="City / Town" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
                 <Input label="Neighbourhood" value={form.neighbourhood} onChange={(e) => setForm({ ...form, neighbourhood: e.target.value })} />
+                <div className="col-span-2">
+                  <Input label="Ghana Post digital address (optional)" placeholder={`e.g. ${DIGITAL_ADDRESS_EXAMPLE}`} autoCapitalize="characters"
+                    value={form.digitalAddress} onChange={(e) => setForm({ ...form, digitalAddress: e.target.value })}
+                    error={parseDigitalAddress(form.digitalAddress).ok ? undefined : DIGITAL_ADDRESS_ERROR}
+                    hint="Optional. Guests never see it on your listing: they see it only once their booking is confirmed. Our team needs it before we can check your listing's address and photos." />
+                </div>
               </div>
             </div>
           </div>
@@ -379,7 +401,8 @@ export default function EditListingPage() {
           {/* Photos */}
           <div className="soft-panel p-6">
             <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Photos</h3>
-            <ListingPhotoManager listingId={params.id} photos={photos} onPhotosChange={setPhotos} />
+            {/* Adding or removing a photo removes the check on the server at once */}
+            <ListingPhotoManager listingId={params.id} photos={photos} onPhotosChange={(next) => { setPhotos(next); setChecked(false) }} />
           </div>
 
           {/* Amenities */}

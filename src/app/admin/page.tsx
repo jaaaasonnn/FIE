@@ -14,9 +14,10 @@ import { AdminDisputes } from '@/components/admin/AdminDisputes'
 import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
 import { AdminRent } from '@/components/admin/AdminRent'
+import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
 
-const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Disputes', 'Rent', 'Messages', 'Reviews', 'Settings']
+const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Listing checks', 'Disputes', 'Rent', 'Messages', 'Reviews', 'Settings']
 
 type AdminUser = {
   id: string
@@ -272,6 +273,7 @@ export default function AdminPage() {
             <>
               {activeTab === 'Disputes' && <AdminDisputes />}
               {activeTab === 'Rent' && <AdminRent />}
+              {activeTab === 'Listing checks' && <AdminListingChecks />}
               {activeTab === 'Messages' && <AdminMessages />}
 
               {activeTab === 'Overview' && <NotificationsList className="mb-6" />}
@@ -341,7 +343,7 @@ export default function AdminPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-stone-200">
-                            {['Name', 'Role', 'Phone', 'Verified', 'Trust Score', 'Joined', 'Actions'].map((h) => (
+                            {['Name', 'Role', 'Phone', 'ID checked', 'Trust Score', 'Joined', 'Actions'].map((h) => (
                               <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-[#6B645C]">{h}</th>
                             ))}
                           </tr>

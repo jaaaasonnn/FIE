@@ -19,7 +19,10 @@ export interface ListingSearchParams {
   amenities?: string[]
   checkIn?: string
   checkOut?: string
-  verified?: boolean
+  /** Hosts whose ID FieGH has checked */
+  hostIdChecked?: boolean
+  /** Listings whose address and photos FieGH has checked */
+  checked?: boolean
   superhost?: boolean
   sort?: 'price_asc' | 'price_desc' | 'top_rated' | 'most_reviewed' | 'newest'
   page?: number

@@ -63,6 +63,8 @@ model User {
   notifications   Notification[]
   messageLogs     MessageLog[]
   authTokens      AuthToken[]
+  checksMade      ListingCheck[] @relation("ChecksMade")
+  checksRevoked   ListingCheck[] @relation("ChecksRevoked")
 }
 
 // A single-use link sent by email: to confirm an address, to confirm a change
@@ -172,6 +174,10 @@ model Listing {
   region                String
   city                  String
   neighbourhood         String?
+  // Ghana Post digital address, stored as "GA-183-8164" (lib/digitalAddress.ts).
+  // Never public: it pins the home to a few metres. A guest sees it once
+  // their booking is confirmed and paid.
+  digitalAddress        String?
   lat                   Float?
   lng                   Float?
   bedrooms              Int
@@ -207,6 +213,37 @@ model Listing {
   wishlists Wishlist[]
   blockedDates BlockedDate[]
   messages  Message[]
+  checks    ListingCheck[]
+}
+
+// One row each time an admin checks a listing's address and photos
+// (lib/listingChecks.ts). The listing shows "Address and photos checked"
+// while its latest row is not revoked and has not expired: that is worked out
+// when it is read, never by a job. A row is never changed except to set the
+// revoke fields, once, so the table is also the record of who did what.
+// It says nothing about who owns the home.
+model ListingCheck {
+  id             String    @id @default(cuid())
+  listingId      String
+  checkedById    String
+  checkedAt      DateTime  @default(now())
+  expiresAt      DateTime
+  method         String    // VIDEO_CALL | VISIT
+  checks         String    // JSON array of the checklist items confirmed
+  note           String    // private: admins only
+  digitalAddress String    // as it was when checked
+  photos         String    // JSON array of the photo URLs as they were when checked
+  revokedAt      DateTime?
+  revokedById    String?   // null when an edit removed it
+  revokeReason   String?   // ADMIN | ADDRESS_CHANGED | DETAILS_CHANGED | PHOTOS_CHANGED | LISTING_HELD | REPLACED
+  revokeNote     String?
+
+  listing   Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  checkedBy User    @relation("ChecksMade", fields: [checkedById], references: [id])
+  revokedBy User?   @relation("ChecksRevoked", fields: [revokedById], references: [id])
+
+  @@index([listingId, revokedAt, expiresAt])
+  @@index([expiresAt])
 }
 
 model BlockedDate {

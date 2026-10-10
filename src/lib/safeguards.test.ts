@@ -175,6 +175,47 @@ describe('site copy', () => {
   })
 })
 
+describe('the word "verified"', () => {
+  // It may only ever say what was checked. The listing badge never uses it at
+  // all; a person's ID is "checked"; the one place it stays is a payout
+  // account, where it is followed by the account name Paystack confirmed.
+  const ALLOWED: Record<string, RegExp> = {
+    'app/dashboard/host/payouts/page.tsx': /verified as \$\{/i,
+  }
+  // Not words a person reads: a query parameter, an internal result code, and errors about payout methods kept for the logs
+  const NOT_COPY = /searchParams\.get\('verified'\)|kind: 'VERIFIED'|no verified payout method/
+
+  it('never appears in anything a person reads without saying what was checked', () => {
+    const stray: string[] = []
+    for (const file of sources()) {
+      const text = fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\/|\{\/\*[\s\S]*?\*\/\}|\/\/.*$/gm, '')
+      for (const line of text.split('\n')) {
+        if (!/\bverified\b/i.test(line) || NOT_COPY.test(line)) continue
+        if (ALLOWED[rel(file)]?.test(line)) continue
+        stray.push(`${rel(file)}: ${line.trim().slice(0, 120)}`)
+      }
+    }
+    expect(stray).toEqual([])
+  })
+
+  it('is not what any badge says', async () => {
+    const { CHECK_BADGE, HOST_ID_BADGE, ID_BADGE } = await import('@/lib/listingCheckRules')
+    for (const badge of [CHECK_BADGE, HOST_ID_BADGE, ID_BADGE]) expect(badge).not.toMatch(/verif/i)
+    const badgeFile = read('components/ui/Badge.tsx')
+    expect(badgeFile).not.toMatch(/>\s*Verified\s*</)
+    expect(read('components/listing/CheckedBadge.tsx')).toContain('{CHECK_BADGE}')
+  })
+
+  it('leaves the FAQ and Terms saying only what the listing check is, from the one approved text', () => {
+    expect(read('app/faq/page.tsx')).toContain('questions: CHECK_FAQ')
+    expect(read('app/terms/page.tsx')).toContain('body: CHECK_TERMS')
+    expect(read('app/faq/page.tsx')).not.toMatch(/Every host goes through/)
+    for (const page of ['app/listings/[id]/page.tsx', 'app/search/page.tsx', 'components/home/FeaturedListings.tsx', 'components/map/ListingsMap.tsx']) {
+      expect(read(page), page).toContain('<CheckedBadge check=')
+    }
+  })
+})
+
 describe('the cancellation policy default', () => {
   it('is Moderate in the schema, as the app assumes', async () => {
     const { DEFAULT_POLICY } = await import('@/lib/cancellationPolicy')

@@ -9,6 +9,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { RENTAL_MODES } from '@/lib/rentalModes'
 import { formatUsdCompact } from '@/lib/utils'
+import { CheckedBadge } from '@/components/listing/CheckedBadge'
+import type { PublicCheck } from '@/lib/listingCheckRules'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -26,6 +28,8 @@ type ApiListing = {
   reviewCount:   number
   photos:        string[]   // already JSON-parsed by the API
   rentalModes:   string[]   // already JSON-parsed by the API
+  /** Set while FieGH's check of the address and photos stands */
+  check?:        PublicCheck | null
   host: {
     isVerified:  boolean
     isSuperhost: boolean
@@ -253,6 +257,7 @@ export function FeaturedListings() {
                             {yearly ? ` (about ${formatUsdCompact(yearly / 12)} a month)` : ` (about GH₵ ${ghsPrice})`}
                           </span>
                         </p>
+                        {l.check && <div className="mt-2"><CheckedBadge check={l.check} /></div>}
                       </div>
                     </Link>
 

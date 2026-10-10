@@ -15,6 +15,7 @@
 import { aboutGhs, firstName, ghanaDate, ghanaTime, ghs, sms, smsGhs, usd } from '@/lib/messaging/format'
 import { TOKEN_PLACEHOLDER } from '@/lib/sealed'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { CHECK_BADGE } from '@/lib/listingCheckRules'
 
 /** What a template may use. Filled in from the database by lib/messaging/events.ts. */
 export type Facts = {
@@ -68,6 +69,12 @@ export type Facts = {
   depositLeftUsd?: number
   tenancyEndsOn?: Date
   endedBy?: 'HOST' | 'ADMIN'
+  // "Address and photos checked" on a listing
+  checkExpires?: Date
+  /** Why a check was removed, as a few plain words */
+  checkRemovedWhy?: string
+  /** False when the listing was also switched off, so it is not "still live" */
+  listingStillLive?: boolean
   // Account links
   /** The address a link was sent to, masked: "k***@gmail.com" */
   newEmailMasked?: string
@@ -940,9 +947,9 @@ export const TEMPLATES = {
       return [{
         to: 'user',
         email: {
-          subject: approved ? 'Your ID has been verified' : 'We could not verify your ID',
+          subject: approved ? 'Your ID has been checked' : 'We could not check your ID',
           lines: approved
-            ? [hello(f.userName), 'Your ID has been checked and your account is now verified. Your profile shows the Verified badge.']
+            ? [hello(f.userName), 'Your ID has been checked. Your profile now shows "ID checked".']
             : [
                 hello(f.userName),
                 'We could not verify the ID you sent. This is usually because the photo was unclear or part of the document was cut off.',
@@ -951,8 +958,8 @@ export const TEMPLATES = {
           link: approved ? { label: 'Open FieGH', path: '/' } : { label: 'Send your ID again', path: '/auth/verify-id' },
         },
         inApp: approved
-          ? { title: 'Your ID has been verified', body: 'Your account is now verified and your profile shows the Verified badge.' }
-          : { title: 'We could not verify your ID', body: 'Please send a clear photo of the whole document again.' },
+          ? { title: 'Your ID has been checked', body: 'Your profile now shows "ID checked".' }
+          : { title: 'We could not check your ID', body: 'Please send a clear photo of the whole document again.' },
       }]
     },
   },
@@ -995,6 +1002,54 @@ export const TEMPLATES = {
         inApp: { title: 'A listing was put on hold', body: `${home(f)}: the description looks like it contains contact details. Open the Listings tab to review it.` },
       },
     ],
+  },
+
+  'listing.checked': {
+    label: 'An admin records that a listing\'s address and photos were checked',
+    render: (f) => [{
+      to: 'host',
+      email: {
+        subject: `We have checked the address and photos of ${home(f)}`,
+        lines: [
+          hello(f.hostName),
+          `We have checked the address and photos of ${home(f)}. It now shows "${CHECK_BADGE}" to guests until ${ghanaDate(f.checkExpires!)}.`,
+          'If you change the address or the photos, it is removed until we check again.',
+        ],
+        link: { label: 'Open your dashboard', path: '/dashboard/host' },
+      },
+    }],
+  },
+
+  'listing.check_removed': {
+    label: 'A listing\'s check is removed, by an admin or by an edit',
+    render: (f) => [{
+      to: 'host',
+      email: {
+        subject: `${home(f)} no longer shows "${CHECK_BADGE}"`,
+        lines: [
+          hello(f.hostName),
+          `${home(f)} no longer shows "${CHECK_BADGE}". Reason: ${f.checkRemovedWhy}.`,
+          `${f.listingStillLive === false ? '' : 'Your listing is still live. '}Write to ${f.supportEmail} to arrange a new check.`,
+        ],
+        link: { label: 'Open your dashboard', path: '/dashboard/host' },
+      },
+    }],
+  },
+
+  'listing.check_expiring': {
+    label: 'A listing\'s check runs out in 30 days',
+    render: (f) => [{
+      to: 'host',
+      email: {
+        subject: `The check on ${home(f)} runs out on ${ghanaDate(f.checkExpires!)}`,
+        lines: [
+          hello(f.hostName),
+          `The check on ${home(f)} runs out on ${ghanaDate(f.checkExpires!)}. Write to ${f.supportEmail} to arrange a new one.`,
+          `After that date the listing stays live without "${CHECK_BADGE}".`,
+        ],
+        link: { label: 'Open your dashboard', path: '/dashboard/host' },
+      },
+    }],
   },
 
   'listing.reactivated': {
@@ -1277,4 +1332,7 @@ export const SAMPLE_FACTS: Facts = {
   tenancyEndsOn: new Date('2027-07-09T12:00:00Z'),
   endedBy: 'HOST',
   newEmailMasked: 'a***@example.com',
+  checkExpires: new Date('2028-03-12T10:00:00Z'),
+  checkRemovedWhy: 'the photos were changed',
+  listingStillLive: true,
 }

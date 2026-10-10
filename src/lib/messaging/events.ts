@@ -9,6 +9,7 @@ import { hostShare, outcomeLabel, reasonLabel } from '@/lib/disputes'
 import { OVERDUE_REMINDER_DAYS, daysPastDue, depositLeft, isOpen, outstanding, tenancyStands } from '@/lib/rentRules'
 import { ghanaDate, maskEmail, usd } from '@/lib/messaging/format'
 import type { Sealed } from '@/lib/sealed'
+import { removalReasonText } from '@/lib/listingCheckRules'
 import type { Audience, EventName, Facts } from '@/lib/messaging/templates'
 
 /** The IDs each event is raised with. */
@@ -50,6 +51,9 @@ export type EventIds = {
   'listing.held': { listingId: string }
   'listing.auto_held': { listingId: string }
   'listing.reactivated': { listingId: string }
+  'listing.checked': { checkId: string }
+  'listing.check_removed': { checkId: string }
+  'listing.check_expiring': { checkId: string }
   'message.received': { messageId: string }
   'booking.completed': { bookingId: string }
   'review.received': { reviewId: string }
@@ -276,6 +280,30 @@ async function user({ userId }: { userId: string }): Promise<Loaded | null> {
   }
 }
 
+/** A listing's check and its host. `key` is the check, so each check is its own occurrence. */
+async function listingCheck({ checkId }: { checkId: string }) {
+  const c = await db.listingCheck.findUnique({
+    where: { id: checkId },
+    select: {
+      id: true, expiresAt: true, revokedAt: true, revokeReason: true, revokeNote: true,
+      listing: { select: { id: true, title: true, hostId: true, isActive: true, moderationHold: true, host: { select: { name: true } } } },
+    },
+  })
+  if (!c) return null
+  const loaded: Loaded = {
+    key: c.id,
+    recipients: { host: c.listing.hostId },
+    facts: {
+      listingId: c.listing.id, title: c.listing.title, hostName: c.listing.host.name,
+      checkExpires: c.expiresAt,
+      // Never the admin's private note about what was checked: only the reason given for removing it
+      checkRemovedWhy: removalReasonText(c.revokeReason, c.revokeNote),
+      listingStillLive: c.listing.isActive && !c.listing.moderationHold,
+    },
+  }
+  return { loaded, revoked: !!c.revokedAt, replaced: c.revokeReason === 'REPLACED', expired: c.expiresAt.getTime() <= Date.now() }
+}
+
 /** The account a link token belongs to. `key` is the token, so each link is its own occurrence. */
 async function authToken(tokenId: string, purposes: string[]): Promise<(Loaded & { email: string }) | null> {
   const t = await db.authToken.findUnique({
@@ -381,6 +409,20 @@ export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded |
   'listing.held': listing,
   'listing.auto_held': listing,
   'listing.reactivated': listing,
+  // Each says nothing if the check is no longer in the state the message is about
+  'listing.checked': async (ids) => {
+    const c = await listingCheck(ids)
+    return c && !c.revoked ? c.loaded : null
+  },
+  // A check replaced by a newer one was not "removed": the listing still has the badge
+  'listing.check_removed': async (ids) => {
+    const c = await listingCheck(ids)
+    return c && c.revoked && !c.replaced ? c.loaded : null
+  },
+  'listing.check_expiring': async (ids) => {
+    const c = await listingCheck(ids)
+    return c && !c.revoked && !c.expired ? c.loaded : null
+  },
   'message.received': async ({ messageId }) => {
     const m = await db.message.findUnique({
       where: { id: messageId },

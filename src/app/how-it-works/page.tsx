@@ -18,7 +18,7 @@ const guestSteps: Step[] = [
 ]
 
 const hostSteps: Step[] = [
-  { icon: UserPlus, title: 'Create your account', desc: 'Sign up with your phone number or email. Add your Ghana Card, Passport, or Voter ID to get the Verified Host badge.' },
+  { icon: UserPlus, title: 'Create your account', desc: 'Sign up with your phone number or email. Add your Ghana Card, Passport, or Voter ID to get the "Host ID checked" badge.' },
   { icon: Home, title: 'List your property', desc: 'Add photos (up to 12), description, location, amenities, and set your pricing. Choose which rental modes to enable.' },
   { icon: SlidersHorizontal, title: 'Set your preferences', desc: 'Enable Instant Book for auto-confirmations, or choose Request to Book to approve guests manually. Set your cancellation policy and damage deposit.' },
   { icon: Bell, title: 'Receive bookings', desc: 'Get notified via SMS and in-app when a booking request arrives. For long-term rentals, the tenant pays the advance up front and then monthly.' },

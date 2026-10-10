@@ -152,6 +152,13 @@ Nothing is sent until it is switched on. Leave these unset until a provider acco
 
 The drill adapters (`fail-drill-email`, `fail-drill-sms`) are for rehearsing failures and are test-only. They cannot be selected in production (`NODE_ENV=production` or `VERCEL_ENV=production`): naming one there sends nothing and raises a Sentry alert.
 
+### Listing checks and digital addresses
+
+- A host can add a Ghana Post digital address (for example `GA-183-8164`) to a listing. It is optional and never shown publicly: a guest sees it on their booking once the booking is confirmed and paid.
+- An admin can record that FieGH checked a listing's address and photos (admin page, "Listing checks" tab). The listing then shows "Address and photos checked" for 12 months. That is all it claims: it is not proof of who owns the home and not a guarantee. The wording lives in `src/lib/listingCheckRules.ts`.
+- The badge disappears on its expiry date by itself, and at once if the host changes the address, property type, bedrooms or photos, or the listing is put on hold.
+- The cron job `listing-check-reminders` emails the host once, 30 days before a check runs out. No new environment variable is needed.
+
 ### Accounts: email confirmation and password reset
 
 - Signing up sends a link to confirm the email address. Changing an email sends the link to the new address and tells the old one; the old email stays in force until the link is followed. "Forgot your password?" on the login page emails a reset link.

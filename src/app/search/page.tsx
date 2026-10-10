@@ -11,10 +11,12 @@ import Link from 'next/link'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
 import { GHANA_REGIONS, PROPERTY_TYPES, formatUsdCompact } from '@/lib/utils'
-import { VerifiedBadge, SuperhostBadge } from '@/components/ui/Badge'
+import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import type { MapListing } from '@/components/map/ListingsMap'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { CheckedBadge } from '@/components/listing/CheckedBadge'
+import { CHECK_FILTER_LABEL, HOST_ID_BADGE, type PublicCheck } from '@/lib/listingCheckRules'
 
 // ── Dynamic map import (SSR-off) ─────────────────────────────────────────────
 const ListingsMap = dynamic(
@@ -49,6 +51,8 @@ type ApiListing = {
   rentalModes:   string[]
   lat:           number | null
   lng:           number | null
+  /** Set while FieGH's check of the address and photos stands */
+  check?:        PublicCheck | null
   host: {
     isVerified:  boolean
     isSuperhost: boolean
@@ -147,7 +151,8 @@ function SearchContent() {
     maxPrice:     '',
     bedrooms:     '',
     propertyType: '',
-    verified:     false,
+    hostIdChecked: false,
+    checked:      false,
     superhost:    false,
     sort:         'newest',
     amenities:    [] as string[],
@@ -165,7 +170,8 @@ function SearchContent() {
       if (filters.region)       q.set('region',       filters.region)
       if (filters.bedrooms)     q.set('bedrooms',     filters.bedrooms)
       if (filters.propertyType) q.set('propertyType', filters.propertyType)
-      if (filters.verified)     q.set('verified',     'true')
+      if (filters.hostIdChecked) q.set('hostIdChecked', 'true')
+      if (filters.checked)      q.set('checked',      'true')
       if (filters.superhost)    q.set('superhost',    'true')
       if (dateQuery(filters)) for (const [k, v] of Object.entries(dateQuery(filters)!)) q.set(k, v)
       q.set('limit', '50')
@@ -243,6 +249,7 @@ function SearchContent() {
       photo:         l.photos?.[0] ?? '',
       rating:        l.avgRating,
       reviews:       l.reviewCount,
+      check:         l.check ?? null,
       coordinates:   [l.lng!, l.lat!] as [number, number],
     }))
 
@@ -403,9 +410,10 @@ function SearchContent() {
                   style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }} />
               </div>
 
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-3 items-center flex-wrap">
                 {[
-                  { key: 'verified',  label: 'Verified',  checked: filters.verified },
+                  { key: 'checked',       label: CHECK_FILTER_LABEL, checked: filters.checked },
+                  { key: 'hostIdChecked', label: HOST_ID_BADGE,      checked: filters.hostIdChecked },
                   { key: 'superhost', label: 'Superhost', checked: filters.superhost },
                 ].map(({ key, label, checked }) => (
                   <label key={key} className="flex items-center gap-1.5 text-xs cursor-pointer"
@@ -488,7 +496,7 @@ function SearchContent() {
               <p className="mb-6" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters.</p>
               <Button onClick={() => setFilters({
                 query: '', mode: '', region: '', guests: '', checkIn: '', checkOut: '', months: '1', minPrice: '', maxPrice: '',
-                bedrooms: '', propertyType: '', verified: false,
+                bedrooms: '', propertyType: '', hostIdChecked: false, checked: false,
                 superhost: false, sort: 'newest', amenities: [],
               })}>
                 Clear all filters
@@ -593,9 +601,10 @@ function SearchContent() {
                             About GH₵ {(price * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                           </div>
                         </div>
-                        {(l.host?.isVerified || l.host?.isSuperhost) && (
-                          <div className="flex gap-1 flex-shrink-0 ml-auto">
-                            {l.host.isVerified  && <VerifiedBadge />}
+                        {(l.host?.isVerified || l.host?.isSuperhost || l.check) && (
+                          <div className="flex gap-1 flex-wrap justify-end ml-auto">
+                            <CheckedBadge check={l.check} />
+                            {l.host.isVerified  && <HostIdBadge />}
                             {l.host.isSuperhost && <SuperhostBadge />}
                           </div>
                         )}

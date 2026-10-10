@@ -7,7 +7,7 @@ import { formatUsd } from '@/lib/utils'
 import { depositIncludedNote } from '@/components/booking/PriceBreakdown'
 import { Calendar, Heart, MessageSquare, Star, CreditCard, Bell, Shield, TrendingUp, Loader2, Clock } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
-import { VerifiedBadge } from '@/components/ui/Badge'
+import { HostIdBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { ReviewModal } from '@/components/reviews/ReviewModal'
 import { useAuth } from '@/context/AuthContext'
@@ -219,7 +219,7 @@ export default function GuestDashboardPage() {
               <div className="flex items-center gap-3 mt-1">
                 <span className="text-sm" style={{ color: 'rgba(250,247,242,0.6)' }}>Guest Account</span>
                 {user.isVerified ? (
-                  <VerifiedBadge />
+                  <HostIdBadge host={false} />
                 ) : (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
                     <Clock size={11} aria-hidden /> Verification Pending
@@ -287,7 +287,7 @@ export default function GuestDashboardPage() {
               <div>
                 <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Verify your identity to unlock full access</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
-                  Submit your Ghana Card, Passport, or Voter ID to get the Verified badge.
+                  Submit your Ghana Card, Passport, or Voter ID to get the &quot;ID checked&quot; badge.
                 </p>
               </div>
             </div>

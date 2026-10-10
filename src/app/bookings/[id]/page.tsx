@@ -44,6 +44,8 @@ type BookingData = {
     photos: string
     city: string
     neighbourhood: string | null
+    /** The Ghana Post digital address. Sent only once the booking is confirmed and paid. */
+    digitalAddress?: string | null
     welcomeMessage: string | null
     cancellationPolicy: string
   }
@@ -183,6 +185,12 @@ function BookingPageInner() {
               <MapPin size={14} />
               <span>{address}</span>
             </div>
+            {/* The server sends this only once the booking is confirmed and paid */}
+            {booking.listing.digitalAddress && (
+              <p className="text-sm text-[#6B645C] -mt-2 mb-4">
+                <span className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>Digital address:</span> {booking.listing.digitalAddress}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="p-3 rounded-xl" style={{ backgroundColor: '#F9FAFB' }}>
                 <p className="text-xs text-[#6B645C] mb-1">Check-in</p>

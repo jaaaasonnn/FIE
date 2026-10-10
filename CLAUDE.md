@@ -138,6 +138,18 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - With messaging off no link reaches anyone: the emails are only logged, with no token in them.
 - Contact details: `SUPPORT_EMAIL` in `src/lib/contact.ts` is the one support address used on every page and as the default for messages. `SUPPORT_PHONE` (environment) is shown in the footer only when set.
 
+## Listing checks ("Address and photos checked") and digital addresses
+
+- What the badge means, and all it means: on a given date FieGH looked up the listing's Ghana Post digital address, saw the home on a video call or a visit, and confirmed the photos show that home. It never claims ownership was checked or that anything is guaranteed, and it never uses the word "verified". Every sentence about it (badge, tooltip, filter label, FAQ, Terms) is written once in `src/lib/listingCheckRules.ts`; change wording only there, and only with the owner's approval.
+- The existing ID badge is "Host ID checked" beside a host and "ID checked" elsewhere (`HostIdBadge`). No badge says "Verified". A test fails if the standalone word "verified" appears in anything a person reads, except "Verified as [account name]" on the payouts page.
+- `ListingCheck` is one row per check: who, when, expiry (12 months), method, the checklist, a private note, and a copy of the digital address and photos as they were. A row is never changed except to set its revoke fields once, so the table is the audit trail. `markChecked` in `src/lib/listingChecks.ts` is the only code that creates one; no listing was given one by SQL or by the seed.
+- A listing has the badge while its newest check is not revoked and has not expired (`isLive`, `liveCheckWhere`). That is worked out on every read and in the search query. No job is involved, so nothing can fail to expire it.
+- An admin can mark a listing only if it is live, has a digital address and at least one photo, and all three checklist items, a method and a note of 20+ characters are given (`markRefusal`). Admin tab "Listing checks", `POST /api/admin/listing-checks`, `requireAdmin()`. No switch.
+- These clear the badge, in the same transaction as the edit, whoever makes it: a change to the digital address, region, city, neighbourhood, map position, property type or bedroom count (`editRevokes`); any photo added or removed; any hold. Title, description, prices, amenities, rules, policy, calendar and pausing do not.
+- `Listing.digitalAddress` is optional, stored as `GA-183-8164` (`src/lib/digitalAddress.ts`, shape check only: nothing can confirm a code exists). It is never public. The public see "on file"; a guest sees the full code on their booking page once the booking is confirmed and paid; the host and admins always can.
+- Public listing responses are built by `publicListing()` in `src/lib/listingChecks.ts`, which names each public field. A new column on `Listing` is private until it is added there on purpose.
+- Emails to the host: `listing.checked`, `listing.check_removed` (by an admin or by an edit) and `listing.check_expiring`. `listing-check-reminders` runs daily at 08:15 UTC and reminds once per check, 30 days before expiry; it has no switch because it only writes to the message log.
+
 ## Roles and host-only routes
 
 - One helper file, `src/lib/roles.ts`: `requireHost()` and `requireAdmin()` for API routes (401 signed out, 403 otherwise), and `hostAreaRedirect()` for pages. The role is read from the database on every request, so a guest who becomes a host is a host on the next request.

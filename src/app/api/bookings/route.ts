@@ -9,7 +9,7 @@ import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE, requireVerifiedEmail } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
-import { buildSchedule } from '@/lib/rentRules'
+import { buildSchedule, tenancyStands } from '@/lib/rentRules'
 
 /** What a guest or host is shown of a rent instalment: no admin's id. */
 const instalmentSelect = {
@@ -228,7 +228,15 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: 'You do not have access to this booking' }, { status: 403 })
       }
 
-      return NextResponse.json({ booking })
+      // The listing's Ghana Post digital address pins the home to a few
+      // metres, so it is given to the host and admins, and to the guest only
+      // once the booking is confirmed and paid for.
+      const mayHaveAddress = user.id !== booking.guestId || tenancyStands(booking)
+      const address = mayHaveAddress
+        ? (await db.listing.findUnique({ where: { id: booking.listingId }, select: { digitalAddress: true } }))?.digitalAddress ?? null
+        : null
+
+      return NextResponse.json({ booking: { ...booking, listing: { ...booking.listing, digitalAddress: address } } })
     }
 
     // guestId/hostId are the security boundary here — this list is the

@@ -12,7 +12,7 @@ const state = vi.hoisted(() => ({
   booking: null as Row | null, refund: null as Row | null, payout: null as Row | null,
   dispute: null as Row | null, disputeEvent: null as Row | null, message: null as Row | null,
   listing: null as Row | null, verification: null as Row | null, review: null as Row | null,
-  instalment: null as Row | null,
+  instalment: null as Row | null, listingCheck: null as Row | null,
   breakOn: '' as string, writes: 0,
 }))
 const sentry = vi.hoisted(() => ({
@@ -52,7 +52,7 @@ vi.mock('@/lib/db', async () => {
     }
     state.writes++
   }
-  const one = (name: 'booking' | 'refund' | 'payout' | 'dispute' | 'disputeEvent' | 'message' | 'listing' | 'verification' | 'review' | 'instalment') => ({
+  const one = (name: 'booking' | 'refund' | 'payout' | 'dispute' | 'disputeEvent' | 'message' | 'listing' | 'verification' | 'review' | 'instalment' | 'listingCheck') => ({
     findUnique: async () => {
       if (state.breakOn === name) throw new Error(`${name} table is down`)
       return state[name] ? { ...state[name] } : null
@@ -62,7 +62,7 @@ vi.mock('@/lib/db', async () => {
     db: {
       booking: one('booking'), refund: one('refund'), payout: one('payout'), dispute: one('dispute'),
       disputeEvent: one('disputeEvent'), message: one('message'), listing: one('listing'),
-      verification: one('verification'), review: one('review'), instalment: one('instalment'),
+      verification: one('verification'), review: one('review'), instalment: one('instalment'), listingCheck: one('listingCheck'),
       exchangeRate: { findFirst: async () => ({ usdToGhs: 15.5 }) },
       user: {
         findMany: async ({ where }: { where: Row }) => state.users.filter((u) => matches(u, where)).map((u) => ({ ...u })),
@@ -174,7 +174,7 @@ function world(over: { guest?: Row; host?: Row; booking?: Row } = {}) {
 
 beforeEach(() => {
   for (const key of ['logs', 'notifications', 'users'] as const) state[key].length = 0
-  for (const key of ['booking', 'refund', 'payout', 'dispute', 'disputeEvent', 'message', 'listing', 'verification', 'review', 'instalment'] as const) state[key] = null
+  for (const key of ['booking', 'refund', 'payout', 'dispute', 'disputeEvent', 'message', 'listing', 'verification', 'review', 'instalment', 'listingCheck'] as const) state[key] = null
   state.breakOn = ''
   state.writes = 0
   sentry.captureException.mockReset()
@@ -660,6 +660,82 @@ describe('recording an event', () => {
       expect((await writeMessages('payout.waiting', { bookingId: 'booking_1', instalmentId: 'inst_2' })).written).toBe(0)
       expect(one({ channel: 'EMAIL' }).dedupeKey).toBe('payout.waiting:inst_2:host_1:EMAIL')
       expect(one({ channel: 'EMAIL' }).body).toContain('Your payout of $900.00 for the rent at Sea-view apartment in Labadi for the period starting Wed 9 Jun 2027 is ready')
+    })
+  })
+
+  describe('a listing\'s address and photos check', () => {
+    const check = (over: Row = {}, listing: Row = {}) => {
+      world()
+      state.listingCheck = {
+        id: 'check_1', expiresAt: new Date('2028-03-12T10:00:00Z'), revokedAt: null, revokeReason: null, revokeNote: null,
+        // The private note is on the row; it must never reach a message
+        note: 'PRIVATE: host seemed nervous on the call',
+        listing: { id: 'listing_1', title: 'Sea-view apartment in Labadi', hostId: 'host_1', isActive: true, moderationHold: false, host: { name: 'Kwame Mensah' }, ...listing },
+        ...over,
+      }
+    }
+    const body = () => one({ channel: 'EMAIL' }).body as string
+
+    it('tells the host it was checked, in the approved words, by email only', async () => {
+      check()
+      expect(await writeMessages('listing.checked', { checkId: 'check_1' })).toEqual({ written: 1, failed: false })
+      expect(one({ channel: 'EMAIL' })).toMatchObject({ userId: 'host_1', recipientRole: 'HOST', status: 'LOGGED', subject: 'We have checked the address and photos of Sea-view apartment in Labadi' })
+      expect(body()).toContain('We have checked the address and photos of Sea-view apartment in Labadi. It now shows "Address and photos checked" to guests until Sun 12 Mar 2028.')
+      expect(body()).toContain('If you change the address or the photos, it is removed until we check again.')
+      expect(log({ channel: 'SMS' })).toHaveLength(0)
+    })
+
+    it.each([
+      ['PHOTOS_CHANGED', null, 'Reason: the photos were changed.'],
+      ['ADDRESS_CHANGED', null, 'Reason: the address was changed.'],
+      ['DETAILS_CHANGED', null, 'Reason: the property type or the number of bedrooms was changed.'],
+      ['ADMIN', 'The photos are of a different flat', 'Reason: removed by our team: The photos are of a different flat.'],
+    ])('tells the host it was removed and why (%s)', async (revokeReason, revokeNote, sentence) => {
+      check({ revokedAt: NOW, revokeReason, revokeNote })
+      expect((await writeMessages('listing.check_removed', { checkId: 'check_1' })).written).toBe(1)
+      expect(one({ channel: 'EMAIL' }).subject).toBe('Sea-view apartment in Labadi no longer shows "Address and photos checked"')
+      expect(body()).toContain(`Sea-view apartment in Labadi no longer shows "Address and photos checked". ${sentence}`)
+      expect(body()).toContain('Your listing is still live. Write to support@fiegh.com to arrange a new check.')
+    })
+
+    it('does not say the listing is still live when it was put on hold', async () => {
+      check({ revokedAt: NOW, revokeReason: 'LISTING_HELD' }, { isActive: false, moderationHold: true })
+      await writeMessages('listing.check_removed', { checkId: 'check_1' })
+      expect(body()).toContain('Reason: the listing was put on hold.')
+      expect(body()).not.toContain('still live')
+    })
+
+    it('says nothing was removed when a check was only replaced by a newer one, or still stands', async () => {
+      check({ revokedAt: NOW, revokeReason: 'REPLACED' })
+      expect((await writeMessages('listing.check_removed', { checkId: 'check_1' })).written).toBe(0)
+      state.users.length = 0
+      check()
+      expect((await writeMessages('listing.check_removed', { checkId: 'check_1' })).written).toBe(0)
+    })
+
+    it('reminds the host once that it is running out, and not if it has gone', async () => {
+      check({ expiresAt: new Date(NOW.getTime() + 20 * 86_400_000) })
+      expect((await writeMessages('listing.check_expiring', { checkId: 'check_1' })).written).toBe(1)
+      expect((await writeMessages('listing.check_expiring', { checkId: 'check_1' })).written).toBe(0)
+      expect(body()).toMatch(/^Hello Kwame,\n\nThe check on Sea-view apartment in Labadi runs out on /)
+      expect(body()).toContain('After that date the listing stays live without "Address and photos checked".')
+      for (const gone of [{ revokedAt: NOW, revokeReason: 'ADMIN' }, { expiresAt: new Date(NOW.getTime() - 1000) }]) {
+        state.users.length = 0
+        state.logs.length = 0
+        check(gone)
+        expect((await writeMessages('listing.check_expiring', { checkId: 'check_1' })).written, JSON.stringify(gone)).toBe(0)
+        expect((await writeMessages('listing.checked', { checkId: 'check_1' })).written).toBe(gone.revokedAt ? 0 : 1)
+      }
+    })
+
+    it('never passes on the admin\'s private note, and never says "verified"', async () => {
+      for (const [event, over] of [['listing.checked', {}], ['listing.check_expiring', {}], ['listing.check_removed', { revokedAt: NOW, revokeReason: 'ADMIN', revokeNote: 'Photos do not match' }]] as const) {
+        state.users.length = 0
+        state.logs.length = 0
+        check(over)
+        await writeMessages(event, { checkId: 'check_1' })
+        expect(JSON.stringify(state.logs), event).not.toMatch(/PRIVATE|nervous|verified|verif|guarantee|owner/i)
+      }
     })
   })
 

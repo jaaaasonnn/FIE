@@ -63,7 +63,7 @@ export default function VerifyIdPage() {
             <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>What happens next?</p>
             <ul className="text-sm text-[#4A4540] space-y-1">
               <li>• Our team reviews your ID (usually within a few hours)</li>
-              <li>• You get a Verified badge on your profile</li>
+              <li>• You get an &quot;ID checked&quot; badge on your profile</li>
               <li>• You can then make bookings or list properties</li>
             </ul>
           </div>

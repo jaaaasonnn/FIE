@@ -240,7 +240,7 @@ export default function HostBookingsPage() {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <h3 className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>{b.guest.name}</h3>
                           {b.guest.isVerified && (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}><CheckCircle size={11} aria-hidden /> Verified</span>
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}><CheckCircle size={11} aria-hidden /> ID checked</span>
                           )}
                           <span className="text-xs px-2 py-0.5 rounded-full"
                             style={{ backgroundColor: trustScore >= 80 ? '#D1FAE5' : '#FEF3C7', color: trustScore >= 80 ? '#065F46' : '#92400E' }}>
