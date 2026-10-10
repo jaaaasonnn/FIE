@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
+import { requireVerifiedEmail } from '@/lib/roles'
 import {
   CANCELLED_BY_SYSTEM, EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, NO_HOST_RESPONSE, PAY_WINDOW_PASSED, pastPayBy,
 } from '@/lib/payDeadline'
@@ -71,6 +72,10 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'You must be logged in to pay.' }, { status: 401 })
     }
+    // Paying needs a confirmed email address, once that rule is switched on.
+    // Checked before anything is written or sent to Paystack.
+    const unverified = requireVerifiedEmail(user)
+    if (unverified) return unverified
 
     const body = await req.json()
     const { bookingId, method, instalmentId } = body as { bookingId?: string; method?: string; instalmentId?: unknown }

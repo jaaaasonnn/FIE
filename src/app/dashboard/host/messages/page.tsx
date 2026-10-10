@@ -42,7 +42,7 @@ function HostMessagesContent() {
               border: '1px solid rgba(245,192,106,0.3)',
             }}
           >
-            ← Dashboard
+            Back to dashboard
           </Link>
         </div>
       </div>

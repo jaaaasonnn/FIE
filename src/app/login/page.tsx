@@ -183,6 +183,12 @@ function LoginContent() {
               </div>
             </div>
 
+            <p className="text-right -mt-1">
+              <Link href="/auth/forgot-password" className="text-xs font-semibold underline underline-offset-4" style={{ color: 'var(--color-text-secondary)' }}>
+                Forgot your password?
+              </Link>
+            </p>
+
             {loginErr && (
               <p className="text-sm px-3 py-2 rounded-lg" style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
                 {loginErr}

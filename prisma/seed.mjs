@@ -550,7 +550,10 @@ async function upsertUser(user, passwordHash) {
   await db.user.upsert({
     where:  { id: user.id },
     update: data,
-    create: { id: user.id, ...data },
+    // Demo addresses receive no mail, so a demo account could never follow a
+    // verification link: it is created with its email already confirmed. An
+    // existing row keeps whatever it has.
+    create: { id: user.id, ...data, emailVerifiedAt: new Date() },
   })
 }
 

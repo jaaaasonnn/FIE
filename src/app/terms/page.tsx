@@ -1,6 +1,7 @@
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
 import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, serviceFeeRefundRule } from '@/lib/fees'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 // Built from the dispute rules in lib/disputes.ts
 const list = (reasons: Record<string, string>) => Object.values(reasons).map((r) => r.toLowerCase()).join('; ')
@@ -11,7 +12,7 @@ const DISPUTE_TERMS =
   + `Each side can report once per booking and attach up to ${MAX_EVIDENCE_PER_SIDE} photos, which only the guest, the host and FieGH can see. The other party can reply once. `
   + 'FieGH reads both sides and decides. For a guest report the outcome is a full refund of everything paid, a partial refund taken from the stay price (' + (GUEST_FEE_CHARGED ? 'the service fee is kept and ' : '') + 'the host is paid their share of the rest), or no refund. '
   + 'For a host report the deposit is returned to the guest or kept, in full or in part, for the host. '
-  + `${DECISION_AIM} Decisions are final. Outside these times, or once a booking has a refund, contact support at support@fiegh.com. `
+  + `${DECISION_AIM} Decisions are final. Outside these times, or once a booking has a refund, contact support at ${SUPPORT_EMAIL}. `
   + 'Once the stay has started, a booking cannot be cancelled online.'
 
 // Built from the same table the refund is worked out from, so the terms
@@ -27,7 +28,7 @@ const CANCELLATION_TERMS =
   + 'The damage deposit is always refunded in full when a booking is cancelled before check-in. '
   + 'If a host cancels a confirmed booking, the guest is refunded everything they paid. '
   + 'Refunds go back to the card or mobile money number used to pay and can take up to 10 working days to arrive. '
-  + 'From the check-in day onwards a booking cannot be cancelled online; contact support at support@fiegh.com.'
+  + `From the check-in day onwards a booking cannot be cancelled online; contact support at ${SUPPORT_EMAIL}.`
 
 export default function TermsPage() {
   return (
@@ -84,7 +85,7 @@ export default function TermsPage() {
             },
             {
               title: '11. Contact',
-              body: 'For legal inquiries, contact us at legal@fiegh.com. For general support, contact hello@fiegh.com.'
+              body: `For legal questions, or any other help, contact ${SUPPORT_EMAIL}.`
             },
           ].map(({ title, body }) => (
             <div key={title}>

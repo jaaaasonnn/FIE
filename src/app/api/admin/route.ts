@@ -90,11 +90,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ rate })
     }
 
-    if (type === 'suspend-user') {
-      // In a real app, add a `status` field to User model and set to SUSPENDED
-      return NextResponse.json({ success: true, message: 'User suspended' })
-    }
-
     // Switching a listing off as an admin also holds it, so its host cannot
     // switch it back on. 'flag-listing' is the older name for the same action.
     if (type === 'hold-listing' || type === 'flag-listing') {
@@ -122,14 +117,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: true, listing })
     }
 
-    if (type === 'resolve-dispute') {
-      const { disputeId, resolution } = data
-      await db.dispute.update({
-        where: { id: disputeId },
-        data: { status: 'RESOLVED', resolution }
-      })
-      return NextResponse.json({ success: true })
-    }
+    // Disputes are decided only through POST /api/admin/disputes
+    // (lib/disputeDecisions.ts), behind DISPUTE_DECISIONS_ENABLED. There is
+    // no action for them here.
 
     return NextResponse.json({ error: 'Invalid action type' }, { status: 400 })
   } catch (error) {

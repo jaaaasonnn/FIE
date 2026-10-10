@@ -17,6 +17,7 @@
 
 import { dayKey, parseDay } from '@/lib/hostCalendar'
 import { addMonthsClamped, daysBetween, ghanaToday } from '@/lib/stayDates'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 /** The most months of rent a host may ask for up front. */
 export const MAX_ADVANCE_MONTHS = 6
@@ -198,7 +199,7 @@ export function nextPayable<T extends { sequence: number; status: string }>(inst
 export const RENT_AFTER_MOVE_IN = 'The next rent payment can be made from your move-in day.'
 export const RENT_PAY_IN_ORDER = 'Rent is paid one instalment at a time, in order. Please pay the earliest one first.'
 export const RENT_ALREADY_SETTLED = 'This rent payment has already been settled.'
-export const RENT_NOT_PAYABLE = 'This rent payment can no longer be made. Please contact support at support@fiegh.com.'
+export const RENT_NOT_PAYABLE = `This rent payment can no longer be made. Please contact support at ${SUPPORT_EMAIL}.`
 export const RENT_FIRST_PAYMENT_FIRST = 'The first payment has to be made before any later rent can be paid.'
 
 /**

@@ -8,7 +8,8 @@ import { useAuth } from '@/context/AuthContext'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
-import { validateGhanaPhone, normalizeEmail } from '@/lib/utils'
+import { validateGhanaPhone } from '@/lib/utils'
+import { EmailSettings } from '@/components/account/EmailSettings'
 import { compressImage, MAX_RAW_PHOTO_BYTES, IMAGE_MIME_TYPES } from '@/lib/image'
 
 type EditableUser = {
@@ -22,6 +23,8 @@ type EditableUser = {
   nationality: string | null
   businessName: string | null
   optionalEmails?: boolean
+  emailVerified?: boolean
+  pendingEmail?: string | null
 }
 
 type FormState = {
@@ -30,7 +33,6 @@ type FormState = {
   bio: string
   nationality: string
   businessName: string
-  email: string
   optionalEmails: boolean
 }
 
@@ -40,7 +42,7 @@ export default function EditProfilePage() {
 
   const [profile, setProfile] = useState<EditableUser | null>(null)
   const [form, setForm] = useState<FormState>({
-    name: '', phone: '', bio: '', nationality: '', businessName: '', email: '', optionalEmails: true,
+    name: '', phone: '', bio: '', nationality: '', businessName: '', optionalEmails: true,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -64,7 +66,6 @@ export default function EditProfilePage() {
             bio: data.user.bio ?? '',
             nationality: data.user.nationality ?? '',
             businessName: data.user.businessName ?? '',
-            email: '',
             optionalEmails: data.user.optionalEmails !== false,
           })
         }
@@ -117,7 +118,6 @@ export default function EditProfilePage() {
     if (form.phone && !validateGhanaPhone(form.phone)) {
       e.phone = 'Enter a valid Ghana phone number (e.g. 0241234567)'
     }
-    if (!profile?.email && form.email.trim() && !normalizeEmail(form.email)) e.email = 'Enter a valid email address (e.g. ama@example.com)'
     if (form.bio.length > 500) e.bio = 'Bio must be 500 characters or fewer'
     setErrors((prev) => ({ photo: prev.photo, ...e }))
     return Object.keys(e).length === 0
@@ -138,7 +138,8 @@ export default function EditProfilePage() {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to save changes')
 
-      setProfile(data.user)
+      // The email part of the profile is not touched by this save
+      setProfile((prev) => ({ ...data.user, emailVerified: prev?.emailVerified, pendingEmail: prev?.pendingEmail }))
       updateUser({
         name: data.user.name,
         phone: data.user.phone,
@@ -237,26 +238,8 @@ export default function EditProfilePage() {
             required
           />
 
-          {profile.email ? (
-            <Input
-              label="Email Address"
-              type="email"
-              value={profile.email}
-              disabled
-              className="opacity-60 cursor-not-allowed"
-              hint="Email can't be changed here yet."
-            />
-          ) : (
-            <Input
-              label="Email Address"
-              type="email"
-              placeholder="ama@example.com"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              error={errors.email}
-              hint="Add an email to get booking confirmations and receipts. You need one to pay."
-            />
-          )}
+          {/* Its own small form: adding or changing an email is confirmed by a link, not saved with the rest */}
+          <EmailSettings profile={profile} />
 
           <Input
             label="Ghana Phone Number"

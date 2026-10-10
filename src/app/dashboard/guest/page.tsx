@@ -18,6 +18,7 @@ import { CancelDialog } from '@/components/booking/CancelDialog'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 import { HOST_MUST_ACCEPT, formatPayBy, payState } from '@/lib/payDeadline'
 import { NotificationsList } from '@/components/NotificationsList'
+import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
 import { problemLinkLabel } from '@/lib/disputes'
 import { rentStatus } from '@/lib/rentRules'
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
@@ -231,7 +232,7 @@ export default function GuestDashboardPage() {
                 <Link href="/auth/verify-id"
                   className="px-4 py-2 rounded-full text-xs font-semibold"
                   style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-                  Verify ID →
+                  Verify ID
                 </Link>
               </div>
             )}
@@ -240,6 +241,7 @@ export default function GuestDashboardPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        <VerifyEmailNotice className="mb-6" />
         <NotificationsList className="mb-6" />
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

@@ -317,7 +317,10 @@ describe('site copy', () => {
 
   it('works out host earnings from the stay price through hostShare', () => {
     const read = (file: string) => fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8')
-    expect(read('app/dashboard/host/page.tsx')).toContain('hostShare(b.subtotal)')
+    // The dashboard's month figure is summed in lib/hostEarnings.ts, through hostShare
+    expect(read('app/dashboard/host/page.tsx')).toContain('monthEarnings(bookings)')
+    expect(read('lib/hostEarnings.ts')).toContain('hostShare(b.subtotal, refunded)')
+    expect(read('lib/hostEarnings.ts')).not.toMatch(/PLATFORM_COMMISSION|0\.\d/)
     expect(read('app/dashboard/host/bookings/page.tsx')).toContain('hostShare(b.subtotal)')
     expect(read('app/listings/[id]/page.tsx')).toContain('calculateFees(basePrice).serviceFee')
   })

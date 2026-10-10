@@ -450,10 +450,30 @@ describe('recording an event', () => {
   describe('admin messages', () => {
     const cancelled = () => world({ booking: { status: 'CANCELLED', cancelReason: 'OTHER: call me on 0241234567', refund: { id: 'refund_1', amount: 386, amountPesewas: 598_300, stayRefund: 300 } } })
 
-    it('are skipped when ADMIN_ALERT_EMAIL is unset, whatever emails the admins have', async () => {
+    it('fall back to each admin who has an email address when ADMIN_ALERT_EMAIL is unset', async () => {
       cancelled()
       await writeMessages('booking.cancelled_by_host', { bookingId: 'booking_1' })
-      expect(one({ recipientRole: 'ADMIN', channel: 'EMAIL' })).toMatchObject({ status: 'SKIPPED', error: 'ADMIN_ALERT_EMAIL is not set', userId: null, recipientMasked: null })
+      // admin_1 has no email; admin_2 does
+      expect(log({ recipientRole: 'ADMIN', channel: 'EMAIL' })).toHaveLength(1)
+      expect(one({ recipientRole: 'ADMIN', channel: 'EMAIL' })).toMatchObject({ status: 'LOGGED', userId: 'admin_2', recipientMasked: 's***@example.test' })
+      // Raised again, it writes nothing more
+      expect((await writeMessages('booking.cancelled_by_host', { bookingId: 'booking_1' })).written).toBe(0)
+    })
+
+    it('are skipped, with the reason, when there is no inbox and no admin has an email', async () => {
+      cancelled()
+      state.users.find((u) => u.id === 'admin_2')!.email = null
+      await writeMessages('booking.cancelled_by_host', { bookingId: 'booking_1' })
+      expect(one({ recipientRole: 'ADMIN', channel: 'EMAIL' })).toMatchObject({
+        status: 'SKIPPED', error: 'ADMIN_ALERT_EMAIL is not set and no admin has an email address', userId: null, recipientMasked: null,
+      })
+    })
+
+    it('never go to the admins\' own addresses when the shared inbox is set', async () => {
+      vi.stubEnv('ADMIN_ALERT_EMAIL', 'ops@fiegh.com')
+      cancelled()
+      await writeMessages('booking.cancelled_by_host', { bookingId: 'booking_1' })
+      expect(log({ recipientRole: 'ADMIN', channel: 'EMAIL' }).map((l) => l.userId)).toEqual([null])
     })
 
     it('go to the one shared inbox when it is set', async () => {
@@ -934,6 +954,15 @@ describe('the send-messages job', () => {
     expect(fake.email.mock.calls.map(([m]) => m.to).sort()).toEqual([HOST_EMAIL, 'new.address@example.test'])
     expect(one({ userId: 'guest_1', channel: 'SMS' })).toMatchObject({ status: 'SKIPPED', error: 'no valid phone number when it came to be sent' })
     expect(fake.sms).toHaveBeenCalledTimes(1)
+  })
+
+  it('sends an admin email to each admin\'s own address when there is no shared inbox', async () => {
+    live()
+    world()
+    state.refund = { id: 'refund_1', bookingId: 'booking_1', failureReason: 'Paystack returned HTTP 400' }
+    await writeMessages('refund.needs_attention', { refundId: 'refund_1' })
+    await runMessages()
+    expect(fake.email.mock.calls.map(([m]) => m.to)).toEqual(['second.admin@example.test'])
   })
 
   it('sends an admin email to the shared inbox', async () => {

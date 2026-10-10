@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
-import { requireHost } from '@/lib/roles'
+import { requireHost, requireVerifiedEmail } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
 import { parseAdvanceMonths } from '@/lib/rentRules'
@@ -107,6 +107,9 @@ export async function POST(req: Request) {
     const auth = await requireHost()
     if (auth.error) return auth.error
     const user = auth.user
+    // Listing a home needs a confirmed email address, once that rule is switched on
+    const unverified = requireVerifiedEmail(user)
+    if (unverified) return unverified
 
     const body = await req.json()
     const {

@@ -528,11 +528,11 @@ export default function NewListingPage() {
             }}
             disabled={step === 0 || loading}
           >
-            ← Back
+            Back
           </Button>
           {step < STEPS.length - 1 ? (
             <Button onClick={handleContinue}>
-              Continue →
+              Continue
             </Button>
           ) : (
             <Button onClick={handleSubmit} loading={loading} disabled={authLoading || loading}>

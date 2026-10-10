@@ -69,8 +69,8 @@ const MODE_LABELS: Record<string, string> = {
 
 const SORT_OPTIONS = [
   { value: 'newest',        label: 'Newest' },
-  { value: 'price_asc',    label: 'Price: Low → High' },
-  { value: 'price_desc',   label: 'Price: High → Low' },
+  { value: 'price_asc',    label: 'Price: low to high' },
+  { value: 'price_desc',   label: 'Price: high to low' },
   { value: 'top_rated',    label: 'Top Rated' },
   { value: 'most_reviewed', label: 'Most Reviewed' },
 ]

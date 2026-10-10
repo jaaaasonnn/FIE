@@ -30,5 +30,11 @@ export type SendResult =
 export interface MessageProvider {
   name: string
   channel: 'EMAIL' | 'SMS'
+  /**
+   * True for an adapter that exists only for testing or rehearsal. It can
+   * never be selected in production: naming one there is treated as the
+   * channel being off, with an alert (lib/messaging/config.ts).
+   */
+  testOnly?: boolean
   send(message: OutgoingMessage): Promise<SendResult>
 }

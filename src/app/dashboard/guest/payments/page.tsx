@@ -8,6 +8,7 @@ import { CreditCard, CheckCircle, Clock, XCircle, Loader2, Smartphone, Wallet, S
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 type ApiPayment = {
   id: string
@@ -210,7 +211,7 @@ export default function GuestPaymentsPage() {
               <ShieldCheck size={18} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
               <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
                 All payments are processed securely via <strong>Paystack</strong>. FieGH never asks you to pay outside the app.
-                If you spot an unfamiliar transaction, contact <strong>support@fiegh.com</strong> immediately.
+                If you spot an unfamiliar transaction, contact <strong>{SUPPORT_EMAIL}</strong> immediately.
               </p>
             </div>
           </>

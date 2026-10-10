@@ -7,6 +7,7 @@
 // cancelled online at all (lib/cancelRules.ts).
 
 import { serviceFeeRefundRule } from '@/lib/fees'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 export type Policy = 'FLEXIBLE' | 'MODERATE' | 'STRICT'
 export type RentalMode = 'SHORT_STAY' | 'TEMP_STAY' | 'PERMANENT'
@@ -167,7 +168,7 @@ export function commonRuleLines(rentalModeRaw: unknown, hasServiceFee?: boolean)
   return [
     ...(feeRule ? [feeRule] : []),
     `The damage deposit is always refunded in full if you cancel before ${arrival(mode)}.`,
-    `From the ${arrival(mode)} day onwards you cannot cancel online. Contact support at support@fiegh.com.`,
+    `From the ${arrival(mode)} day onwards you cannot cancel online. Contact support at ${SUPPORT_EMAIL}.`,
   ]
 }
 

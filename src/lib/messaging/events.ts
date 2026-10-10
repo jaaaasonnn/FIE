@@ -7,7 +7,8 @@ import { db } from '@/lib/db'
 import { HOST_CANCEL_REASONS } from '@/lib/cancellationPolicy'
 import { hostShare, outcomeLabel, reasonLabel } from '@/lib/disputes'
 import { OVERDUE_REMINDER_DAYS, daysPastDue, depositLeft, isOpen, outstanding, tenancyStands } from '@/lib/rentRules'
-import { ghanaDate, usd } from '@/lib/messaging/format'
+import { ghanaDate, maskEmail, usd } from '@/lib/messaging/format'
+import type { Sealed } from '@/lib/sealed'
 import type { Audience, EventName, Facts } from '@/lib/messaging/templates'
 
 /** The IDs each event is raised with. */
@@ -54,6 +55,16 @@ export type EventIds = {
   'review.received': { reviewId: string }
   'account.welcome': { userId: string }
   'account.became_host': { userId: string }
+  // Links that prove an address (lib/authTokens.ts). `token` is the raw
+  // single-use token: it exists only in the request that made it and in the
+  // email, and is stored nowhere readable.
+  'account.verify_email': { tokenId: string; token: string }
+  'account.confirm_new_email': { tokenId: string; token: string }
+  'account.password_reset': { tokenId: string; token: string }
+  /** `oldEmail` is the address in force before the change: the notice goes there, not to the account's email */
+  'account.email_change_requested': { tokenId: string; oldEmail: string }
+  'account.email_changed': { tokenId: string; oldEmail: string }
+  'account.password_changed': { tokenId: string }
 }
 
 export type Loaded = {
@@ -63,6 +74,11 @@ export type Loaded = {
   /** What makes this occurrence of the event the same one if it is raised again */
   key: string
   bookingId?: string
+  /**
+   * A secret link's token, and the address to send to when it is not the one
+   * on the account. Kept out of the stored message (lib/sealed.ts).
+   */
+  secret?: Sealed
 }
 
 /** New-message emails: at most one per conversation in this long. */
@@ -260,6 +276,37 @@ async function user({ userId }: { userId: string }): Promise<Loaded | null> {
   }
 }
 
+/** The account a link token belongs to. `key` is the token, so each link is its own occurrence. */
+async function authToken(tokenId: string, purposes: string[]): Promise<(Loaded & { email: string }) | null> {
+  const t = await db.authToken.findUnique({
+    where: { id: tokenId },
+    select: { id: true, purpose: true, email: true, userId: true, user: { select: { name: true } } },
+  })
+  if (!t || !purposes.includes(t.purpose)) return null
+  return {
+    key: t.id,
+    recipients: { user: t.userId },
+    email: t.email,
+    facts: { userName: t.user.name, newEmailMasked: maskEmail(t.email) },
+  }
+}
+
+/** A link sent to the address the token is for. */
+const linkTo = (purposes: string[]) => async ({ tokenId, token }: { tokenId: string; token: string }): Promise<Loaded | null> => {
+  const loaded = await authToken(tokenId, purposes)
+  if (!loaded || typeof token !== 'string' || !token) return null
+  const { email, ...rest } = loaded
+  return { ...rest, secret: { token, to: email } }
+}
+
+/** A notice to the address that was the account's email before a change. */
+const noticeToOld = async ({ tokenId, oldEmail }: { tokenId: string; oldEmail: string }): Promise<Loaded | null> => {
+  const loaded = await authToken(tokenId, ['CHANGE_EMAIL'])
+  if (!loaded || typeof oldEmail !== 'string' || !oldEmail) return null
+  const { email: _new, ...rest } = loaded
+  return { ...rest, secret: { to: oldEmail } }
+}
+
 export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded | null> } = {
   'booking.requested': ({ bookingId }) => booking(bookingId),
   'booking.accepted': ({ bookingId }) => booking(bookingId),
@@ -383,4 +430,15 @@ export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded |
   },
   'account.welcome': user,
   'account.became_host': user,
+  'account.verify_email': linkTo(['VERIFY_EMAIL']),
+  'account.confirm_new_email': linkTo(['CHANGE_EMAIL']),
+  'account.password_reset': linkTo(['RESET_PASSWORD']),
+  'account.email_change_requested': noticeToOld,
+  'account.email_changed': noticeToOld,
+  'account.password_changed': async ({ tokenId }) => {
+    const loaded = await authToken(tokenId, ['RESET_PASSWORD'])
+    if (!loaded) return null
+    const { email: _sentTo, ...rest } = loaded
+    return rest
+  },
 }

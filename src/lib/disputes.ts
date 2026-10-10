@@ -11,6 +11,7 @@ import { addDays, ghanaToday } from '@/lib/stayDates'
 import { refundPesewas } from '@/lib/cancellationPolicy'
 import { PLATFORM_COMMISSION, formatUsd } from '@/lib/utils'
 import { HOST_KEEPS_PERCENT } from '@/lib/fees'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 export type DisputeRole = 'GUEST' | 'HOST'
 
@@ -85,7 +86,7 @@ export type Eligibility =
   | { ok: true; window: DisputeWindow }
   | { ok: false; message: string; window?: DisputeWindow }
 
-const SUPPORT = 'Contact support at support@fiegh.com.'
+const SUPPORT = `Contact support at ${SUPPORT_EMAIL}.`
 
 /**
  * Whether this side can report a problem on the booking right now.

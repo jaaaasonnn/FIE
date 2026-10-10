@@ -11,6 +11,7 @@ import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST } from '@/lib/utils'
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { ADVANCE_RULE_NOTE, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from '@/lib/rentRules'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 type FormState = {
   title: string
@@ -225,7 +226,7 @@ export default function EditListingPage() {
         <Link href="/dashboard/host"
           className="px-6 py-3 rounded-full text-sm font-semibold"
           style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-          ← Back to Dashboard
+          Back to dashboard
         </Link>
       </div>
     )
@@ -255,7 +256,7 @@ export default function EditListingPage() {
             </Link>
             <Link href="/dashboard/host"
               className="text-xs px-3 py-2 rounded-full text-stone-400 border border-white/20 hover:bg-white/10">
-              ← Dashboard
+              Back to dashboard
             </Link>
           </div>
         </div>
@@ -280,7 +281,7 @@ export default function EditListingPage() {
             <span>
               This listing is on hold and hidden from guests. Listings are held when FieGH switches them off or when the
               description contains contact details. You can still edit it, but only FieGH can switch it back on.
-              Email hello@fiegh.com once it is ready for review.
+              Email {SUPPORT_EMAIL} once it is ready for review.
             </span>
           </div>
         )}

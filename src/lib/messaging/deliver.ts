@@ -23,6 +23,7 @@ import { channelGate, messagingConfig, type Channel } from '@/lib/messaging/conf
 import { emailHtml } from '@/lib/messaging/emailHtml'
 import { scrub } from '@/lib/messaging/format'
 import { PROVIDERS, type SendResult } from '@/lib/messaging/providers'
+import { TOKEN_PLACEHOLDER, unseal } from '@/lib/sealed'
 
 const MIN = 60 * 1000
 /** Waits before the second, third and fourth attempts. After the fourth it gives up. */
@@ -98,7 +99,7 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
   for (const row of dead) {
     const closed = await db.messageLog.updateMany({
       where: { id: row.id, status: 'SENDING', claimedAt: row.claimedAt },
-      data: { status: 'UNKNOWN', error: 'The run that was sending this stopped before recording a result. It is not sent again in case it went.', alertedAt: now },
+      data: { status: 'UNKNOWN', error: 'The run that was sending this stopped before recording a result. It is not sent again in case it went.', alertedAt: now, sealed: null },
     })
     if (closed.count === 0) continue
     stale++
@@ -110,7 +111,8 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
   for (const row of due) {
     const channel = row.channel as Channel
     const gate = gates[channel]
-    const close = (status: string, error: string) => db.messageLog.updateMany({ where: { id: row.id, status: row.status, attempts: row.attempts }, data: { status, error, nextAttemptAt: null } })
+    // A message that is finished, one way or another, keeps no sealed secret
+    const close = (status: string, error: string) => db.messageLog.updateMany({ where: { id: row.id, status: row.status, attempts: row.attempts }, data: { status, error, nextAttemptAt: null, sealed: null } })
 
     // Switched off since it was queued: it is never sent later
     if (!gate.live) {
@@ -132,12 +134,23 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
     })
     if (claim.count === 0) continue
     const attempts = row.attempts + 1
-    const settle = (data: Record<string, unknown>) => db.messageLog.update({ where: { id: row.id }, data })
+    // Only a refusal that will be retried keeps its sealed secret, for the next attempt
+    const settle = (data: Record<string, unknown>) => db.messageLog.update({ where: { id: row.id }, data: { ...(data.status === 'FAILED' ? {} : { sealed: null }), ...data } })
 
     let outcome: SendResult | 'unsure'
     let unsureWhy = ''
     try {
-      const to = await addressFor(row)
+      // The secret link and, where the event named one, the address: read
+      // only now, and never written back anywhere
+      const secret = row.sealed ? unseal(row.sealed) : null
+      if (row.sealed && !secret) {
+        await settle({ status: 'SKIPPED', error: 'The link in this message could not be read back (was NEXTAUTH_SECRET changed?). The person has to ask for a new one.', alertedAt: now })
+        alert('GAVE_UP', 'A message with a secret link could not be unsealed and was not sent', { ...row, attempts })
+        results.push(item(row, 'skipped', attempts))
+        continue
+      }
+      const text = secret?.token ? row.body.split(TOKEN_PLACEHOLDER).join(secret.token) : row.body
+      const to = secret?.to ? normalizeEmail(secret.to) : await addressFor(row)
       if (!to) {
         await settle({ status: 'SKIPPED', error: channel === 'EMAIL' ? 'no valid email address when it came to be sent' : 'no valid phone number when it came to be sent' })
         results.push(item(row, 'skipped', attempts))
@@ -148,8 +161,8 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
         PROVIDERS[gate.provider].send({
           to,
           from: channel === 'EMAIL' ? config.emailFrom : config.smsSenderId,
-          ...(channel === 'EMAIL' ? { replyTo: config.supportEmail, subject: row.subject ?? 'FieGH', html: emailHtml(row.subject ?? 'FieGH', row.body) } : {}),
-          text: row.body,
+          ...(channel === 'EMAIL' ? { replyTo: config.supportEmail, subject: row.subject ?? 'FieGH', html: emailHtml(row.subject ?? 'FieGH', text) } : {}),
+          text,
           idempotencyKey: row.dedupeKey,
           signal,
         }),

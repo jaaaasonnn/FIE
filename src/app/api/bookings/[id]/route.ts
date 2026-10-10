@@ -11,6 +11,7 @@ import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
 import { dayKey } from '@/lib/hostCalendar'
 import { OPEN_INSTALMENT_STATUSES, SETTLED_INSTALMENT_STATUSES, endTenancyQuote, refundableRent } from '@/lib/rentRules'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -165,7 +166,7 @@ export async function PATCH(
       // that would leave a confirmed booking with a refund in flight
       if (action === 'accept' && booking.paymentStatus !== 'UNPAID') {
         return NextResponse.json(
-          { error: 'This request cannot be accepted online because a payment on it is being refunded. Please contact support at support@fiegh.com.' },
+          { error: `This request cannot be accepted online because a payment on it is being refunded. Please contact support at ${SUPPORT_EMAIL}.` },
           { status: 409 },
         )
       }

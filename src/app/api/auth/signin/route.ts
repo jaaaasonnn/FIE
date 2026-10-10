@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { normalizePhone, validateGhanaPhone } from '@/lib/utils'
+import { mustVerifyEmail } from '@/lib/roles'
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
     const { passwordHash: _, ...userWithoutPassword } = user
 
     const response = NextResponse.json({
-      user: userWithoutPassword,
+      user: { ...userWithoutPassword, mustVerifyEmail: mustVerifyEmail(user) },
       message: 'Signed in successfully'
     })
 

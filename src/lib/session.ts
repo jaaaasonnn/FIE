@@ -11,6 +11,8 @@ export type SessionUser = {
   trustScore: number
   isVerified: boolean
   isSuperhost: boolean
+  /** When the email address was confirmed by a link sent to it; null until then */
+  emailVerifiedAt: Date | null
 }
 
 /** Convenience helper for Route Handlers — reads the fiegh_session cookie. */
@@ -46,6 +48,7 @@ export async function getUserFromToken(token: string): Promise<SessionUser | nul
           trustScore:   true,
           isVerified:   true,
           isSuperhost:  true,
+          emailVerifiedAt: true,
         },
       },
     },

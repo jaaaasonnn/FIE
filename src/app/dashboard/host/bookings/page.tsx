@@ -173,7 +173,7 @@ export default function HostBookingsPage() {
           </div>
           <Link href="/dashboard/host" className="text-sm px-4 py-2 rounded-full"
             style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
-            ← Dashboard
+            Back to dashboard
           </Link>
         </div>
       </div>
@@ -250,7 +250,7 @@ export default function HostBookingsPage() {
                         <p className="text-xs text-[#6B645C] mb-1">{b.listing.title} · {MODE_LABELS[b.rentalMode] ?? b.rentalMode}</p>
                         <p className="text-xs text-stone-400">
                           {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
-                          {' → '}
+                          {' to '}
                           {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
                           {b.rentalMode === 'SHORT_STAY' && ` · ${b.nightsOrMonths} night${b.nightsOrMonths !== 1 ? 's' : ''}`}
                           {b.rentalMode === 'TEMP_STAY'  && ` · ${b.nightsOrMonths} month${b.nightsOrMonths !== 1 ? 's' : ''}`}

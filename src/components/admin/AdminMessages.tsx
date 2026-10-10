@@ -67,7 +67,7 @@ function SwitchNote({ switches }: { switches: Switches }) {
       </p>
       <p className="mt-1" style={muted}>
         {line('Email', switches.email)} {line('SMS', switches.sms)}{' '}
-        {switches.adminInbox ? 'Admin emails go to the shared inbox.' : 'ADMIN_ALERT_EMAIL is not set, so admin emails are skipped.'}
+        {switches.adminInbox ? 'Admin emails go to the shared inbox.' : 'ADMIN_ALERT_EMAIL is not set, so admin emails go to each admin account that has an email address.'}
       </p>
     </div>
   )

@@ -21,6 +21,8 @@ export type AuthUser = {
   trustScore: number
   isVerified: boolean
   isSuperhost: boolean
+  /** True while the person must confirm their email before they can book, list or pay */
+  mustVerifyEmail?: boolean
 }
 
 type SignInResult  = { error?: string; user?: AuthUser }

@@ -25,6 +25,9 @@ model User {
   // Off turns off the optional emails only (new-message alerts, review
   // prompts, reviews received, welcome). Everything else is always sent.
   optionalEmails Boolean @default(true)
+  // When the person proved the email address is theirs, by a link sent to it
+  // (lib/authTokens.ts). Null until then. Not the ID badge: that is isVerified.
+  emailVerifiedAt DateTime?
 
   // Host payout destination — resolved + registered with Paystack before
   // being trusted. payoutMethodVerifiedAt is null until a successful
@@ -59,6 +62,39 @@ model User {
   sessions        Session[]
   notifications   Notification[]
   messageLogs     MessageLog[]
+  authTokens      AuthToken[]
+}
+
+// A single-use link sent by email: to confirm an address, to confirm a change
+// of address, or to reset a password. Only the SHA-256 hash of the token is
+// stored, so nothing here can be used to follow a link. Rules in lib/authTokens.ts.
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  purpose   String    // VERIFY_EMAIL | CHANGE_EMAIL | RESET_PASSWORD
+  tokenHash String    @unique
+  email     String    // the address the link was sent to: for CHANGE_EMAIL, the new one
+  expiresAt DateTime
+  usedAt    DateTime? // set when it is followed, or when a newer one replaces it
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, purpose])
+}
+
+// One row per request for such a link, whether or not the address has an
+// account, so requests can be limited per person and per IP address. The IP
+// is stored hashed.
+model AuthRequest {
+  id        String   @id @default(cuid())
+  kind      String   // VERIFY_EMAIL | CHANGE_EMAIL | RESET_PASSWORD
+  ipHash    String?
+  userId    String?  // no relation on purpose: the request is kept whatever becomes of the user
+  createdAt DateTime @default(now())
+
+  @@index([ipHash, createdAt])
+  @@index([userId, createdAt])
 }
 
 // Minimal in-app notification — email isn't wired up yet, so this is the
@@ -99,6 +135,11 @@ model MessageLog {
   provider          String?
   providerMessageId String?
   error             String?
+  // For the few messages that carry a secret link or go to an address other
+  // than the one on the account: the token and the address, encrypted
+  // (lib/sealed.ts). The body shows "[token]" in its place. Cleared once the
+  // message is sent or closed, and never written while the channel is off.
+  sealed            String?
   attempts          Int       @default(0)
   claimedAt         DateTime?
   nextAttemptAt     DateTime?
@@ -144,7 +185,7 @@ model Listing {
   advanceMonthsRequired Int?
   photos                String   // JSON array of URLs
   rules                 String?  // JSON array
-  cancellationPolicy    String   @default("FLEXIBLE") // FLEXIBLE | MODERATE | STRICT
+  cancellationPolicy    String   @default("MODERATE") // FLEXIBLE | MODERATE | STRICT
   instantBook           Boolean  @default(false)
   minStayNights         Int      @default(1)
   isActive              Boolean  @default(true)

@@ -36,6 +36,12 @@
 //                               An admin may cover a missed rent payment from
 //                               the damage deposit. While off, the action only
 //                               reports what it would do and writes nothing.
+//   EMAIL_VERIFICATION_REQUIRED=true
+//                               A person must have confirmed their email
+//                               address before they can book, list a home or
+//                               pay. While off, nobody is held back. Turn it
+//                               on only once email is really being sent, or
+//                               nobody new could ever confirm.
 //   PAYOUT_LIMIT_GHS=50000      Not a switch: the most a single transfer may
 //                               be, in cedis. A payout above it is held for a
 //                               person and never split. Unset: nothing is held.
@@ -121,6 +127,11 @@ export function rentRemindersEnabled(): boolean {
 /** Exactly "true": while off, covering rent from a deposit only reports what it would do. */
 export function rentDepositCoverEnabled(): boolean {
   return process.env.RENT_DEPOSIT_COVER_ENABLED === 'true'
+}
+
+/** Exactly "true": while off, an unconfirmed email address holds nobody back. */
+export function emailVerificationRequired(): boolean {
+  return process.env.EMAIL_VERIFICATION_REQUIRED === 'true'
 }
 
 /**

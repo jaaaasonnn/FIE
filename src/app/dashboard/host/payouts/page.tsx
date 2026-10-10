@@ -223,7 +223,7 @@ export default function HostPayoutsPage() {
           </div>
           <Link href="/dashboard/host" className="text-sm px-4 py-2 rounded-full"
             style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
-            ← Dashboard
+            Back to dashboard
           </Link>
         </div>
       </div>

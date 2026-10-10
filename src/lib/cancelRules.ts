@@ -6,9 +6,10 @@
 
 import { dayKey } from '@/lib/hostCalendar'
 import { ghanaToday } from '@/lib/stayDates'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 export const CANCEL_CONTACT_SUPPORT =
-  'This booking can no longer be cancelled online, because the stay has started or the host has been paid. Please contact support at support@fiegh.com.'
+  `This booking can no longer be cancelled online, because the stay has started or the host has been paid. Please contact support at ${SUPPORT_EMAIL}.`
 
 /**
  * True when the guest must contact support to cancel: the check-in day has

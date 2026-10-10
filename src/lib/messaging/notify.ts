@@ -18,11 +18,12 @@ import * as Sentry from '@sentry/nextjs'
 import { after } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
-import { validateGhanaPhone } from '@/lib/utils'
+import { normalizeEmail, validateGhanaPhone } from '@/lib/utils'
 import { channelGate, messagingConfig, type Channel } from '@/lib/messaging/config'
 import { maskEmail, maskPhone } from '@/lib/messaging/format'
 import { LOADERS, type EventIds } from '@/lib/messaging/events'
 import { TEMPLATES, emailFooter, emailText, type EventName, type Template } from '@/lib/messaging/templates'
+import { seal } from '@/lib/sealed'
 
 export type WriteResult = {
   /** Rows written this time; a repeat of the same event writes none */
@@ -45,6 +46,7 @@ type Row = {
   provider: string | null
   error: string | null
   sentAt?: Date
+  sealed?: string | null
 }
 
 /**
@@ -80,8 +82,10 @@ export async function writeMessages<E extends EventName>(event: E, ids: EventIds
     const users = userIds.length
       ? await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, email: true, phone: true, role: true, optionalEmails: true } })
       : []
-    const admins = pieces.some((p) => p.to === 'admin' && p.inApp)
-      ? await db.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } })
+    // Admins are needed for an in-app notice, and for an email when there is
+    // no shared inbox to send it to
+    const admins = pieces.some((p) => p.to === 'admin' && (p.inApp || (p.email && !config.adminAlertEmail)))
+      ? await db.user.findMany({ where: { role: 'ADMIN' }, select: { id: true, email: true } })
       : []
 
     const base = { event, bookingId: loaded.bookingId ?? null }
@@ -92,6 +96,18 @@ export async function writeMessages<E extends EventName>(event: E, ids: EventIds
       return { status: gate.live ? 'QUEUED' : 'LOGGED', provider: gate.provider, error: null }
     }
     const skipped = (why: string) => ({ status: 'SKIPPED', provider: null, error: why })
+    /**
+     * An email that carries a secret link, or goes to an address other than
+     * the account's: the token and address are stored encrypted, and only
+     * when the message will really be sent. Logged-only rows hold nothing.
+     */
+    const secret = loaded.secret
+    const sealedEmail = () => {
+      const gate = outgoing('EMAIL')
+      if (!secret || gate.status !== 'QUEUED') return gate
+      const sealed = seal(secret)
+      return sealed ? { ...gate, sealed } : skipped('NEXTAUTH_SECRET is not set, so the link cannot be stored safely')
+    }
     const footer = emailFooter(facts, optional)
 
     const rows: Row[] = []
@@ -99,12 +115,26 @@ export async function writeMessages<E extends EventName>(event: E, ids: EventIds
       if (piece.to === 'admin') {
         if (piece.email) {
           const inbox = config.adminAlertEmail
-          rows.push({
-            ...base, channel: 'EMAIL', userId: null, recipientRole: 'ADMIN',
-            recipientMasked: inbox ? maskEmail(inbox) : null, dedupeKey: key('admin', 'EMAIL'),
-            subject: piece.email.subject, body: emailText(piece.email, config.appUrl, footer),
-            ...(inbox ? outgoing('EMAIL') : skipped('ADMIN_ALERT_EMAIL is not set')),
-          })
+          const email = { subject: piece.email.subject, body: emailText(piece.email, config.appUrl, footer) }
+          const reachable = admins.filter((admin) => normalizeEmail(admin.email))
+          if (inbox || reachable.length === 0) {
+            // The shared inbox; or, with no inbox and no admin who has an
+            // email, one row that says why nothing went
+            rows.push({
+              ...base, ...email, channel: 'EMAIL', userId: null, recipientRole: 'ADMIN',
+              recipientMasked: inbox ? maskEmail(inbox) : null, dedupeKey: key('admin', 'EMAIL'),
+              ...(inbox ? outgoing('EMAIL') : skipped('ADMIN_ALERT_EMAIL is not set and no admin has an email address')),
+            })
+          } else {
+            // No shared inbox: each admin is sent it at their own address
+            for (const admin of reachable) {
+              rows.push({
+                ...base, ...email, channel: 'EMAIL', userId: admin.id, recipientRole: 'ADMIN',
+                recipientMasked: maskEmail(admin.email!), dedupeKey: key(admin.id, 'EMAIL'),
+                ...outgoing('EMAIL'),
+              })
+            }
+          }
         }
         if (piece.inApp) {
           for (const admin of admins) rows.push(inAppRow(base, admin.id, 'ADMIN', key(admin.id, 'IN_APP'), piece.inApp))
@@ -118,13 +148,15 @@ export async function writeMessages<E extends EventName>(event: E, ids: EventIds
       const to = { ...base, userId: user.id, recipientRole: role }
 
       if (piece.email) {
+        // Where it goes: the address the event names, or the one on the account
+        const address = secret?.to ?? user.email
         rows.push({
-          ...to, channel: 'EMAIL', recipientMasked: user.email ? maskEmail(user.email) : null, dedupeKey: key(user.id, 'EMAIL'),
+          ...to, channel: 'EMAIL', recipientMasked: address ? maskEmail(address) : null, dedupeKey: key(user.id, 'EMAIL'),
           subject: piece.email.subject, body: emailText(piece.email, config.appUrl, footer),
-          ...(!user.email ? skipped('no email address')
+          ...(!address ? skipped('no email address')
             // Only the optional events can be turned off; the rest are always sent
             : optional && !user.optionalEmails ? skipped('optional emails are turned off')
-            : outgoing('EMAIL')),
+            : sealedEmail()),
         })
       }
       if (piece.sms) {

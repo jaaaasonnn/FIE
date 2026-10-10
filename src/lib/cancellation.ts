@@ -9,6 +9,7 @@ import {
   POLICY_LABELS, asPolicy, commonRuleLines, policyRuleLines, quoteRefund, refundPesewas, tierDeadline,
   type Policy, type RefundQuote,
 } from '@/lib/cancellationPolicy'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 export type CancelBooking = {
   status: string
@@ -71,7 +72,7 @@ export function previewCancellation({
   const paid = booking.paymentStatus === 'PAID'
   if (paid && !payment) {
     // Marked paid with no successful payment on record: not something to guess at
-    return { canCancel: false, message: 'This booking cannot be cancelled online. Please contact support at support@fiegh.com.' }
+    return { canCancel: false, message: `This booking cannot be cancelled online. Please contact support at ${SUPPORT_EMAIL}.` }
   }
   // An unanswered, unpaid request can be withdrawn at any time: nothing is owed either way
   if ((paid || !withdrawal) && cancelNeedsSupport(booking.checkIn, hasPayout, now)) {

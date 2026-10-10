@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
+import { ipHashOf, requestVerification } from '@/lib/authTokens'
 
 export async function POST(req: Request) {
   try {
@@ -55,6 +56,13 @@ export async function POST(req: Request) {
     const { passwordHash: _, ...userWithoutPassword } = user
 
     notify('account.welcome', { userId: user.id })
+    // A link to confirm the address, sent to it. The account works for
+    // browsing straight away; a failure here never undoes the sign-up.
+    try {
+      await requestVerification(user, ipHashOf(req), { limited: false })
+    } catch (error) {
+      console.error('Signup: could not start email verification for user', user.id, error instanceof Error ? error.message : error)
+    }
 
     return NextResponse.json({ user: userWithoutPassword, message: 'Account created successfully' }, { status: 201 })
   } catch (error) {

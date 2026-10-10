@@ -51,7 +51,7 @@ The cron jobs do nothing risky until they are switched on in the environment. Al
 - `PAYOUTS_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be paid out. Required: without a valid date, payouts stay in dry run even when enabled. Set it to the launch date so no test booking is ever paid.
 - `COMPLETION_ENABLED`: must be exactly `true` before `complete-bookings` marks anything `COMPLETED`.
 - `REFUNDS_ENABLED`: must be exactly `true` before any refund is sent to Paystack. While off, cancelling still works and the refund is recorded as owed (`Refund` row, status `PENDING`); nothing is sent. The hourly `process-refunds` job sends those once it is on. The check sits inside `sendRefund` (`src/lib/refunds.ts`), the only place a refund is started.
-- `DISPUTE_DECISIONS_ENABLED`: must be exactly `true` before an admin's decision on a dispute takes effect. While off, deciding only reports what it would do and writes nothing. Reporting a problem and holding the payout are always on. A refund a decision creates is still behind `REFUNDS_ENABLED`, and a payout behind `PAYOUTS_ENABLED`.
+- `DISPUTE_DECISIONS_ENABLED`: must be exactly `true` before an admin's decision on a dispute takes effect. `POST /api/admin/disputes` is the only way a dispute is decided. While off, deciding only reports what it would do and writes nothing. Reporting a problem and holding the payout are always on. A refund a decision creates is still behind `REFUNDS_ENABLED`, and a payout behind `PAYOUTS_ENABLED`.
 - `PAYMENT_WEBHOOK_ENABLED`: must be exactly `true` before Paystack's `charge.success` webhook confirms a payment. While off, the event is signature-checked and logged as what it would do; nothing is written. The verify route confirms payments either way.
 - `BOOKING_EXPIRY_ENABLED`: must be exactly `true` before `expire-bookings` ends anything. While off it is a dry run and never calls Paystack.
 - `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`, UTC). Only bookings created on or after it can ever be ended by the job. Required: without a valid date the job stays in dry run. Set it to the launch date.
@@ -92,6 +92,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - A booking stores its service fee in dollars, so a booking made at an older rate still shows and refunds the fee it was charged. A "Service fee" line appears only where the stored fee is above zero.
 - The commission is not stored. A payout is worked out at the rate in force when it is made, so changing the rate changes the payout of every booking not yet paid out.
 - Admin revenue is counted from stay prices of paid, standing bookings. Damage deposits are never counted.
+- The host dashboard's "This Month" is `monthEarnings` in `src/lib/hostEarnings.ts`: the host's share (through `hostShare`) of paid, standing stays that check in this calendar month in Ghana, and of settled rent instalments that fall due in it.
 
 ## Payments and unpaid bookings
 
@@ -118,11 +119,24 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - The log stores the user id and a masked address only. The real address is read from `User` when the message is sent. Console and Sentry get IDs only.
 - SMS is for nine messages, plus the three rent reminders to a tenant (due soon, due today, late): a new request (host), request accepted (guest), booking paid and confirmed (guest and host), the other side cancelled (guest or host), payout sent, payout waiting, and payout method changed. One plain 160-character segment, cedis written "GHS", no names or account details.
 - Optional emails (new messages, review prompts, reviews received, welcome notes) can be turned off on the profile page (`User.optionalEmails`). Everything else is always sent. No marketing.
-- Admin emails go to one shared inbox, `ADMIN_ALERT_EMAIL`; unset means they are `SKIPPED`. Sender values: `EMAIL_FROM` (the whole From line, default `FieGH <support@fiegh.com>`), `SUPPORT_EMAIL` (reply-to, default `support@fiegh.com`), `SMS_SENDER_ID`.
+- Admin emails go to one shared inbox, `ADMIN_ALERT_EMAIL`. Unset: each admin user with an email is sent it instead; with neither, the email is `SKIPPED`. Sender values: `EMAIL_FROM` (the whole From line, default `FieGH <support@fiegh.com>`), `SUPPORT_EMAIL` (reply-to, default `support@fiegh.com`), `SMS_SENDER_ID`.
 - The admin page has a Messages tab: the log, and a preview of every template with sample data.
 - The five older in-app notices (host cancelled, dispute raised, replied and resolved, payout method changed) are still written where they always were.
-- Emails are stored trimmed and lower-cased (`normalizeEmail` in `src/lib/utils.ts`). Nothing verifies that an address or number belongs to the person yet, and there is no password reset.
+- Emails are stored trimmed and lower-cased (`normalizeEmail` in `src/lib/utils.ts`). See "Accounts" below for confirming an address and resetting a password. Nothing verifies a phone number yet.
+- The drill adapters are marked `testOnly`. In production (`NODE_ENV` or `VERCEL_ENV` is `production`, so Vercel previews too) `channelGate` treats one as not live and raises one Sentry alert per channel; nothing is sent.
+- A message that carries a single-use link, or goes to an address other than the account's, keeps the token and address encrypted in `MessageLog.sealed` (`src/lib/sealed.ts`, AES-256-GCM, key derived from `NEXTAUTH_SECRET`). The stored body shows `[token]`. The job puts the token in as it sends and clears the column afterwards; nothing is sealed while the channel is off. Changing `NEXTAUTH_SECRET` makes anything still waiting unsendable (skipped with an alert).
 - `AT_API_KEY` and `AT_USERNAME` are not used by any code.
+
+## Accounts: email confirmation and password reset
+
+- Rules and database work are in `src/lib/authTokens.ts`. `User.emailVerifiedAt` is the confirmed-email flag (`isVerified` is the ID badge, a different thing). Every account that existed on 2026-10-10 was marked confirmed by a one-off; the seed script creates demo users confirmed.
+- Tokens are 32 random bytes, stored only as a SHA-256 hash in `AuthToken`, single use, and expire: 24 hours to confirm an address, 1 hour to reset a password. A new one cancels the last of its kind. Links open a page with a button, and the token is used by the POST, so a mail scanner cannot use it up.
+- Requests are written to `AuthRequest` and limited to 1 a minute and 5 an hour per person and 10 an hour per IP address (stored hashed). The answer is the same whether or not an address has an account, and the same for every kind of bad link. Sign-up itself still says "Email already registered".
+- Sign-up sends `account.verify_email`. Changing email (`POST /api/users/me/email`, needs the current password) sends the link to the NEW address and a notice to the old one; nothing changes until the link is followed, when the unique index has the last word and the old address is told again. Sessions are kept. The profile form (`PATCH /api/users/me`) no longer sets an email.
+- Forgot password: `/auth/forgot-password`, then `/auth/reset-password`. A reset deletes every session for the account, cancels its other links, and counts as confirming the email.
+- `EMAIL_VERIFICATION_REQUIRED` must be exactly `true` before `requireVerifiedEmail()` (`src/lib/roles.ts`) refuses booking, listing a home and starting a payment for an unconfirmed account. Off when unset and not set anywhere. Turn it on only once email is live, or nobody new could confirm.
+- With messaging off no link reaches anyone: the emails are only logged, with no token in them.
+- Contact details: `SUPPORT_EMAIL` in `src/lib/contact.ts` is the one support address used on every page and as the default for messages. `SUPPORT_PHONE` (environment) is shown in the footer only when set.
 
 ## Roles and host-only routes
 
@@ -149,7 +163,7 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 
 - The rules are one table in `src/lib/cancellationPolicy.ts`: Flexible, Moderate and Strict, with different notice periods for short stays, monthly stays and long-term rentals. Every page that states a policy builds its sentences from that table, so wording cannot drift from the sums.
 - Guests pay no service fee on new bookings. A booking made when there was one stores it, and it is refunded only when the whole stay price is refunded. The damage deposit is always refunded on a cancellation before check-in. For monthly and long-term stays the amount kept is never more than one month's rent. FieGH absorbs Paystack's fee.
-- New listings default to Moderate (in code; the database column default is still `FLEXIBLE`). The policy is copied onto the booking when it is made (`Booking.cancellationPolicy`).
+- New listings default to Moderate, in code and in the database column. The policy is copied onto the booking when it is made (`Booking.cancellationPolicy`).
 - The refund is worked out on the server from stored values (`src/lib/cancellation.ts`), never from the request. The cancel request carries the amount the person was shown only so the server can refuse if it has changed.
 - One refund per booking (unique index on `Refund.bookingId`). `Payment.amountPesewas` and `usdToGhs` are saved at charge time so a refund returns the same share of the cedis paid.
 - A host can cancel a confirmed booking up to the day before check-in with a required reason; the guest gets everything back, every admin is notified, and the admin page counts them. No penalties yet.

@@ -10,7 +10,8 @@ import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
 import { NotificationsList } from '@/components/NotificationsList'
-import { hostShare } from '@/lib/disputes'
+import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
+import { monthEarnings } from '@/lib/hostEarnings'
 import { COMMISSION_PERCENT } from '@/lib/fees'
 
 type ApiListing = {
@@ -36,6 +37,10 @@ type ApiBooking = {
   subtotal: number
   totalPrice: number
   rentalMode: string
+  paymentStatus: string
+  refund?: { reason?: string | null; stayRefund?: number | null } | null
+  /** Rent instalments, on a monthly or long-term booking. Empty on any other. */
+  instalments?: { sequence: number; status: string; dueDate: string; amount: number }[]
   guest: { id: string; name: string | null; profilePhoto: string | null }
   listing: { id: string; title: string }
 }
@@ -103,14 +108,9 @@ function HostDashboardContent() {
   const avgRating = listings.length
     ? listings.reduce((s, l) => s + (l.avgRating || 0), 0) / listings.length
     : 0
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  monthStart.setHours(0, 0, 0, 0)
-  const monthEarnings = bookings
-    .filter((b) => b.status !== 'CANCELLED' && b.status !== 'DECLINED' && new Date(b.checkIn) >= monthStart)
-    // The host's share of the stay price. The total a guest pays also holds
-    // the damage deposit, which is not the host's earnings.
-    .reduce((s, b) => s + hostShare(b.subtotal), 0)
+  // The host's share of what has been paid for stays and rent that fall in
+  // this calendar month in Ghana (lib/hostEarnings.ts)
+  const earnedThisMonth = monthEarnings(bookings)
 
   const firstName = user?.name?.split(' ')[0] ?? 'Host'
 
@@ -182,6 +182,7 @@ function HostDashboardContent() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        <VerifyEmailNotice className="mb-6" />
         <NotificationsList className="mb-6" />
         {/* Not required to host, so this is a prompt, not a gate */}
         {user && !user.isVerified && (
@@ -235,8 +236,8 @@ function HostDashboardContent() {
               <StatCard
                 icon={<DollarSign size={18} style={{ color: 'var(--color-accent)' }} />}
                 label="This Month"
-                value={`$${monthEarnings.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                sub={`After ${COMMISSION_PERCENT} commission`}
+                value={`$${earnedThisMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                sub={`Paid stays and rent, after ${COMMISSION_PERCENT} commission`}
               />
               <StatCard
                 icon={<Calendar size={18} style={{ color: '#2563EB' }} />}
@@ -309,7 +310,7 @@ function HostDashboardContent() {
                               <p className="text-xs text-[#6B645C]">{b.listing?.title}</p>
                               <p className="text-xs text-stone-400">
                                 {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
-                                {' → '}
+                                {' to '}
                                 {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
                             </div>

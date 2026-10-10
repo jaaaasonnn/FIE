@@ -1,4 +1,4 @@
-# FieGH 🏠🇬🇭
+# FieGH
 
 > **"Fie" means home in Twi.** — *Your home in Ghana.*
 
@@ -9,9 +9,9 @@ FieGH is Ghana's premier full-stack rental marketplace combining short-term holi
 ## Features
 
 ### Three Rental Modes
-- 🌙 **Short Stay** — Nightly/weekly bookings (Detty December, business travel, tourism)
-- 📅 **Temporary Stay** — Monthly rentals, 1–11 months (relocation, diaspora visits, students)
-- 🏠 **Permanent Rental** — 12+ months with tenancy agreements and clear advance payment terms
+- **Short Stay** — Nightly/weekly bookings (Detty December, business travel, tourism)
+- **Temporary Stay** — Monthly rentals, 1–11 months (relocation, diaspora visits, students)
+- **Permanent Rental** — 12+ months with tenancy agreements and clear advance payment terms
 
 Monthly and long-term stays are paid in instalments: the months paid up front and the deposit first, then month by month through a pay link, with reminders. Nothing is charged automatically.
 
@@ -47,7 +47,7 @@ Monthly and long-term stays are paid in instalments: the months paid up front an
 - Listing management (approve, reject, flag)
 - Booking oversight
 - Verification queue
-- Exchange rate updater (USD → GHS)
+- Exchange rate updater (USD to GHS)
 - Platform analytics
 
 ---
@@ -147,7 +147,17 @@ Nothing is sent until it is switched on. Leave these unset until a provider acco
 - `RESEND_API_KEY`: the Resend API key. Read from the environment only; never logged or stored. If it is missing while email is switched on, nothing is called and each email is retried, then given up with an alert.
 - `EMAIL_FROM`: the whole From line. Default `FieGH <support@fiegh.com>`. The address must be on a domain verified in Resend.
 - `SUPPORT_EMAIL`, `SMS_SENDER_ID`: the reply-to (also shown in messages) and the SMS sender name. Defaults are support@fiegh.com and FieGH.
-- `ADMIN_ALERT_EMAIL`: one shared inbox for admin emails. Unset means they are skipped.
+- `ADMIN_ALERT_EMAIL`: one shared inbox for everything admins are emailed about. Unset: each admin account that has an email address is sent it instead. With neither, the email is skipped; the in-app notices still appear.
+- `SUPPORT_PHONE`: the support phone number shown in the footer. Unset: no phone number is shown. A placeholder is never shown.
+
+The drill adapters (`fail-drill-email`, `fail-drill-sms`) are for rehearsing failures and are test-only. They cannot be selected in production (`NODE_ENV=production` or `VERCEL_ENV=production`): naming one there sends nothing and raises a Sentry alert.
+
+### Accounts: email confirmation and password reset
+
+- Signing up sends a link to confirm the email address. Changing an email sends the link to the new address and tells the old one; the old email stays in force until the link is followed. "Forgot your password?" on the login page emails a reset link.
+- Links are single-use and expire (24 hours; one hour for a password reset). Only a hash of each token is stored. Requests are limited per person and per IP address, and the answer is the same whether or not an address has an account.
+- `EMAIL_VERIFICATION_REQUIRED`: must be exactly `true` before an unconfirmed account is held back from booking, listing a home or paying. Browsing is never held back. Leave it unset until email is really being sent (`MESSAGING_ENABLED=true` and `EMAIL_PROVIDER=resend`), or nobody new could confirm.
+- `NEXTAUTH_SECRET` must be set (16 characters or more): link emails are stored encrypted with a key derived from it until they are sent.
 
 To send one test email by hand, before switching anything on:
 
@@ -218,6 +228,6 @@ It sends a real email through Resend to that address, so it refuses without `--c
 
 ## License
 
-MIT — Built with ❤️ in Ghana 🇬🇭
+MIT. Built with love in Ghana.
 
 *"Your home in Ghana"*

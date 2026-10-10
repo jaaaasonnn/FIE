@@ -1,6 +1,7 @@
 // What a guest is told about a refund, from the Refund row alone.
 
 import { formatUsd } from '@/lib/utils'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 export type RefundSummary = { amount: number; status: string; processedAt?: string | Date | null }
 
@@ -19,5 +20,5 @@ export function refundStatusText(refund: RefundSummary): string {
     return `A refund of ${amount} is owed to you and will be sent to the card or mobile money number you paid with.`
   }
   // FAILED or NEEDS_ATTENTION: a person is looking at it
-  return `A refund of ${amount} is owed to you. Our team is handling it. Contact support@fiegh.com if you have questions.`
+  return `A refund of ${amount} is owed to you. Our team is handling it. Contact ${SUPPORT_EMAIL} if you have questions.`
 }

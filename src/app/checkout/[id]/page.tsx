@@ -241,8 +241,6 @@ function CheckoutPageInner() {
           method:    payMethod,
           momoNetwork: payMethod === 'MOMO' ? momoNetwork : undefined,
           momoNumber:  payMethod === 'MOMO' ? momoNumber  : undefined,
-          email:    'guest@fiegh.com', // replace with auth session email
-          amount:   payAmount,
         }),
       })
       const data = await res.json()
@@ -332,7 +330,7 @@ function CheckoutPageInner() {
           <p className="mb-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             {bookingError || 'This booking could not be loaded.'}
           </p>
-          <Button onClick={() => router.back()}>← Go back and pick new dates</Button>
+          <Button onClick={() => router.back()}>Go back and pick new dates</Button>
         </div>
       </div>
     )
@@ -583,7 +581,7 @@ function CheckoutPageInner() {
                     <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>Host: {booking.host.name}</p>
                     <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
                       {formatStayDate(booking.checkIn, { day: 'numeric', month: 'short' })}
-                      {' → '}
+                      {' to '}
                       {formatStayDate(booking.checkOut, { day: 'numeric', month: 'short' })}
                     </p>
                   </div>

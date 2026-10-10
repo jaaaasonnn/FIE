@@ -13,6 +13,8 @@
 //    Everything else is about their booking or their money and is always sent.
 
 import { aboutGhs, firstName, ghanaDate, ghanaTime, ghs, sms, smsGhs, usd } from '@/lib/messaging/format'
+import { TOKEN_PLACEHOLDER } from '@/lib/sealed'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 /** What a template may use. Filled in from the database by lib/messaging/events.ts. */
 export type Facts = {
@@ -66,6 +68,9 @@ export type Facts = {
   depositLeftUsd?: number
   tenancyEndsOn?: Date
   endedBy?: 'HOST' | 'ADMIN'
+  // Account links
+  /** The address a link was sent to, masked: "k***@gmail.com" */
+  newEmailMasked?: string
   // People and listings
   userName?: string | null
   verificationStatus?: string
@@ -118,6 +123,12 @@ const rentPaid = (f: Facts) => (f.paidPesewas ? `${ghs(f.paidPesewas)} (${usd(f.
 const rentMonth = (f: Facts) => `the period starting ${ghanaDate(f.rentPeriodStart!)}`
 const rentLink = (f: Facts) => ({ label: 'Pay your rent', path: `/checkout/${f.bookingId}?instalment=${f.instalmentId}` })
 const RENT_HOW = 'Rent is charged in cedis at the rate on the day you pay. Nothing is taken automatically: you pay each month yourself, by card or mobile money.'
+/**
+ * A link that carries a single-use token. The stored message holds the
+ * placeholder; the real token is put in at the moment of sending (lib/sealed.ts).
+ */
+const secretLink = (label: string, page: string) => ({ label, path: `${page}?token=${TOKEN_PLACEHOLDER}` })
+const NOT_YOU = (f: Facts) => `If this was not you, write to ${f.supportEmail} straight away.`
 const REFUND_TIMING = 'Refunds go back to the card or mobile money number you paid with, and can take up to 10 working days to arrive.'
 
 const bookingLink = (f: Facts, label = 'View your booking') => ({ label, path: `/bookings/${f.bookingId}` })
@@ -1101,6 +1112,101 @@ export const TEMPLATES = {
       },
     }],
   },
+
+  'account.verify_email': {
+    label: 'Someone signs up: confirm the email address',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Confirm your email address for FieGH',
+        lines: [
+          hello(f.userName),
+          'Please confirm that this is your email address. Open the link below and press the button on the page.',
+          'The link works once, for 24 hours. If you did not create a FieGH account, you can ignore this email and nothing will happen.',
+        ],
+        link: secretLink('Confirm your email', '/auth/confirm-email'),
+      },
+    }],
+  },
+
+  'account.confirm_new_email': {
+    label: 'Changing email: the link sent to the new address',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Confirm your new email address for FieGH',
+        lines: [
+          hello(f.userName),
+          'You asked to use this address for your FieGH account. Open the link below and press the button on the page to make the change.',
+          'Until you do, your account keeps its current email. The link works once, for 24 hours. If you did not ask for this, you can ignore this email and nothing will change.',
+        ],
+        link: secretLink('Confirm your new email', '/auth/confirm-email'),
+      },
+    }],
+  },
+
+  'account.email_change_requested': {
+    label: 'Changing email: the current address is told',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'A change of email was asked for on your FieGH account',
+        lines: [
+          hello(f.userName),
+          `Someone signed in to your FieGH account asked to change its email to ${f.newEmailMasked}.`,
+          'Nothing has changed yet. The email changes only if the link we sent to that new address is followed.',
+          `If this was you, there is nothing to do here. ${NOT_YOU(f)}`,
+        ],
+      },
+    }],
+  },
+
+  'account.email_changed': {
+    label: 'Changing email: the old address is told it has changed',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'The email on your FieGH account has changed',
+        lines: [
+          hello(f.userName),
+          `The email on your FieGH account is now ${f.newEmailMasked}. Messages about your account and bookings will go there from now on, and this address can no longer be used to sign in.`,
+          `If this was you, there is nothing to do. ${NOT_YOU(f)}`,
+        ],
+      },
+    }],
+  },
+
+  'account.password_reset': {
+    label: 'Someone asks to reset a password',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Reset your FieGH password',
+        lines: [
+          hello(f.userName),
+          'We were asked to reset the password on your FieGH account. Open the link below to choose a new one.',
+          'The link works once, for one hour. If you did not ask for this, you can ignore this email: your password stays as it is.',
+        ],
+        link: secretLink('Choose a new password', '/auth/reset-password'),
+      },
+    }],
+  },
+
+  'account.password_changed': {
+    label: 'A password is reset',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Your FieGH password was changed',
+        lines: [
+          hello(f.userName),
+          'The password on your FieGH account was changed, and the account was signed out everywhere. Sign in again with the new password.',
+          `If this was you, there is nothing more to do. ${NOT_YOU(f)}`,
+        ],
+        link: { label: 'Sign in', path: '/login' },
+      },
+    }],
+  },
 } satisfies Record<string, Template>
 
 export type EventName = keyof typeof TEMPLATES
@@ -1126,7 +1232,7 @@ export function emailFooter(f: Pick<Facts, 'appUrl' | 'supportEmail'>, optional:
 
 export const SAMPLE_FACTS: Facts = {
   appUrl: 'https://fiegh.com',
-  supportEmail: 'support@fiegh.com',
+  supportEmail: SUPPORT_EMAIL,
   bookingId: 'cmexamplebooking0000000001',
   listingId: 'cmexamplelisting0000000001',
   title: 'Sea-view apartment in Labadi with a garden',
@@ -1170,4 +1276,5 @@ export const SAMPLE_FACTS: Facts = {
   depositLeftUsd: 0,
   tenancyEndsOn: new Date('2027-07-09T12:00:00Z'),
   endedBy: 'HOST',
+  newEmailMasked: 'a***@example.com',
 }

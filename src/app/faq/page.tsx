@@ -7,6 +7,7 @@ import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPoli
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
 import { ADVANCE_RULE_NOTE } from '@/lib/rentRules'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 // Built from the dispute rules in lib/disputes.ts
 const PROBLEM_ANSWER =
@@ -22,7 +23,7 @@ const HOST_PROBLEM_ANSWER =
 
 // Built from the same table the refund is worked out from
 const CANCEL_ANSWER =
-  'Yes. You can cancel from your bookings page up to the day before check-in, and you will see the exact refund before you confirm. How much comes back depends on the cancellation policy the host chose (Flexible, Moderate or Strict), which is shown on the listing page, at checkout and on your booking. From the check-in day onwards, contact support at support@fiegh.com.'
+  `Yes. You can cancel from your bookings page up to the day before check-in, and you will see the exact refund before you confirm. How much comes back depends on the cancellation policy the host chose (Flexible, Moderate or Strict), which is shown on the listing page, at checkout and on your booking. From the check-in day onwards, contact support at ${SUPPORT_EMAIL}.`
 const REFUND_ANSWER =
   'For short stays: '
   + POLICIES.map((p) => `${POLICY_LABELS[p]}: ${policyRuleLines('SHORT_STAY', p).join(' ')}`).join(' ')
@@ -261,7 +262,7 @@ export default function FAQPage() {
                 </p>
               </div>
               <a
-                href="mailto:hello@fiegh.com"
+                href={`mailto:${SUPPORT_EMAIL}`}
                 className="pressable focus-ring self-start sm:self-auto flex-shrink-0 inline-flex items-center justify-center h-12 px-7 rounded-full text-sm font-bold whitespace-nowrap hover:bg-[var(--color-accent-hover)]"
                 style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}
               >

@@ -6,7 +6,7 @@ import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
-import { HOSTS_ONLY_MESSAGE } from '@/lib/roles'
+import { HOSTS_ONLY_MESSAGE, requireVerifiedEmail } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
 import { buildSchedule } from '@/lib/rentRules'
@@ -24,6 +24,9 @@ export async function POST(req: Request) {
     if (!user) {
       return NextResponse.json({ error: 'You must be signed in to book' }, { status: 401 })
     }
+    // Booking needs a confirmed email address, once that rule is switched on
+    const unverified = requireVerifiedEmail(user)
+    if (unverified) return unverified
 
     const body = await req.json()
     const {

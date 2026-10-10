@@ -12,6 +12,8 @@
 -- Generated for the FieGH Supabase project. Paste into SQL Editor and
 -- run once.
 
+ALTER TABLE public."AuthRequest"        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."AuthToken"          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."BlockedDate"        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Booking"            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Dispute"            ENABLE ROW LEVEL SECURITY;

@@ -1,3 +1,5 @@
+import { SUPPORT_EMAIL } from '@/lib/contact'
+
 export default function PrivacyPage() {
   return (
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -41,7 +43,7 @@ export default function PrivacyPage() {
             },
             {
               title: '8. Your Rights',
-              body: 'You have the right to: access your personal data; correct inaccurate information; delete your account; export your data; withdraw consent for optional processing. Contact privacy@fiegh.com to exercise these rights.'
+              body: `You have the right to: access your personal data; correct inaccurate information; delete your account; export your data; withdraw consent for optional processing. Contact ${SUPPORT_EMAIL} to exercise these rights.`
             },
             {
               title: '9. Cookies',
@@ -49,7 +51,7 @@ export default function PrivacyPage() {
             },
             {
               title: '10. Contact',
-              body: 'For privacy inquiries, contact privacy@fiegh.com. For general support, contact hello@fiegh.com.'
+              body: `For privacy questions, or any other help, contact ${SUPPORT_EMAIL}.`
             },
           ].map(({ title, body }) => (
             <div key={title}>

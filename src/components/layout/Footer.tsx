@@ -1,8 +1,11 @@
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Wordmark'
 import { Mail, Phone, MapPin, ShieldAlert, Lock } from 'lucide-react'
+import { SUPPORT_EMAIL, supportPhone } from '@/lib/contact'
 
 export function Footer() {
+  // SUPPORT_PHONE, when it is set. With none set, no phone row is shown at all.
+  const phone = supportPhone()
   // The logo gold is tuned for light pages; on this dark surface it goes
   // dull, so the footer uses the brighter accent for it.
   return (
@@ -96,12 +99,14 @@ export function Footer() {
               </div>
               <div className="flex items-center gap-2">
                 <Mail size={14} style={{ color: 'var(--color-accent)' }} />
-                <span>hello@fiegh.com</span>
+                <a href={`mailto:${SUPPORT_EMAIL}`} className="hover:underline">{SUPPORT_EMAIL}</a>
               </div>
-              <div className="flex items-center gap-2">
-                <Phone size={14} style={{ color: 'var(--color-accent)' }} />
-                <span>+233 XX XXX XXXX</span>
-              </div>
+              {phone && (
+                <div className="flex items-center gap-2">
+                  <Phone size={14} style={{ color: 'var(--color-accent)' }} />
+                  <span>{phone}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>

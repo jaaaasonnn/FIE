@@ -7,6 +7,8 @@
 
 import { NextResponse } from 'next/server'
 import { getSessionUser, type SessionUser } from '@/lib/session'
+import { emailVerificationRequired } from '@/lib/payoutSwitches'
+import { EMAIL_NEEDED, EMAIL_NOT_VERIFIED } from '@/lib/authTokens'
 
 type Gate =
   | { user: SessionUser; error: null }
@@ -44,6 +46,22 @@ export async function requireAdmin(): Promise<Gate> {
   if (!user) return refuse(SIGN_IN_MESSAGE, 401)
   if (user.role !== 'ADMIN') return refuse(ADMINS_ONLY_MESSAGE, 403)
   return { user, error: null }
+}
+
+/** True when this person is held back until they confirm their email address. */
+export function mustVerifyEmail(user: Pick<SessionUser, 'emailVerifiedAt'>): boolean {
+  return emailVerificationRequired() && !user.emailVerifiedAt
+}
+
+/**
+ * Gate for booking, listing a home and paying: a refusal (403) for someone
+ * whose email address is not confirmed, or null when they may go on. Does
+ * nothing until EMAIL_VERIFICATION_REQUIRED is switched on. Browsing is never
+ * gated. Return the response straight away when it is set.
+ */
+export function requireVerifiedEmail(user: Pick<SessionUser, 'email' | 'emailVerifiedAt'>): NextResponse | null {
+  if (!mustVerifyEmail(user)) return null
+  return NextResponse.json({ error: user.email ? EMAIL_NOT_VERIFIED : EMAIL_NEEDED, code: 'EMAIL_NOT_VERIFIED' }, { status: 403 })
 }
 
 /**

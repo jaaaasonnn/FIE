@@ -9,6 +9,7 @@ import { formatUsd } from '@/lib/utils'
 import {
   EVIDENCE_TYPES, MAX_DESCRIPTION, MAX_EVIDENCE_BYTES, MAX_EVIDENCE_PER_SIDE, MIN_DESCRIPTION,
 } from '@/lib/disputes'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 type Evidence = { id: string; by: string; url: string | null }
 type DisputeEvent = { type: string; note: string | null; createdAt: string; by: string }
@@ -280,7 +281,7 @@ function DisputeCard({ dispute, role, aim, onChanged }: { dispute: Dispute; role
             Decision: {dispute.outcomeLabel}{dispute.refundAmount ? ` (${formatUsd(dispute.refundAmount)})` : ''}
           </p>
           {dispute.resolution && <p className="text-sm mt-1 leading-relaxed whitespace-pre-wrap break-words" style={ink}>{dispute.resolution}</p>}
-          <p className="text-xs mt-2" style={muted}>Decisions are final. If something looks wrong, contact support at support@fiegh.com.</p>
+          <p className="text-xs mt-2" style={muted}>Decisions are final. If something looks wrong, contact support at {SUPPORT_EMAIL}.</p>
         </div>
       )}
 
