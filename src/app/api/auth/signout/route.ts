@@ -1,22 +1,25 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { db } from '@/lib/db'
+import { SESSION_COOKIE, endAllSessions, endSession, getUserFromToken, sessionToken } from '@/lib/session'
 
 /**
  * POST /api/auth/signout
- * Deletes the session row from the DB and clears the cookie.
+ * Ends this session and clears the cookie. With { everywhere: true } it ends
+ * every session the person has, on every device.
  */
-export async function POST() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('fiegh_session')?.value
+export async function POST(req: Request) {
+  const token = await sessionToken()
+  const body = await req.json().catch(() => ({}))
 
+  let ended = 0
   if (token) {
-    await db.session.deleteMany({ where: { token } }).catch(() => {})
+    const user = body?.everywhere === true ? await getUserFromToken(token) : null
+    if (user) ended = await endAllSessions(user.id)
+    else await endSession(token)
   }
 
-  const response = NextResponse.json({ message: 'Signed out' })
+  const response = NextResponse.json({ message: 'Signed out', ...(body?.everywhere === true ? { everywhere: true, ended } : {}) })
 
-  response.cookies.set('fiegh_session', '', {
+  response.cookies.set(SESSION_COOKIE, '', {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
     sameSite: 'lax',

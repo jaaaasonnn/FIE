@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { wantsDryRun } from '@/lib/cronRuns'
 import { runListingCheckReminders } from '@/lib/listingCheckReminders'
+import { cronAuthorised } from '@/lib/cronAuth'
 
 /**
  * GET/POST /api/cron/listing-check-reminders
@@ -14,12 +15,6 @@ import { runListingCheckReminders } from '@/lib/listingCheckReminders'
  *
  * Runs once a day. Secured by CRON_SECRET like the other cron routes.
  */
-function checkAuth(req: Request): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  return req.headers.get('authorization') === `Bearer ${secret}`
-}
-
 // Schedule here must be kept in sync with vercel.json's entry for this route.
 function runMonitored(req: Request) {
   const dryRun = wantsDryRun(req)
@@ -32,11 +27,11 @@ function runMonitored(req: Request) {
 }
 
 export async function GET(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json(await runMonitored(req))
 }
 
 export async function POST(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json(await runMonitored(req))
 }

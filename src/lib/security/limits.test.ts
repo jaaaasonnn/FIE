@@ -8,7 +8,7 @@ import type { State } from './harness'
 
 const state = vi.hoisted(() => ({ tables: {}, user: null } as State))
 vi.mock('@/lib/db', async () => ({ db: (await import('@/lib/testing/fakeDb')).fakeDb(state.tables) }))
-vi.mock('@/lib/session', () => ({ getSessionUser: async () => (state.user ? { ...state.user } : null) }))
+vi.mock('@/lib/session', async (original) => ({ ...(await original<typeof import('@/lib/session')>()), getSessionUser: async () => (state.user ? { ...state.user } : null) }))
 vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 
 import { NOW, as, home, json, person, reset, stay } from './harness'

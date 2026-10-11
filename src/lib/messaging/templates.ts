@@ -1292,6 +1292,22 @@ export const TEMPLATES = {
       },
     }],
   },
+
+  'account.password_updated': {
+    label: 'A password is changed from the profile page',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Your FieGH password was changed',
+        lines: [
+          hello(f.userName),
+          'The password on your FieGH account was changed from your profile page. Every other device was signed out.',
+          `If this was you, there is nothing more to do. ${NOT_YOU(f)}`,
+        ],
+        link: { label: 'Open your profile', path: '/profile/edit' },
+      },
+    }],
+  },
 } satisfies Record<string, Template>
 
 export type EventName = keyof typeof TEMPLATES

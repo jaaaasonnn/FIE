@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { updateExchangeRateFromApi } from '@/lib/exchangeRate'
+import { cronAuthorised } from '@/lib/cronAuth'
 
 /**
  * GET/POST /api/cron/update-exchange-rate
@@ -27,12 +28,6 @@ import { updateExchangeRateFromApi } from '@/lib/exchangeRate'
  * failure alerting has something to alert on — the fallback behavior
  * itself doesn't depend on that; see updateExchangeRateFromApi().
  */
-function checkAuth(req: Request): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  return req.headers.get('authorization') === `Bearer ${secret}`
-}
-
 // Wrapped in Sentry.withMonitor() rather than relying on automatic Vercel
 // cron detection — that feature only instruments the Pages Router, not
 // App Router route handlers like this one. Schedule here must be kept in
@@ -47,7 +42,7 @@ function runMonitored() {
 }
 
 async function handle(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const result = await runMonitored()
   if (!result.ok) {

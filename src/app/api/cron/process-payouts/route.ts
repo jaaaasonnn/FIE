@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import * as Sentry from '@sentry/nextjs'
 import { runPayouts, wantsDryRun } from '@/lib/cronRuns'
+import { cronAuthorised } from '@/lib/cronAuth'
 
 /**
  * GET/POST /api/cron/process-payouts
@@ -30,12 +31,6 @@ import { runPayouts, wantsDryRun } from '@/lib/cronRuns'
  * native cron feature sends automatically when CRON_SECRET is set as an
  * env var (see https://vercel.com/docs/cron-jobs/manage-cron-jobs#securing-cron-jobs).
  */
-function checkAuth(req: Request): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return false
-  return req.headers.get('authorization') === `Bearer ${secret}`
-}
-
 // Wrapped in Sentry.withMonitor() rather than relying on automatic Vercel
 // cron detection — that feature only instruments the Pages Router, not
 // App Router route handlers like this one. Schedule here must be kept in
@@ -51,11 +46,11 @@ function runMonitored(req: Request) {
 }
 
 export async function GET(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json(await runMonitored(req))
 }
 
 export async function POST(req: Request) {
-  if (!checkAuth(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   return NextResponse.json(await runMonitored(req))
 }

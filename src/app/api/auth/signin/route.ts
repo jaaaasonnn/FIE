@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { normalizePhone, validateGhanaPhone } from '@/lib/utils'
 import { mustVerifyEmail } from '@/lib/roles'
+import { createSession } from '@/lib/session'
 import { ipHashOf } from '@/lib/authTokens'
 import { LIMITS, SIGN_IN_FAILED, TOO_MANY_SIGN_INS, countRecent, record, signInKey, tooMany } from '@/lib/rateLimit'
 
@@ -57,13 +58,8 @@ export async function POST(req: Request) {
     // Signed in: earlier wrong guesses for this account no longer count
     await db.authRequest.deleteMany({ where: { kind: SIGN_IN_FAILED, userId: key } })
 
-    // Create session token
-    const token = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('hex')
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
-
-    await db.session.create({
-      data: { userId: user.id, token, expiresAt }
-    })
+    // A new session. Only the hash of its token is stored (lib/session.ts).
+    const { token, expiresAt } = await createSession(user.id)
 
     const { passwordHash: _, ...userWithoutPassword } = user
 

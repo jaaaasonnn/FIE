@@ -71,6 +71,8 @@ export type EventIds = {
   'account.email_change_requested': { tokenId: string; oldEmail: string }
   'account.email_changed': { tokenId: string; oldEmail: string }
   'account.password_changed': { tokenId: string }
+  /** Changed while signed in, from the profile page. `at` is when, so each change is its own occurrence. */
+  'account.password_updated': { userId: string; at: number }
 }
 
 export type Loaded = {
@@ -493,5 +495,9 @@ export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded |
     if (!loaded) return null
     const { email: _sentTo, ...rest } = loaded
     return rest
+  },
+  'account.password_updated': async ({ userId, at }) => {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { id: true, name: true } })
+    return u && { key: `${u.id}:${at}`, recipients: { user: u.id }, facts: { userName: u.name } }
   },
 }

@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { validateGhanaPhone } from '@/lib/utils'
 import { EmailSettings } from '@/components/account/EmailSettings'
+import { PasswordSettings } from '@/components/account/PasswordSettings'
 import { compressImage, MAX_RAW_PHOTO_BYTES, IMAGE_MIME_TYPES } from '@/lib/image'
 
 type EditableUser = {
@@ -240,6 +241,9 @@ export default function EditProfilePage() {
 
           {/* Its own small form: adding or changing an email is confirmed by a link, not saved with the rest */}
           <EmailSettings profile={profile} />
+
+          {/* Also its own form: the current password is asked for, and other devices are signed out */}
+          <PasswordSettings />
 
           <Input
             label="Ghana Phone Number"
