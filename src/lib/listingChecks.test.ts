@@ -27,8 +27,6 @@ vi.mock('@/lib/supabase', () => ({
 }))
 
 vi.mock('@/lib/db', async () => {
-  const { Prisma } = await import('@prisma/client')
-  const known = (code: string) => new Prisma.PrismaClientKnownRequestError(code, { code, clientVersion: 'test' })
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0))
   const matches = (row: Row, where: Row = {}): boolean =>
     Object.entries(where).every(([key, cond]) => {
