@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { getSessionUser } from '@/lib/session'
+import { profileVisible } from '@/lib/privacy'
 
 /**
  * GET /api/users/[id]
@@ -60,6 +62,18 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+    }
+
+    // Hosts are public. A guest's profile is for themselves, admins and
+    // anyone they share a booking with; an admin's is for admins only. The
+    // answer for a profile that may not be seen is the same as for none.
+    if (user.role !== 'HOST') {
+      const viewer = await getSessionUser()
+      const shareBooking = !!viewer && viewer.id !== id && user.role === 'GUEST'
+        && !!(await db.booking.findFirst({ where: { guestId: id, hostId: viewer.id }, select: { id: true } }))
+      if (!profileVisible({ id, role: user.role }, viewer, shareBooking)) {
+        return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
+      }
     }
 
     const ratings = user.reviewsReceived.map((r) => r.rating)

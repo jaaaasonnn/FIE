@@ -6,6 +6,7 @@ import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { depositIsSound } from '@/lib/listingInput'
 import { parseText } from '@/lib/validate'
+import { bookingFor } from '@/lib/privacy'
 
 const MAX_SPECIAL_REQUESTS = 1000
 import { LIMITS, TOO_MANY_BOOKINGS, TOO_MANY_OPEN_BOOKINGS, tooMany } from '@/lib/rateLimit'
@@ -264,7 +265,9 @@ export async function GET(req: Request) {
         ? (await db.listing.findUnique({ where: { id: booking.listingId }, select: { digitalAddress: true } }))?.digitalAddress ?? null
         : null
 
-      return NextResponse.json({ booking: { ...booking, listing: { ...booking.listing, digitalAddress: address } } })
+      // The other person's phone and email stay out until the booking is
+      // confirmed and paid (lib/privacy.ts)
+      return NextResponse.json({ booking: bookingFor({ ...booking, listing: { ...booking.listing, digitalAddress: address } }, user) })
     }
 
     // guestId/hostId are the security boundary here — this list is the
@@ -310,7 +313,7 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ bookings })
+    return NextResponse.json({ bookings: bookings.map((b) => bookingFor(b, user)) })
   } catch (error) {
     console.error('Bookings GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch bookings' }, { status: 500 })

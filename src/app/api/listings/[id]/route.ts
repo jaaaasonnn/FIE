@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { parseListingDetails, parseListingMoney } from '@/lib/listingInput'
+import { listingVisible } from '@/lib/privacy'
 import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
@@ -69,6 +70,16 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     // the listing, and an admin, also get the digital address, to edit it.
     const viewer = await getSessionUser()
     const ownerView = !!viewer && (viewer.id === listing.hostId || viewer.role === 'ADMIN')
+
+    // A listing that is switched off or on hold is not public: only its host,
+    // an admin, or a guest who has booked it can open it by its link
+    if (!listing.isActive || listing.moderationHold) {
+      const hasBooking = !!viewer && !ownerView
+        && !!(await db.booking.findFirst({ where: { listingId: id, guestId: viewer.id }, select: { id: true } }))
+      if (!listingVisible(listing, viewer, hasBooking)) {
+        return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
+      }
+    }
 
     return NextResponse.json({
       listing: {
