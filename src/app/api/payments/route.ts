@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import crypto from 'crypto'
 import { getSessionUser } from '@/lib/session'
 import { requireVerifiedEmail } from '@/lib/roles'
 import {
@@ -204,7 +205,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Amount too small to charge via Paystack.' }, { status: 400 })
     }
 
-    const reference = `FIE-${bookingId}-${Date.now()}`
+    // The reference cannot be guessed from the booking: it ends in 16 random characters
+    const reference = `FIE-${bookingId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
     // Persist payment attempt + reference BEFORE calling Paystack so the webhook/verify
@@ -270,10 +272,7 @@ export async function POST(req: Request) {
     try {
       paystackJson = JSON.parse(paystackRaw)
     } catch {
-      console.error('[Paystack] Initialize Transaction non-JSON response:', {
-        httpStatus: paystackRes.status,
-        rawBody:    paystackRaw,
-      })
+      console.error('[Paystack] Initialize Transaction non-JSON response:', { httpStatus: paystackRes.status, length: paystackRaw.length })
       await db.$transaction([
         db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
         db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
@@ -286,8 +285,9 @@ export async function POST(req: Request) {
 
     if (!paystackRes.ok || !paystackJson.status || !paystackJson.data?.authorization_url) {
       // Server-only: full Paystack error object — never forwarded to the browser as-is
-      console.error('[Paystack] Initialize Transaction failed — raw response body:', paystackRaw)
-      console.error('[Paystack] Initialize Transaction failed — parsed object:', paystackJson)
+      // Server-only, and only the status and Paystack's one-line message: the
+      // full response can repeat the guest's email
+      console.error('[Paystack] Initialize Transaction failed:', { httpStatus: paystackRes.status, message: paystackJson.message })
 
       // Roll back the pending payment so the guest can retry cleanly
       await db.$transaction([
@@ -295,7 +295,8 @@ export async function POST(req: Request) {
         db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
       ])
       return NextResponse.json(
-        { error: paystackJson.message || 'Failed to initialize Paystack payment.' },
+        // Paystack's own wording stays in the server log; the guest gets ours
+        { error: 'The payment could not be started. Please try again in a moment.' },
         { status: 502 },
       )
     }

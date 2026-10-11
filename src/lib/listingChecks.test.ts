@@ -491,7 +491,7 @@ describe('editing a checked listing', () => {
 
   it('removes it when a photo is added', async () => {
     const form = new FormData()
-    form.append('photos', new File([new Uint8Array([1, 2, 3])], 'c.jpg', { type: 'image/jpeg' }))
+    form.append('photos', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])], 'c.jpg', { type: 'image/jpeg' }))
     const res = await addPhotos(new Request('http://x/api/listings/home/photos', { method: 'POST', body: form }), params())
     expect(res.status).toBe(200)
     expect(state.checks[0]).toMatchObject({ revokeReason: 'PHOTOS_CHANGED', revokedById: null })

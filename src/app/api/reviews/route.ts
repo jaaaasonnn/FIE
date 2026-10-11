@@ -3,8 +3,11 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { notify } from '@/lib/messaging/notify'
 import { parseText } from '@/lib/validate'
+import { Prisma } from '@prisma/client'
 
 const MAX_REVIEW_LENGTH = 2000
+/** The most reviews one request returns, newest first */
+const MAX_REVIEWS = 100
 const MAX_REPLY_LENGTH = 1000
 
 export async function GET(req: Request) {
@@ -35,6 +38,10 @@ export async function GET(req: Request) {
     const revieweeId = searchParams.get('revieweeId')
     const reviewerId = searchParams.get('reviewerId')
 
+    // Reviews of something: a listing, or a person. Never the whole table.
+    if (!listingId && !revieweeId && !reviewerId) {
+      return NextResponse.json({ error: 'listingId, revieweeId or reviewerId is required' }, { status: 400 })
+    }
     const where: Record<string, unknown> = { isPublished: true }
     if (listingId) where.listingId = listingId
     if (revieweeId) where.revieweeId = revieweeId
@@ -46,7 +53,8 @@ export async function GET(req: Request) {
         reviewer: { select: { id: true, name: true, profilePhoto: true } },
         reviewee: { select: { id: true, name: true, profilePhoto: true } }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      take: MAX_REVIEWS,
     })
 
     const avgRating = reviews.length
@@ -116,13 +124,22 @@ export async function POST(req: Request) {
     })
     if (existing) return NextResponse.json({ error: 'You have already reviewed this booking' }, { status: 409 })
 
-    const review = await db.review.create({
-      data: {
-        bookingId, listingId,
-        reviewerId, revieweeId, rating, comment, type,
-        isPublished: false, // will be published after both parties review or after 14 days
+    let review
+    try {
+      review = await db.review.create({
+        data: {
+          bookingId, listingId,
+          reviewerId, revieweeId, rating, comment, type,
+          isPublished: false, // will be published after both parties review or after 14 days
+        }
+      })
+    } catch (error) {
+      // Two requests at the same moment: the table allows one review per side per booking
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        return NextResponse.json({ error: 'You have already reviewed this booking' }, { status: 409 })
       }
-    })
+      throw error
+    }
 
     // Check if both reviews are in — if so, publish both
     const otherType = type === 'GUEST_TO_HOST' ? 'HOST_TO_GUEST' : 'GUEST_TO_HOST'

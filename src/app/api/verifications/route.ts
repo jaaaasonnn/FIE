@@ -6,6 +6,7 @@ import { notify } from '@/lib/messaging/notify'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 import { hostIdApproved } from '@/lib/hostId'
 import { manyLines } from '@/lib/validate'
+import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -15,12 +16,11 @@ const VALID_ID_TYPES = ['GHANA_CARD', 'PASSPORT', 'VOTER_ID']
 // pattern as the avatars bucket — a resubmission replaces the old file
 // rather than accumulating orphans, and matches Verification.userId being
 // @unique on the model.
-async function uploadDoc(userId: string, field: 'id-photo' | 'selfie', file: File) {
-  const buffer = Buffer.from(await file.arrayBuffer())
+async function uploadDoc(userId: string, field: 'id-photo' | 'selfie', image: { buffer: Buffer; type: string }) {
   const path = `${userId}/${field}.jpg`
   const { error } = await supabaseAdmin.storage
     .from(VERIFICATION_DOCS_BUCKET)
-    .upload(path, buffer, { contentType: file.type, upsert: true })
+    .upload(path, image.buffer, { contentType: image.type, upsert: true })
   if (error) throw error
   return path
 }
@@ -75,12 +75,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Your ID has already been checked' }, { status: 409 })
     }
 
+    // What the files really are, from their first bytes, not what the upload says
+    const idImage = await readImage(idPhoto)
+    const selfieImage = selfie instanceof File ? await readImage(selfie) : null
+    if (!idImage || (selfie instanceof File && !selfieImage)) {
+      return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })
+    }
+
     let idPhotoUrl: string
     let selfieUrl: string | null = null
     try {
-      idPhotoUrl = await uploadDoc(sessionUser.id, 'id-photo', idPhoto)
-      if (selfie instanceof File) {
-        selfieUrl = await uploadDoc(sessionUser.id, 'selfie', selfie)
+      idPhotoUrl = await uploadDoc(sessionUser.id, 'id-photo', idImage)
+      if (selfieImage) {
+        selfieUrl = await uploadDoc(sessionUser.id, 'selfie', selfieImage)
       }
     } catch (uploadError) {
       console.error('Verification document upload error:', uploadError)

@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { supabaseAdmin, DISPUTE_EVIDENCE_BUCKET } from '@/lib/supabase'
+import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
 import { EVIDENCE_TYPES, MAX_EVIDENCE_BYTES, MAX_EVIDENCE_PER_SIDE, OPEN_DISPUTE_STATUSES } from '@/lib/disputes'
 
 const EXTENSIONS: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
@@ -52,19 +53,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    const added: string[] = []
+    // What each file really is, from its first bytes, not what the upload
+    // says. All are checked before any is stored.
+    const images = []
     for (const file of files) {
-      const path = `${id}/${user.id}/${crypto.randomUUID()}.${EXTENSIONS[file.type]}`
-      const buffer = Buffer.from(await file.arrayBuffer())
+      const image = await readImage(file)
+      if (!image) return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })
+      images.push({ file, ...image })
+    }
+
+    const added: string[] = []
+    for (const { file, buffer, type } of images) {
+      const path = `${id}/${user.id}/${crypto.randomUUID()}.${EXTENSIONS[type]}`
       const { error } = await supabaseAdmin.storage
         .from(DISPUTE_EVIDENCE_BUCKET)
-        .upload(path, buffer, { contentType: file.type, upsert: false })
+        .upload(path, buffer, { contentType: type, upsert: false })
       if (error) {
         console.error('[Dispute evidence] upload failed:', error)
         return NextResponse.json({ error: 'A photo could not be uploaded. Please try again.', added: added.length }, { status: 502 })
       }
       await db.disputeEvidence.create({
-        data: { disputeId: id, uploadedById: user.id, path, contentType: file.type, sizeBytes: file.size },
+        data: { disputeId: id, uploadedById: user.id, path, contentType: type, sizeBytes: file.size },
       })
       added.push(path)
     }

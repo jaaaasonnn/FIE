@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
 import { supabaseAdmin, LISTING_PHOTOS_BUCKET } from '@/lib/supabase'
 import { clearChecks, tellCleared } from '@/lib/listingChecks'
+import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
 
 /**
  * Saves the new photo list and, in the same transaction, removes "Address and
@@ -83,14 +84,22 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    const newUrls: string[] = []
+    // What each file really is, from its first bytes, not what the upload
+    // says. All are checked before any is stored.
+    const images = []
     for (const file of files) {
-      const buffer = Buffer.from(await file.arrayBuffer())
+      const image = await readImage(file)
+      if (!image) return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })
+      images.push(image)
+    }
+
+    const newUrls: string[] = []
+    for (const { buffer, type } of images) {
       const path = `${id}/${crypto.randomUUID()}.jpg`
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from(LISTING_PHOTOS_BUCKET)
-        .upload(path, buffer, { contentType: file.type, upsert: false })
+        .upload(path, buffer, { contentType: type, upsert: false })
 
       if (uploadError) {
         console.error('Listing photo upload error:', uploadError)

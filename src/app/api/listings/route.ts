@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { parseListingDetails, parseListingMoney } from '@/lib/listingInput'
+import { MAX_PAGE_SIZE, clampWhole } from '@/lib/validate'
 import { getSessionUser } from '@/lib/session'
 import { requireHost, requireVerifiedEmail } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
@@ -30,8 +31,9 @@ export async function GET(req: Request) {
     const featured = searchParams.get('featured') === 'true'
     const hostId = searchParams.get('hostId')
     const checkIn = searchParams.get('checkIn')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    // A page of at most 50: nobody can ask for the whole table in one request
+    const page = clampWhole(searchParams.get('page'), 1, 1, 10_000)
+    const limit = clampWhole(searchParams.get('limit'), 20, 1, MAX_PAGE_SIZE)
 
     const where: Record<string, unknown> = { isActive: true }
 

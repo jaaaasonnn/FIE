@@ -91,3 +91,12 @@ export function parseTextList(
 export const ACCOUNT_LIMITS = { name: 80, bio: 500, nationality: 60, businessName: 120 } as const
 /** No real password is longer; anything more is refused before it is hashed. */
 export const MAX_PASSWORD_LENGTH = 200
+
+/** The most rows one request for a list may ask for. */
+export const MAX_PAGE_SIZE = 50
+
+/** A whole number from a query string, kept inside its limits; anything else is the fallback. */
+export function clampWhole(raw: string | null, fallback: number, min: number, max: number): number {
+  const value = raw !== null && /^\d{1,9}$/.test(raw) ? Number(raw) : fallback
+  return Math.min(max, Math.max(min, value))
+}

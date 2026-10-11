@@ -102,7 +102,7 @@ const json = (url: string, method: string, body?: unknown) =>
   new Request(`http://x${url}`, { method, ...(body ? { body: JSON.stringify(body), headers: { 'content-type': 'application/json' } } : {}) })
 const form = (url: string) => {
   const fd = new FormData()
-  fd.append('photos', new File([new Uint8Array([1, 2, 3])], 'a.png', { type: 'image/png' }))
+  fd.append('photos', new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3])], 'a.png', { type: 'image/png' }))
   return new Request(`http://x${url}`, { method: 'POST', body: fd })
 }
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)

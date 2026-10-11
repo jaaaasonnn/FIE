@@ -307,7 +307,7 @@ describe('approving and rejecting an ID', () => {
     const send = () => {
       const form = new FormData()
       form.set('idType', 'PASSPORT')
-      form.set('idPhoto', new File([new Uint8Array([1, 2, 3])], 'id.jpg', { type: 'image/jpeg' }))
+      form.set('idPhoto', new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3])], 'id.jpg', { type: 'image/jpeg' }))
       return submit(new Request('http://x/api/verifications', { method: 'POST', body: form }))
     }
 

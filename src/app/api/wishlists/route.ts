@@ -47,10 +47,8 @@ export async function POST(req: Request) {
     // Always the session user — never a client-supplied userId, which
     // would let a caller add/remove entries on anyone else's wishlist.
     const userId = user.id
-    console.log('[Wishlist POST] called', { userId, listingId })
 
     if (!listingId) {
-      console.log('[Wishlist POST] rejected — missing listingId')
       return NextResponse.json({ error: 'listingId required' }, { status: 400 })
     }
 
@@ -61,12 +59,10 @@ export async function POST(req: Request) {
 
     if (existing) {
       await db.wishlist.delete({ where: { userId_listingId: { userId, listingId } } })
-      console.log('[Wishlist POST] removed', { userId, listingId, wishlisted: false })
       return NextResponse.json({ wishlisted: false })
     }
 
     await db.wishlist.create({ data: { userId, listingId } })
-    console.log('[Wishlist POST] created', { userId, listingId, wishlisted: true })
     return NextResponse.json({ wishlisted: true }, { status: 201 })
   } catch (error) {
     console.error('[Wishlist POST] error:', error)

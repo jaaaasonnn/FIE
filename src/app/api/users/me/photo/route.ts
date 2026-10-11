@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { supabaseAdmin, AVATARS_BUCKET } from '@/lib/supabase'
+import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -40,12 +41,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Photo is too large (max 5MB)' }, { status: 400 })
     }
 
-    const buffer = Buffer.from(await file.arrayBuffer())
+    // What the file really is, from its first bytes, not what the upload says
+    const image = await readImage(file)
+    if (!image) return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })
+    const buffer = image.buffer
     const path = sessionUser.id
 
     const { error: uploadError } = await supabaseAdmin.storage
       .from(AVATARS_BUCKET)
-      .upload(path, buffer, { contentType: file.type, upsert: true })
+      .upload(path, buffer, { contentType: image.type, upsert: true })
 
     if (uploadError) {
       console.error('Supabase Storage upload error:', uploadError)

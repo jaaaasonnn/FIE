@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
-import { getAutoFetchStatus } from '@/lib/exchangeRate'
+import { getAutoFetchStatus, manualRateRefusal } from '@/lib/exchangeRate'
 import { notify } from '@/lib/messaging/notify'
 import { hostCommission } from '@/lib/disputes'
 import { rentReceived } from '@/lib/rentRules'
@@ -81,17 +81,21 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const { error } = await requireAdmin()
+  const { user, error } = await requireAdmin()
   if (error) return error
 
   try {
     const { type, ...data } = await req.json()
 
     if (type === 'update-exchange-rate') {
-      const { usdToGhs, updatedBy } = data
-      if (!usdToGhs || usdToGhs <= 0) return NextResponse.json({ error: 'Invalid exchange rate' }, { status: 400 })
+      // Every charge, refund and payout is worked out from this number, so a
+      // slip of the finger (1.55 for 15.5) must not be saved (lib/exchangeRate.ts)
+      const current = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' }, select: { usdToGhs: true } })
+      const refusal = manualRateRefusal(data.usdToGhs, current?.usdToGhs ?? null)
+      if (refusal) return NextResponse.json({ error: refusal }, { status: 400 })
 
-      const rate = await db.exchangeRate.create({ data: { usdToGhs, updatedBy } })
+      // Recorded as the admin who is signed in, never a name from the request
+      const rate = await db.exchangeRate.create({ data: { usdToGhs: data.usdToGhs, updatedBy: user.id } })
       return NextResponse.json({ rate })
     }
 

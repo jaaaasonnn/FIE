@@ -101,9 +101,10 @@ export async function POST(req: Request) {
     )
     const resolveJson = await resolveRes.json().catch(() => null)
     if (!resolveRes.ok || !resolveJson?.status || !resolveJson.data?.account_name) {
-      console.error('[Payout method] Paystack resolve failed:', resolveJson)
+      console.error('[Payout method] Paystack resolve failed:', { httpStatus: resolveRes.status, message: resolveJson?.message })
       return NextResponse.json(
-        { error: resolveJson?.message || 'Could not verify this account. Double-check the details and try again.' },
+        // Paystack's own wording stays in the server log
+        { error: 'Could not verify this account. Double-check the details and try again.' },
         { status: 422 },
       )
     }
@@ -124,9 +125,9 @@ export async function POST(req: Request) {
     })
     const recipientJson = await recipientRes.json().catch(() => null)
     if (!recipientRes.ok || !recipientJson?.status || !recipientJson.data?.recipient_code) {
-      console.error('[Payout method] Paystack recipient creation failed:', recipientJson)
+      console.error('[Payout method] Paystack recipient creation failed:', { httpStatus: recipientRes.status, message: recipientJson?.message })
       return NextResponse.json(
-        { error: recipientJson?.message || 'Failed to register payout destination with Paystack.' },
+        { error: 'Your payout method could not be saved just now. Please try again in a moment.' },
         { status: 502 },
       )
     }

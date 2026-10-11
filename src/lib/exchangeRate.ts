@@ -102,3 +102,27 @@ export async function updateExchangeRateFromApi(): Promise<UpdateExchangeRateRes
 
   return { ok: true, rawRate: result.rate, storedRate }
 }
+
+// ── A rate typed in by an admin ────────────────────────────────────────────
+
+/** No real rate has been outside this range; anything beyond it is a slip. */
+export const RATE_FLOOR = 1
+export const RATE_CEILING = 100
+/** The furthest one manual change may move the rate from the one in force. */
+export const MAX_MANUAL_RATE_STEP = 0.2
+
+/**
+ * Why a rate typed in by an admin is refused, or null if it may be saved. It
+ * must be a real number inside the range any rate has ever been, and within
+ * 20% of the rate in force, so 1.55 can never be saved for 15.5. A bigger
+ * real move is made in two steps.
+ */
+export function manualRateRefusal(value: unknown, current: number | null): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < RATE_FLOOR || value > RATE_CEILING) {
+    return `Enter the rate as a number between ${RATE_FLOOR} and ${RATE_CEILING} cedis to the dollar.`
+  }
+  if (current && Math.abs(value - current) / current > MAX_MANUAL_RATE_STEP) {
+    return `That is more than ${MAX_MANUAL_RATE_STEP * 100}% away from the rate in force (${current}). Check it. If the rate really has moved that far, change it in two steps.`
+  }
+  return null
+}

@@ -45,3 +45,6 @@ next-env.d.ts
 prisma/dev.db
 prisma/*.db
 node-local/
+
+# local working files: throwaway scripts, snapshots, screenshots
+.scratch/
