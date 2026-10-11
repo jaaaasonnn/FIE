@@ -10,6 +10,7 @@ import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { ListingPhotoManager } from '@/components/ui/ListingPhotoManager'
 import { GHANA_REGIONS, PROPERTY_TYPES, AMENITIES_LIST, RENTAL_MODES } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
+import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { POLICY_LABELS, policyRuleLines, type Policy } from '@/lib/cancellationPolicy'
 import { GUEST_FEE_CHARGED } from '@/lib/fees'
 import { ADVANCE_RULE_NOTE, DEFAULT_ADVANCE_MONTHS, MAX_ADVANCE_MONTHS } from '@/lib/rentRules'
@@ -509,6 +510,8 @@ export default function NewListingPage() {
             Step {step + 1}: {STEPS[step]}
           </h3>
           {stepContent[step]}
+          {/* Listing does not need an approved ID; being paid does */}
+          {step === STEPS.length - 1 && <HostIdNotice variant="listing" className="mt-5" />}
         </div>
 
         {(stepError || error) && (

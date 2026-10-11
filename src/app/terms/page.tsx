@@ -3,6 +3,7 @@ import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from
 import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, serviceFeeRefundRule } from '@/lib/fees'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_TERMS } from '@/lib/listingCheckRules'
+import { PAYOUTS_NEED_ID } from '@/lib/hostId'
 
 // Built from the dispute rules in lib/disputes.ts
 const list = (reasons: Record<string, string>) => Object.values(reasons).map((r) => r.toLowerCase()).join('; ')
@@ -50,7 +51,7 @@ export default function TermsPage() {
             },
             {
               title: '2. User Accounts',
-              body: 'You must provide accurate information when creating an account. You are responsible for maintaining the security of your account. FieGH requires identity verification (Ghana Card, Passport, or Voter ID) before you can make bookings or list properties. False information may result in immediate account suspension.'
+              body: 'You must provide accurate information when creating an account. You are responsible for maintaining the security of your account. FieGH requires hosts to have their ID (Ghana Card, Passport, or Voter ID) approved before they can be paid. It is not needed to make bookings or list properties. False information may result in immediate account suspension.'
             },
             {
               title: '3. Listing and Booking',
@@ -62,7 +63,7 @@ export default function TermsPage() {
             },
             {
               title: '5. Held payments and payouts',
-              body: 'Guest payments are held by FieGH. For short stays, the host is paid 48 hours after check-in, unless the guest has reported a problem that is still open. Payouts for monthly and long-term rentals are made by our team. A damage deposit is paid with the booking, held by FieGH, and returned by our team after check-out.'
+              body: 'Guest payments are held by FieGH. For short stays, the host is paid 48 hours after check-in, unless the guest has reported a problem that is still open. Payouts for monthly and long-term rentals are made one rent payment at a time: the first 48 hours after move-in, and each later one once its rent has been paid and has fallen due. ' + PAYOUTS_NEED_ID + ' A damage deposit is paid with the booking, held by FieGH, and returned by our team after check-out.'
             },
             {
               title: '6. Reporting a problem',

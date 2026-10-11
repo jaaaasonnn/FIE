@@ -16,6 +16,7 @@ import { aboutGhs, firstName, ghanaDate, ghanaTime, ghs, sms, smsGhs, usd } from
 import { TOKEN_PLACEHOLDER } from '@/lib/sealed'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_BADGE } from '@/lib/listingCheckRules'
+import { VERIFY_ID_PATH } from '@/lib/hostId'
 
 /** What a template may use. Filled in from the database by lib/messaging/events.ts. */
 export type Facts = {
@@ -35,6 +36,8 @@ export type Facts = {
   paidPesewas?: number | null
   payBy?: Date | null
   hostHasPayoutMethod?: boolean
+  /** False while FieGH has not approved the host's ID. For the host's messages only. */
+  hostIdApproved?: boolean
   // Cancelling and refunds
   cancelReason?: string | null
   refundUsd?: number | null
@@ -81,6 +84,8 @@ export type Facts = {
   // People and listings
   userName?: string | null
   verificationStatus?: string
+  /** True when the person whose ID was decided is a host: payouts depend on it */
+  userIsHost?: boolean
   senderName?: string | null
   inboxPath?: string
   reviewPublished?: boolean
@@ -142,6 +147,7 @@ const bookingLink = (f: Facts, label = 'View your booking') => ({ label, path: `
 const hostBookingsLink = { label: 'Open your bookings', path: '/dashboard/host/bookings' }
 const payoutsLink = { label: 'Open your payouts', path: '/dashboard/host/payouts' }
 const adminLink = { label: 'Open the admin page', path: '/admin' }
+const sendIdLink = { label: 'Send your ID', path: VERIFY_ID_PATH }
 const bookingUrl = (f: Facts) => `${f.appUrl}/bookings/${f.bookingId}`
 const hostUrl = (f: Facts) => `${f.appUrl}/dashboard/host/bookings`
 const payoutsUrl = (f: Facts) => `${f.appUrl}/dashboard/host/payouts`
@@ -250,8 +256,9 @@ export const TEMPLATES = {
               ? 'Your payout for the first payment is sent 48 hours after move-in. Each later month is paid out once its rent has been paid and has fallen due.'
               : 'For a short stay, your payout is sent 48 hours after check-in.',
             ...(f.hostHasPayoutMethod === false ? ['You have not added a payout method yet. Please add one so we can pay you.'] : []),
+            ...(f.hostIdApproved === false ? ['We have not approved your ID yet, so we will hold the payout for this booking until we have. Send it now so you are paid on time.'] : []),
           ],
-          link: f.hostHasPayoutMethod === false ? payoutsLink : hostBookingsLink,
+          link: f.hostIdApproved === false ? sendIdLink : f.hostHasPayoutMethod === false ? payoutsLink : hostBookingsLink,
         },
         sms: sms(f.title, (t) => `FieGH: The booking for "${t}", ${shortStay(f)} is paid and confirmed. Details: ${hostUrl(f)}`),
         inApp: { title: 'A booking is paid and confirmed', body: `${home(f)}, ${stay(f)}.` },
@@ -561,6 +568,24 @@ export const TEMPLATES = {
         link: { label: 'Add a payout method', path: '/dashboard/host/payouts' },
       },
       sms: sms(f.title, (t) => `FieGH: A payout for "${t}" is waiting. Add a payout method in FieGH to be paid: ${payoutsUrl(f)}`),
+    }],
+  },
+
+  'payout.held_for_id': {
+    label: 'A payout is waiting for the host\'s ID to be approved',
+    render: (f) => [{
+      to: 'host',
+      email: {
+        subject: `A payout is waiting for your ID check: ${home(f)}`,
+        lines: [
+          hello(f.hostName),
+          `Your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)} is ready, but we have not approved your ID yet. We are holding it for you.`,
+          'Send your ID and, once it is approved, the payout goes out on our next payout run.',
+          ...(f.hostHasPayoutMethod === false ? ['You also have no payout method on your account yet. Please add one so we can pay you.'] : []),
+        ],
+        link: sendIdLink,
+      },
+      inApp: { title: 'A payout is waiting for your ID check', body: `${usd(f.payoutUsd ?? 0)} for ${home(f)} is held until your ID is approved. Send your ID to be paid.` },
     }],
   },
 
@@ -949,11 +974,16 @@ export const TEMPLATES = {
         email: {
           subject: approved ? 'Your ID has been checked' : 'We could not check your ID',
           lines: approved
-            ? [hello(f.userName), 'Your ID has been checked. Your profile now shows "ID checked".']
+            ? [
+                hello(f.userName),
+                'Your ID has been checked. Your profile now shows "ID checked".',
+                ...(f.userIsHost ? ['We can now pay you. Any payouts that were waiting for your ID check are no longer held for it and go out on our normal payout schedule.'] : []),
+              ]
             : [
                 hello(f.userName),
                 'We could not verify the ID you sent. This is usually because the photo was unclear or part of the document was cut off.',
                 `You can send it again at any time. If you need help, write to ${f.supportEmail}.`,
+                ...(f.userIsHost ? ['Until your ID is approved we hold your payouts. Nothing is lost: they are sent once it is approved.'] : []),
               ],
           link: approved ? { label: 'Open FieGH', path: '/' } : { label: 'Send your ID again', path: '/auth/verify-id' },
         },
@@ -1302,6 +1332,8 @@ export const SAMPLE_FACTS: Facts = {
   paidPesewas: 598_300,
   payBy: new Date('2027-03-02T15:45:00Z'),
   hostHasPayoutMethod: false,
+  hostIdApproved: false,
+  userIsHost: true,
   cancelReason: 'The home is no longer available',
   refundUsd: 386,
   refundPesewas: 598_300,

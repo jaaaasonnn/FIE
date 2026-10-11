@@ -6,6 +6,8 @@ import { notify } from '@/lib/messaging/notify'
 import { hostCommission } from '@/lib/disputes'
 import { rentReceived } from '@/lib/rentRules'
 import { clearChecks, tellCleared } from '@/lib/listingChecks'
+import { duePayouts } from '@/lib/cronRuns'
+import { payoutGate } from '@/lib/payoutSwitches'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -40,6 +42,8 @@ export async function GET(req: Request) {
         // Refunds recorded but not yet landed with the guest
         db.refund.count({ where: { status: { in: ['PENDING', 'PROCESSING', 'FAILED', 'NEEDS_ATTENTION'] } } }),
       ])
+      // Payouts that have fallen due and wait only for the host's ID to be approved
+      const payoutsWaitingForId = (await duePayouts(new Date(), payoutGate().notBefore)).filter((p) => !p.hostIdApproved).length
 
       // What guests paid for the stays themselves, and FieGH's commission on it
       // A stay paid in instalments counts only the rent received so far, not
@@ -52,7 +56,7 @@ export async function GET(req: Request) {
         totalUsers, totalListings, totalBookings,
         totalRevenue,
         platformRevenue,
-        pendingVerifications, openDisputes, hostCancellations, refundsOwed,
+        pendingVerifications, openDisputes, hostCancellations, refundsOwed, payoutsWaitingForId,
       })
     }
 

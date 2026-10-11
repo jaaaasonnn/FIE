@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Percent, Wallet, ShieldCheck, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { COMMISSION_PERCENT, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
+import { BECOME_A_HOST_ID } from '@/lib/hostId'
 
 const POINTS = [
   {
@@ -20,8 +21,8 @@ const POINTS = [
   },
   {
     icon: ShieldCheck,
-    title: 'Having your ID checked earns the "Host ID checked" badge',
-    body: 'It is not required to start hosting, but guests can filter for hosts whose ID has been checked.',
+    title: BECOME_A_HOST_ID.title,
+    body: BECOME_A_HOST_ID.body,
   },
 ]
 

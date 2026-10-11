@@ -9,6 +9,7 @@ import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_KEEPS_PERCE
 import { ADVANCE_RULE_NOTE } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_FAQ } from '@/lib/listingCheckRules'
+import { PAYOUTS_NEED_ID, WHO_NEEDS_ID } from '@/lib/hostId'
 
 // Built from the dispute rules in lib/disputes.ts
 const PROBLEM_ANSWER =
@@ -117,7 +118,7 @@ const FAQS = [
     id: 'verification',
     category: 'ID checks',
     questions: [
-      { q: 'Why should I have my ID checked?', a: 'Ghana\'s rental market has historically suffered from fraud. An ID check helps us know that a guest or host is a real, accountable person. It is not required, and it protects everyone.' },
+      { q: 'Why should I have my ID checked?', a: 'Ghana\'s rental market has historically suffered from fraud. An ID check helps us know that a guest or host is a real, accountable person. ' + WHO_NEEDS_ID },
       { q: 'What ID is accepted?', a: 'We accept Ghana Card (NIA), Passport, and Voter ID. Hosts outside Ghana can use their national passport.' },
       { q: 'How long does an ID check take?', a: 'Usually within a few hours. Sometimes up to 24 hours. We will email you and show a notice in the app once it has been reviewed.' },
     ],
@@ -133,7 +134,7 @@ const FAQS = [
     questions: [
       { q: 'How much does it cost to list on FieGH?', a: `Listing is completely free. FieGH takes a ${COMMISSION_PERCENT} commission from each payout, so you keep ${HOST_KEEPS_PERCENT} of the rent. ${GUEST_FEE_LINE} No listing fees, no subscription.` },
       { q: 'What is Superhost status?', a: 'Superhost is automatically awarded to hosts with a 4.8+ average rating and at least 10 completed reviews. It shows as a gold badge on your profile and listings, and increases your bookings.' },
-      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). For monthly and long-term stays you are paid for the first payment 48 hours after move-in, and for each later month once its rent has been paid and has fallen due. You will see your net payout (after the ' + COMMISSION_PERCENT + ' commission) clearly in your dashboard.' },
+      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). For monthly and long-term stays you are paid for the first payment 48 hours after move-in, and for each later month once its rent has been paid and has fallen due. ' + PAYOUTS_NEED_ID + ' You will see your net payout (after the ' + COMMISSION_PERCENT + ' commission) clearly in your dashboard.' },
       { q: 'What if a guest reports a problem with my home?', a: 'You are notified and can reply once, with photos. The payout for that stay waits until our team decides. ' + DECISION_AIM },
       { q: 'What if a guest damages my home?', a: HOST_PROBLEM_ANSWER },
       { q: 'For long-term rentals, how do I collect advance payment?', a: `Choose how many months of rent the tenant pays up front when you create the listing. ${ADVANCE_RULE_NOTE} The tenant sees this before they book, pays the advance and the deposit through FieGH once you accept, and then pays each month through FieGH. We remind them before each payment is due.` },

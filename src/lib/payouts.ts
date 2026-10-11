@@ -6,6 +6,7 @@ import { PayoutsOffError, payoutGate, payoutLimitPesewas } from '@/lib/payoutSwi
 import { isSettled } from '@/lib/rentRules'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 import { notify } from '@/lib/messaging/notify'
+import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
@@ -64,6 +65,10 @@ export type InitiateHostPayoutResult = {
  *
  * A payout above PAYOUT_LIMIT_GHS is not sent: it is marked HELD, an alert is
  * raised once, and a person pays it. It is never split or retried.
+ *
+ * Refuses a host whose ID is not approved (lib/hostId.ts), before a row is
+ * created or claimed, so nothing is written and nothing is marked failed: the
+ * payout simply waits. Like the switch, this covers every caller.
  */
 export async function initiateHostPayout({
   hostId,
@@ -133,9 +138,14 @@ export async function initiateHostPayout({
     throw new PayoutsOffError(`booking ${bookingId} was made before PAYOUTS_NOT_BEFORE`)
   }
 
-  const host = await db.user.findUnique({ where: { id: hostId } })
+  const host = await db.user.findUnique({ where: { id: hostId }, include: { verification: HOST_ID_SELECT.verification } })
   if (!host) {
     throw new Error(`Host ${hostId} not found`)
+  }
+  // No money is sent to a host whose ID FieGH has not approved. Thrown before
+  // any row is created or claimed: the payout waits and is tried again later.
+  if (!hostIdApproved(host)) {
+    throw new HostIdNotApprovedError(hostId)
   }
   if (!host.paystackRecipientCode || !host.payoutMethodVerifiedAt) {
     throw new Error(`Host ${hostId} has no verified payout method`)
@@ -410,7 +420,11 @@ function alertPayoutFailure(payout: Payout, why: 'PERMANENT' | 'RETRIES_EXHAUSTE
   })
 }
 
-export type RetryResult = { payoutId: string; ok: boolean; status: string; retryCount: number; error?: string }
+export type RetryResult = {
+  payoutId: string; ok: boolean; status: string; retryCount: number; error?: string
+  /** True when nothing was attempted because the host's ID is not approved: the payout waits as it was */
+  waitingForHostId?: boolean
+}
 
 /**
  * Picks FAILED payouts that are retryable (transient reason, not yet alerted,
@@ -441,6 +455,14 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
     if (classifyPayoutFailure(payout.failureReason) !== 'TRANSIENT') continue
     // An instalment's payout whose instalment is gone cannot be checked: a person looks at it
     if (payout.instalmentSeq > 0 && !payout.instalmentId) continue
+
+    // A host whose ID is not approved is not retried: the row is left exactly
+    // as it is, retry count and all, and is looked at again on the next run.
+    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: HOST_ID_SELECT })
+    if (!hostIdApproved(host)) {
+      results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_HOST_ID, waitingForHostId: true })
+      continue
+    }
 
     // Claim the row atomically so two overlapping cron runs can't both retry
     // it — only the run whose update matches the current retryCount wins.
@@ -481,6 +503,13 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
         error: result.error,
       })
     } catch (error) {
+      // The host's ID stopped being approved between the check above and the
+      // attempt. That is a wait, never a failure: the row stays PENDING and
+      // unclaimed, and the job picks it up again once the ID is approved.
+      if (error instanceof HostIdNotApprovedError) {
+        results.push({ payoutId: payout.id, ok: false, status: 'PENDING', retryCount: payout.retryCount + 1, error: WAITING_FOR_HOST_ID, waitingForHostId: true })
+        continue
+      }
       // e.g. the host removed their payout method since — record it so the
       // row doesn't sit in PENDING, which the main cron query never revisits.
       const failed = await recordPayoutFailure(payout.id, error instanceof Error ? error.message : 'Unknown error')

@@ -4,6 +4,7 @@ import { getSessionUser } from '@/lib/session'
 import { requireAdmin } from '@/lib/roles'
 import { notify } from '@/lib/messaging/notify'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
+import { hostIdApproved } from '@/lib/hostId'
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -65,8 +66,11 @@ export async function POST(req: Request) {
     }
 
     // Check for existing pending/approved verification before touching Storage
+    // Only a real approval stops a new one being sent: an approved document
+    // nobody is recorded as reviewing does not count (lib/hostId.ts), and its
+    // owner must be able to send their ID properly
     const existing = await db.verification.findUnique({ where: { userId: sessionUser.id } })
-    if (existing?.status === 'APPROVED') {
+    if (hostIdApproved({ isVerified: sessionUser.isVerified, verification: existing })) {
       return NextResponse.json({ error: 'Your ID has already been checked' }, { status: 409 })
     }
 
@@ -139,33 +143,79 @@ export async function GET(req: Request) {
   }
 }
 
-// Admin approve/reject
+/** Trust points an approved ID is worth. Given once on approval, taken back once if it is removed. */
+const ID_TRUST_POINTS = 40
+
+/**
+ * PATCH /api/verifications — ADMIN only
+ *   { verificationId, status: 'APPROVED', notes? }   approve an ID waiting for review
+ *   { verificationId, status: 'REJECTED', notes }    reject one waiting for review, or
+ *                                                    remove an approval already given
+ *
+ * This is the only way an ID becomes approved, and with it the only way a
+ * host becomes payable (lib/hostId.ts): the admin signed in is recorded as
+ * the reviewer. Approving is only possible from PENDING, so it cannot be done
+ * twice. Removing an approval needs a note, turns the "ID checked" badge off
+ * and holds the host's payouts again.
+ */
 export async function PATCH(req: Request) {
   try {
     const { user, error } = await requireAdmin()
     if (error) return error
 
-    const { verificationId, status, notes } = await req.json()
+    const body = await req.json().catch(() => ({}))
+    const { verificationId, status } = body
+    const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
 
     if (!['APPROVED', 'REJECTED'].includes(status)) {
       return NextResponse.json({ error: 'Status must be APPROVED or REJECTED' }, { status: 400 })
     }
+    if (typeof verificationId !== 'string') {
+      return NextResponse.json({ error: 'verificationId is required' }, { status: 400 })
+    }
 
-    const verification = await db.verification.update({
+    const current = await db.verification.findUnique({
       where: { id: verificationId },
-      data: { status, reviewedById: user.id, notes: notes || null }
+      select: { id: true, userId: true, status: true, user: { select: { isVerified: true, trustScore: true } } },
     })
+    if (!current) return NextResponse.json({ error: 'That ID submission was not found' }, { status: 404 })
 
-    // If approved, mark user as verified
-    if (status === 'APPROVED') {
-      await db.user.update({
-        where: { id: verification.userId },
-        data: {
-          isVerified: true,
-          // Boost trust score on verification (+40 points)
-          trustScore: { increment: 40 }
-        }
+    if (status === 'APPROVED' && current.status !== 'PENDING') {
+      return NextResponse.json({ error: 'Only an ID that is waiting for review can be approved' }, { status: 409 })
+    }
+    if (status === 'REJECTED' && current.status === 'REJECTED') {
+      return NextResponse.json({ error: 'This ID has already been rejected' }, { status: 409 })
+    }
+    // Taking back an approval already given needs a reason on the record
+    if (status === 'REJECTED' && current.status === 'APPROVED' && !notes) {
+      return NextResponse.json({ error: 'A note saying why is needed to remove an approval' }, { status: 400 })
+    }
+
+    const verification = await db.$transaction(async (tx) => {
+      // The status is checked again in the write, so two admins deciding at
+      // the same moment cannot both take effect
+      const changed = await tx.verification.updateMany({
+        where: { id: current.id, status: current.status },
+        data: { status, reviewedById: user.id, notes: notes || null },
       })
+      if (changed.count === 0) return null
+
+      if (status === 'APPROVED') {
+        await tx.user.update({
+          where: { id: current.userId },
+          data: { isVerified: true, trustScore: { increment: ID_TRUST_POINTS } },
+        })
+      } else if (current.user.isVerified) {
+        // The badge goes, and the points it brought go with it (never below zero)
+        await tx.user.update({
+          where: { id: current.userId },
+          data: { isVerified: false, trustScore: Math.max(0, current.user.trustScore - ID_TRUST_POINTS) },
+        })
+      }
+      return tx.verification.findUnique({ where: { id: current.id } })
+    })
+    if (!verification) {
+      return NextResponse.json({ error: 'This ID was decided a moment ago. Refresh and look again.' }, { status: 409 })
     }
 
     notify('verification.decided', { verificationId: verification.id })

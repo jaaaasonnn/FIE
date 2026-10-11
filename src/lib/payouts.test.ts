@@ -84,6 +84,8 @@ import { POST as paystackWebhook } from '@/app/api/webhooks/paystack/route'
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 const SECRET = 'sk_test_retrypolicy'
+/** An ID FieGH has approved: the flag, an APPROVED document and the admin who reviewed it (lib/hostId.ts) */
+const approvedId = { isVerified: true, verification: { status: 'APPROVED', reviewedById: 'admin_1' } }
 const fetchMock = vi.fn()
 let clock = new Date('2026-09-22T12:00:00Z').getTime()
 
@@ -112,7 +114,7 @@ function webhook(event: string, data: Row) {
 beforeEach(() => {
   state.payouts.length = 0
   state.users.length = 0
-  state.users.push({ id: 'host_1', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date(), payoutMethod: 'MOMO' })
+  state.users.push({ id: 'host_1', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date(), payoutMethod: 'MOMO', ...approvedId })
   sentry.captureException.mockReset()
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
@@ -127,6 +129,64 @@ beforeEach(() => {
 })
 
 const start = () => initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 100 })
+
+// ─── A host whose ID is not approved ────────────────────────────────────────
+
+describe('retrying while the host\'s ID is not approved', () => {
+  const transient = () => paystackError(400, 'Your balance is not enough to fulfil this request')
+  const idRemoved = () => Object.assign(state.users[0], { isVerified: false, verification: { status: 'REJECTED', reviewedById: 'admin_1' } })
+
+  it('a FAILED payout is not retried while the host\'s ID is not approved, and keeps its retry count', async () => {
+    fetchMock.mockResolvedValueOnce(transient()).mockResolvedValueOnce(paystackOk('TRF_ok'))
+    await start()
+    expect(payout()).toMatchObject({ status: 'FAILED', retryCount: 0 })
+    const before = { ...state.payouts[0] }
+
+    idRemoved()
+    for (let hour = 0; hour < 5; hour++) {
+      advanceHour()
+      expect(await retryFailedPayouts()).toEqual([
+        { payoutId: 'payout_1', ok: false, status: 'FAILED', retryCount: 0, error: 'the host has no approved ID', waitingForHostId: true },
+      ])
+    }
+    // Exactly as it was: not claimed, not counted as an attempt, not alerted
+    expect(state.payouts[0]).toEqual(before)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(alerts()).toHaveLength(0)
+
+    // Approved again: the retry it was owed goes ahead, under the same reference
+    Object.assign(state.users[0], approvedId)
+    advanceHour()
+    const [r] = await retryFailedPayouts()
+    expect(r).toMatchObject({ ok: true, status: 'PROCESSING', retryCount: 1 })
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body).reference).toBe(before.paystackTransferReference)
+  })
+
+  it('an ID hold is never recorded as a failed payout', async () => {
+    fetchMock.mockResolvedValueOnce(transient())
+    await start()
+    // Approved when the retry pass looks, not approved a moment later when the transfer would start
+    let looks = 0
+    const host = state.users[0]
+    Object.defineProperty(host, 'isVerified', { get: () => looks++ < 1, configurable: true })
+    advanceHour()
+    const results = await retryFailedPayouts()
+    Object.defineProperty(host, 'isVerified', { value: true, writable: true, configurable: true })
+
+    expect(results).toEqual([expect.objectContaining({ payoutId: 'payout_1', ok: false, status: 'PENDING', waitingForHostId: true })])
+    // Waiting, not failed: no failure reason, no alert, and no second call to Paystack
+    expect(payout()).toMatchObject({ status: 'PENDING', failureReason: null, alertedAt: null, initiatedAt: null })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(alerts()).toHaveLength(0)
+  })
+
+  it('a first attempt for a host with no approved ID throws, and no payout row is made', async () => {
+    idRemoved()
+    await expect(start()).rejects.toThrow('has no approved ID')
+    expect(state.payouts).toHaveLength(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
 
 // ─── Classification ─────────────────────────────────────────────────────────
 

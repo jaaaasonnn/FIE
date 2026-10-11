@@ -63,12 +63,28 @@ The cron jobs do nothing risky until they are switched on in the environment. Al
 Rules worth knowing:
 - The payout job pays short stays that are `CONFIRMED` or `COMPLETED`, so the order the two jobs run in does not matter.
 - One payout per booking, or per rent instalment, is enforced by a unique index on `Payout(bookingId, instalmentSeq)`. `instalmentSeq` is 0 (never null) on a whole-booking payout, because nulls would not count as equal.
+- A host whose ID is not approved is skipped and looked at again every hour (see "Host ID before payout").
 - A host with no verified payout method is skipped and retried every hour; the host payouts page shows the amount waiting, and Sentry is alerted once a day once a payout is 7 days overdue.
 - A guest cannot cancel online once the check-in day has arrived or a payout exists (`src/lib/cancelRules.ts`).
 - A cancelled or refunded booking is never paid out (guard in `initiateHostPayout`).
 - Still not built: payouts for a monthly or long-term stay made before instalments existed (it has no `Instalment` rows), refunds after check-in outside a dispute (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
 
 Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries transfer, refund and payment events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+
+## Host ID before payout
+
+- A host can list, take bookings and be paid for by guests without an ID. No money is sent to a host until their ID is approved. There is no switch for this: it is always on.
+- "Approved" is one function, `hostIdApproved` in `src/lib/hostId.ts`, and needs all three: `User.isVerified` is true, the host's `Verification` row is `APPROVED`, and it has a `reviewedById`. The flag alone does not count (the seed script sets it on hosts with no document). The public "Host ID checked" badge still reads the flag only.
+- A payout held for this reason is not a `Payout` row. Nothing is written: the booking (or settled rent instalment) stays in the list of payouts that are due and is sent on the first run after approval, through the usual rules (release date, disputes, `PAYOUTS_ENABLED`, `PAYOUTS_NOT_BEFORE`). So it is never status `HELD` (that is a payout over the transfer limit), and it cannot be failed, cancelled or lost.
+- The job reports it as action `waiting-for-host-id`, in a live run and a dry run alike, with a total in `waitingForHostId`. A dry run never says `would-pay` for such a host. Seven days after it fell due it raises the same daily Sentry alert as a missing payout method. When a host has neither, the ID wait is reported first.
+- The check is in two places for every path: `runPayouts` skips before calling anything, and `initiateHostPayout` throws `HostIdNotApprovedError` before a row is created or claimed. A `PENDING` payout left by a dead run is not resumed and stays `PENDING`; a `FAILED` one is not retried and keeps its retry count. An ID refusal is never recorded as a failure.
+- Only `src/lib/payouts.ts` calls Paystack's transfer endpoint and only `src/lib/cronRuns.ts` calls `initiateHostPayout`; a test scans the source for any other caller. Payouts made by hand (over the limit, a kept deposit) are outside the app: check the host's ID state on the admin page first.
+- Approving and rejecting: `PATCH /api/verifications`, `requireAdmin()`, from the admin Verifications tab (`src/components/admin/AdminVerifications.tsx`). It is the only way an ID becomes approved, and the admin signed in is recorded as the reviewer. Approve only from `PENDING`. Rejecting an approved ID needs a note, turns the flag and badge off and takes back the 40 trust points once. A rejected host sends their ID again from `/auth/verify-id`.
+- An ID has no expiry date, so nothing expires.
+- The admin Verifications tab lists the money waiting on each host's ID (the same query the job uses), and the Overview counts those payouts.
+- Hosts are told on the become-a-host page, the last step of creating a listing, the dashboard and the payouts page (`HostIdNotice`, fed by the host-only `GET /api/payouts`, which returns `idState` and, once payouts are live, `waitingForId`). Every sentence is in `src/lib/hostId.ts`; change wording only there, and only with the owner's approval.
+- Messages: `payout.held_for_id` (email and in-app, once per payout: the key is the booking or the instalment; live runs only), a paragraph in the host's "Booking confirmed and paid" email while the ID is not approved, and lines for hosts in `verification.decided`. No SMS.
+- Guests see nothing about a host's ID state except the badge. No public response carries it.
 
 ## Rent instalments (monthly and long-term stays)
 

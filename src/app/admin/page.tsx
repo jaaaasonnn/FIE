@@ -15,6 +15,7 @@ import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
 import { AdminRent } from '@/components/admin/AdminRent'
 import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
+import { AdminVerifications } from '@/components/admin/AdminVerifications'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
 
 const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Listing checks', 'Disputes', 'Rent', 'Messages', 'Reviews', 'Settings']
@@ -28,15 +29,6 @@ type AdminUser = {
   isVerified: boolean
   trustScore: number
   createdAt: string
-}
-
-type AdminVerification = {
-  id: string
-  idType: string
-  idPhotoUrl: string | null // signed URL, short-lived — see GET /api/admin/verifications
-  status: string
-  createdAt: string
-  user: { id: string; name: string | null; profilePhoto: string | null }
 }
 
 type AdminListing = {
@@ -60,6 +52,8 @@ type AdminStats = {
   openDisputes: number
   hostCancellations?: number
   refundsOwed?: number
+  /** Payouts that have fallen due and wait only for the host's ID to be approved */
+  payoutsWaitingForId?: number
 }
 
 export default function AdminPage() {
@@ -73,7 +67,6 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
-  const [verifications, setVerifications] = useState<AdminVerification[]>([])
   const [listings, setListings] = useState<AdminListing[]>([])
   const [holdBusy, setHoldBusy] = useState<string | null>(null)
   const [tabLoading, setTabLoading] = useState(false)
@@ -121,11 +114,6 @@ export default function AdminPage() {
           if (res.status === 403) { setForbidden(true); return }
           const data = await res.json()
           setUsers(Array.isArray(data.users) ? data.users : [])
-        } else if (activeTab === 'Verifications') {
-          const res = await fetch('/api/admin/verifications')
-          if (res.status === 403) { setForbidden(true); return }
-          const data = await res.json()
-          setVerifications(Array.isArray(data.verifications) ? data.verifications : [])
         } else if (activeTab === 'Listings') {
           const res = await fetch('/api/admin/listings')
           if (res.status === 403) { setForbidden(true); return }
@@ -297,6 +285,11 @@ export default function AdminPage() {
                       </div>
                       <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.pendingVerifications ?? 0}</p>
                       <p className="text-xs text-[#6B645C] mt-1">Awaiting ID review</p>
+                      {!!stats?.payoutsWaitingForId && (
+                        <p className="text-xs mt-1" style={{ color: '#92400E' }}>
+                          {stats.payoutsWaitingForId} {stats.payoutsWaitingForId === 1 ? 'payout is' : 'payouts are'} waiting on a host&apos;s ID
+                        </p>
+                      )}
                     </div>
                     <div className="bg-white p-5 rounded-2xl border border-stone-100">
                       <div className="flex items-center gap-2 mb-3">
@@ -400,77 +393,7 @@ export default function AdminPage() {
                 </div>
               )}
 
-              {activeTab === 'Verifications' && (
-                <div>
-                  <h3 className="font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>ID Verifications</h3>
-                  {verifications.length === 0 ? (
-                    <p className="text-sm text-center py-16" style={{ color: 'var(--color-text-secondary)' }}>No verification requests yet.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {verifications.map((v) => (
-                        <div key={v.id} className="bg-white p-5 rounded-2xl border border-stone-100 shadow-sm">
-                          <div className="flex items-start justify-between gap-4 flex-wrap">
-                            <div className="flex items-start gap-4">
-                              {v.user.profilePhoto ? (
-                                <img src={v.user.profilePhoto} alt={v.user.name ?? ''} className="w-16 h-16 rounded-xl object-cover" />
-                              ) : (
-                                <div className="w-16 h-16 rounded-xl flex items-center justify-center font-bold"
-                                  style={{ backgroundColor: 'var(--gold-light)' }}>
-                                  {(v.user.name ?? '?')[0]}
-                                </div>
-                              )}
-                              <div>
-                                <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{v.user.name ?? 'User'}</p>
-                                <p className="text-sm text-[#6B645C]">{v.idType.replace('_', ' ')}</p>
-                                <p className="text-xs text-stone-400">Submitted: {new Date(v.createdAt).toLocaleDateString('en-GH')}</p>
-                                <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full"
-                                  style={{
-                                    backgroundColor: v.status === 'PENDING' ? '#FEF3C7' : v.status === 'APPROVED' ? '#D1FAE5' : '#FEE2E2',
-                                    color: v.status === 'PENDING' ? '#92400E' : v.status === 'APPROVED' ? '#065F46' : '#991B1B',
-                                  }}>
-                                  {v.status}
-                                </span>
-                              </div>
-                              {/* The actual submitted document — previously this fell back to
-                                  idPhotoUrl only when profilePhoto was absent, which meant an
-                                  admin could never see the ID document at all for any user who
-                                  also had a profile photo set (i.e. almost always). Verification
-                                  review is specifically about checking this image, so it always
-                                  gets its own slot regardless of whether a profile photo exists. */}
-                              {v.idPhotoUrl ? (
-                                <a href={v.idPhotoUrl} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
-                                  <img src={v.idPhotoUrl} alt={`${v.idType.replace('_', ' ')} document`}
-                                    className="w-24 h-16 rounded-lg object-cover border border-stone-200 group-hover:opacity-90" />
-                                  <span className="text-[10px] text-stone-400 group-hover:underline">ID document</span>
-                                </a>
-                              ) : (
-                                <div className="flex flex-col items-center gap-1">
-                                  <div className="w-24 h-16 rounded-lg flex items-center justify-center text-[10px] text-stone-400"
-                                    style={{ backgroundColor: '#F3F0EA', border: '1px dashed #D8D0C2' }}>
-                                    No document
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            {v.status === 'PENDING' && (
-                              <div className="flex gap-2">
-                                <button className="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-semibold"
-                                  style={{ backgroundColor: '#D1FAE5', color: '#065F46' }}>
-                                  <CheckCircle size={14} /> Approve
-                                </button>
-                                <button className="flex items-center gap-1 px-4 py-2 rounded-full text-sm font-semibold"
-                                  style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
-                                  <XCircle size={14} /> Reject
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {activeTab === 'Verifications' && <AdminVerifications />}
 
               {activeTab === 'Listings' && (
                 <div>

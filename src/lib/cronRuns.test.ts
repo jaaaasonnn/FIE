@@ -137,6 +137,8 @@ import { OVERDUE_ALERT_HOUR_UTC, runCompletion, runPayouts, wantsDryRun } from '
 import { initiateHostPayout, retryFailedPayouts, STALE_CLAIM_MS } from '@/lib/payouts'
 import { PayoutsOffError, payoutGate, payoutsNotBefore } from '@/lib/payoutSwitches'
 import { CANCEL_CONTACT_SUPPORT, cancelNeedsSupport } from '@/lib/cancelRules'
+import { notify } from '@/lib/messaging/notify'
+import { HostIdNotApprovedError } from '@/lib/hostId'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -161,7 +163,9 @@ function booking(over: Row = {}): Row {
   state.bookings.push(row)
   return row
 }
-const verifiedHost = { paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date('2027-01-01'), payoutMethod: 'MOMO' }
+/** An ID FieGH has approved: the flag, an APPROVED document and the admin who reviewed it (lib/hostId.ts) */
+const approvedId = { isVerified: true, verification: { status: 'APPROVED', reviewedById: 'admin_1' } }
+const verifiedHost = { paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date('2027-01-01'), payoutMethod: 'MOMO', ...approvedId }
 const transferCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/transfer'))
 const sentBody = (i = 0) => JSON.parse(transferCalls()[i][1].body as string)
 
@@ -417,7 +421,7 @@ describe('bookings that are never paid by this job', () => {
 describe('a host with no payout method', () => {
   beforeEach(() => {
     switchesOn()
-    state.users[0] = { id: 'host_1', paystackRecipientCode: null, payoutMethodVerifiedAt: null }
+    state.users[0] = { id: 'host_1', paystackRecipientCode: null, payoutMethodVerifiedAt: null, ...approvedId }
   })
 
   it('is skipped without a row or a call, every run', async () => {
@@ -470,6 +474,189 @@ describe('a host with no payout method', () => {
     vi.setSystemTime(when)
     expect((await runPayouts({ now: when })).overdueAlerts).toBe(0)
     expect(sentry.captureMessage).not.toHaveBeenCalled()
+  })
+})
+
+// ─── A host whose ID is not approved ────────────────────────────────────────
+
+describe('a host whose ID is not approved', () => {
+  const notifyMock = vi.mocked(notify)
+  const heldNotices = () => notifyMock.mock.calls.filter(([event]) => event === 'payout.held_for_id').map(([, ids]) => ids)
+  /** The host has a payout method, so the ID is the only thing in the way */
+  const hostId = (id: Row) => { state.users[0] = { id: 'host_1', ...verifiedHost, isVerified: false, verification: null, ...id } }
+  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-host-id' }
+  const stuck = (over: Row = {}) => {
+    booking()
+    state.payouts.push({
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'PENDING', retryCount: 0,
+      paystackTransferCode: null, paystackTransferReference: 'pyt-original', failureReason: null,
+      createdAt: new Date(NOW.getTime() - STALE_CLAIM_MS - 1000), initiatedAt: null, ...over,
+    })
+  }
+
+  beforeEach(() => {
+    switchesOn()
+    notifyMock.mockClear()
+    hostId({})
+  })
+
+  it('a short stay for a host with no approved ID is not sent and writes no payout', async () => {
+    booking()
+    for (let i = 0; i < 3; i++) {
+      const run = await runPayouts()
+      expect(run.mode).toBe('live')
+      expect(run.results).toEqual([waitingRow])
+      expect(run.waitingForHostId).toEqual({ count: 1, amount: 90 })
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+    expect(state.writes).toBe(0)
+    // Still CONFIRMED and PAID: nothing about the booking was failed or cancelled
+    expect(state.bookings[0]).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID' })
+  })
+
+  it('tells the host on a live run, and the job asks for one notice per payout', async () => {
+    booking()
+    await runPayouts()
+    expect(heldNotices()).toEqual([{ bookingId: 'booking_1', instalmentId: undefined }])
+    // Not the payout-method notice as well: the host has a method, and one message is enough
+    expect(notifyMock.mock.calls.filter(([event]) => event === 'payout.waiting')).toHaveLength(0)
+  })
+
+  it('the dry run reports it as waiting for the ID, never as would-pay, and tells nobody', async () => {
+    booking()
+    const asked = await runPayouts({ dryRun: true })
+    expect(asked.mode).toBe('dry-run')
+    expect(asked.results).toEqual([waitingRow])
+    expect(asked.waitingForHostId).toEqual({ count: 1, amount: 90 })
+
+    vi.stubEnv('PAYOUTS_ENABLED', '')
+    const off = await runPayouts()
+    expect(off.results).toEqual([waitingRow])
+
+    expect(heldNotices()).toEqual([])
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.writes).toBe(0)
+  })
+
+  it('is paid on the next run after the ID is approved, once, through the usual rules', async () => {
+    booking()
+    await runPayouts()
+    expect(state.payouts).toHaveLength(0)
+
+    hostId(approvedId)
+    const run = await runPayouts()
+    expect(run.results).toEqual([expect.objectContaining({ bookingId: 'booking_1', action: 'paid', status: 'PROCESSING' })])
+    expect(run.waitingForHostId).toEqual({ count: 0, amount: 0 })
+    expect(transferCalls()).toHaveLength(1)
+    expect(sentBody().amount).toBe(90 * 15 * 100)
+    expect((await runPayouts()).results).toEqual([])
+    expect(transferCalls()).toHaveLength(1)
+  })
+
+  it('approval does not jump the release date, an open dispute or PAYOUTS_NOT_BEFORE', async () => {
+    hostId(approvedId)
+    booking({ checkIn: at('2027-03-11T12:00:00Z') })                             // 48 hours not up yet
+    booking({ disputes: [{ raisedByRole: 'GUEST', status: 'OPEN' }] })           // guest's problem still open
+    booking({ createdAt: at('2027-01-10T09:00:00Z') })                           // made before PAYOUTS_NOT_BEFORE
+    expect((await runPayouts()).results).toEqual([])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('the flag alone, or an approval with no reviewer, does not count', async () => {
+    booking()
+    for (const id of [
+      { isVerified: true, verification: null },                                              // a seed script or SQL set the flag
+      { isVerified: true, verification: { status: 'APPROVED', reviewedById: null } },         // nobody is recorded as approving
+      { isVerified: false, verification: { status: 'APPROVED', reviewedById: 'admin_1' } },  // the flag was taken away
+    ]) {
+      hostId(id)
+      expect((await runPayouts()).results, JSON.stringify(id)).toEqual([waitingRow])
+      await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toBeInstanceOf(HostIdNotApprovedError)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+  })
+
+  it('a rejected or waiting document does not count even with the flag on', async () => {
+    booking()
+    for (const status of ['PENDING', 'REJECTED']) {
+      hostId({ isVerified: true, verification: { status, reviewedById: 'admin_1' } })
+      expect((await runPayouts()).results, status).toEqual([waitingRow])
+      await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toBeInstanceOf(HostIdNotApprovedError)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+  })
+
+  it('initiateHostPayout refuses a host with no approved ID before creating a row', async () => {
+    booking()
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toBeInstanceOf(HostIdNotApprovedError)
+    expect(state.payouts).toHaveLength(0)
+    expect(state.writes).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('initiateHostPayout refuses to send a payout row that already exists, and leaves it unclaimed', async () => {
+    stuck()
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toBeInstanceOf(HostIdNotApprovedError)
+    expect(state.payouts[0]).toMatchObject({ status: 'PENDING', initiatedAt: null, failureReason: null, paystackTransferCode: null })
+    expect(state.writes).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('a PENDING payout is not resumed while the host\'s ID is not approved, and stays PENDING', async () => {
+    stuck()
+    for (const dryRun of [false, true]) {
+      const run = await runPayouts({ dryRun })
+      expect(run.resumed).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, payoutId: 'payout_1', action: 'waiting-for-host-id', status: 'PENDING' }])
+      expect(run.waitingForHostId).toEqual({ count: 1, amount: 90 })
+    }
+    expect(state.payouts[0]).toMatchObject({ status: 'PENDING', initiatedAt: null, failureReason: null, paystackTransferReference: 'pyt-original' })
+    expect(state.writes).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(sentry.captureException).not.toHaveBeenCalled()
+
+    // Approved: the same row goes out, under the same reference
+    hostId(approvedId)
+    const run = await runPayouts()
+    expect(run.resumed).toEqual([expect.objectContaining({ payoutId: 'payout_1', action: 'paid', status: 'PROCESSING' })])
+    expect(sentBody().reference).toBe('pyt-original')
+    expect(state.payouts).toHaveLength(1)
+  })
+
+  it('rejecting an approved ID holds payouts again, including one already under way', async () => {
+    hostId(approvedId)
+    stuck()
+    booking({ id: 'booking_2' })
+    // The approval is removed before the run: flag off, document REJECTED
+    hostId({ isVerified: false, verification: { status: 'REJECTED', reviewedById: 'admin_1' } })
+    const run = await runPayouts()
+    expect(run.results).toEqual([{ ...waitingRow, bookingId: 'booking_2' }])
+    expect(run.resumed).toEqual([expect.objectContaining({ payoutId: 'payout_1', action: 'waiting-for-host-id' })])
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('raises one alert a day once the payout is 7 days overdue, and says why', async () => {
+    booking()
+    const run = (iso: string) => { vi.setSystemTime(at(iso)); return runPayouts({ now: at(iso) }) }
+    expect((await run('2027-03-19T12:00:00Z')).overdueAlerts).toBe(0)
+    expect((await run(`2027-03-20T0${OVERDUE_ALERT_HOUR_UTC}:00:00Z`)).overdueAlerts).toBe(1)
+    const [message, options] = sentry.captureMessage.mock.calls[0]
+    expect(message).toBe('Host payout still unpaid 7 days after it fell due')
+    expect(options.contexts.payout).toMatchObject({ bookingId: 'booking_1', hostId: 'host_1', amount: 90, why: 'the host has no approved ID' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('holds for the ID first when the host has no payout method either', async () => {
+    state.users[0] = { id: 'host_1', paystackRecipientCode: null, payoutMethodVerifiedAt: null, isVerified: false, verification: null }
+    booking()
+    expect((await runPayouts()).results).toEqual([waitingRow])
+    expect(heldNotices()).toHaveLength(1)
+    // Approved, still no method: now it is the payout-method wait, as before
+    state.users[0] = { id: 'host_1', paystackRecipientCode: null, payoutMethodVerifiedAt: null, ...approvedId }
+    expect((await runPayouts()).results).toEqual([{ ...waitingRow, action: 'waiting-for-payout-method' }])
+    expect(state.payouts).toHaveLength(0)
   })
 })
 

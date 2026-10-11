@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X, Landmark, Smartphone, Wallet } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { HostIdNotice } from '@/components/host/HostIdNotice'
 
 type ApiPayout = {
   id: string
@@ -113,7 +114,8 @@ export default function HostPayoutsPage() {
       .then((data) => {
         if (!active) return
         setPayouts(Array.isArray(data.payouts) ? data.payouts : [])
-        setWaiting(data.waitingForMethod ?? null)
+        // While the ID is not approved, the ID notice carries the amount that is waiting
+        setWaiting(data.waitingForId ? null : data.waitingForMethod ?? null)
       })
       .catch(() => { if (active) setPayouts([]) })
       .finally(() => { if (active) setLoadedFor(userId) })
@@ -250,6 +252,9 @@ export default function HostPayoutsPage() {
           </div>
         ) : (
           <>
+            {/* Payouts are held until the host's ID is approved */}
+            <HostIdNotice showWaiting className="mb-6" />
+
             {/* Earnings held up for want of a payout method */}
             {waiting && !savedMethod?.payoutMethodVerifiedAt && (
               <div className="mb-6 p-4 rounded-2xl flex items-start gap-3"

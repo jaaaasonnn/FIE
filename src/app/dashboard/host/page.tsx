@@ -11,6 +11,7 @@ import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
 import { NotificationsList } from '@/components/NotificationsList'
 import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
+import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { monthEarnings } from '@/lib/hostEarnings'
 import { COMMISSION_PERCENT } from '@/lib/fees'
 
@@ -184,23 +185,8 @@ function HostDashboardContent() {
       <div className="max-w-6xl mx-auto px-4 py-8">
         <VerifyEmailNotice className="mb-6" />
         <NotificationsList className="mb-6" />
-        {/* Not required to host, so this is a prompt, not a gate */}
-        {user && !user.isVerified && (
-          <div className="p-5 rounded-2xl mb-6 flex flex-wrap items-center justify-between gap-4"
-            style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-text-primary)' }}>
-            <div>
-              <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Have your ID checked to earn the &quot;Host ID checked&quot; badge</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-primary)' }}>
-                It is not required to host, but guests can filter for hosts whose ID has been checked.
-              </p>
-            </div>
-            <Link href="/auth/verify-id"
-              className="px-4 py-2 rounded-full text-sm font-semibold flex-shrink-0"
-              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-              Verify ID
-            </Link>
-          </div>
-        )}
+        {/* A host can list and take bookings without one, but is paid only once their ID is approved */}
+        <HostIdNotice className="mb-6" />
         {createdId && (
           <div
             className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"

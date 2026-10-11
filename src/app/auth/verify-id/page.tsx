@@ -64,7 +64,7 @@ export default function VerifyIdPage() {
             <ul className="text-sm text-[#4A4540] space-y-1">
               <li>• Our team reviews your ID (usually within a few hours)</li>
               <li>• You get an &quot;ID checked&quot; badge on your profile</li>
-              <li>• You can then make bookings or list properties</li>
+              <li>• If you host, we can then send your payouts</li>
             </ul>
           </div>
           <Button onClick={() => router.push('/')} size="lg" className="w-full">

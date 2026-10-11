@@ -12,6 +12,7 @@ import { completionEnabled, payoutGate } from '@/lib/payoutSwitches'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 import { notify } from '@/lib/messaging/notify'
 import { SETTLED_INSTALMENT_STATUSES, payoutReleaseAt } from '@/lib/rentRules'
+import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
 
 const HOUR_MS = 60 * 60 * 1000
 /**
@@ -105,6 +106,8 @@ export type DuePayout = {
   amount: number
   dueAt: Date
   hasPayoutMethod: boolean
+  /** False while FieGH has not approved the host's ID: the payout waits (lib/hostId.ts) */
+  hostIdApproved: boolean
   instalmentId?: string
   instalmentSeq?: number
 }
@@ -114,7 +117,7 @@ export type DuePayout = {
  * Reads only.
  */
 export async function duePayouts(now: Date, notBefore: Date | null, hostId?: string): Promise<DuePayout[]> {
-  const host = { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true } }
+  const host = { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true, ...HOST_ID_SELECT } }
   const hasMethod = (h: { paystackRecipientCode: string | null; payoutMethodVerifiedAt: Date | null }) =>
     !!h.paystackRecipientCode && !!h.payoutMethodVerifiedAt
 
@@ -136,6 +139,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
     amount: hostPayoutAmount(b.subtotal, b.refund?.stayRefund ?? 0),
     dueAt: new Date(b.checkIn.getTime() + PAYOUT_DELAY_MS),
     hasPayoutMethod: hasMethod(b.host),
+    hostIdApproved: hostIdApproved(b.host),
   }))
   for (const i of instalments) {
     const dueAt = payoutReleaseAt(i, i.booking.checkIn, PAYOUT_DELAY_MS)
@@ -146,6 +150,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
       amount: hostPayoutAmount(i.amount, i.sequence === 1 ? i.booking.refund?.stayRefund ?? 0 : 0),
       dueAt,
       hasPayoutMethod: hasMethod(i.booking.host),
+      hostIdApproved: hostIdApproved(i.booking.host),
       instalmentId: i.id, instalmentSeq: i.sequence,
     })
   }
@@ -156,6 +161,7 @@ export type PayoutAction =
   | 'paid'                        // transfer started (or already under way)
   | 'failed'                      // attempted, recorded as failed
   | 'waiting-for-payout-method'   // host has no verified payout method yet
+  | 'waiting-for-host-id'         // host's ID is not approved: nothing written, sent once it is
   | 'would-pay'                   // dry run
   | 'error'                       // could not be attempted this run
 
@@ -179,6 +185,8 @@ export type PayoutRun = Mode & {
   resumed: PayoutRunResult[]
   retried: RetryResult[]
   overdueAlerts: number
+  /** Payouts that have fallen due and wait only because the host's ID is not approved */
+  waitingForHostId: { count: number; amount: number }
 }
 
 export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?: boolean; now?: Date } = {}): Promise<PayoutRun> {
@@ -206,6 +214,15 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       ...(item.instalmentId ? { instalmentId: item.instalmentId, instalmentSeq: item.instalmentSeq } : {}),
     }
 
+    // The host's ID is not approved: nothing is written and nothing is sent,
+    // in a live run or a dry one. The stay stays in this list and is paid on
+    // the first run after the ID is approved. The host is told once per payout.
+    if (!item.hostIdApproved) {
+      results.push({ ...base, action: 'waiting-for-host-id' })
+      if (live) notify('payout.held_for_id', { bookingId: booking.id, instalmentId: item.instalmentId })
+      noteIfOverdue(booking.id, booking.hostId, amount, dueAt, WAITING_FOR_HOST_ID)
+      continue
+    }
     // No payout method yet: nothing is written, so the stay stays in this
     // list and is paid on the first run after the host adds one.
     if (!item.hasPayoutMethod) {
@@ -228,6 +245,10 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
         error: result.error,
       })
     } catch (error) {
+      if (error instanceof HostIdNotApprovedError) {
+        results.push({ ...base, action: 'waiting-for-host-id' })
+        continue
+      }
       console.error('[Payout cron] initiateHostPayout threw for booking', booking.id, error)
       results.push({ ...base, action: 'error', error: error instanceof Error ? error.message : 'Unknown error' })
       noteIfOverdue(booking.id, booking.hostId, amount, dueAt, 'the transfer could not be started')
@@ -252,6 +273,14 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     // An instalment's payout whose instalment is gone cannot be checked: a person looks at it
     if (payout.instalmentSeq > 0 && !payout.instalmentId) continue
     const base = { bookingId: payout.bookingId!, hostId: payout.hostId, amount: payout.amount, payoutId: payout.id }
+    // Not resumed while the host's ID is not approved: the row stays PENDING
+    // and unclaimed, and is looked at again on the next run.
+    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: HOST_ID_SELECT })
+    if (!hostIdApproved(host)) {
+      resumed.push({ ...base, action: 'waiting-for-host-id', status: payout.status })
+      noteIfOverdue(payout.bookingId!, payout.hostId, payout.amount, payout.createdAt, WAITING_FOR_HOST_ID)
+      continue
+    }
     if (!live) {
       resumed.push({ ...base, action: 'would-pay', status: payout.status })
       continue
@@ -260,6 +289,10 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       const result = await initiateHostPayout({ hostId: payout.hostId, bookingId: payout.bookingId!, amount: payout.amount, instalmentId: payout.instalmentId })
       resumed.push({ ...base, action: result.ok ? 'paid' : 'failed', status: result.payout.status, error: result.error })
     } catch (error) {
+      if (error instanceof HostIdNotApprovedError) {
+        resumed.push({ ...base, action: 'waiting-for-host-id', status: payout.status })
+        continue
+      }
       console.error('[Payout cron] could not resume payout', payout.id, error)
       resumed.push({ ...base, action: 'error', status: payout.status, error: error instanceof Error ? error.message : 'Unknown error' })
       noteIfOverdue(payout.bookingId!, payout.hostId, payout.amount, payout.createdAt, 'the payout is stuck before sending')
@@ -287,7 +320,9 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     }
   }
 
-  return { ...mode, checked: due.length, results, resumed, retried, overdueAlerts }
+  const waiting = [...results, ...resumed].filter((r) => r.action === 'waiting-for-host-id')
+  const waitingForHostId = { count: waiting.length, amount: waiting.reduce((sum, r) => sum + r.amount, 0) }
+  return { ...mode, checked: due.length, results, resumed, retried, overdueAlerts, waitingForHostId }
 }
 
 // ── Completion ─────────────────────────────────────────────────────────────

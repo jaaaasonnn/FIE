@@ -36,7 +36,7 @@ Monthly and long-term stays are paid in instalments: the months paid up front an
 - Superhost badge (auto-awarded at 4.8+ rating, 10+ reviews)
 
 ### Trust & Safety
-- All users require ID verification before booking/listing
+- Hosts need an approved ID before they can be paid; no one needs one to book or list
 - Trust scores calculated from verification, reviews, and booking history
 - Scam prevention: contact details in descriptions auto-flagged for admin review
 - Report listing / report user buttons
@@ -134,6 +134,7 @@ The hourly cron jobs are off until switched on. Leave these unset until launch (
 - `BOOKING_EXPIRY_NOT_BEFORE`: a date (`YYYY-MM-DD`). Only bookings created on or after it can be ended by the expiry job. Required for the job to run.
 - `RENT_REMINDERS_ENABLED`: must be exactly `true` before the daily rent reminder job writes any reminder. While off, it only reports and never calls Paystack.
 - `RENT_DEPOSIT_COVER_ENABLED`: must be exactly `true` before an admin can cover a missed rent payment from the damage deposit. While off, the button only reports what it would do.
+- No switch, always on: a host is paid only once an admin has approved their ID. Until then their payouts wait (nothing is failed or lost) and go out on the first run after approval. See `src/lib/hostId.ts`.
 - `PAYOUT_LIMIT_GHS`: not a switch. The most one transfer to a host may be, in cedis. A payout above it is held for a person and an alert is raised; it is never split or retried. Unset: nothing is held for its size.
 
 Add `?dryRun=1` to any cron URL for a report-only run.

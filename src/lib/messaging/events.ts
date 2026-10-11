@@ -10,6 +10,7 @@ import { OVERDUE_REMINDER_DAYS, daysPastDue, depositLeft, isOpen, outstanding, t
 import { ghanaDate, maskEmail, usd } from '@/lib/messaging/format'
 import type { Sealed } from '@/lib/sealed'
 import { removalReasonText } from '@/lib/listingCheckRules'
+import { HOST_ID_SELECT, hostIdApproved } from '@/lib/hostId'
 import type { Audience, EventName, Facts } from '@/lib/messaging/templates'
 
 /** The IDs each event is raised with. */
@@ -32,6 +33,7 @@ export type EventIds = {
   'payout.failed': { payoutId: string }
   'payout.waiting': { bookingId: string; instalmentId?: string }
   'payout.held': { payoutId: string }
+  'payout.held_for_id': { bookingId: string; instalmentId?: string }
   'rent.due_soon': { instalmentId: string }
   'rent.due_today': { instalmentId: string }
   /** `day` is the Ghana date the reminder is for: one a day and no more */
@@ -94,7 +96,7 @@ async function booking(bookingId: string): Promise<Loaded | null> {
     include: {
       listing: { select: { id: true, title: true } },
       guest: { select: { id: true, name: true } },
-      host: { select: { id: true, name: true, paystackRecipientCode: true, payoutMethodVerifiedAt: true } },
+      host: { select: { id: true, name: true, paystackRecipientCode: true, payoutMethodVerifiedAt: true, ...HOST_ID_SELECT } },
       // The payment that confirmed the booking: on a booking paid in
       // instalments, later rent payments are not what "was paid" for it
       payments: { where: { status: 'SUCCESS', OR: [{ instalmentId: null }, { instalment: { sequence: 1 } }] }, orderBy: { createdAt: 'desc' }, take: 1 },
@@ -129,6 +131,8 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       paidPesewas: b.payments[0]?.amountPesewas ?? null,
       payBy: b.payBy,
       hostHasPayoutMethod: !!b.host.paystackRecipientCode && !!b.host.payoutMethodVerifiedAt,
+      // Only ever used in what the host is told, never the guest
+      hostIdApproved: hostIdApproved(b.host),
       // The reason from the list only: a host's own note is never passed on
       cancelReason: HOST_CANCEL_REASONS[reasonCode as keyof typeof HOST_CANCEL_REASONS] ?? null,
       refundUsd: b.refund?.amount ?? null,
@@ -253,13 +257,13 @@ async function listing({ listingId }: { listingId: string }): Promise<Loaded | n
 }
 
 async function verification({ verificationId }: { verificationId: string }): Promise<Loaded | null> {
-  const v = await db.verification.findUnique({ where: { id: verificationId }, select: { id: true, userId: true, status: true, updatedAt: true, user: { select: { name: true } } } })
+  const v = await db.verification.findUnique({ where: { id: verificationId }, select: { id: true, userId: true, status: true, updatedAt: true, user: { select: { name: true, role: true } } } })
   if (!v) return null
   return {
     // Sent again and decided again after a rejection: each round is its own occurrence
     key: `${v.id}:${v.updatedAt.getTime()}`,
     recipients: { user: v.userId },
-    facts: { userName: v.user.name, verificationStatus: v.status },
+    facts: { userName: v.user.name, verificationStatus: v.status, userIsHost: v.user.role === 'HOST' },
   }
 }
 
@@ -361,6 +365,13 @@ export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded |
     return loaded && !loaded.facts.hostHasPayoutMethod ? { ...loaded, recipients: { host: loaded.recipients.host } } : null
   },
   'payout.held': payout,
+  // Only while the host's ID is still not approved. One notice per payout
+  // that is waiting (the booking's, or each rent instalment's), however many
+  // runs see it: the key is the booking or the instalment.
+  'payout.held_for_id': async ({ bookingId, instalmentId }) => {
+    const loaded = instalmentId ? await instalment({ instalmentId }) : await booking(bookingId)
+    return loaded && loaded.facts.hostIdApproved === false ? { ...loaded, recipients: { host: loaded.recipients.host } } : null
+  },
   'rent.due_soon': async (ids) => {
     const loaded = await owedInstalment(ids)
     return loaded && { ...loaded, recipients: { guest: loaded.recipients.guest } }

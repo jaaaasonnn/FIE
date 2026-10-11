@@ -164,7 +164,8 @@ function world(over: { guest?: Row; host?: Row; booking?: Row } = {}) {
     subtotal: 300, totalPrice: 386, payBy: new Date('2027-03-02T15:45:00Z'), cancelReason: null,
     listing: { id: 'listing_1', title: 'Sea-view apartment in Labadi' },
     guest: { id: 'guest_1', name: 'Ama Owusu' },
-    host: { id: 'host_1', name: 'Kwame Mensah', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: NOW },
+    // A payable host: a payout method, and an ID FieGH has approved (lib/hostId.ts)
+    host: { id: 'host_1', name: 'Kwame Mensah', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: NOW, isVerified: true, verification: { status: 'APPROVED', reviewedById: 'admin_1' } },
     payments: [{ amountPesewas: 598_300 }],
     refund: null,
     instalments: [],
@@ -816,6 +817,124 @@ describe('recording an event', () => {
 
 // ─── Sending ────────────────────────────────────────────────────────────────
 
+describe('a host whose ID is not approved', () => {
+  const ID_WORDS = /\bID\b|approved your|hold the payout|hold your payouts/
+  const notApproved = () => Object.assign(state.booking!.host as Row, { isVerified: false, verification: null })
+
+  it('the held email is written once per payout across many runs', async () => {
+    world()
+    notApproved()
+    // Email and an in-app notice to the host; no SMS
+    expect((await writeMessages('payout.held_for_id', { bookingId: 'booking_1' })).written).toBe(2)
+    for (let run = 0; run < 24; run++) expect((await writeMessages('payout.held_for_id', { bookingId: 'booking_1' })).written).toBe(0)
+    expect(log({ event: 'payout.held_for_id' }).map((l) => l.channel).sort()).toEqual(['EMAIL', 'IN_APP'])
+    const email = one({ event: 'payout.held_for_id', channel: 'EMAIL' })
+    expect(email.userId).toBe('host_1')
+    expect(email.subject).toBe('A payout is waiting for your ID check: Sea-view apartment in Labadi')
+    expect(email.body).toContain('Your payout of $270.00 for the stay at Sea-view apartment in Labadi')
+    expect(email.body).toContain('is ready, but we have not approved your ID yet. We are holding it for you.')
+    expect(email.body).toContain('Send your ID and, once it is approved, the payout goes out on our next payout run.')
+    expect(email.body).toContain('https://fiegh.com/auth/verify-id')
+    expect(email.body).not.toContain('payout method')
+  })
+
+  it('keys the held notice on the instalment, so each month of rent gets its own', async () => {
+    world()
+    notApproved()
+    state.instalment = {
+      id: 'inst_2', bookingId: 'booking_1', sequence: 2, status: 'PAID', amount: 1000, depositAmount: 0, coveredFromDeposit: 0,
+      dueDate: new Date('2027-06-09T12:00:00Z'), periodStart: new Date('2027-06-09T12:00:00Z'), periodEnd: new Date('2027-07-09T12:00:00Z'),
+      payments: [], booking: { status: 'CONFIRMED', paymentStatus: 'PAID', damageDeposit: 0, refund: null, instalments: [] },
+    }
+    expect((await writeMessages('payout.held_for_id', { bookingId: 'booking_1', instalmentId: 'inst_2' })).written).toBe(2)
+    expect((await writeMessages('payout.held_for_id', { bookingId: 'booking_1', instalmentId: 'inst_2' })).written).toBe(0)
+    expect(one({ channel: 'EMAIL' }).dedupeKey).toBe('payout.held_for_id:inst_2:host_1:EMAIL')
+  })
+
+  it('says nothing about a held payout once the host\'s ID is approved', async () => {
+    world()
+    expect((await writeMessages('payout.held_for_id', { bookingId: 'booking_1' })).written).toBe(0)
+  })
+
+  it('mentions a missing payout method in the same email, not a second one', async () => {
+    world()
+    notApproved()
+    ;(state.booking!.host as Row).paystackRecipientCode = null
+    await writeMessages('payout.held_for_id', { bookingId: 'booking_1' })
+    expect(one({ event: 'payout.held_for_id', channel: 'EMAIL' }).body).toContain('You also have no payout method on your account yet.')
+  })
+
+  it('reminds the host in the "Booking confirmed and paid" email, and only while the ID is not approved', async () => {
+    world()
+    await writeMessages('booking.confirmed', { bookingId: 'booking_1' })
+    expect(one({ userId: 'host_1', channel: 'EMAIL' }).body).not.toMatch(ID_WORDS)
+    state.logs.length = 0
+    notApproved()
+    await writeMessages('booking.confirmed', { bookingId: 'booking_1' })
+    const host = one({ userId: 'host_1', channel: 'EMAIL' })
+    expect(host.subject).toBe('Booking confirmed and paid: Sea-view apartment in Labadi')
+    expect(host.body).toContain('We have not approved your ID yet, so we will hold the payout for this booking until we have. Send it now so you are paid on time.')
+    expect(host.body).toContain('https://fiegh.com/auth/verify-id')
+    // One email to the host for the event, not two
+    expect(log({ userId: 'host_1', channel: 'EMAIL' })).toHaveLength(1)
+  })
+
+  it('no guest message and no public response mentions the host\'s ID state', async () => {
+    world()
+    notApproved()
+    for (const event of ['booking.confirmed', 'booking.accepted', 'booking.requested', 'booking.completed'] as const) {
+      await writeMessages(event, { bookingId: 'booking_1' })
+    }
+    const guest = log({ userId: 'guest_1' })
+    expect(guest.length).toBeGreaterThan(0)
+    for (const row of guest) expect(`${row.subject ?? ''} ${row.body}`).not.toMatch(ID_WORDS)
+    // Every template, rendered for an unapproved host: nothing addressed to a guest says so
+    for (const event of EVENT_NAMES) {
+      for (const piece of render(event, { ...SAMPLE_FACTS, hostIdApproved: false })) {
+        if (piece.to !== 'guest') continue
+        for (const text of allText(piece)) expect(text, event).not.toMatch(/approved your ID|hold the payout|hold your payouts|ID check/)
+      }
+    }
+    // The routes guests and the public read never load the ID document or the host's ID state
+    const read = (file: string) => fs.readFileSync(path.resolve(__dirname, '../../..', file), 'utf8')
+    for (const file of [
+      'src/app/api/listings/route.ts', 'src/app/api/listings/[id]/route.ts', 'src/app/api/users/[id]/route.ts',
+      'src/app/api/bookings/route.ts', 'src/app/api/bookings/[id]/route.ts', 'src/app/api/wishlists/route.ts',
+      'src/lib/listingChecks.ts',
+    ]) {
+      expect(read(file), file).not.toMatch(/lib\/hostId|HOST_ID_SELECT|hostIdState|hostIdApproved|idState|waitingForId|verification:/)
+    }
+    // The route that does carry it is for the host alone
+    const payouts = read('src/app/api/payouts/route.ts')
+    expect(payouts.indexOf('requireHost()')).toBeGreaterThan(-1)
+    expect(payouts.indexOf('requireHost()')).toBeLessThan(payouts.indexOf('hostIdState(host)'))
+    expect(payouts).toContain("if (hostId !== user.id)")
+  })
+
+  it('tells a host what an ID decision means for their payouts, and a guest nothing about payouts', async () => {
+    world()
+    state.verification = { id: 'ver_1', userId: 'host_1', status: 'APPROVED', updatedAt: NOW, user: { name: 'Kwame Mensah', role: 'HOST' } }
+    await writeMessages('verification.decided', { verificationId: 'ver_1' })
+    expect(one({ userId: 'host_1', channel: 'EMAIL' }).body).toContain('We can now pay you. Any payouts that were waiting for your ID check are no longer held for it and go out on our normal payout schedule.')
+
+    state.logs.length = 0
+    state.verification = { id: 'ver_1', userId: 'host_1', status: 'REJECTED', updatedAt: at(MIN), user: { name: 'Kwame Mensah', role: 'HOST' } }
+    await writeMessages('verification.decided', { verificationId: 'ver_1' })
+    const rejected = one({ userId: 'host_1', channel: 'EMAIL' })
+    expect(rejected.body).toContain('Until your ID is approved we hold your payouts. Nothing is lost: they are sent once it is approved.')
+    expect(rejected.body).toContain('https://fiegh.com/auth/verify-id')
+
+    state.logs.length = 0
+    state.verification = { id: 'ver_2', userId: 'guest_1', status: 'APPROVED', updatedAt: NOW, user: { name: 'Ama Owusu', role: 'GUEST' } }
+    await writeMessages('verification.decided', { verificationId: 'ver_2' })
+    expect(one({ userId: 'guest_1', channel: 'EMAIL' }).body).not.toMatch(/pay you|payouts/)
+  })
+
+  it('tells a host about a held payout only on a live run', () => {
+    expect(fs.readFileSync(path.resolve(__dirname, '../cronRuns.ts'), 'utf8')).toContain("if (live) notify('payout.held_for_id'")
+  })
+})
+
 describe('the send-messages job', () => {
   const queued = async () => {
     live()
@@ -1096,7 +1215,11 @@ describe('call sites', () => {
       "status === 'PROCESSED' ? 'refund.arrived' : 'refund.sent', { refundId }",
     ])
     expect(calls('src/lib/payouts.ts')).toEqual(["'payout.held', { payoutId: held.id }", "'payout.failed', { payoutId }"])
-    expect(calls('src/lib/cronRuns.ts')).toEqual(["'payout.waiting', { bookingId: booking.id, instalmentId: item.instalmentId }", "'booking.completed', { bookingId }"])
+    expect(calls('src/lib/cronRuns.ts')).toEqual([
+      "'payout.held_for_id', { bookingId: booking.id, instalmentId: item.instalmentId }",
+      "'payout.waiting', { bookingId: booking.id, instalmentId: item.instalmentId }",
+      "'booking.completed', { bookingId }",
+    ])
     expect(calls('src/lib/disputeDecisions.ts')).toEqual(["'dispute.decided', { disputeId: dispute.id }"])
     expect(calls('src/app/api/webhooks/paystack/route.ts')).toEqual(["'payout.sent', { payoutId: payout.id, pesewas: data.amount }"])
   })
