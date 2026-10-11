@@ -79,6 +79,9 @@ vi.mock('@/lib/db', async () => {
       notification: {
         create: async ({ data }: { data: Row }) => { state.notifications.push({ ...data }); return data },
       },
+      // Sign-up's limits (lib/rateLimit.ts) are covered in security/limits.test.ts; here nothing has been counted yet
+      authRequest: { count: async () => 0, create: async ({ data }: { data: Row }) => data },
+      authToken: { updateMany: async () => ({ count: 0 }), create: async ({ data }: { data: Row }) => ({ id: 'token_1', ...data }) },
       messageLog: {
         create: async ({ data }: { data: Row }) => {
           if (state.breakOn === 'messageLog') throw new Error('messageLog table is down')

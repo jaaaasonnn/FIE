@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { notify } from '@/lib/messaging/notify'
+import { LIMITS, TOO_MANY_MESSAGES, tooMany } from '@/lib/rateLimit'
+import { manyLines } from '@/lib/validate'
+import { MAX_MESSAGE_LENGTH, NO_REASON_TO_MESSAGE } from '@/lib/rateLimit'
 
 const messageInclude = {
   sender:   { select: { id: true, name: true, profilePhoto: true } },
@@ -72,13 +75,23 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You must be signed in to send messages' }, { status: 401 })
     }
 
-    const { receiverId, bookingId, listingId, content } = await req.json()
+    const body = await req.json()
+    const receiverId: unknown = body.receiverId
+    const bookingId: unknown = body.bookingId || null
+    const listingId: unknown = body.listingId || null
+    const content = typeof body.content === 'string' ? manyLines(body.content) : ''
 
-    if (!receiverId || !content?.trim()) {
+    if (typeof receiverId !== 'string' || !receiverId || !content) {
       return NextResponse.json(
         { error: 'receiverId and content are required' },
         { status: 400 },
       )
+    }
+    if ((bookingId !== null && typeof bookingId !== 'string') || (listingId !== null && typeof listingId !== 'string')) {
+      return NextResponse.json({ error: 'bookingId and listingId must be ids' }, { status: 400 })
+    }
+    if (content.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json({ error: `A message can be at most ${MAX_MESSAGE_LENGTH} characters` }, { status: 400 })
     }
 
     if (receiverId === user.id) {
@@ -93,6 +106,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Recipient not found' }, { status: 404 })
     }
 
+    // Who may write to whom. A first message needs a reason: it is to the
+    // host of the home it is about, or to the other person on a booking.
+    // After that, either of them can reply to the other.
+    let reason = false
     if (listingId) {
       const listing = await db.listing.findUnique({
         where: { id: listingId },
@@ -101,6 +118,7 @@ export async function POST(req: Request) {
       if (!listing) {
         return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
       }
+      if (listing.hostId === receiverId) reason = true
     }
 
     if (bookingId) {
@@ -115,7 +133,16 @@ export async function POST(req: Request) {
       if (!party.includes(user.id) || !party.includes(receiverId)) {
         return NextResponse.json({ error: 'Not a party to this booking' }, { status: 403 })
       }
+      reason = true
     }
+    if (!reason) {
+      // A reply: the other person has written to this one before
+      const wroteFirst = await db.message.findFirst({ where: { senderId: receiverId, receiverId: user.id }, select: { id: true } })
+      if (!wroteFirst) return NextResponse.json({ error: NO_REASON_TO_MESSAGE }, { status: 403 })
+    }
+
+    const sentLastHour = await db.message.count({ where: { senderId: user.id, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } })
+    if (sentLastHour >= LIMITS.messagesPerHour) return tooMany(TOO_MANY_MESSAGES, 60 * 60)
 
     // Auto-flag messages containing contact details (scam prevention)
     const contactPattern = /(\+?233|\b0[2-5]\d{8}\b|whatsapp|@gmail|@yahoo|pay me direct)/i
@@ -130,9 +157,9 @@ export async function POST(req: Request) {
       data: {
         senderId: user.id,
         receiverId,
-        bookingId: bookingId || null,
-        listingId: listingId || null,
-        content: content.trim(),
+        bookingId,
+        listingId,
+        content,
       },
       include: messageInclude,
     })

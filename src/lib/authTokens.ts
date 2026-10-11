@@ -24,6 +24,7 @@ import { normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
 
 export type TokenPurpose = 'VERIFY_EMAIL' | 'CHANGE_EMAIL' | 'RESET_PASSWORD'
+const LINK_KINDS: TokenPurpose[] = ['VERIFY_EMAIL', 'CHANGE_EMAIL', 'RESET_PASSWORD']
 
 const MIN = 60 * 1000
 const HOUR = 60 * MIN
@@ -64,8 +65,11 @@ export function hashToken(raw: string): string {
  * x-forwarded-for; the first entry is the client. Null when there is none.
  */
 export function ipHashOf(req: Request): string | null {
-  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
-  const ip = forwarded || req.headers.get('x-real-ip')?.trim()
+  // The headers Vercel sets itself come first: a visitor cannot choose them.
+  // x-forwarded-for is the fallback for anywhere else, first entry only.
+  const ip = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()
+    || req.headers.get('x-real-ip')?.trim()
+    || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
   if (!ip) return null
   return crypto.createHash('sha256').update(`${process.env.NEXTAUTH_SECRET ?? ''}:${ip}`).digest('hex')
 }
@@ -87,7 +91,8 @@ export async function allowRequest({
   const [userMinute, userHour, ipHour] = await Promise.all([
     userId ? db.authRequest.count({ where: { userId, kind, createdAt: since(MIN) } }) : 0,
     userId ? db.authRequest.count({ where: { userId, kind, createdAt: since(HOUR) } }) : 0,
-    ipHash ? db.authRequest.count({ where: { ipHash, createdAt: since(HOUR) } }) : 0,
+    // Only requests for links: sign-in and sign-up have limits of their own (lib/rateLimit.ts)
+    ipHash ? db.authRequest.count({ where: { ipHash, kind: { in: LINK_KINDS }, createdAt: since(HOUR) } }) : 0,
   ])
   await db.authRequest.create({ data: { kind, userId, ipHash, createdAt: now } })
   return userMinute < USER_LIMIT_PER_MINUTE && userHour < USER_LIMIT_PER_HOUR && ipHour < IP_LIMIT_PER_HOUR

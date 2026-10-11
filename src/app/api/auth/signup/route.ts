@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
 import { ipHashOf, requestVerification } from '@/lib/authTokens'
+import { LIMITS, SIGN_UP, TOO_MANY_SIGN_UPS, countRecent, record, tooMany } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
   try {
@@ -23,6 +24,12 @@ export async function POST(req: Request) {
     }
 
     const normalizedPhone = phone ? normalizePhone(phone) : null
+
+    // So many accounts from one address in an hour is not a person signing up
+    const ipHash = ipHashOf(req)
+    if (ipHash && (await countRecent(SIGN_UP, { ipHash }, LIMITS.signUpPerIp.windowMs)) >= LIMITS.signUpPerIp.max) {
+      return tooMany(TOO_MANY_SIGN_UPS, LIMITS.signUpPerIp.windowMs / 1000)
+    }
 
     // Check existing user
     if (email) {
@@ -53,13 +60,16 @@ export async function POST(req: Request) {
       }
     })
 
+    await record(SIGN_UP, { ipHash })
+
     const { passwordHash: _, ...userWithoutPassword } = user
 
     notify('account.welcome', { userId: user.id })
     // A link to confirm the address, sent to it. The account works for
     // browsing straight away; a failure here never undoes the sign-up.
     try {
-      await requestVerification(user, ipHashOf(req), { limited: false })
+      // Under the same limits as every other link we send (lib/authTokens.ts)
+      await requestVerification(user, ipHash)
     } catch (error) {
       console.error('Signup: could not start email verification for user', user.id, error instanceof Error ? error.message : error)
     }

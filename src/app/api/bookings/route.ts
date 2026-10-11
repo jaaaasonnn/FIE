@@ -5,6 +5,7 @@ import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { depositIsSound } from '@/lib/listingInput'
+import { LIMITS, TOO_MANY_BOOKINGS, TOO_MANY_OPEN_BOOKINGS, tooMany } from '@/lib/rateLimit'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE, requireVerifiedEmail } from '@/lib/roles'
@@ -70,6 +71,16 @@ export async function POST(req: Request) {
       console.error('[Bookings] listing', listing.id, 'has an unusable damage deposit: booking refused')
       return NextResponse.json({ error: 'This listing cannot be booked at the moment. Please contact support.' }, { status: 409 })
     }
+
+    // A booking holds a home's dates before anything is paid. One guest may
+    // hold only so many at once, and make only so many in an hour, so nobody
+    // can empty a host's calendar for nothing.
+    const [openUnpaid, lastHour] = await Promise.all([
+      db.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: { in: ['PENDING', 'CONFIRMED'] } } }),
+      db.booking.count({ where: { guestId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } }),
+    ])
+    if (openUnpaid >= LIMITS.openUnpaidBookings) return tooMany(TOO_MANY_OPEN_BOOKINGS, 60)
+    if (lastHour >= LIMITS.bookingsPerHour) return tooMany(TOO_MANY_BOOKINGS, 60 * 60)
 
     const quote = quoteStay(listing, rentalMode, checkIn, checkOut)
     if (!quote.ok) {

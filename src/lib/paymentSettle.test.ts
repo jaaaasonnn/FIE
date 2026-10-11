@@ -87,6 +87,8 @@ vi.mock('@/lib/db', async () => {
         return row ? bookingView(row, include) : null
       },
       findFirst: async () => null,
+      // The limits on a guest's unpaid bookings (lib/rateLimit.ts) are covered in security/limits.test.ts
+      count: async () => 0,
       findMany: async ({ where, select }: { where: Row; select?: Row }) =>
         state.bookings.filter((b) => matches(b, where)).map((b) => bookingView(b, select)),
       updateMany: async ({ where, data }: { where: Row; data: Row }) => {
