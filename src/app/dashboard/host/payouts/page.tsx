@@ -6,6 +6,7 @@ import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X, Landma
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { HostIdNotice } from '@/components/host/HostIdNotice'
+import { NEW_METHOD_NOTE } from '@/lib/payoutMethod'
 
 type ApiPayout = {
   id: string
@@ -190,7 +191,7 @@ export default function HostPayoutsPage() {
         return
       }
       setSavedMethod(data.payoutMethod)
-      setSaveSuccess(`Payout method saved and verified as ${data.payoutMethod.payoutBankAccountName}.`)
+      setSaveSuccess(`Payout method saved and verified as ${data.payoutMethod.payoutBankAccountName}. ${NEW_METHOD_NOTE}`)
       setAddingMethod(false)
       setPassword('')
       setMomoNetwork(''); setMomoNumber(''); setBankCode(''); setBankAccountNumber('')

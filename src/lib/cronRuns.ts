@@ -13,6 +13,7 @@ import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/
 import { notify } from '@/lib/messaging/notify'
 import { SETTLED_INSTALMENT_STATUSES, payoutReleaseAt } from '@/lib/rentRules'
 import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
+import { PayoutMethodTooNewError, payoutMethodSettled } from '@/lib/payoutMethod'
 
 const HOUR_MS = 60 * 60 * 1000
 /**
@@ -108,6 +109,8 @@ export type DuePayout = {
   hasPayoutMethod: boolean
   /** False while FieGH has not approved the host's ID: the payout waits (lib/hostId.ts) */
   hostIdApproved: boolean
+  /** False while the payout method was saved less than a day ago: the payout waits (lib/payoutMethod.ts) */
+  payoutMethodSettled: boolean
   instalmentId?: string
   instalmentSeq?: number
 }
@@ -140,6 +143,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
     dueAt: new Date(b.checkIn.getTime() + PAYOUT_DELAY_MS),
     hasPayoutMethod: hasMethod(b.host),
     hostIdApproved: hostIdApproved(b.host),
+    payoutMethodSettled: payoutMethodSettled(b.host, now),
   }))
   for (const i of instalments) {
     const dueAt = payoutReleaseAt(i, i.booking.checkIn, PAYOUT_DELAY_MS)
@@ -151,6 +155,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
       dueAt,
       hasPayoutMethod: hasMethod(i.booking.host),
       hostIdApproved: hostIdApproved(i.booking.host),
+      payoutMethodSettled: payoutMethodSettled(i.booking.host, now),
       instalmentId: i.id, instalmentSeq: i.sequence,
     })
   }
@@ -162,6 +167,7 @@ export type PayoutAction =
   | 'failed'                      // attempted, recorded as failed
   | 'waiting-for-payout-method'   // host has no verified payout method yet
   | 'waiting-for-host-id'         // host's ID is not approved: nothing written, sent once it is
+  | 'waiting-for-new-payout-method' // payout method saved less than a day ago: nothing written, sent once the day is up
   | 'would-pay'                   // dry run
   | 'error'                       // could not be attempted this run
 
@@ -231,6 +237,12 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       noteIfOverdue(booking.id, booking.hostId, amount, dueAt, 'the host has no verified payout method')
       continue
     }
+    // The payout method was saved in the last day: not paid into yet, in a
+    // live run or a dry one. Nothing is written; it goes out once the day is up.
+    if (!item.payoutMethodSettled) {
+      results.push({ ...base, action: 'waiting-for-new-payout-method' })
+      continue
+    }
     if (!live) {
       results.push({ ...base, action: 'would-pay' })
       continue
@@ -247,6 +259,10 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     } catch (error) {
       if (error instanceof HostIdNotApprovedError) {
         results.push({ ...base, action: 'waiting-for-host-id' })
+        continue
+      }
+      if (error instanceof PayoutMethodTooNewError) {
+        results.push({ ...base, action: 'waiting-for-new-payout-method' })
         continue
       }
       console.error('[Payout cron] initiateHostPayout threw for booking', booking.id, error)
@@ -275,10 +291,15 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     const base = { bookingId: payout.bookingId!, hostId: payout.hostId, amount: payout.amount, payoutId: payout.id }
     // Not resumed while the host's ID is not approved: the row stays PENDING
     // and unclaimed, and is looked at again on the next run.
-    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: HOST_ID_SELECT })
+    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: { ...HOST_ID_SELECT, paystackRecipientCode: true, payoutMethodVerifiedAt: true } })
     if (!hostIdApproved(host)) {
       resumed.push({ ...base, action: 'waiting-for-host-id', status: payout.status })
       noteIfOverdue(payout.bookingId!, payout.hostId, payout.amount, payout.createdAt, WAITING_FOR_HOST_ID)
+      continue
+    }
+    // Nor while the payout method was saved in the last day
+    if (host?.paystackRecipientCode && host.payoutMethodVerifiedAt && !payoutMethodSettled(host, now)) {
+      resumed.push({ ...base, action: 'waiting-for-new-payout-method', status: payout.status })
       continue
     }
     if (!live) {
@@ -291,6 +312,10 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     } catch (error) {
       if (error instanceof HostIdNotApprovedError) {
         resumed.push({ ...base, action: 'waiting-for-host-id', status: payout.status })
+        continue
+      }
+      if (error instanceof PayoutMethodTooNewError) {
+        resumed.push({ ...base, action: 'waiting-for-new-payout-method', status: payout.status })
         continue
       }
       console.error('[Payout cron] could not resume payout', payout.id, error)

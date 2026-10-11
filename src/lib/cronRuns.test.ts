@@ -660,6 +660,70 @@ describe('a host whose ID is not approved', () => {
   })
 })
 
+// ─── A payout method that was only just saved ───────────────────────────────
+
+describe('a payout method saved less than 24 hours ago', () => {
+  const HOUR = 60 * 60 * 1000
+  const savedAgo = (ms: number) => { state.users[0] = { id: 'host_1', ...verifiedHost, payoutMethodVerifiedAt: new Date(NOW.getTime() - ms) } }
+  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-new-payout-method' }
+
+  beforeEach(() => {
+    switchesOn()
+    savedAgo(1 * HOUR)
+  })
+
+  it('is not paid into yet: nothing is sent and no payout is written, live or dry', async () => {
+    booking()
+    expect((await runPayouts()).results).toEqual([waitingRow])
+    expect((await runPayouts({ dryRun: true })).results).toEqual([waitingRow])
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+    expect(state.writes).toBe(0)
+  })
+
+  it('is paid on the first run after the 24 hours are up', async () => {
+    booking()
+    savedAgo(23 * HOUR + 59 * 60 * 1000)
+    expect((await runPayouts()).results).toEqual([waitingRow])
+    savedAgo(24 * HOUR)
+    expect((await runPayouts()).results).toEqual([expect.objectContaining({ action: 'paid', status: 'PROCESSING' })])
+    expect(transferCalls()).toHaveLength(1)
+  })
+
+  it('initiateHostPayout refuses it before creating or claiming a row', async () => {
+    booking()
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toThrow('changed their payout method less than 24 hours ago')
+    expect(state.payouts).toHaveLength(0)
+    expect(state.writes).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not resume a PENDING payout to it, and leaves the row as it was', async () => {
+    booking()
+    state.payouts.push({
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'PENDING', retryCount: 0,
+      paystackTransferCode: null, paystackTransferReference: 'pyt-original', failureReason: null,
+      createdAt: new Date(NOW.getTime() - STALE_CLAIM_MS - 1000), initiatedAt: null,
+    })
+    for (const dryRun of [false, true]) {
+      expect((await runPayouts({ dryRun })).resumed).toEqual([expect.objectContaining({ payoutId: 'payout_1', action: 'waiting-for-new-payout-method', status: 'PENDING' })])
+    }
+    expect(state.payouts[0]).toMatchObject({ status: 'PENDING', initiatedAt: null, failureReason: null })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(sentry.captureException).not.toHaveBeenCalled()
+    savedAgo(25 * HOUR)
+    expect((await runPayouts()).resumed).toEqual([expect.objectContaining({ payoutId: 'payout_1', action: 'paid' })])
+  })
+
+  it('still reports a missing ID first, and a missing method as before', async () => {
+    booking()
+    state.users[0] = { ...state.users[0], isVerified: false, verification: null }
+    expect((await runPayouts()).results).toEqual([{ ...waitingRow, action: 'waiting-for-host-id' }])
+    state.users[0] = { id: 'host_1', paystackRecipientCode: null, payoutMethodVerifiedAt: null, ...approvedId }
+    expect((await runPayouts()).results).toEqual([{ ...waitingRow, action: 'waiting-for-payout-method' }])
+  })
+})
+
 // ─── A run that died part-way ───────────────────────────────────────────────
 
 describe('a payout left PENDING by a run that died', () => {

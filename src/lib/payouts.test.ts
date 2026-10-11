@@ -114,7 +114,7 @@ function webhook(event: string, data: Row) {
 beforeEach(() => {
   state.payouts.length = 0
   state.users.length = 0
-  state.users.push({ id: 'host_1', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date(), payoutMethod: 'MOMO', ...approvedId })
+  state.users.push({ id: 'host_1', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date('2026-01-01T00:00:00Z'), payoutMethod: 'MOMO', ...approvedId })
   sentry.captureException.mockReset()
   fetchMock.mockReset()
   vi.stubGlobal('fetch', fetchMock)
@@ -183,6 +183,35 @@ describe('retrying while the host\'s ID is not approved', () => {
   it('a first attempt for a host with no approved ID throws, and no payout row is made', async () => {
     idRemoved()
     await expect(start()).rejects.toThrow('has no approved ID')
+    expect(state.payouts).toHaveLength(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('retrying after the payout method was changed', () => {
+  it('a FAILED payout is not retried to a payout method saved less than 24 hours ago, and keeps its retry count', async () => {
+    fetchMock.mockResolvedValueOnce(paystackError(400, 'Your balance is not enough to fulfil this request')).mockResolvedValueOnce(paystackOk('TRF_ok'))
+    await start()
+    const before = { ...state.payouts[0] }
+
+    advanceHour()
+    state.users[0].payoutMethodVerifiedAt = new Date(clock - 60 * 60 * 1000)
+    expect(await retryFailedPayouts()).toEqual([
+      { payoutId: 'payout_1', ok: false, status: 'FAILED', retryCount: 0, error: 'the payout method was saved less than 24 hours ago', waitingForNewMethod: true },
+    ])
+    expect(state.payouts[0]).toEqual(before)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(alerts()).toHaveLength(0)
+
+    // A day on, the retry it was owed goes ahead
+    clock += 24 * 60 * 60 * 1000
+    vi.setSystemTime(clock)
+    expect((await retryFailedPayouts())[0]).toMatchObject({ ok: true, status: 'PROCESSING', retryCount: 1 })
+  })
+
+  it('a first attempt to a payout method saved less than 24 hours ago throws, and no payout row is made', async () => {
+    state.users[0].payoutMethodVerifiedAt = new Date(clock - 60 * 60 * 1000)
+    await expect(start()).rejects.toThrow('less than 24 hours ago')
     expect(state.payouts).toHaveLength(0)
     expect(fetchMock).not.toHaveBeenCalled()
   })

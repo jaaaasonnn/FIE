@@ -7,6 +7,7 @@ import { isSettled } from '@/lib/rentRules'
 import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/disputes'
 import { notify } from '@/lib/messaging/notify'
 import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
+import { PayoutMethodTooNewError, WAITING_FOR_NEW_METHOD, payoutMethodSettled } from '@/lib/payoutMethod'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
@@ -149,6 +150,11 @@ export async function initiateHostPayout({
   }
   if (!host.paystackRecipientCode || !host.payoutMethodVerifiedAt) {
     throw new Error(`Host ${hostId} has no verified payout method`)
+  }
+  // A payout method saved in the last day is not paid into yet (lib/payoutMethod.ts).
+  // Also before any row is created or claimed: the payout waits.
+  if (!payoutMethodSettled(host)) {
+    throw new PayoutMethodTooNewError(hostId)
   }
 
   // Find-or-create the Payout row for this booking FIRST, before any
@@ -424,6 +430,8 @@ export type RetryResult = {
   payoutId: string; ok: boolean; status: string; retryCount: number; error?: string
   /** True when nothing was attempted because the host's ID is not approved: the payout waits as it was */
   waitingForHostId?: boolean
+  /** True when nothing was attempted because the payout method was saved in the last day */
+  waitingForNewMethod?: boolean
 }
 
 /**
@@ -458,9 +466,15 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
 
     // A host whose ID is not approved is not retried: the row is left exactly
     // as it is, retry count and all, and is looked at again on the next run.
-    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: HOST_ID_SELECT })
+    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: { ...HOST_ID_SELECT, paystackRecipientCode: true, payoutMethodVerifiedAt: true } })
     if (!hostIdApproved(host)) {
       results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_HOST_ID, waitingForHostId: true })
+      continue
+    }
+    // Nor is one whose payout method was saved in the last day. A host with
+    // no method at all goes on to fail as before: that needs a person.
+    if (host?.paystackRecipientCode && host.payoutMethodVerifiedAt && !payoutMethodSettled(host)) {
+      results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_NEW_METHOD, waitingForNewMethod: true })
       continue
     }
 
@@ -508,6 +522,10 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
       // unclaimed, and the job picks it up again once the ID is approved.
       if (error instanceof HostIdNotApprovedError) {
         results.push({ payoutId: payout.id, ok: false, status: 'PENDING', retryCount: payout.retryCount + 1, error: WAITING_FOR_HOST_ID, waitingForHostId: true })
+        continue
+      }
+      if (error instanceof PayoutMethodTooNewError) {
+        results.push({ payoutId: payout.id, ok: false, status: 'PENDING', retryCount: payout.retryCount + 1, error: WAITING_FOR_NEW_METHOD, waitingForNewMethod: true })
         continue
       }
       // e.g. the host removed their payout method since — record it so the
