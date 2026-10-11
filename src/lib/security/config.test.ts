@@ -37,6 +37,61 @@ describe('images', () => {
   })
 })
 
+describe('headers', () => {
+  const headersFor = async (source: string, env: Record<string, string> = {}) => {
+    const rules = await (await config(env)).headers!()
+    return Object.fromEntries(rules.filter((r) => r.source === source).flatMap((r) => r.headers).map((h) => [h.key, h.value]))
+  }
+
+  it('sends the protective headers with every page and API response', async () => {
+    const headers = await headersFor('/:path*')
+    expect(headers['X-Content-Type-Options']).toBe('nosniff')
+    expect(headers['X-Frame-Options']).toBe('DENY')
+    expect(headers['Referrer-Policy']).toBe('strict-origin-when-cross-origin')
+    expect(headers['Strict-Transport-Security']).toBe('max-age=63072000; includeSubDomains')
+    expect(headers['Cross-Origin-Opener-Policy']).toBe('same-origin')
+    expect(headers['Permissions-Policy']).toContain('camera=()')
+    expect(headers['Permissions-Policy']).toContain('geolocation=()')
+  })
+
+  it('sends the content policy as report-only, naming only the hosts the pages use', async () => {
+    const headers = await headersFor('/:path*')
+    // Report-only for now: the enforcing header is not sent
+    expect(headers['Content-Security-Policy']).toBeUndefined()
+    const policy = Object.fromEntries(headers['Content-Security-Policy-Report-Only'].split('; ').map((d) => [d.split(' ')[0], d.split(' ').slice(1)]))
+    expect(policy['default-src']).toEqual(["'self'"])
+    expect(policy['frame-ancestors']).toEqual(["'none'"])
+    expect(policy['object-src']).toEqual(["'none'"])
+    expect(policy['base-uri']).toEqual(["'self'"])
+    expect(policy['form-action']).toEqual(["'self'"])
+    expect(policy['img-src']).toEqual(["'self'", 'data:', 'blob:', 'https://images.unsplash.com', 'https://abcdefghijklmnop.supabase.co', 'https://api.maptiler.com'])
+    expect(policy['connect-src']).toEqual(["'self'", 'https://api.maptiler.com', 'https://*.sentry.io'])
+    for (const sources of Object.values(policy)) for (const source of sources) expect(source).not.toBe('*')
+  })
+
+  it('allows eval only on the dev server, and reports to Sentry only in production', async () => {
+    const dev = (await headersFor('/:path*'))['Content-Security-Policy-Report-Only']
+    expect(dev).toContain("'unsafe-eval'")
+    expect(dev).not.toContain('report-uri')
+    const live = (await headersFor('/:path*', { NODE_ENV: 'production', NEXT_PUBLIC_SENTRY_DSN: 'https://publickey123@o999.ingest.sentry.io/4242' }))['Content-Security-Policy-Report-Only']
+    expect(live).not.toContain("'unsafe-eval'")
+    expect(live).toContain('report-uri https://o999.ingest.sentry.io/api/4242/security/?sentry_key=publickey123')
+    // No DSN: no report address, and the policy is still sent
+    expect((await headersFor('/:path*', { NODE_ENV: 'production', NEXT_PUBLIC_SENTRY_DSN: '' }))['Content-Security-Policy-Report-Only']).not.toContain('report-uri')
+  })
+
+  it('tells browsers and proxies never to keep an API response', async () => {
+    expect((await headersFor('/api/:path*'))['Cache-Control']).toBe('no-store')
+  })
+
+  it('does not say what the site is built with, and never serves source maps to a browser', async () => {
+    const built = await config()
+    expect(built.poweredByHeader).toBe(false)
+    expect(built.productionBrowserSourceMaps).toBe(false)
+    expect(read('next.config.ts')).toContain('sourcemaps: { deleteSourcemapsAfterUpload: true }')
+  })
+})
+
 describe('packages', () => {
   const pkg = JSON.parse(read('package.json')) as { dependencies: Record<string, string>; devDependencies: Record<string, string> }
   const lock = JSON.parse(read('package-lock.json')) as { packages: Record<string, { version: string }> }
