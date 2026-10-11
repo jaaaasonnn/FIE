@@ -5,6 +5,9 @@ import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { depositIsSound } from '@/lib/listingInput'
+import { parseText } from '@/lib/validate'
+
+const MAX_SPECIAL_REQUESTS = 1000
 import { LIMITS, TOO_MANY_BOOKINGS, TOO_MANY_OPEN_BOOKINGS, tooMany } from '@/lib/rateLimit'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
@@ -50,6 +53,11 @@ export async function POST(req: Request) {
         { status: 400 },
       )
     }
+    if ([listingId, rentalMode, checkIn, checkOut].some((v) => typeof v !== 'string')) {
+      return NextResponse.json({ error: 'Missing required booking fields' }, { status: 400 })
+    }
+    const requests = parseText(specialRequests, { label: 'Special requests', max: MAX_SPECIAL_REQUESTS, lines: true })
+    if (!requests.ok) return NextResponse.json({ error: requests.error }, { status: 400 })
 
     const listing = await db.listing.findUnique({
       where: { id: listingId },
@@ -147,7 +155,7 @@ export async function POST(req: Request) {
             // An instant booking holds its dates for an hour while it is paid
             // for. A request gets its deadline when the host accepts it.
             payBy: listing.instantBook ? payDeadline('INSTANT', checkInDate) : null,
-            specialRequests: specialRequests ?? null,
+            specialRequests: requests.value,
             // The listing's policy as it stands now: a later change by the
             // host does not alter this guest's terms
             cancellationPolicy: asPolicy(listing.cancellationPolicy),

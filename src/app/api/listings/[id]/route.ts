@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
-import { parseListingMoney } from '@/lib/listingInput'
+import { parseListingDetails, parseListingMoney } from '@/lib/listingInput'
 import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
@@ -18,15 +18,6 @@ import { clearChecks, liveChecksInclude, publicListing, tellCleared } from '@/li
 // /api/listings/[id]/photos now, which handles Storage cleanup that a
 // plain field overwrite here would bypass. isActive is handled on its own
 // below, and moderationHold can never be set through this route.
-const EDITABLE_FIELDS = [
-  'title', 'description', 'propertyType', 'region', 'city', 'neighbourhood',
-  'lat', 'lng', 'bedrooms', 'bathrooms', 'maxGuests', 'rentalModes', 'digitalAddress',
-  'priceNightly', 'priceMonthly', 'priceAnnual', 'advanceMonthsRequired',
-  'amenities', 'rules', 'cancellationPolicy', 'instantBook',
-  'minStayNights', 'damageDeposit', 'welcomeMessage',
-] as const
-const JSON_ARRAY_FIELDS = new Set(['rentalModes', 'amenities', 'rules'])
-
 // A listing is managed by the host who owns it, or by an admin (moderation)
 async function requireOwnedListing(id: string) {
   const auth = await requireHost({ allowAdmin: true })
@@ -111,10 +102,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.cancellationPolicy !== undefined && !isPolicy(body.cancellationPolicy)) {
       return NextResponse.json({ error: 'Choose a cancellation policy: Flexible, Moderate or Strict' }, { status: 400 })
     }
-    for (const field of EDITABLE_FIELDS) {
-      if (body[field] === undefined) continue
-      data[field] = JSON_ARRAY_FIELDS.has(field) ? JSON.stringify(body[field]) : body[field]
-    }
+    // Every word and number a host types: the right type, a sensible size,
+    // and no line breaks in the title (lib/listingInput.ts). Only these
+    // fields can be edited here; anything else in the request is ignored.
+    const details = parseListingDetails(body, { creating: false })
+    if (!details.ok) return NextResponse.json({ error: details.error }, { status: 400 })
+    Object.assign(data, details.value)
+    if (body.cancellationPolicy !== undefined) data.cancellationPolicy = body.cancellationPolicy
     // Prices and the deposit: real amounts, never negative (lib/listingInput.ts).
     // An admin's edit is held to the same rule.
     const money = parseListingMoney(body)
@@ -136,7 +130,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     // A host's new description gets the same contact-details check as at
     // creation. Failing it puts the listing on hold, exactly as creation does.
-    const flagged = !isAdmin && typeof body.description === 'string' && hasContactDetails(body.description)
+    const flagged = !isAdmin && typeof data.description === 'string' && hasContactDetails(data.description)
     const held = listing.moderationHold || flagged
     if (flagged) {
       data.moderationHold = true

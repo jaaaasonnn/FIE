@@ -3,7 +3,7 @@
 // number or absurdly large would end up in what a guest is charged and what
 // a host is paid.
 
-import { parseMoney, type Parsed } from '@/lib/validate'
+import { parseMoney, parseText, parseTextList, parseWhole, type Parsed } from '@/lib/validate'
 
 /** The most a night, a month or a year may cost, in dollars. */
 export const MAX_PRICE_USD = 1_000_000
@@ -41,4 +41,94 @@ export function parseListingMoney(body: Record<string, unknown>): Parsed<Partial
 /** True when a stored deposit is one a booking may be made with: none, or a real amount that is not negative. */
 export function depositIsSound(deposit: number | null | undefined): boolean {
   return deposit === null || deposit === undefined || (Number.isFinite(deposit) && deposit >= 0 && deposit <= MAX_DEPOSIT_USD)
+}
+
+// ── Everything else a host types ───────────────────────────────────────────
+
+
+export const LISTING_LIMITS = {
+  title: 120, description: 5000, propertyType: 60, region: 60, city: 80, neighbourhood: 80, welcomeMessage: 1000,
+  amenities: { maxItems: 60, maxEach: 80 }, rules: { maxItems: 30, maxEach: 200 },
+} as const
+
+const MODES = ['SHORT_STAY', 'TEMP_STAY', 'PERMANENT']
+
+type Details = Partial<{
+  title: string; description: string; propertyType: string; region: string; city: string; neighbourhood: string | null
+  lat: number | null; lng: number | null; bedrooms: number; bathrooms: number; maxGuests: number; minStayNights: number
+  rentalModes: string; amenities: string; rules: string; instantBook: boolean; welcomeMessage: string | null
+}>
+
+/** A point on the map: a real number inside the range, or none. */
+function parseCoordinate(value: unknown, label: string, limit: number): Parsed<number | null> {
+  if (value === null || value === undefined || value === '') return { ok: true, value: null }
+  const raw = typeof value === 'number' ? value : typeof value === 'string' && /^\s*-?\d+(\.\d+)?\s*$/.test(value) ? Number(value) : NaN
+  if (!Number.isFinite(raw) || Math.abs(raw) > limit) return { ok: false, error: `${label} is not a valid map position` }
+  return { ok: true, value: raw }
+}
+
+/**
+ * The words and numbers on a listing, checked: each the right type, a
+ * sensible size, and (for the title and the other one-line fields) with no
+ * line breaks, so a title can never pass for something else in an email.
+ * Only what was sent is returned, ready to store; with `creating`, what a new
+ * listing needs is required and the rest gets its default.
+ */
+export function parseListingDetails(body: Record<string, unknown>, { creating }: { creating: boolean }): Parsed<Details> {
+  const out: Details = {}
+  const sent = (field: string) => creating || body[field] !== undefined
+
+  const texts = [
+    ['title', 'The title', true, false], ['propertyType', 'The property type', true, false], ['region', 'The region', true, false],
+    ['city', 'The city', true, false], ['neighbourhood', 'The neighbourhood', false, false],
+    ['description', 'The description', false, true], ['welcomeMessage', 'The welcome message', false, true],
+  ] as const
+  for (const [field, label, required, lines] of texts) {
+    if (!sent(field)) continue
+    const parsed = parseText(body[field], { label, max: LISTING_LIMITS[field], required, lines })
+    if (!parsed.ok) return parsed
+    if (field === 'description') out.description = parsed.value ?? ''
+    else if (field === 'neighbourhood' || field === 'welcomeMessage') out[field] = parsed.value
+    else out[field] = parsed.value!
+  }
+
+  const wholes = [
+    ['bedrooms', 'Bedrooms', 1, 50, null], ['bathrooms', 'Bathrooms', 1, 50, 1],
+    ['maxGuests', 'The number of guests', 1, 100, 2], ['minStayNights', 'The shortest stay', 1, 365, 1],
+  ] as const
+  for (const [field, label, min, max, fallback] of wholes) {
+    if (!sent(field)) continue
+    const parsed = parseWhole(body[field], { label, min, max })
+    if (!parsed.ok) return parsed
+    if (parsed.value === null && fallback === null) return { ok: false, error: `${label} must be a whole number` }
+    out[field] = parsed.value ?? fallback!
+  }
+
+  for (const [field, label, limit] of [['lat', 'The latitude', 90], ['lng', 'The longitude', 180]] as const) {
+    if (!sent(field)) continue
+    const parsed = parseCoordinate(body[field], label, limit)
+    if (!parsed.ok) return parsed
+    out[field] = parsed.value
+  }
+
+  if (sent('rentalModes')) {
+    const modes = body.rentalModes ?? []
+    if (!Array.isArray(modes) || modes.some((m) => !MODES.includes(m as string))) {
+      return { ok: false, error: 'Choose the kinds of stay from the list' }
+    }
+    out.rentalModes = JSON.stringify([...new Set(modes)])
+  }
+  for (const [field, label] of [['amenities', 'Amenities'], ['rules', 'House rules']] as const) {
+    if (!sent(field)) continue
+    const parsed = parseTextList(body[field], { label, ...LISTING_LIMITS[field] })
+    if (!parsed.ok) return parsed
+    out[field] = JSON.stringify(parsed.value)
+  }
+  if (sent('instantBook')) {
+    if (body.instantBook !== undefined && body.instantBook !== null && typeof body.instantBook !== 'boolean') {
+      return { ok: false, error: 'Instant booking must be on or off' }
+    }
+    out.instantBook = body.instantBook === true
+  }
+  return { ok: true, value: out }
 }

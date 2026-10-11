@@ -204,7 +204,7 @@ describe('messages', () => {
 
   it('a first message must be to the host of the home it is about, or the other person on a booking', async () => {
     // To a stranger, with nothing to connect them
-    let res = await write({ receiverId: 'kofi', content: 'Hello' })
+    const res = await write({ receiverId: 'kofi', content: 'Hello' })
     expect(res.status).toBe(403)
     expect(await res.json()).toEqual({ error: NO_REASON_TO_MESSAGE })
     // Naming a home does not help when the message is not to its host

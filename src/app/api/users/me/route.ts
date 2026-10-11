@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { ACCOUNT_LIMITS, parseText } from '@/lib/validate'
 import { getSessionUser } from '@/lib/session'
 import { validateGhanaPhone, normalizePhone } from '@/lib/utils'
 import { maskEmail } from '@/lib/messaging/format'
@@ -59,10 +60,21 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
     }
 
-    const { name, phone, bio, nationality, businessName, optionalEmails } = await req.json()
+    const { name: rawName, phone, bio: rawBio, nationality: rawNationality, businessName: rawBusiness, optionalEmails } = await req.json()
 
-    if (typeof name !== 'string' || !name.trim()) {
-      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    // Each the right type and a sensible size; names on one line (lib/validate.ts)
+    const fields = {
+      name: parseText(rawName, { label: 'Name', max: ACCOUNT_LIMITS.name, required: true }),
+      bio: parseText(rawBio, { label: 'Bio', max: ACCOUNT_LIMITS.bio, lines: true }),
+      nationality: parseText(rawNationality, { label: 'Nationality', max: ACCOUNT_LIMITS.nationality }),
+      businessName: parseText(rawBusiness, { label: 'The business name', max: ACCOUNT_LIMITS.businessName }),
+    }
+    for (const parsed of Object.values(fields)) {
+      if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })
+    }
+    const value = (parsed: (typeof fields)[keyof typeof fields]) => (parsed.ok ? parsed.value : null)
+    if (phone !== undefined && phone !== null && typeof phone !== 'string') {
+      return NextResponse.json({ error: 'Invalid Ghana phone number format (e.g. 0241234567)' }, { status: 400 })
     }
 
     if (!phone && !sessionUser.email) {
@@ -88,18 +100,14 @@ export async function PATCH(req: Request) {
       }
     }
 
-    if (bio && typeof bio === 'string' && bio.length > 500) {
-      return NextResponse.json({ error: 'Bio must be 500 characters or fewer' }, { status: 400 })
-    }
-
     const user = await db.user.update({
       where: { id: sessionUser.id },
       data: {
-        name: name.trim(),
+        name: value(fields.name)!,
         phone: normalizedPhone,
-        bio: bio?.trim() || null,
-        nationality: nationality?.trim() || null,
-        businessName: businessName?.trim() || null,
+        bio: value(fields.bio),
+        nationality: value(fields.nationality),
+        businessName: value(fields.businessName),
         // Only the optional emails; everything about a booking is always sent
         ...(typeof optionalEmails === 'boolean' ? { optionalEmails } : {}),
       },

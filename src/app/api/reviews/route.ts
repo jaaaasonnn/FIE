@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { notify } from '@/lib/messaging/notify'
+import { parseText } from '@/lib/validate'
+
+const MAX_REVIEW_LENGTH = 2000
+const MAX_REPLY_LENGTH = 1000
 
 export async function GET(req: Request) {
   try {
@@ -62,15 +66,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You must be signed in to leave a review' }, { status: 401 })
     }
 
-    const { bookingId, rating, comment, type } = await req.json()
+    const { bookingId, rating, comment: rawComment, type } = await req.json()
 
-    if (!bookingId || !rating || !comment || !type) {
+    if (typeof bookingId !== 'string' || !bookingId || !rating || !rawComment || !type) {
       return NextResponse.json({ error: 'Missing required review fields' }, { status: 400 })
     }
+    const parsedComment = parseText(rawComment, { label: 'The review', max: MAX_REVIEW_LENGTH, required: true, lines: true })
+    if (!parsedComment.ok) return NextResponse.json({ error: parsedComment.error }, { status: 400 })
+    const comment = parsedComment.value!
     if (type !== 'GUEST_TO_HOST' && type !== 'HOST_TO_GUEST') {
       return NextResponse.json({ error: 'type must be GUEST_TO_HOST or HOST_TO_GUEST' }, { status: 400 })
     }
-    if (rating < 1 || rating > 5) {
+    // A whole number of stars: "abc", 4.5, or anything that is not a number is refused
+    if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {
       return NextResponse.json({ error: 'Rating must be between 1 and 5' }, { status: 400 })
     }
 
@@ -167,7 +175,11 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
     }
 
-    const { reviewId, hostReply } = await req.json()
+    const { reviewId, hostReply: rawReply } = await req.json()
+    if (typeof reviewId !== 'string' || !reviewId) return NextResponse.json({ error: 'Review not found' }, { status: 404 })
+    const parsedReply = parseText(rawReply, { label: 'The reply', max: MAX_REPLY_LENGTH, lines: true })
+    if (!parsedReply.ok) return NextResponse.json({ error: parsedReply.error }, { status: 400 })
+    const hostReply = parsedReply.value
 
     const review = await db.review.findUnique({ where: { id: reviewId } })
     if (!review) return NextResponse.json({ error: 'Review not found' }, { status: 404 })

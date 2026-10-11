@@ -86,3 +86,8 @@ export function parseTextList(
   }
   return { ok: true, value: out }
 }
+
+/** Sizes for the things people type about themselves. */
+export const ACCOUNT_LIMITS = { name: 80, bio: 500, nationality: 60, businessName: 120 } as const
+/** No real password is longer; anything more is refused before it is hashed. */
+export const MAX_PASSWORD_LENGTH = 200

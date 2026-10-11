@@ -4,13 +4,25 @@ import { db } from '@/lib/db'
 import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
 import { ipHashOf, requestVerification } from '@/lib/authTokens'
+import { ACCOUNT_LIMITS, MAX_PASSWORD_LENGTH, parseText } from '@/lib/validate'
 import { LIMITS, SIGN_UP, TOO_MANY_SIGN_UPS, countRecent, record, tooMany } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
   try {
-    const { name, email: rawEmail, phone, password, role, businessName, nationality } = await req.json()
+    const { name: rawName, email: rawEmail, phone, password, role, businessName: rawBusiness, nationality: rawNationality } = await req.json()
 
-    if (!name) return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    const parsedName = parseText(rawName, { label: 'Name', max: ACCOUNT_LIMITS.name, required: true })
+    if (!parsedName.ok) return NextResponse.json({ error: parsedName.error }, { status: 400 })
+    const parsedBusiness = parseText(rawBusiness, { label: 'The business name', max: ACCOUNT_LIMITS.businessName })
+    if (!parsedBusiness.ok) return NextResponse.json({ error: parsedBusiness.error }, { status: 400 })
+    const parsedNationality = parseText(rawNationality, { label: 'Nationality', max: ACCOUNT_LIMITS.nationality })
+    if (!parsedNationality.ok) return NextResponse.json({ error: parsedNationality.error }, { status: 400 })
+    const name = parsedName.value!
+    const businessName = parsedBusiness.value
+    const nationality = parsedNationality.value
+    if ((phone !== undefined && phone !== null && typeof phone !== 'string') || (rawEmail !== undefined && rawEmail !== null && typeof rawEmail !== 'string')) {
+      return NextResponse.json({ error: 'Phone or email is required' }, { status: 400 })
+    }
     if (!phone && !rawEmail) return NextResponse.json({ error: 'Phone or email is required' }, { status: 400 })
     // Stored trimmed and lower-cased, so the same address cannot be registered
     // twice in different capitals and messages always go to one spelling of it
@@ -19,8 +31,11 @@ export async function POST(req: Request) {
     if (phone && !validateGhanaPhone(phone)) {
       return NextResponse.json({ error: 'Invalid Ghana phone number format (e.g. 0241234567)' }, { status: 400 })
     }
-    if (!password || password.length < 8) {
+    if (typeof password !== 'string' || password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      return NextResponse.json({ error: `Password can be at most ${MAX_PASSWORD_LENGTH} characters` }, { status: 400 })
     }
 
     const normalizedPhone = phone ? normalizePhone(phone) : null

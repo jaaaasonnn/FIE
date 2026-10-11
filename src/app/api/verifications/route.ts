@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/roles'
 import { notify } from '@/lib/messaging/notify'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 import { hostIdApproved } from '@/lib/hostId'
+import { manyLines } from '@/lib/validate'
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -165,7 +166,7 @@ export async function PATCH(req: Request) {
 
     const body = await req.json().catch(() => ({}))
     const { verificationId, status } = body
-    const notes = typeof body.notes === 'string' ? body.notes.trim() : ''
+    const notes = typeof body.notes === 'string' ? manyLines(body.notes).slice(0, 1000) : ''
 
     if (!['APPROVED', 'REJECTED'].includes(status)) {
       return NextResponse.json({ error: 'Status must be APPROVED or REJECTED' }, { status: 400 })

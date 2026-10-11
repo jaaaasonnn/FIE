@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
-import { parseListingMoney } from '@/lib/listingInput'
+import { parseListingDetails, parseListingMoney } from '@/lib/listingInput'
 import { getSessionUser } from '@/lib/session'
 import { requireHost, requireVerifiedEmail } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
@@ -128,38 +128,24 @@ export async function POST(req: Request) {
     if (unverified) return unverified
 
     const body = await req.json()
-    const {
-      title, description, propertyType, region, city, neighbourhood,
-      lat, lng, bedrooms, bathrooms, maxGuests, rentalModes, priceNightly,
-      priceMonthly, priceAnnual, advanceMonthsRequired, amenities, rules, digitalAddress,
-      cancellationPolicy, instantBook, minStayNights, damageDeposit, welcomeMessage,
-      isActive: requestedIsActive,
-    } = body
+    const { title, propertyType, region, city, bedrooms, advanceMonthsRequired, digitalAddress, cancellationPolicy, isActive: requestedIsActive } = body
 
     // Always use the authenticated user as host — never trust client hostId
     const hostId = user.id
 
-    if (!title?.trim() || !region || !city?.trim() || !propertyType || bedrooms == null || bedrooms === '') {
-      console.log('[POST /api/listings] rejected — missing required fields', {
-        hostId,
-        hasTitle: !!title?.trim(),
-        hasRegion: !!region,
-        hasCity: !!city?.trim(),
-        hasPropertyType: !!propertyType,
-        bedrooms,
-      })
+    const filled = (v: unknown) => (typeof v === 'string' ? !!v.trim() : v !== null && v !== undefined)
+    if (!filled(title) || !filled(region) || !filled(city) || !filled(propertyType) || !filled(bedrooms)) {
+      console.log('[POST /api/listings] rejected — missing required fields', { hostId })
       return NextResponse.json(
         { error: 'Missing required fields: title, property type, region, city, and bedrooms are required' },
         { status: 400 },
       )
     }
-
-    const beds = parseInt(String(bedrooms), 10)
-    const baths = parseInt(String(bathrooms ?? 1), 10)
-    const guests = parseInt(String(maxGuests ?? 2), 10)
-    if (Number.isNaN(beds) || beds < 1) {
-      return NextResponse.json({ error: 'Bedrooms must be a valid number' }, { status: 400 })
-    }
+    // Every word and number a host types: the right type, a sensible size,
+    // and no line breaks in the title (lib/listingInput.ts)
+    const details = parseListingDetails(body, { creating: true })
+    if (!details.ok) return NextResponse.json({ error: details.error }, { status: 400 })
+    const fields = details.value
 
     // The advance a long-term tenant pays: 1 to 6 months, or nothing for the default
     const advance = parseAdvanceMonths(advanceMonthsRequired)
@@ -174,38 +160,38 @@ export async function POST(req: Request) {
     if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })
 
     // Auto-flag listings with contact details in description
-    const isFlagged = hasContactDetails(description)
+    const isFlagged = hasContactDetails(fields.description ?? '')
 
-    console.log('[POST /api/listings] creating listing for host', hostId, { title, region, city, propertyType })
+    console.log('[POST /api/listings] creating listing for host', hostId)
 
     const listing = await db.listing.create({
       data: {
         hostId,
-        title: title.trim(),
-        description: description || '',
-        propertyType,
-        region,
-        city: city.trim(),
-        neighbourhood: neighbourhood || null,
+        title: fields.title!,
+        description: fields.description ?? '',
+        propertyType: fields.propertyType!,
+        region: fields.region!,
+        city: fields.city!,
+        neighbourhood: fields.neighbourhood ?? null,
         digitalAddress: address.value,
-        lat: lat ?? null,
-        lng: lng ?? null,
-        bedrooms: beds,
-        bathrooms: Number.isNaN(baths) ? 1 : baths,
-        maxGuests: Number.isNaN(guests) ? 2 : guests,
-        rentalModes: JSON.stringify(rentalModes || []),
+        lat: fields.lat ?? null,
+        lng: fields.lng ?? null,
+        bedrooms: fields.bedrooms!,
+        bathrooms: fields.bathrooms!,
+        maxGuests: fields.maxGuests!,
+        rentalModes: fields.rentalModes!,
         priceNightly: money.value.priceNightly ?? null,
         priceMonthly: money.value.priceMonthly ?? null,
         priceAnnual: money.value.priceAnnual ?? null,
         advanceMonthsRequired: advance.value,
-        amenities: JSON.stringify(amenities || []),
-        rules: JSON.stringify(rules || []),
+        amenities: fields.amenities!,
+        rules: fields.rules!,
         photos: JSON.stringify([]),
         cancellationPolicy: asPolicy(cancellationPolicy),
-        instantBook: !!instantBook,
-        minStayNights: minStayNights ? parseInt(String(minStayNights), 10) : 1,
+        instantBook: fields.instantBook!,
+        minStayNights: fields.minStayNights!,
         damageDeposit: money.value.damageDeposit ?? null,
-        welcomeMessage: welcomeMessage || null,
+        welcomeMessage: fields.welcomeMessage ?? null,
         // A client can request staying inactive (used by the "new listing"
         // wizard, which creates the record as a draft before its Photos
         // step) but can never force itself active — the content-flag check

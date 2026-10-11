@@ -24,6 +24,7 @@ import { maskEmail, maskPhone } from '@/lib/messaging/format'
 import { LOADERS, type EventIds } from '@/lib/messaging/events'
 import { TEMPLATES, emailFooter, emailText, type EventName, type Template } from '@/lib/messaging/templates'
 import { seal } from '@/lib/sealed'
+import { oneLine } from '@/lib/validate'
 
 export type WriteResult = {
   /** Rows written this time; a repeat of the same event writes none */
@@ -74,7 +75,11 @@ export async function writeMessages<E extends EventName>(event: E, ids: EventIds
 
     const config = messagingConfig()
     const template: Template = TEMPLATES[event]
-    const facts = { ...loaded.facts, appUrl: config.appUrl, supportEmail: config.supportEmail }
+    // Anything a person typed (a title, a name, a reason) goes in as one
+    // line. A blank line would start a new paragraph, and a paragraph of the
+    // form "Label: https://..." is drawn as a button (lib/messaging/emailHtml.ts).
+    const typed = Object.fromEntries(Object.entries(loaded.facts).map(([k, v]) => [k, typeof v === 'string' ? oneLine(v) : v])) as typeof loaded.facts
+    const facts = { ...typed, appUrl: config.appUrl, supportEmail: config.supportEmail }
     const pieces = template.render(facts)
     const optional = template.optional === true
 

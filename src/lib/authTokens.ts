@@ -22,6 +22,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
+import { MAX_PASSWORD_LENGTH } from '@/lib/validate'
 
 export type TokenPurpose = 'VERIFY_EMAIL' | 'CHANGE_EMAIL' | 'RESET_PASSWORD'
 const LINK_KINDS: TokenPurpose[] = ['VERIFY_EMAIL', 'CHANGE_EMAIL', 'RESET_PASSWORD']
@@ -244,6 +245,9 @@ export async function resetPassword(raw: unknown, password: unknown, now: Date =
   // Checked before the link is used, so a too-short password does not waste it
   if (typeof password !== 'string' || password.length < MIN_PASSWORD_LENGTH) {
     return { ok: false, status: 400, error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters` }
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return { ok: false, status: 400, error: `Password can be at most ${MAX_PASSWORD_LENGTH} characters` }
   }
   const token = await consumeToken(raw, ['RESET_PASSWORD'], now)
   if (!token) return { ok: false, status: 400, error: BAD_LINK }
