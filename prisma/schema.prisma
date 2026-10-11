@@ -203,6 +203,7 @@ model Listing {
   avgRating             Float    @default(0)
   reviewCount           Int      @default(0)
   welcomeMessage        String?
+  // Never negative: the database refuses it too (CHECK "Listing_damageDeposit_nonneg", prisma/constraints.sql)
   damageDeposit         Float?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -270,6 +271,7 @@ model Booking {
   pricePerUnit    Float
   subtotal        Float
   serviceFee      Float
+  // Never negative: the database refuses it too (CHECK "Booking_damageDeposit_nonneg", prisma/constraints.sql)
   damageDeposit   Float    @default(0)
   totalPrice      Float
   status          String   @default("PENDING") // PENDING | CONFIRMED | DECLINED | CANCELLED | COMPLETED | DISPUTED
@@ -483,6 +485,9 @@ model Review {
   reviewer User    @relation("ReviewsGiven", fields: [reviewerId], references: [id])
   reviewee User    @relation("ReviewsReceived", fields: [revieweeId], references: [id])
   listing  Listing? @relation(fields: [listingId], references: [id])
+
+  // One review per side per booking: two requests at the same moment cannot both be stored
+  @@unique([bookingId, reviewerId, type])
 }
 
 model Message {

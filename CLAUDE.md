@@ -197,6 +197,25 @@ Before turning payouts or refunds on: confirm in the Paystack dashboard that tra
 - A host can cancel a confirmed booking up to the day before check-in with a required reason; the guest gets everything back, every admin is notified, and the admin page counts them. No penalties yet.
 - A payment that lands on a cancelled or declined booking is refunded in full and does not revive it.
 
+## Security
+
+The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a test that fails when it is removed.
+
+- **Money a host sets.** Prices must be above zero and a damage deposit zero or more, both capped (`src/lib/listingInput.ts`). A booking is refused on a listing whose stored deposit is unusable. The database refuses a negative deposit too (CHECK constraints, `prisma/constraints.sql`). A negative deposit would be taken off the charge while the payout is still worked out from the whole stay price.
+- **What a request sends** is checked for type and size in `src/lib/validate.ts`. A listing edit stores only the fields named in `parseListingDetails`; a new column on `Listing` cannot be set by a host until it is added there. Titles, names and place names are kept on one line, and every typed fact is put on one line before an email is written (`notify.ts`), because a paragraph of the form "Label: https://…" is drawn as a button.
+- **Limits** (`src/lib/rateLimit.ts`, counted in `AuthRequest`): sign-in 5 wrong passwords per address per 15 minutes and 20 per IP per hour; sign-up 5 per IP per hour; 2 unpaid bookings per guest and 10 bookings an hour; 30 messages an hour. Sign-in is counted against a hash of the address as typed, and always checks a hash, so an address with no account behaves like one that has. On a route file, export only handlers: constants live in `src/lib`.
+- **Messages.** A first message must be to the host of the listing it names or to the other party on a booking; after that either can reply.
+- **What people see of each other** (`src/lib/privacy.ts`). Phone and email are shared only once a booking is confirmed and paid. A host never gets the guest's payment references. A listing that is off or on hold is 404 except to its host, an admin, or a guest who booked it. Host profiles are public; a guest's is for themselves, admins and a host they booked with; an admin's is for admins only.
+- **Sessions** (`src/lib/session.ts`). Only the SHA-256 hash of a token is stored. `POST /api/users/me/password` changes a password (current one required, other devices signed out); `POST /api/auth/signout` with `{ everywhere: true }` ends every session. `cleanup` runs daily at 03:30 UTC and removes run-out sessions and week-old limit counts; it has no switch.
+- **Cron routes** all call `cronAuthorised(req)` (`src/lib/cronAuth.ts`, constant time). A test fails if a cron route compares the secret itself.
+- **Uploads** are checked by their first bytes (`src/lib/imageBytes.ts`) and must be the JPEG, PNG or WebP they claim to be.
+- **Payout method.** A method saved less than 24 hours ago is not paid into (`src/lib/payoutMethod.ts`). Like the host ID hold it is a wait, never a failure, and is checked in `runPayouts` and inside `initiateHostPayout`. The job reports `waiting-for-new-payout-method`.
+- **Exchange rate.** An admin's rate must be between 1 and 100 and within 20% of the rate in force (`manualRateRefusal`).
+- **Headers** are set in `next.config.ts`. The Content-Security-Policy is **report-only**: nothing is blocked yet. To enforce it, rename the header there, after watching the reports in Sentry. Images are optimised only from this project's storage host and Unsplash, and AVIF is off.
+- **Sentry** reports are scrubbed in all three set-ups (`src/lib/sentryScrub.ts`): no cookies, request bodies, emails, phone numbers or single-use links.
+- **Database.** Row-level security is on for every table with no policies, so only the Prisma connection (`postgres`) and the service key reach the data. A new model must be added to `prisma/enable_rls.sql` and run; a test fails otherwise. Nothing in the app uses the `anon` or `authenticated` roles.
+- **Still open:** Next is on 16.2.12 and npm audit still lists advisories fixed only in 16.3 and 16.4 (the image optimiser among them); MapLibre 6 and vitest 4 are major upgrades not yet done. Account suspension is not built. Admin accounts have no second factor.
+
 ## Key Technical Decisions & Why
 - **MapTiler over Mapbox** — avoids Mapbox's credit card requirement during development
 - **Paystack over direct MTN MoMo API** — covers all three Ghanaian mobile money networks plus cards, stronger docs, settles to Ghana bank accounts
