@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
+import { parseListingMoney } from '@/lib/listingInput'
 import { requireHost } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
 import { notify } from '@/lib/messaging/notify'
@@ -114,6 +115,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (body[field] === undefined) continue
       data[field] = JSON_ARRAY_FIELDS.has(field) ? JSON.stringify(body[field]) : body[field]
     }
+    // Prices and the deposit: real amounts, never negative (lib/listingInput.ts).
+    // An admin's edit is held to the same rule.
+    const money = parseListingMoney(body)
+    if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })
+    Object.assign(data, money.value)
     // The advance a long-term tenant pays: 1 to 6 months, or nothing for the default
     if (body.advanceMonthsRequired !== undefined) {
       const advance = parseAdvanceMonths(body.advanceMonthsRequired)

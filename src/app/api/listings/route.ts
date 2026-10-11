@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
+import { parseListingMoney } from '@/lib/listingInput'
 import { getSessionUser } from '@/lib/session'
 import { requireHost, requireVerifiedEmail } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
@@ -168,6 +169,10 @@ export async function POST(req: Request) {
     const address = parseDigitalAddress(digitalAddress)
     if (!address.ok) return NextResponse.json({ error: address.error }, { status: 400 })
 
+    // Prices and the deposit: real amounts, never negative (lib/listingInput.ts)
+    const money = parseListingMoney(body)
+    if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })
+
     // Auto-flag listings with contact details in description
     const isFlagged = hasContactDetails(description)
 
@@ -189,9 +194,9 @@ export async function POST(req: Request) {
         bathrooms: Number.isNaN(baths) ? 1 : baths,
         maxGuests: Number.isNaN(guests) ? 2 : guests,
         rentalModes: JSON.stringify(rentalModes || []),
-        priceNightly: priceNightly ? parseFloat(String(priceNightly)) : null,
-        priceMonthly: priceMonthly ? parseFloat(String(priceMonthly)) : null,
-        priceAnnual: priceAnnual ? parseFloat(String(priceAnnual)) : null,
+        priceNightly: money.value.priceNightly ?? null,
+        priceMonthly: money.value.priceMonthly ?? null,
+        priceAnnual: money.value.priceAnnual ?? null,
         advanceMonthsRequired: advance.value,
         amenities: JSON.stringify(amenities || []),
         rules: JSON.stringify(rules || []),
@@ -199,7 +204,7 @@ export async function POST(req: Request) {
         cancellationPolicy: asPolicy(cancellationPolicy),
         instantBook: !!instantBook,
         minStayNights: minStayNights ? parseInt(String(minStayNights), 10) : 1,
-        damageDeposit: damageDeposit ? parseFloat(String(damageDeposit)) : null,
+        damageDeposit: money.value.damageDeposit ?? null,
         welcomeMessage: welcomeMessage || null,
         // A client can request staying inactive (used by the "new listing"
         // wizard, which creates the record as a draft before its Photos

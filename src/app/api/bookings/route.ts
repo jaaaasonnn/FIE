@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
+import { depositIsSound } from '@/lib/listingInput'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE, requireVerifiedEmail } from '@/lib/roles'
@@ -60,6 +61,14 @@ export async function POST(req: Request) {
     // payment owed to themselves.
     if (listing.hostId === user.id) {
       return NextResponse.json({ error: 'You cannot book your own listing' }, { status: 403 })
+    }
+
+    // A deposit that is negative or not a number would come off what the
+    // guest is charged while the host is still paid for the whole stay. The
+    // listing routes refuse one; this is the same rule where the money is set.
+    if (!depositIsSound(listing.damageDeposit)) {
+      console.error('[Bookings] listing', listing.id, 'has an unusable damage deposit: booking refused')
+      return NextResponse.json({ error: 'This listing cannot be booked at the moment. Please contact support.' }, { status: 409 })
     }
 
     const quote = quoteStay(listing, rentalMode, checkIn, checkOut)
