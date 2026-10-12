@@ -12,7 +12,7 @@ vi.mock('@/lib/session', async (original) => ({ ...(await original<typeof import
 vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 
 import { NOW, as, home, json, person, reset, stay } from './harness'
-import { LIMITS, MAX_MESSAGE_LENGTH, NO_REASON_TO_MESSAGE, signInKey } from '@/lib/rateLimit'
+import { LIMITS, MAX_MESSAGE_LENGTH, NO_REASON_TO_MESSAGE, TOO_MANY_OPEN_BOOKINGS, TOO_MANY_OPEN_REQUESTS, signInKey } from '@/lib/rateLimit'
 import { IP_LIMIT_PER_HOUR, ipHashOf, requestPasswordReset } from '@/lib/authTokens'
 import { POST as signIn } from '@/app/api/auth/signin/route'
 import { POST as signUp } from '@/app/api/auth/signup/route'
@@ -152,25 +152,50 @@ describe('booking', () => {
 
   beforeEach(() => {
     person(state, 'host', 'HOST')
-    for (let i = 1; i <= 4; i++) home(state, `home${i}`, 'host', { instantBook: i % 2 === 1 })
+    for (let i = 1; i <= 14; i++) home(state, `home${i}`, 'host', { instantBook: i % 2 === 1 })
     as(state, 'ama')
   })
 
-  it('lets a guest hold 2 unpaid bookings and no more', async () => {
-    expect((await request('home1', 9)).status).toBe(201)   // instant: waiting to be paid for
-    expect((await request('home2', 9)).status).toBe(201)   // a request: waiting for the host
-    const third = await request('home3', 9)
+  it('lets a guest hold 2 confirmed bookings that are not paid for, and no more', async () => {
+    expect((await request('home1', 9)).status).toBe(201)   // instant: confirmed, waiting to be paid for
+    expect((await request('home3', 9)).status).toBe(201)
+    const third = await request('home5', 9)
     expect(third.status).toBe(429)
+    expect((await third.json()).error).toBe(TOO_MANY_OPEN_BOOKINGS)
     expect(state.tables.booking).toHaveLength(2)
     // The third home's dates were never held
-    expect((state.tables.blockedDate ?? []).filter((d) => d.listingId === 'home3')).toHaveLength(0)
+    expect((state.tables.blockedDate ?? []).filter((d) => d.listingId === 'home5')).toHaveLength(0)
 
     // Paying for one, or cancelling one, frees a place
     state.tables.booking[0].paymentStatus = 'PAID'
-    expect((await request('home3', 9)).status).toBe(201)
-    expect((await request('home4', 9)).status).toBe(429)
+    expect((await request('home5', 9)).status).toBe(201)
+    expect((await request('home7', 9)).status).toBe(429)
     state.tables.booking[1].status = 'CANCELLED'
-    expect((await request('home4', 9)).status).toBe(201)
+    expect((await request('home7', 9)).status).toBe(201)
+  })
+
+  it('does not count requests a host has not answered towards the 2', async () => {
+    for (const id of ['home2', 'home4', 'home6']) expect((await request(id, 9)).status).toBe(201)
+    expect(state.tables.booking.every((b) => b.status === 'PENDING')).toBe(true)
+    expect((await request('home1', 9)).status).toBe(201)
+    expect((await request('home3', 9)).status).toBe(201)
+    expect((await request('home5', 9)).status).toBe(429)
+  })
+
+  it('lets a guest have 5 requests waiting for an answer, and no more', async () => {
+    for (const id of ['home2', 'home4', 'home6', 'home8', 'home10']) expect((await request(id, 9)).status).toBe(201)
+    const sixth = await request('home12', 9)
+    expect(sixth.status).toBe(429)
+    expect((await sixth.json()).error).toBe(TOO_MANY_OPEN_REQUESTS)
+    expect(state.tables.booking).toHaveLength(5)
+    // An instant booking is still open to them
+    expect((await request('home1', 9)).status).toBe(201)
+    // A host answering one, either way, frees a place
+    state.tables.booking[0].status = 'DECLINED'
+    expect((await request('home12', 9)).status).toBe(201)
+    expect((await request('home14', 9)).status).toBe(429)
+    state.tables.booking[1].status = 'CONFIRMED'
+    expect((await request('home14', 9)).status).toBe(201)
   })
 
   it('lets a guest make 10 bookings in an hour, however they end, and no more', async () => {

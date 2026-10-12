@@ -19,8 +19,10 @@ export const LIMITS = {
   signInPerIp: { max: 20, windowMs: HOUR },
   /** Accounts made from one IP address */
   signUpPerIp: { max: 5, windowMs: HOUR },
-  /** Bookings one guest may have that are not paid for yet (waiting for payment, or for the host's answer) */
+  /** Bookings one guest may have that are confirmed and waiting to be paid for */
   openUnpaidBookings: 2,
+  /** Requests one guest may have that a host has not answered yet */
+  openRequests: 5,
   /** Bookings one guest may make in an hour, however they end */
   bookingsPerHour: 10,
   /** Messages one person may send in an hour */
@@ -33,6 +35,7 @@ export const SIGN_UP = 'SIGN_UP'
 export const TOO_MANY_SIGN_INS = 'Too many sign-in attempts. Please wait 15 minutes and try again, or reset your password.'
 export const TOO_MANY_SIGN_UPS = 'Too many accounts have been created from this connection. Please try again in an hour.'
 export const TOO_MANY_OPEN_BOOKINGS = `You already have ${LIMITS.openUnpaidBookings} bookings that are not paid for yet. Pay for one, or cancel it, before making another.`
+export const TOO_MANY_OPEN_REQUESTS = `You already have ${LIMITS.openRequests} requests waiting for a host's answer. Wait for an answer, or cancel one, before making another.`
 export const TOO_MANY_BOOKINGS = 'You have made a lot of bookings in the last hour. Please try again later.'
 /** The longest one message may be. */
 export const MAX_MESSAGE_LENGTH = 2000

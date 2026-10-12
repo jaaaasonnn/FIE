@@ -9,7 +9,7 @@ import { parseText } from '@/lib/validate'
 import { bookingFor } from '@/lib/privacy'
 
 const MAX_SPECIAL_REQUESTS = 1000
-import { LIMITS, TOO_MANY_BOOKINGS, TOO_MANY_OPEN_BOOKINGS, tooMany } from '@/lib/rateLimit'
+import { LIMITS, TOO_MANY_BOOKINGS, TOO_MANY_OPEN_BOOKINGS, TOO_MANY_OPEN_REQUESTS, tooMany } from '@/lib/rateLimit'
 import { DAY_MS } from '@/lib/stayDates'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { HOSTS_ONLY_MESSAGE, requireVerifiedEmail } from '@/lib/roles'
@@ -84,11 +84,16 @@ export async function POST(req: Request) {
     // A booking holds a home's dates before anything is paid. One guest may
     // hold only so many at once, and make only so many in an hour, so nobody
     // can empty a host's calendar for nothing.
-    const [openUnpaid, lastHour] = await Promise.all([
-      db.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: { in: ['PENDING', 'CONFIRMED'] } } }),
+    // Confirmed bookings waiting for payment, and requests waiting for a
+    // host's answer, are counted apart: each has its own limit.
+    const [openUnpaid, openRequests, lastHour] = await Promise.all([
+      db.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } }),
+      db.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'PENDING' } }),
       db.booking.count({ where: { guestId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } }),
     ])
-    if (openUnpaid >= LIMITS.openUnpaidBookings) return tooMany(TOO_MANY_OPEN_BOOKINGS, 60)
+    // An instant booking is confirmed at once and waits to be paid for; anything else is a request
+    if (listing.instantBook && openUnpaid >= LIMITS.openUnpaidBookings) return tooMany(TOO_MANY_OPEN_BOOKINGS, 60)
+    if (!listing.instantBook && openRequests >= LIMITS.openRequests) return tooMany(TOO_MANY_OPEN_REQUESTS, 60)
     if (lastHour >= LIMITS.bookingsPerHour) return tooMany(TOO_MANY_BOOKINGS, 60 * 60)
 
     const quote = quoteStay(listing, rentalMode, checkIn, checkOut)
