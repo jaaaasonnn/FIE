@@ -7,7 +7,7 @@
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test'
 import { World, freshIp, type Actor } from './world'
 
-export type Problems = { console: string[]; pageErrors: string[]; failedRequests: string[]; external: string[] }
+export type Problems = { console: string[]; pageErrors: string[]; failedRequests: string[]; external: string[]; /** What the report-only content policy would have blocked */ csp: string[] }
 const LOCAL = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/|data:|blob:|about:)/
 const STORAGE = 'http://127.0.0.1:4011'
 const MAP_STYLE = { version: 8, name: 'e2e', sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#eef0f2' } }] }
@@ -36,7 +36,8 @@ function watch(page: Page, problems: Problems) {
   page.on('console', (m) => { if (m.type() === 'error') problems.console.push(m.text().slice(0, 300)) })
   page.on('pageerror', (e) => problems.pageErrors.push(String(e).slice(0, 300)))
   page.on('response', (r) => { if (r.status() >= 400) problems.failedRequests.push(`${r.status()} ${r.request().method()} ${r.url().replace(/\?.*/, '')}`) })
-  page.on('requestfailed', (r) => { const why = r.failure()?.errorText ?? ''; if (!/ERR_ABORTED|cancelled|NS_BINDING_ABORTED|blockedbyclient/i.test(why)) problems.failedRequests.push(`failed ${r.url().replace(/\?.*/, '')} (${why})`) })
+  // (the browser posting a content-policy report to the fake Sentry address is not a page request)
+  page.on('requestfailed', (r) => { const why = r.failure()?.errorText ?? ''; if (!/ERR_ABORTED|cancelled|NS_BINDING_ABORTED|blockedbyclient/i.test(why) && !/\/api\/\d+\/security\//.test(r.url())) problems.failedRequests.push(`failed ${r.url().replace(/\?.*/, '')} (${why})`) })
 }
 
 type Fixtures = {
@@ -46,11 +47,19 @@ type Fixtures = {
 }
 
 export const test = base.extend<Fixtures>({
-  problems: async ({}, use) => { await use({ console: [], pageErrors: [], failedRequests: [], external: [] }) },
+  problems: async ({}, use) => { await use({ console: [], pageErrors: [], failedRequests: [], external: [], csp: [] }) },
   context: async ({ context, problems }, use) => {
     await context.setExtraHTTPHeaders({ 'x-vercel-forwarded-for': freshIp() })
     await fence(context, problems)
     context.on('page', (page) => watch(page, problems))
+    // The content policy is report-only: nothing is blocked, but what it WOULD block is collected here
+    await context.exposeBinding('__e2eCsp', (_source, line: string) => { problems.csp.push(line) })
+    await context.addInitScript(() => {
+      document.addEventListener('securitypolicyviolation', (e) => {
+        const where = e.sourceFile ? ` at ${e.sourceFile.replace(/^https?:\/\/[^/]+/, '').slice(0, 60)}:${e.lineNumber}` : ''
+        ;(window as unknown as { __e2eCsp?: (line: string) => void }).__e2eCsp?.(`${e.effectiveDirective} | ${(e.blockedURI || 'inline').slice(0, 80)}${where}`)
+      })
+    })
     await use(context)
     // Whatever the test was about, the browser must not have tried to reach a third party
     expect(problems.external, 'requests to anything but this machine').toEqual([])
@@ -69,6 +78,16 @@ export const test = base.extend<Fixtures>({
   },
 })
 export { expect }
+
+/**
+ * WebKit will not keep a `Secure` cookie from a plain-http page, even on
+ * localhost (Chromium and Firefox do). The app marks its session cookie
+ * Secure in production mode, and this stack serves http. So logging in
+ * through the form cannot work in the WebKit projects here; it would over
+ * https. Tests that need it say so and are skipped there, and that is listed
+ * as not tested. Everything else in WebKit signs in with the `signIn` fixture.
+ */
+export const FORM_LOGIN_NEEDS_HTTPS = 'WebKit drops the Secure session cookie on http://localhost: logging in through the form needs an https front, which this stack does not have'
 
 /** Dollars as the site writes them. */
 export const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`

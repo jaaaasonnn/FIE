@@ -69,7 +69,8 @@ async function webhook(target, event, data, { forged = false, signature } = {}) 
   })
   return res.status
 }
-const chargeData = (t) => ({ id: t.id, reference: t.reference, status: t.status, amount: t.paidAmount ?? t.amount, currency: t.paidCurrency ?? t.currency, channel: t.channels?.[0] ?? 'card', customer: { email: t.email }, metadata: t.metadata })
+// A payment page nobody has acted on yet is "abandoned" to Paystack's verify, until the customer pays or fails
+const chargeData = (t) => ({ id: t.id, reference: t.reference, status: t.status === 'pending' ? 'abandoned' : t.status, amount: t.paidAmount ?? t.amount, currency: t.paidCurrency ?? t.currency, channel: t.channels?.[0] ?? 'card', customer: { email: t.email }, metadata: t.metadata })
 
 // A real PNG, drawn here, so image optimisation has something to work on
 function png(width, height, seed = 0) {

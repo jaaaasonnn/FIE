@@ -1,4 +1,4 @@
-import { test, expect } from '../../lib/test'
+import { test, expect, FORM_LOGIN_NEEDS_HTTPS } from '../../lib/test'
 import { db } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
@@ -9,7 +9,8 @@ import { AuthPage, CheckoutPage, FakePaystack, ListingPage } from '../../pages'
 // build: someone signs up, finds a home, books it and pays.
 
 test.describe('the main journey @smoke @core', () => {
-  test('a new guest signs up through the form and is sent a confirmation link that works', async ({ page, world }) => {
+  test('a new guest signs up through the form and is sent a confirmation link that works', async ({ page, world, browserName }) => {
+    test.skip(browserName === 'webkit', FORM_LOGIN_NEEDS_HTTPS)
     const tag = Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36)
     const person = new Actor('', `e2e-form-${tag}@fiegh.test`, `Form-pass-${tag}`, `E2E Form ${tag}`, 'GUEST')
     const auth = new AuthPage(page)

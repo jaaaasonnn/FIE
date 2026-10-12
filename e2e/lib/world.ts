@@ -58,6 +58,10 @@ export class Actor {
     const mail = await fakes.inbox(this.email)
     return subjectIncludes ? mail.filter((m) => m.subject.includes(subjectIncludes)) : mail
   }
+  /** Waits for an email whose subject or text matches, and returns every one that does. Messages are written after the response, so this asks until it is there. */
+  async mail(matching: RegExp) {
+    return until(async () => { const found = (await this.inbox()).filter((m) => matching.test(`${m.subject}\n${m.text ?? ''}`)); return found.length ? found : null }, `an email matching ${matching} to ${this.email}`, 15_000)
+  }
   /** The link in the newest email with this subject. Waits for it to arrive. */
   async linkFrom(subjectIncludes: string): Promise<string> {
     const mail = await until(async () => (await this.inbox(subjectIncludes)).at(-1), `an email "${subjectIncludes}" to ${this.email}`)
@@ -67,7 +71,7 @@ export class Actor {
   }
 }
 
-export type ListingInput = Partial<{ title: string; instantBook: boolean; priceNightly: number; priceMonthly: number; priceAnnual: number; rentalModes: string[]; damageDeposit: number; cancellationPolicy: string; city: string; region: string; minStayNights: number; advanceMonthsRequired: number }>
+export type ListingInput = Partial<{ title: string; instantBook: boolean; priceNightly: number; priceMonthly: number; priceAnnual: number; rentalModes: string[]; damageDeposit: number; cancellationPolicy: string; city: string; region: string; minStayNights: number; advanceMonthsRequired: number; lat: number; lng: number }>
 export const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10)
 
 export class World {
@@ -183,8 +187,15 @@ export class World {
     return { id, reference: pay.reference }
   }
 
+  /**
+   * Removes this test's people and everything of theirs, by id. Admins are
+   * left until the whole run is over (lib/global-teardown.ts): the app tells
+   * "every admin" about things, and an admin removed by one test while
+   * another test's request is half way through writing those notices would
+   * make that request fail for a reason that has nothing to do with it.
+   */
   async cleanup(): Promise<void> {
-    await purge(this.people.map((p) => p.id).filter(Boolean))
+    await purge(this.people.filter((p) => p.role !== 'ADMIN').map((p) => p.id).filter(Boolean))
     this.people = []
   }
 }
