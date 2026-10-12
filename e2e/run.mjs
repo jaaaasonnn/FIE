@@ -7,6 +7,7 @@
 //   node e2e/run.mjs exec <cmd>    run any command with the guarded environment
 //   node e2e/run.mjs build         build the app with the fake environment
 //   node e2e/run.mjs db:reset      drop and re-create the test database
+//   node e2e/run.mjs app:kill 3201 / app:start 3201   kill one app server (SIGKILL) and bring it back
 //   node e2e/run.mjs down          stop everything `up` started
 import { spawn, spawnSync } from 'child_process'
 import fs from 'fs'
@@ -105,7 +106,8 @@ async function up() {
 }
 
 function killGroup(pid) { try { process.kill(-pid, 'SIGTERM') } catch { try { process.kill(pid, 'SIGTERM') } catch {} } }
-function killPort(port) { const r = spawnSync('lsof', ['-ti', `:${port}`], { encoding: 'utf8' }); for (const pid of r.stdout.split('\n').filter(Boolean)) { try { process.kill(Number(pid), 'SIGKILL') } catch {} } }
+// Only the process LISTENING on the port: a test with a request open to it must not be killed with it
+function killPort(port) { const r = spawnSync('lsof', ['-ti', `tcp:${port}`, '-sTCP:LISTEN'], { encoding: 'utf8' }); for (const pid of r.stdout.split('\n').filter(Boolean)) { try { process.kill(Number(pid), 'SIGKILL') } catch {} } }
 async function down() {
   if (!fs.existsSync(PIDS)) return log('nothing is up')
   const pids = JSON.parse(fs.readFileSync(PIDS, 'utf8'))
@@ -120,9 +122,21 @@ try {
   if (command === 'up') await up()
   else if (command === 'down') await down()
   else if (command === 'build') build()
+  else if (command === 'app:kill') { killPort(Number(rest[0])); log(`killed the app on ${rest[0]}`) }
+  else if (command === 'app:start') { startApp(Number(rest[0])).unref(); await waitFor(`http://localhost:${rest[0]}/api/auth/session`, `the app on ${rest[0]}`); log(`the app on ${rest[0]} is back`); process.exit(0) }
   else if (command === 'db:reset') { const pg = postgres(); await pg.start(); await setupDatabase(pg, { fresh: true }); await pg.stop() }
+  else if (command === 'suite') {
+    // Everything in Chromium, then the tests that break things, which must run alone. Both always run.
+    const env = e2eEnv({ extra: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('E2E_'))), E2E_EGRESS_LOG: EGRESS_LOG, E2E_STATE_DIR: STATE } })
+    const play = (...args) => spawnSync('npx', ['playwright', 'test', '-c', path.join(E2E_DIR, 'playwright.config.ts'), ...args, ...rest], { cwd: ROOT, env, stdio: 'inherit' }).status ?? 1
+    const main = play('--project=chromium')
+    const chaos = play('--project=chaos')
+    process.exit(main || chaos)
+  }
   else if (command === 'test' || command === 'exec') {
-    const env = e2eEnv({ extra: { E2E_EGRESS_LOG: EGRESS_LOG, E2E_STATE_DIR: STATE } })
+    // E2E_ROUNDS, E2E_WORKERS and the like are passed on; nothing else from this shell is
+    const passed = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('E2E_')))
+    const env = e2eEnv({ extra: { ...passed, E2E_EGRESS_LOG: EGRESS_LOG, E2E_STATE_DIR: STATE } })
     const [bin, args] = command === 'test' ? ['npx', ['playwright', 'test', '-c', path.join(E2E_DIR, 'playwright.config.ts'), ...rest]] : [rest[0], rest.slice(1)]
     const r = spawnSync(bin, args, { cwd: ROOT, env, stdio: 'inherit' })
     process.exit(r.status ?? 1)

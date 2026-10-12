@@ -15,7 +15,7 @@ const unique = () => `${RUN}${process.pid.toString(36)}${(++counter).toString(36
 export const freshIp = () => `10.${crypto.randomInt(1, 254)}.${crypto.randomInt(1, 254)}.${crypto.randomInt(1, 254)}`
 
 export type Reply<T = any> = { status: number; json: T; text: string; headers: Headers }
-export type CallOptions = { server?: 0 | 1; form?: FormData; headers?: Record<string, string>; raw?: string }
+export type CallOptions = { server?: 0 | 1; form?: FormData; headers?: Record<string, string>; raw?: string; /** Give up after this long: the answer then has status 0 */ timeoutMs?: number }
 
 export async function call(method: string, path: string, body?: unknown, o: CallOptions & { cookie?: string | null; ip?: string } = {}): Promise<Reply> {
   const base = APP[o.server ?? 0]
@@ -25,15 +25,21 @@ export async function call(method: string, path: string, body?: unknown, o: Call
   if (o.form) payload = o.form
   else if (o.raw !== undefined) { headers['content-type'] ??= 'application/json'; payload = o.raw }
   else if (body !== undefined) { headers['content-type'] = 'application/json'; payload = JSON.stringify(body) }
-  const res = await fetch(base + path, { method, headers, body: payload, redirect: 'manual' })
+  let res: Response
+  try {
+    res = await fetch(base + path, { method, headers, body: payload, redirect: 'manual', signal: o.timeoutMs ? AbortSignal.timeout(o.timeoutMs) : undefined })
+  } catch (error) {
+    // No answer at all: the server is down, or it took longer than the test allowed
+    return { status: 0, json: null, text: `no answer: ${(error as Error).name} ${(error as Error).message}`, headers: new Headers() }
+  }
   const text = await res.text()
   let json: unknown = null
   try { json = JSON.parse(text) } catch { /* not JSON */ }
   return { status: res.status, json, text, headers: res.headers }
 }
 
-export const cron = (job: string, o: { server?: 0 | 1; dryRun?: boolean } = {}) =>
-  call('GET', `/api/cron/${job}${o.dryRun ? '?dryRun=1' : ''}`, undefined, { server: o.server, headers: { authorization: `Bearer ${CRON_SECRET}` } })
+export const cron = (job: string, o: { server?: 0 | 1; dryRun?: boolean; timeoutMs?: number } = {}) =>
+  call('GET', `/api/cron/${job}${o.dryRun ? '?dryRun=1' : ''}`, undefined, { server: o.server, timeoutMs: o.timeoutMs, headers: { authorization: `Bearer ${CRON_SECRET}` } })
 
 export class Actor {
   cookie: string | null = null
@@ -76,8 +82,9 @@ export class World {
     return { checkIn: day(start), checkOut: day(start + nights) }
   }
 
-  async person(role: 'GUEST' | 'HOST', over: { name?: string; phone?: string } = {}): Promise<Actor> {
-    const tag = unique()
+  /** `tag` ends up in the email address, for a test that must tell the fakes about a person before they exist. */
+  async person(role: 'GUEST' | 'HOST', over: { name?: string; phone?: string; tag?: string } = {}): Promise<Actor> {
+    const tag = over.tag ?? unique()
     const actor = new Actor('', `e2e-${role.toLowerCase()}-${tag}@fiegh.test`, `E2e-pass-${tag}`, over.name ?? `E2E ${role === 'HOST' ? 'Host' : 'Guest'} ${tag}`, role)
     const r = await call('POST', '/api/auth/signup', { name: actor.name, email: actor.email, password: actor.password, role, ...(over.phone ? { phone: over.phone } : {}) }, { ip: actor.ip })
     if (r.status !== 201) throw new Error(`sign-up failed: ${r.status} ${r.text}`)
@@ -87,7 +94,7 @@ export class World {
     if (s.status !== 200) throw new Error(`sign-in failed: ${s.status} ${s.text}`)
     return actor
   }
-  guest(over: { name?: string } = {}) { return this.person('GUEST', over) }
+  guest(over: { name?: string; tag?: string } = {}) { return this.person('GUEST', over) }
 
   /** A host. By default ready to be paid: ID approved by an admin on record, payout method more than a day old. */
   async host(o: { idApproved?: boolean; payoutMethod?: boolean; name?: string } = {}): Promise<Actor> {
@@ -137,21 +144,36 @@ export class World {
     return guest.call('POST', '/api/bookings', { listingId, rentalMode: o.rentalMode ?? 'SHORT_STAY', ...dates }, { server: o.server })
   }
 
+  /**
+   * Books dates that are known to be free, for set-up. The app answers 409
+   * "no longer available" when its Serializable transaction is aborted by
+   * unrelated bookings elsewhere (finding F3), so this tries again as a guest
+   * would. Tests about the booking step itself use `book` and see every answer.
+   */
+  async mustBook(guest: Actor, listingId: string, o: { checkIn?: string; checkOut?: string; rentalMode?: string; nights?: number } = {}): Promise<string> {
+    const dates = o.checkIn ? { checkIn: o.checkIn, checkOut: o.checkOut! } : this.dates(o.nights ?? 2)
+    let last: Reply | undefined
+    for (let attempt = 0; attempt < 8; attempt++) {
+      last = await this.book(guest, listingId, { ...o, ...dates })
+      if (last.status === 201) return last.json.booking.id
+      if (last.status !== 409) break
+    }
+    throw new Error(`booking failed: ${last?.status} ${last?.text}`)
+  }
+
   /** Starts a payment through the app. Returns the reference the fake Paystack was given. */
-  async startPayment(guest: Actor, bookingId: string, o: { instalmentId?: string; method?: string; server?: 0 | 1 } = {}): Promise<Reply & { reference?: string }> {
-    const r = await guest.call('POST', '/api/payments', { bookingId, method: o.method ?? 'CARD', ...(o.instalmentId ? { instalmentId: o.instalmentId } : {}) }, { server: o.server })
+  async startPayment(guest: Actor, bookingId: string, o: { instalmentId?: string; method?: string; server?: 0 | 1; timeoutMs?: number } = {}): Promise<Reply & { reference?: string }> {
+    const r = await guest.call('POST', '/api/payments', { bookingId, method: o.method ?? 'CARD', ...(o.instalmentId ? { instalmentId: o.instalmentId } : {}) }, { server: o.server, timeoutMs: o.timeoutMs })
     const reference = r.json?.reference ?? r.json?.payment?.gatewayReference ?? (r.status < 300 ? (await fakes.tx(bookingId)).at(-1)?.reference : undefined)
     return { ...r, reference }
   }
   /** The guest's browser coming back from Paystack. */
-  verify(guest: Actor, reference: string, o: { server?: 0 | 1 } = {}) {
-    return guest.call('GET', `/api/payments/verify?reference=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(reference)}`, undefined, { server: o.server })
+  verify(guest: Actor, reference: string, o: { server?: 0 | 1; timeoutMs?: number } = {}) {
+    return guest.call('GET', `/api/payments/verify?reference=${encodeURIComponent(reference)}&trxref=${encodeURIComponent(reference)}`, undefined, { server: o.server, timeoutMs: o.timeoutMs })
   }
   /** Books (instant), pays at the fake Paystack and comes back: a confirmed, paid booking. */
   async paidBooking(guest: Actor, listingId: string, o: { nights?: number; rentalMode?: string; checkIn?: string; checkOut?: string } = {}): Promise<{ id: string; reference: string }> {
-    const b = await this.book(guest, listingId, o)
-    if (b.status !== 201) throw new Error(`booking failed: ${b.status} ${b.text}`)
-    const id: string = b.json.booking.id
+    const id = await this.mustBook(guest, listingId, o)
     const pay = await this.startPayment(guest, id)
     if (!pay.reference) throw new Error(`payment did not start: ${pay.status} ${pay.text}`)
     await fakes.setTx(pay.reference, { status: 'success' })

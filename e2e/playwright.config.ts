@@ -30,7 +30,7 @@ export default defineConfig({
   projects: [
     // Everything, in Chromium. Tests that stop the database or a server are kept apart and run alone.
     { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /chaos\// },
-    { name: 'chaos', use: { ...devices['Desktop Chrome'] }, testMatch: /chaos\//, fullyParallel: false, workers: 1, dependencies: ['chromium'] },
+    { name: 'chaos', use: { ...devices['Desktop Chrome'] }, testMatch: /chaos\//, fullyParallel: false, workers: 1 },
     // The core journeys again in the other engines and on small screens with touch
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, grep: core, testIgnore: /chaos\// },
     { name: 'webkit', use: { ...devices['Desktop Safari'] }, grep: core, testIgnore: /chaos\// },

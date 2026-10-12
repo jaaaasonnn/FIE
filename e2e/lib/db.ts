@@ -28,27 +28,30 @@ export async function purge(userIds: string[]): Promise<void> {
   const bookings = (await db.booking.findMany({ where: { OR: [{ guestId: u }, { hostId: u }, { listingId: { in: listings } }] }, select: { id: true } })).map((r) => r.id)
   const b = { in: bookings }
   const disputes = (await db.dispute.findMany({ where: { bookingId: b }, select: { id: true } })).map((r) => r.id)
-  await db.message.deleteMany({ where: { OR: [{ senderId: u }, { receiverId: u }] } })
-  await db.wishlist.deleteMany({ where: { OR: [{ userId: u }, { listingId: { in: listings } }] } })
-  await db.notification.deleteMany({ where: { OR: [{ userId: u }, ...userIds.map((id) => ({ body: { contains: id } })), ...bookings.map((id) => ({ body: { contains: id } }))] } })
-  await db.messageLog.deleteMany({ where: { OR: [{ userId: u }, { bookingId: b }] } })
-  await db.disputeEvidence.deleteMany({ where: { disputeId: { in: disputes } } })
-  await db.disputeEvent.deleteMany({ where: { disputeId: { in: disputes } } })
-  await db.dispute.deleteMany({ where: { id: { in: disputes } } })
-  await db.refund.deleteMany({ where: { bookingId: b } })
-  await db.payout.deleteMany({ where: { OR: [{ hostId: u }, { bookingId: b }] } })
-  await db.payment.deleteMany({ where: { bookingId: b } })
-  await db.instalment.deleteMany({ where: { bookingId: b } })
-  await db.review.deleteMany({ where: { OR: [{ bookingId: b }, { reviewerId: u }, { revieweeId: u }] } })
-  await db.blockedDate.deleteMany({ where: { listingId: { in: listings } } })
-  await db.booking.deleteMany({ where: { id: b } })
-  await db.listingCheck.deleteMany({ where: { OR: [{ listingId: { in: listings } }, { checkedById: u }] } })
-  await db.listing.deleteMany({ where: { id: { in: listings } } })
-  await db.verification.deleteMany({ where: { userId: u } })
-  await db.authToken.deleteMany({ where: { userId: u } })
-  await db.authRequest.deleteMany({ where: { userId: u } })
-  await db.session.deleteMany({ where: { userId: u } })
-  await db.user.deleteMany({ where: { id: u } })
+  // In one transaction: nobody reading beside this (another test's check of the money rules) sees a booking without its payment
+  await db.$transaction([
+    db.message.deleteMany({ where: { OR: [{ senderId: u }, { receiverId: u }] } }),
+    db.wishlist.deleteMany({ where: { OR: [{ userId: u }, { listingId: { in: listings } }] } }),
+    db.notification.deleteMany({ where: { OR: [{ userId: u }, ...userIds.map((id) => ({ body: { contains: id } })), ...bookings.map((id) => ({ body: { contains: id } }))] } }),
+    db.messageLog.deleteMany({ where: { OR: [{ userId: u }, { bookingId: b }] } }),
+    db.disputeEvidence.deleteMany({ where: { disputeId: { in: disputes } } }),
+    db.disputeEvent.deleteMany({ where: { disputeId: { in: disputes } } }),
+    db.dispute.deleteMany({ where: { id: { in: disputes } } }),
+    db.refund.deleteMany({ where: { bookingId: b } }),
+    db.payout.deleteMany({ where: { OR: [{ hostId: u }, { bookingId: b }] } }),
+    db.payment.deleteMany({ where: { bookingId: b } }),
+    db.instalment.deleteMany({ where: { bookingId: b } }),
+    db.review.deleteMany({ where: { OR: [{ bookingId: b }, { reviewerId: u }, { revieweeId: u }] } }),
+    db.blockedDate.deleteMany({ where: { listingId: { in: listings } } }),
+    db.booking.deleteMany({ where: { id: b } }),
+    db.listingCheck.deleteMany({ where: { OR: [{ listingId: { in: listings } }, { checkedById: u }] } }),
+    db.listing.deleteMany({ where: { id: { in: listings } } }),
+    db.verification.deleteMany({ where: { userId: u } }),
+    db.authToken.deleteMany({ where: { userId: u } }),
+    db.authRequest.deleteMany({ where: { userId: u } }),
+    db.session.deleteMany({ where: { userId: u } }),
+    db.user.deleteMany({ where: { id: u } }),
+  ])
 }
 
 const DAY = 24 * 60 * 60 * 1000
