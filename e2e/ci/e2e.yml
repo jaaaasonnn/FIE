@@ -1,0 +1,41 @@
+# PROPOSED, not active. GitHub only runs workflows that are in .github/workflows.
+# To turn it on: copy this file to .github/workflows/e2e.yml and push it yourself
+# (the token Claude Code pushes with is not allowed to add workflow files).
+#
+# End-to-end smoke tests. Runs ONLY when started by hand from the Actions tab
+# (workflow_dispatch). Nothing here runs on a push or a pull request.
+# It uses no secret: the whole environment is the fake one in e2e/env.e2e.
+name: e2e smoke (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - name: Start the local stack (Postgres, fakes, production build, two servers)
+        run: |
+          mkdir -p e2e/.state
+          node e2e/run.mjs up --build > e2e/.state/up.log 2>&1 &
+          for i in $(seq 1 180); do grep -q "up: app on" e2e/.state/up.log && break; grep -qE "GUARD|Error" e2e/.state/up.log && { cat e2e/.state/up.log; exit 1; }; sleep 2; done
+          tail -3 e2e/.state/up.log
+      - run: npm run e2e:smoke
+      - if: always()
+        run: node e2e/run.mjs down
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-report
+          path: |
+            e2e/.reports/
+            e2e/.state/*.log
+          retention-days: 7

@@ -56,6 +56,8 @@ Two things do use the network, as they always have: `npm install`, and `next bui
 - `pages/`: page objects
 - `tests/`: `smoke`, `journeys`, `navigation`, `a11y`, `races`, `chaos`, `fuzz`
 - `tools/`: helpers for writing tests (not tests)
+- `ci/e2e.yml`: a proposed GitHub Actions workflow (manual trigger, smoke set). Not active: copy it to `.github/workflows/` to turn it on
+- `REPORT.md`: the results of the last full run
 - `FINDINGS.md`: every bug and weakness found, ranked, with how to reproduce
 
 ## Rules for tests
