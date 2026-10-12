@@ -111,11 +111,16 @@ describe('packages', () => {
     }
   })
 
-  it('is on a patched Next 16.2 and a patched sharp', () => {
+  it('is on a patched Next 16.3 and a patched sharp', () => {
+    // 16.3.8 is the first release with every advisory open on 16.2 fixed
     const [major, minor, patch] = lock.packages['node_modules/next'].version.split('.').map(Number)
-    expect([major, minor]).toEqual([16, 2])
-    expect(patch).toBeGreaterThanOrEqual(12)
+    expect([major, minor]).toEqual([16, 3])
+    expect(patch).toBeGreaterThanOrEqual(8)
     expect(pkg.dependencies.next).toBe(lock.packages['node_modules/next'].version)
+    // Next no longer carries its own, older copy of sharp or an unpatched postcss
+    expect(lock.packages['node_modules/next/node_modules/sharp']).toBeUndefined()
+    const [, postcssMinor, postcssPatch] = lock.packages['node_modules/next/node_modules/postcss'].version.split('.').map(Number)
+    expect(postcssMinor * 100 + postcssPatch).toBeGreaterThanOrEqual(523)
     const [, sharpMinor, sharpPatch] = lock.packages['node_modules/sharp'].version.split('.').map(Number)
     expect(sharpMinor * 100 + sharpPatch).toBeGreaterThanOrEqual(3505)
   })

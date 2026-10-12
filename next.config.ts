@@ -100,11 +100,12 @@ const nextConfig: NextConfig = {
     ]
   },
 
-  // next/image resizes these and serves AVIF/WebP. Listing photos are either
+  // next/image resizes these and serves WebP. Listing photos are either
   // seeded from Unsplash or uploaded to Supabase Storage's public buckets.
   images: {
-    // WebP only. AVIF is left out on purpose: the image optimiser's AVIF path
-    // has open advisories in this version of Next, and nothing here needs it.
+    // WebP only. AVIF is left out on purpose: its decoder has been the source
+    // of image optimiser advisories (fixed in Next 16.3.3), and nothing here
+    // needs it. Add "image/avif" in front to turn it on.
     formats: ["image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "images.unsplash.com" },

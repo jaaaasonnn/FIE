@@ -220,7 +220,7 @@ The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a t
   - Bookings already made are not touched, and a guest can still pay for one. A person decides what happens to them.
   - The record is a `Notification` to every admin (`ACCOUNT_SUSPENDED`, `ACCOUNT_RESTORED`), written in the same transaction: who, whom, when and why. There is no separate audit table. The three columns on `User` say only how things stand now and are cleared on restore.
   - The person is sent `account.suspended` or `account.restored` (email only; it never carries the admin's reason).
-- **Still open:** Next is on 16.2.12 and npm audit still lists advisories fixed only in 16.3 and 16.4 (the image optimiser among them); MapLibre 6 and vitest 4 are major upgrades not yet done. Admin accounts have no second factor.
+- **Still open:** npm audit lists 12 issues, none in Next (on 16.3.8, pinned exactly; a test fails if it goes below). They are MapLibre 5 (fixed in 6, the only one that runs in a browser), vitest 3 (fixed in 4), the Prisma CLI and the ESLint tooling: each needs a major upgrade not yet done. Admin accounts have no second factor.
 
 ## Key Technical Decisions & Why
 - **MapTiler over Mapbox** — avoids Mapbox's credit card requirement during development
