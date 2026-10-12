@@ -1308,6 +1308,38 @@ export const TEMPLATES = {
       },
     }],
   },
+
+  'account.suspended': {
+    label: 'An admin suspends an account',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Your FieGH account has been suspended',
+        lines: [
+          hello(f.userName),
+          'We have suspended your FieGH account. You cannot sign in for now.',
+          'If you host, your homes are not shown in search and cannot be booked, and we hold your payouts until the account is restored. Bookings already made are not cancelled by this.',
+          `If you think this is a mistake, write to ${f.supportEmail}.`,
+        ],
+      },
+    }],
+  },
+
+  'account.restored': {
+    label: 'An admin restores a suspended account',
+    render: (f) => [{
+      to: 'user',
+      email: {
+        subject: 'Your FieGH account has been restored',
+        lines: [
+          hello(f.userName),
+          'Your FieGH account is no longer suspended. You can sign in again.',
+          'If you host, your homes are back in search, and any payouts that were waiting are sent in the usual way.',
+        ],
+        link: { label: 'Sign in', path: '/login' },
+      },
+    }],
+  },
 } satisfies Record<string, Template>
 
 export type EventName = keyof typeof TEMPLATES

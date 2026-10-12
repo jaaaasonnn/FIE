@@ -1,6 +1,7 @@
 import crypto from 'crypto'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
+import { isSuspended } from '@/lib/suspension'
 
 export const SESSION_COOKIE = 'fiegh_session'
 /** How long a sign-in lasts. */
@@ -102,17 +103,21 @@ export async function getUserFromToken(token: string): Promise<SessionUser | nul
           isVerified:   true,
           isSuperhost:  true,
           emailVerifiedAt: true,
+          suspendedAt: true,
         },
       },
     },
   })
 
   if (!session) return null
+  // A suspended account is signed out, whatever sessions it still has (lib/suspension.ts)
+  const { suspendedAt, ...user } = session.user
+  if (isSuspended({ suspendedAt })) return null
 
   if (session.expiresAt < new Date()) {
     await endSession(token)
     return null
   }
 
-  return session.user
+  return user
 }

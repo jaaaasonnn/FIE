@@ -42,7 +42,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
       where: { id },
       include: {
         host: {
-          select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true, createdAt: true }
+          select: { id: true, name: true, profilePhoto: true, isVerified: true, isSuperhost: true, trustScore: true, createdAt: true, suspendedAt: true }
         },
         reviews: {
           // Reviews carry the booking's listingId regardless of direction,
@@ -73,10 +73,13 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
 
     // A listing that is switched off or on hold is not public: only its host,
     // an admin, or a guest who has booked it can open it by its link
-    if (!listing.isActive || listing.moderationHold) {
+    // Read to decide who may see the listing, and never sent to anyone
+    const { suspendedAt, ...host } = listing.host
+    const hostSuspended = !!suspendedAt
+    if (!listing.isActive || listing.moderationHold || hostSuspended) {
       const hasBooking = !!viewer && !ownerView
         && !!(await db.booking.findFirst({ where: { listingId: id, guestId: viewer.id }, select: { id: true } }))
-      if (!listingVisible(listing, viewer, hasBooking)) {
+      if (!listingVisible({ ...listing, hostSuspended }, viewer, hasBooking)) {
         return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
       }
     }
@@ -84,7 +87,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({
       listing: {
         ...publicListing(listing, now),
-        host: listing.host,
+        host,
         reviews: listing.reviews,
         ...(ownerView ? { digitalAddress: listing.digitalAddress } : {}),
         amenities: JSON.parse(listing.amenities || '[]'),

@@ -51,15 +51,15 @@ export function bookingFor<T extends BookingView>(booking: T, viewer: Viewer): T
 
 /**
  * Whether a listing may be shown to this viewer. A live listing is public. One
- * that is switched off or on hold is for its host and admins, and for a guest
+ * that is switched off or on hold, or whose host is suspended, is for its host and admins, and for a guest
  * who has a booking there (they still need to see the home they booked).
  */
 export function listingVisible(
-  listing: { hostId: string; isActive: boolean; moderationHold: boolean },
+  listing: { hostId: string; isActive: boolean; moderationHold: boolean; hostSuspended?: boolean },
   viewer: Viewer | null,
   hasBooking: boolean,
 ): boolean {
-  if (listing.isActive && !listing.moderationHold) return true
+  if (listing.isActive && !listing.moderationHold && !listing.hostSuspended) return true
   if (!viewer) return false
   return viewer.id === listing.hostId || viewer.role === 'ADMIN' || hasBooking
 }
@@ -71,10 +71,12 @@ export function listingVisible(
  * only, so nobody can find out which accounts are admins.
  */
 export function profileVisible(
-  profile: { id: string; role: string },
+  profile: { id: string; role: string; suspended?: boolean },
   viewer: Viewer | null,
   shareBooking: boolean,
 ): boolean {
+  // A suspended account's profile is for admins only
+  if (profile.suspended) return viewer?.role === 'ADMIN'
   if (profile.role === 'HOST') return true
   if (!viewer) return false
   if (viewer.id === profile.id || viewer.role === 'ADMIN') return true

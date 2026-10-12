@@ -660,6 +660,71 @@ describe('a host whose ID is not approved', () => {
   })
 })
 
+// ─── A suspended host ───────────────────────────────────────────────────────
+
+describe('a host whose account is suspended', () => {
+  const suspend = (on: boolean) => { state.users[0] = { id: 'host_1', ...verifiedHost, suspendedAt: on ? new Date(NOW.getTime() - 60 * 1000) : null } }
+  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-suspension' }
+
+  beforeEach(() => {
+    switchesOn()
+    suspend(true)
+  })
+
+  it('is not paid for a short stay: nothing is sent and no payout is written, live or dry', async () => {
+    booking()
+    expect((await runPayouts()).results).toEqual([waitingRow])
+    expect((await runPayouts({ dryRun: true })).results).toEqual([waitingRow])
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.payouts).toHaveLength(0)
+    expect(state.writes).toBe(0)
+    // An admin did this on purpose: no alert
+    expect(sentry.captureMessage).not.toHaveBeenCalled()
+  })
+
+  it('is paid on the first run after the account is restored', async () => {
+    booking()
+    expect((await runPayouts()).results).toEqual([waitingRow])
+    suspend(false)
+    expect((await runPayouts()).results).toEqual([expect.objectContaining({ action: 'paid', status: 'PROCESSING' })])
+    expect(transferCalls()).toHaveLength(1)
+    expect(state.payouts).toHaveLength(1)
+  })
+
+  it('initiateHostPayout refuses a suspended host before creating or claiming a row', async () => {
+    booking()
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: 90 })).rejects.toThrow('is suspended')
+    expect(state.payouts).toHaveLength(0)
+    expect(state.writes).toBe(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('does not resume a PENDING payout to a suspended host, and leaves the row as it was', async () => {
+    booking()
+    state.payouts.push({
+      id: 'payout_1', hostId: 'host_1', bookingId: 'booking_1', amount: 90, status: 'PENDING', retryCount: 0,
+      paystackTransferCode: null, paystackTransferReference: 'pyt-original', failureReason: null,
+      createdAt: new Date(NOW.getTime() - STALE_CLAIM_MS - 1000), initiatedAt: null,
+    })
+    for (const dryRun of [false, true]) {
+      expect((await runPayouts({ dryRun })).resumed).toEqual([expect.objectContaining({ payoutId: 'payout_1', action: 'waiting-for-suspension', status: 'PENDING' })])
+    }
+    expect(state.payouts[0]).toMatchObject({ status: 'PENDING', initiatedAt: null, failureReason: null })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(sentry.captureException).not.toHaveBeenCalled()
+    suspend(false)
+    expect((await runPayouts()).resumed).toEqual([expect.objectContaining({ payoutId: 'payout_1', action: 'paid' })])
+  })
+
+  it('reports the suspension first when the ID is not approved either', async () => {
+    booking()
+    state.users[0] = { ...state.users[0], isVerified: false, verification: null }
+    expect((await runPayouts()).results).toEqual([waitingRow])
+    state.users[0] = { ...state.users[0], suspendedAt: null }
+    expect((await runPayouts()).results).toEqual([{ ...waitingRow, action: 'waiting-for-host-id' }])
+  })
+})
+
 // ─── A payout method that was only just saved ───────────────────────────────
 
 describe('a payout method saved less than 24 hours ago', () => {

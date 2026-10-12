@@ -14,6 +14,7 @@ import { notify } from '@/lib/messaging/notify'
 import { SETTLED_INSTALMENT_STATUSES, payoutReleaseAt } from '@/lib/rentRules'
 import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
 import { PayoutMethodTooNewError, payoutMethodSettled } from '@/lib/payoutMethod'
+import { HostSuspendedError, isSuspended } from '@/lib/suspension'
 
 const HOUR_MS = 60 * 60 * 1000
 /**
@@ -111,6 +112,8 @@ export type DuePayout = {
   hostIdApproved: boolean
   /** False while the payout method was saved less than a day ago: the payout waits (lib/payoutMethod.ts) */
   payoutMethodSettled: boolean
+  /** True while the host's account is suspended: the payout waits (lib/suspension.ts) */
+  hostSuspended: boolean
   instalmentId?: string
   instalmentSeq?: number
 }
@@ -120,7 +123,7 @@ export type DuePayout = {
  * Reads only.
  */
 export async function duePayouts(now: Date, notBefore: Date | null, hostId?: string): Promise<DuePayout[]> {
-  const host = { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true, ...HOST_ID_SELECT } }
+  const host = { select: { paystackRecipientCode: true, payoutMethodVerifiedAt: true, suspendedAt: true, ...HOST_ID_SELECT } }
   const hasMethod = (h: { paystackRecipientCode: string | null; payoutMethodVerifiedAt: Date | null }) =>
     !!h.paystackRecipientCode && !!h.payoutMethodVerifiedAt
 
@@ -144,6 +147,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
     hasPayoutMethod: hasMethod(b.host),
     hostIdApproved: hostIdApproved(b.host),
     payoutMethodSettled: payoutMethodSettled(b.host, now),
+    hostSuspended: isSuspended(b.host),
   }))
   for (const i of instalments) {
     const dueAt = payoutReleaseAt(i, i.booking.checkIn, PAYOUT_DELAY_MS)
@@ -156,6 +160,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
       hasPayoutMethod: hasMethod(i.booking.host),
       hostIdApproved: hostIdApproved(i.booking.host),
       payoutMethodSettled: payoutMethodSettled(i.booking.host, now),
+      hostSuspended: isSuspended(i.booking.host),
       instalmentId: i.id, instalmentSeq: i.sequence,
     })
   }
@@ -166,6 +171,7 @@ export type PayoutAction =
   | 'paid'                        // transfer started (or already under way)
   | 'failed'                      // attempted, recorded as failed
   | 'waiting-for-payout-method'   // host has no verified payout method yet
+  | 'waiting-for-suspension'      // host's account is suspended: nothing written, sent once it is restored
   | 'waiting-for-host-id'         // host's ID is not approved: nothing written, sent once it is
   | 'waiting-for-new-payout-method' // payout method saved less than a day ago: nothing written, sent once the day is up
   | 'would-pay'                   // dry run
@@ -220,6 +226,13 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       ...(item.instalmentId ? { instalmentId: item.instalmentId, instalmentSeq: item.instalmentSeq } : {}),
     }
 
+    // The host's account is suspended: nothing is written and nothing is
+    // sent, in a live run or a dry one. It is paid on the first run after an
+    // admin restores the account. No alert: an admin did this on purpose.
+    if (item.hostSuspended) {
+      results.push({ ...base, action: 'waiting-for-suspension' })
+      continue
+    }
     // The host's ID is not approved: nothing is written and nothing is sent,
     // in a live run or a dry one. The stay stays in this list and is paid on
     // the first run after the ID is approved. The host is told once per payout.
@@ -257,6 +270,10 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
         error: result.error,
       })
     } catch (error) {
+      if (error instanceof HostSuspendedError) {
+        results.push({ ...base, action: 'waiting-for-suspension' })
+        continue
+      }
       if (error instanceof HostIdNotApprovedError) {
         results.push({ ...base, action: 'waiting-for-host-id' })
         continue
@@ -291,7 +308,12 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     const base = { bookingId: payout.bookingId!, hostId: payout.hostId, amount: payout.amount, payoutId: payout.id }
     // Not resumed while the host's ID is not approved: the row stays PENDING
     // and unclaimed, and is looked at again on the next run.
-    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: { ...HOST_ID_SELECT, paystackRecipientCode: true, payoutMethodVerifiedAt: true } })
+    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: { ...HOST_ID_SELECT, paystackRecipientCode: true, payoutMethodVerifiedAt: true, suspendedAt: true } })
+    // Nor while the host is suspended
+    if (isSuspended(host)) {
+      resumed.push({ ...base, action: 'waiting-for-suspension', status: payout.status })
+      continue
+    }
     if (!hostIdApproved(host)) {
       resumed.push({ ...base, action: 'waiting-for-host-id', status: payout.status })
       noteIfOverdue(payout.bookingId!, payout.hostId, payout.amount, payout.createdAt, WAITING_FOR_HOST_ID)
@@ -310,6 +332,10 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       const result = await initiateHostPayout({ hostId: payout.hostId, bookingId: payout.bookingId!, amount: payout.amount, instalmentId: payout.instalmentId })
       resumed.push({ ...base, action: result.ok ? 'paid' : 'failed', status: result.payout.status, error: result.error })
     } catch (error) {
+      if (error instanceof HostSuspendedError) {
+        resumed.push({ ...base, action: 'waiting-for-suspension', status: payout.status })
+        continue
+      }
       if (error instanceof HostIdNotApprovedError) {
         resumed.push({ ...base, action: 'waiting-for-host-id', status: payout.status })
         continue

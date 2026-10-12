@@ -7,6 +7,7 @@ import { quoteStay } from '@/lib/bookingQuote'
 import { depositIsSound } from '@/lib/listingInput'
 import { parseText } from '@/lib/validate'
 import { bookingFor } from '@/lib/privacy'
+import { isSuspended } from '@/lib/suspension'
 
 const MAX_SPECIAL_REQUESTS = 1000
 import { LIMITS, TOO_MANY_BOOKINGS, TOO_MANY_OPEN_BOOKINGS, TOO_MANY_OPEN_REQUESTS, tooMany } from '@/lib/rateLimit'
@@ -67,6 +68,8 @@ export async function POST(req: Request) {
 
     if (!listing)         return NextResponse.json({ error: 'Listing not found' },       { status: 404 })
     if (!listing.isActive) return NextResponse.json({ error: 'Listing is not available' }, { status: 400 })
+    // A suspended host's homes cannot be booked (lib/suspension.ts)
+    if (isSuspended(listing.host)) return NextResponse.json({ error: 'Listing is not available' }, { status: 400 })
     // A host booking their own home would occupy the calendar and create a
     // payment owed to themselves.
     if (listing.hostId === user.id) {

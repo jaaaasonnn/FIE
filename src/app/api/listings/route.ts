@@ -12,6 +12,7 @@ import { parseSearchRange, availabilityWhere } from '@/lib/searchDates'
 import { parseDigitalAddress } from '@/lib/digitalAddress'
 import { liveCheckWhere } from '@/lib/listingCheckRules'
 import { liveChecksInclude, publicListing } from '@/lib/listingChecks'
+import { HOST_NOT_SUSPENDED } from '@/lib/suspension'
 
 export async function GET(req: Request) {
   try {
@@ -74,7 +75,9 @@ export async function GET(req: Request) {
       if (mode === 'SHORT_STAY') where.minStayNights = { lte: range.nights }
     }
 
-    if (hostIdChecked) where.host = { isVerified: true }
+    // Nor a home whose host is suspended (lib/suspension.ts)
+    if (!ownerView) where.host = { ...HOST_NOT_SUSPENDED }
+    if (hostIdChecked) where.host = { ...(where.host as object || {}), isVerified: true }
     // Decided here, from the dates, at the moment of the search: a check that
     // expired a second ago is already left out
     const now = new Date()

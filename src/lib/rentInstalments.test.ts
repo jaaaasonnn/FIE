@@ -1053,6 +1053,27 @@ describe('paying the host for rent', () => {
     expect((await runPayouts()).results).toEqual([])
   })
 
+  it('a rent instalment for a suspended host is not sent, and goes out once the account is restored', async () => {
+    paidThrough(2)
+    Object.assign(state.users[0], { suspendedAt: new Date('2027-04-01T00:00:00Z') })
+    at('2027-04-16T12:00:00Z')
+    for (const dryRun of [false, true]) {
+      expect((await runPayouts({ dryRun })).results).toMatchObject([
+        { action: 'waiting-for-suspension', instalmentSeq: 1, amount: hostShare(3000) },
+        { action: 'waiting-for-suspension', instalmentSeq: 2, amount: hostShare(1000) },
+      ])
+    }
+    expect(state.payouts).toHaveLength(0)
+    expect(transfers()).toHaveLength(0)
+    await expect(initiateHostPayout({ hostId: 'host_1', bookingId: 'booking_1', amount: hostShare(1000), instalmentId: 'inst_2' })).rejects.toThrow('is suspended')
+    expect(state.payouts).toHaveLength(0)
+
+    Object.assign(state.users[0], { suspendedAt: null })
+    expect(paid(await runPayouts())).toEqual([[1, hostShare(3000)], [2, hostShare(1000)]])
+    expect(transfers()).toHaveLength(2)
+    expect((await runPayouts()).results).toEqual([])
+  })
+
   it('still allows only one payout for a stay paid in one go', async () => {
     state.instalments.length = 0
     Object.assign(booking(), { rentalMode: 'SHORT_STAY', subtotal: 300, checkIn: day('2027-01-15'), checkOut: day('2027-01-18') })

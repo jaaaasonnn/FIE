@@ -15,6 +15,7 @@ import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
 import { AdminRent } from '@/components/admin/AdminRent'
 import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
+import { AdminUserSuspension } from '@/components/admin/AdminUserSuspension'
 import { AdminVerifications } from '@/components/admin/AdminVerifications'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
 
@@ -29,6 +30,8 @@ type AdminUser = {
   isVerified: boolean
   trustScore: number
   createdAt: string
+  suspendedAt: string | null
+  suspendedReason: string | null
 }
 
 type AdminListing = {
@@ -67,6 +70,11 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
+  const reloadUsers = async () => {
+    const res = await fetch('/api/admin/users')
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) setUsers(Array.isArray(data.users) ? data.users : [])
+  }
   const [listings, setListings] = useState<AdminListing[]>([])
   const [holdBusy, setHoldBusy] = useState<string | null>(null)
   const [tabLoading, setTabLoading] = useState(false)
@@ -353,6 +361,11 @@ export default function AdminPage() {
                                   <div>
                                     <span className="font-medium block" style={{ color: 'var(--color-text-primary)' }}>{u.name ?? '-'}</span>
                                     <span className="text-xs text-stone-400">{u.email ?? ''}</span>
+                                    {u.suspendedAt && (
+                                      <span className="block text-xs mt-0.5" style={{ color: '#991B1B' }} title={u.suspendedReason ?? undefined}>
+                                        Suspended {new Date(u.suspendedAt).toLocaleDateString('en-GH')}{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               </td>
@@ -380,8 +393,9 @@ export default function AdminPage() {
                                 {new Date(u.createdAt).toLocaleDateString('en-GH')}
                               </td>
                               <td className="py-3 px-3">
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 items-start">
                                   <a href={`/profile/${u.id}`} className="px-2 py-1 rounded text-xs" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>View</a>
+                                  <AdminUserSuspension userId={u.id} suspended={!!u.suspendedAt} isSelf={u.id === user?.id} onDone={reloadUsers} />
                                 </div>
                               </td>
                             </tr>

@@ -73,6 +73,9 @@ export type EventIds = {
   'account.password_changed': { tokenId: string }
   /** Changed while signed in, from the profile page. `at` is when, so each change is its own occurrence. */
   'account.password_updated': { userId: string; at: number }
+  /** An admin suspended or restored the account. `at` is when, so each time is its own occurrence. */
+  'account.suspended': { userId: string; at: number }
+  'account.restored': { userId: string; at: number }
 }
 
 export type Loaded = {
@@ -497,6 +500,14 @@ export const LOADERS: { [E in EventName]: (ids: EventIds[E]) => Promise<Loaded |
     return rest
   },
   'account.password_updated': async ({ userId, at }) => {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { id: true, name: true } })
+    return u && { key: `${u.id}:${at}`, recipients: { user: u.id }, facts: { userName: u.name } }
+  },
+  'account.suspended': async ({ userId, at }) => {
+    const u = await db.user.findUnique({ where: { id: userId }, select: { id: true, name: true } })
+    return u && { key: `${u.id}:${at}`, recipients: { user: u.id }, facts: { userName: u.name } }
+  },
+  'account.restored': async ({ userId, at }) => {
     const u = await db.user.findUnique({ where: { id: userId }, select: { id: true, name: true } })
     return u && { key: `${u.id}:${at}`, recipients: { user: u.id }, facts: { userName: u.name } }
   },

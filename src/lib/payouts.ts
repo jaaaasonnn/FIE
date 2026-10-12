@@ -8,6 +8,7 @@ import { OPEN_DISPUTE_STATUSES, PAYABLE_REFUND_REASONS, hostShare } from '@/lib/
 import { notify } from '@/lib/messaging/notify'
 import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
 import { PayoutMethodTooNewError, WAITING_FOR_NEW_METHOD, payoutMethodSettled } from '@/lib/payoutMethod'
+import { HostSuspendedError, WAITING_FOR_SUSPENSION, isSuspended } from '@/lib/suspension'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
@@ -142,6 +143,11 @@ export async function initiateHostPayout({
   const host = await db.user.findUnique({ where: { id: hostId }, include: { verification: HOST_ID_SELECT.verification } })
   if (!host) {
     throw new Error(`Host ${hostId} not found`)
+  }
+  // No money is sent to a suspended account (lib/suspension.ts). Thrown before
+  // any row is created or claimed: the payout waits until it is restored.
+  if (isSuspended(host)) {
+    throw new HostSuspendedError(hostId)
   }
   // No money is sent to a host whose ID FieGH has not approved. Thrown before
   // any row is created or claimed: the payout waits and is tried again later.
@@ -430,6 +436,8 @@ export type RetryResult = {
   payoutId: string; ok: boolean; status: string; retryCount: number; error?: string
   /** True when nothing was attempted because the host's ID is not approved: the payout waits as it was */
   waitingForHostId?: boolean
+  /** True when nothing was tried because the host's account is suspended */
+  waitingForSuspension?: boolean
   /** True when nothing was attempted because the payout method was saved in the last day */
   waitingForNewMethod?: boolean
 }
@@ -466,7 +474,12 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
 
     // A host whose ID is not approved is not retried: the row is left exactly
     // as it is, retry count and all, and is looked at again on the next run.
-    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: { ...HOST_ID_SELECT, paystackRecipientCode: true, payoutMethodVerifiedAt: true } })
+    const host = await db.user.findUnique({ where: { id: payout.hostId }, select: { ...HOST_ID_SELECT, paystackRecipientCode: true, payoutMethodVerifiedAt: true, suspendedAt: true } })
+    // A suspended host is not retried either: the row is left as it is
+    if (isSuspended(host)) {
+      results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_SUSPENSION, waitingForSuspension: true })
+      continue
+    }
     if (!hostIdApproved(host)) {
       results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_HOST_ID, waitingForHostId: true })
       continue
@@ -520,6 +533,10 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
       // The host's ID stopped being approved between the check above and the
       // attempt. That is a wait, never a failure: the row stays PENDING and
       // unclaimed, and the job picks it up again once the ID is approved.
+      if (error instanceof HostSuspendedError) {
+        results.push({ payoutId: payout.id, ok: false, status: 'PENDING', retryCount: payout.retryCount + 1, error: WAITING_FOR_SUSPENSION, waitingForSuspension: true })
+        continue
+      }
       if (error instanceof HostIdNotApprovedError) {
         results.push({ payoutId: payout.id, ok: false, status: 'PENDING', retryCount: payout.retryCount + 1, error: WAITING_FOR_HOST_ID, waitingForHostId: true })
         continue

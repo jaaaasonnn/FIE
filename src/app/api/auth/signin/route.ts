@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { normalizePhone, validateGhanaPhone } from '@/lib/utils'
 import { mustVerifyEmail } from '@/lib/roles'
 import { createSession } from '@/lib/session'
+import { SUSPENDED_SIGN_IN, isSuspended } from '@/lib/suspension'
 import { ipHashOf } from '@/lib/authTokens'
 import { LIMITS, SIGN_IN_FAILED, TOO_MANY_SIGN_INS, countRecent, record, signInKey, tooMany } from '@/lib/rateLimit'
 
@@ -58,10 +59,18 @@ export async function POST(req: Request) {
     // Signed in: earlier wrong guesses for this account no longer count
     await db.authRequest.deleteMany({ where: { kind: SIGN_IN_FAILED, userId: key } })
 
+    // A suspended account cannot be signed in to. Said only to someone who
+    // has the right password, so it tells nobody else anything.
+    if (isSuspended(user)) {
+      return NextResponse.json({ error: SUSPENDED_SIGN_IN, code: 'ACCOUNT_SUSPENDED' }, { status: 403 })
+    }
+
     // A new session. Only the hash of its token is stored (lib/session.ts).
     const { token, expiresAt } = await createSession(user.id)
 
-    const { passwordHash: _, ...userWithoutPassword } = user
+    const { passwordHash: _, ...account } = user
+    // The suspension columns are for admins: left out of what is sent (undefined is dropped)
+    const userWithoutPassword = { ...account, suspendedAt: undefined, suspendedById: undefined, suspendedReason: undefined }
 
     const response = NextResponse.json({
       user: { ...userWithoutPassword, mustVerifyEmail: mustVerifyEmail(user) },

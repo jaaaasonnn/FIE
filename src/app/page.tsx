@@ -62,7 +62,7 @@ async function getModePhotos(): Promise<Record<RentalMode, ModePhoto>> {
     RENTAL_MODES.map(async ({ value }) => {
       try {
         const listings = await db.listing.findMany({
-          where: { isActive: true, rentalModes: { contains: value }, NOT: { photos: '[]' } },
+          where: { isActive: true, host: { suspendedAt: null }, rentalModes: { contains: value }, NOT: { photos: '[]' } },
           orderBy: [{ isFeatured: 'desc' }, { avgRating: 'desc' }],
           select: { id: true, title: true, city: true, neighbourhood: true, photos: true },
           take: 8,

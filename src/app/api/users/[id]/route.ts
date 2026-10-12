@@ -28,6 +28,7 @@ export async function GET(
         isVerified:   true,
         isSuperhost:  true,
         createdAt:    true,
+        suspendedAt:  true,
         listings: {
           where:  { isActive: true },
           select: {
@@ -67,11 +68,11 @@ export async function GET(
     // Hosts are public. A guest's profile is for themselves, admins and
     // anyone they share a booking with; an admin's is for admins only. The
     // answer for a profile that may not be seen is the same as for none.
-    if (user.role !== 'HOST') {
+    if (user.role !== 'HOST' || user.suspendedAt) {
       const viewer = await getSessionUser()
       const shareBooking = !!viewer && viewer.id !== id && user.role === 'GUEST'
         && !!(await db.booking.findFirst({ where: { guestId: id, hostId: viewer.id }, select: { id: true } }))
-      if (!profileVisible({ id, role: user.role }, viewer, shareBooking)) {
+      if (!profileVisible({ id, role: user.role, suspended: !!user.suspendedAt }, viewer, shareBooking)) {
         return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
       }
     }

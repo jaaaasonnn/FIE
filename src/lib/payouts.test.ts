@@ -217,6 +217,34 @@ describe('retrying after the payout method was changed', () => {
   })
 })
 
+describe('retrying while the host is suspended', () => {
+  it('a FAILED payout is not retried to a suspended host, and keeps its retry count', async () => {
+    fetchMock.mockResolvedValueOnce(paystackError(400, 'Your balance is not enough to fulfil this request')).mockResolvedValueOnce(paystackOk('TRF_ok'))
+    await start()
+    const before = { ...state.payouts[0] }
+
+    advanceHour()
+    state.users[0].suspendedAt = new Date(clock - 60 * 1000)
+    expect(await retryFailedPayouts()).toEqual([
+      { payoutId: 'payout_1', ok: false, status: 'FAILED', retryCount: 0, error: 'the host\'s account is suspended', waitingForSuspension: true },
+    ])
+    expect(state.payouts[0]).toEqual(before)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(alerts()).toHaveLength(0)
+
+    // Restored: the retry it was owed goes ahead
+    state.users[0].suspendedAt = null
+    expect((await retryFailedPayouts())[0]).toMatchObject({ ok: true, status: 'PROCESSING', retryCount: 1 })
+  })
+
+  it('a first attempt to a suspended host throws, and no payout row is made', async () => {
+    state.users[0].suspendedAt = new Date(clock - 60 * 1000)
+    await expect(start()).rejects.toThrow('is suspended')
+    expect(state.payouts).toHaveLength(0)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+})
+
 // ─── Classification ─────────────────────────────────────────────────────────
 
 describe('classifyPayoutFailure', () => {
