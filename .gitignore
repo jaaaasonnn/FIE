@@ -48,3 +48,10 @@ node-local/
 
 # local working files: throwaway scripts, snapshots, screenshots
 .scratch/
+
+# end-to-end tests: local database, logs, reports, downloaded tools
+/e2e/.state/
+/e2e/.reports/
+/e2e/.tools/
+/test-results/
+/playwright-report/
