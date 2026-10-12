@@ -10,6 +10,7 @@ import type { Refund } from '@prisma/client'
 import { db } from '@/lib/db'
 import { refundsEnabled } from '@/lib/payoutSwitches'
 import { notify } from '@/lib/messaging/notify'
+import { recordUnrefundedPayments, type UnrefundedItem } from '@/lib/unrefunded'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 
@@ -278,8 +279,8 @@ export async function handleRefundEvent(eventType: RefundEvent, data: Record<str
 
 export type RefundRunItem = { refundId: string; bookingId: string; amount: number; action: 'sent' | 'adopted' | 'failed' | 'skipped' | 'would-send'; status: string; error?: string }
 export type RefundRun =
-  | { mode: 'live'; checked: number; results: RefundRunItem[] }
-  | { mode: 'dry-run'; reason: string; checked: number; results: RefundRunItem[] }
+  | { mode: 'live'; checked: number; results: RefundRunItem[]; unrefunded: UnrefundedItem[] }
+  | { mode: 'dry-run'; reason: string; checked: number; results: RefundRunItem[]; unrefunded: UnrefundedItem[] }
 
 /**
  * Sends refunds that are owed and not yet with Paystack: ones recorded while
@@ -288,6 +289,10 @@ export type RefundRun =
 export async function runRefunds({ dryRun = false, now = new Date() }: { dryRun?: boolean; now?: Date } = {}): Promise<RefundRun> {
   const live = refundsEnabled() && !dryRun
   const stale = new Date(now.getTime() - STALE_REFUND_CLAIM_MS)
+
+  // First, the safety net: money on a cancelled booking with no refund on
+  // record (lib/unrefunded.ts). What it records is sent below, in this run.
+  const unrefunded = await recordUnrefundedPayments({ live })
 
   const waiting = await db.refund.findMany({
     where: { status: 'PENDING', OR: [{ initiatedAt: null }, { initiatedAt: { lte: stale } }] },
@@ -330,6 +335,6 @@ export async function runRefunds({ dryRun = false, now = new Date() }: { dryRun?
 
   const checked = waiting.length + retryable.length
   return live
-    ? { mode: 'live', checked, results }
-    : { mode: 'dry-run', reason: refundsEnabled() ? 'dryRun was requested' : 'REFUNDS_ENABLED is not set to true', checked, results }
+    ? { mode: 'live', checked, results, unrefunded }
+    : { mode: 'dry-run', reason: refundsEnabled() ? 'dryRun was requested' : 'REFUNDS_ENABLED is not set to true', checked, results, unrefunded }
 }

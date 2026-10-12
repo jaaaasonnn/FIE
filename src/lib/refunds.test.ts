@@ -9,6 +9,8 @@ const state = vi.hoisted(() => ({ refunds: [] as Row[], payments: [] as Row[], b
 const sentry = vi.hoisted(() => ({ captureException: vi.fn(), captureMessage: vi.fn() }))
 vi.mock('@sentry/nextjs', () => sentry)
 // Messages are covered by lib/messaging tests; here notify() is only a call that must not get in the way
+const unrefunded = vi.hoisted(() => ({ calls: [] as { live: boolean }[] }))
+vi.mock('@/lib/unrefunded', () => ({ recordUnrefundedPayments: async (o: { live: boolean }) => { unrefunded.calls.push(o); return [{ bookingId: 'b_orphan', paymentId: 'p_orphan', amount: 1, action: o.live ? 'recorded' : 'would-record' }] } }))
 vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
 
 vi.mock('@/lib/db', () => {
@@ -144,6 +146,16 @@ beforeEach(() => {
 // ─── The switch ─────────────────────────────────────────────────────────────
 
 describe('with REFUNDS_ENABLED off', () => {
+  it('the hourly job runs the safety net for unrefunded payments, live only when refunds are on', async () => {
+    unrefunded.calls.length = 0
+    vi.stubEnv('REFUNDS_ENABLED', '')
+    expect((await runRefunds()).unrefunded).toEqual([expect.objectContaining({ bookingId: 'b_orphan', action: 'would-record' })])
+    vi.stubEnv('REFUNDS_ENABLED', 'true')
+    expect((await runRefunds({ dryRun: true })).unrefunded[0].action).toBe('would-record')
+    expect((await runRefunds()).unrefunded[0].action).toBe('recorded')
+    expect(unrefunded.calls).toEqual([{ live: false }, { live: false }, { live: true }])
+  })
+
   it('sends nothing and leaves the refund owed', async () => {
     for (const value of ['', '1', 'TRUE', 'yes']) {
       vi.stubEnv('REFUNDS_ENABLED', value)

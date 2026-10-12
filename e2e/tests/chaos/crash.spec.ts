@@ -227,3 +227,32 @@ test.describe('the exchange rate moves between the payment and the payout', () =
     }
   })
 })
+
+test.describe('the safety net for money on a cancelled booking', () => {
+  // Here, alone: other tests' runs of the refund job would repair it first
+  test('a cancelled booking that holds a payment with no refund on record: the refund job records it in full, once, and alerts', async ({ world }) => {
+    const host = await world.host()
+    const guest = await world.guest()
+    const home = await world.listing(host, { priceNightly: 100 })
+    const { id, reference } = await world.paidBooking(guest, home.id, { nights: 2 })
+    // The state finding F11 used to leave behind, put there by hand
+    await db.booking.update({ where: { id }, data: { status: 'CANCELLED', cancelledBy: 'GUEST', cancelledAt: new Date() } })
+    // A dry run says what it would do and writes nothing
+    const dry = await cron('process-refunds', { dryRun: true })
+    expect(dry.json.unrefunded).toEqual([expect.objectContaining({ bookingId: id, action: 'would-record', amount: 200 })])
+    expect(await db.refund.count({ where: { bookingId: id } })).toBe(0)
+    // Two servers run the job at the same moment
+    const runs = await Promise.all([cron('process-refunds', { server: 0 }), cron('process-refunds', { server: 1 }), cron('process-refunds', { server: 0 })])
+    expect(runs.map((r) => r.status)).toEqual([200, 200, 200])
+    expect(runs.flatMap((r) => r.json.unrefunded).filter((u: { bookingId: string; action: string }) => u.bookingId === id && u.action === 'recorded')).toHaveLength(1)
+    const refunds = await db.refund.findMany({ where: { bookingId: id } })
+    expect(refunds).toHaveLength(1)
+    expect(refunds[0]).toMatchObject({ reason: 'LATE_PAYMENT', amount: 200 })
+    await until(async () => { await cron('process-refunds'); return (await fakes.refunds(reference)).length >= 1 }, 'the refund to reach Paystack')
+    await cron('process-refunds'); await cron('process-refunds')
+    expect(await fakes.refunds(reference), 'the guest is refunded once').toHaveLength(1)
+    expect((await fakes.refunds(reference))[0].amount).toBe((await db.payment.findFirstOrThrow({ where: { bookingId: id } })).amountPesewas)
+    await until(async () => (await fakes.sentry(id)).some((e) => e.includes('no refund on record')), 'a Sentry alert naming the booking')
+    await expectInvariants()
+  })
+})

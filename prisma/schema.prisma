@@ -378,6 +378,10 @@ model Payment {
   momoNumber       String?
   status           String   @default("PENDING") // PENDING | SUCCESS | FAILED | REFUNDED | MISMATCH | DUPLICATE
   gatewayReference String?  @unique
+  // Paystack's page for this payment, kept so that pressing Pay again (a
+  // double click, a second tab) goes back to the SAME payment instead of
+  // starting another. Null on payments made before this existed.
+  authorizationUrl String?
   createdAt        DateTime @default(now())
 
   // What Paystack was actually asked to charge, in pesewas, and the rate used.

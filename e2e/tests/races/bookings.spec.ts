@@ -167,13 +167,12 @@ test.describe('races: paying', () => {
   })
 
   test('the guest cancels at the moment the payment lands: the money is either kept for a standing booking or owed back in full', async ({ world }) => {
-    test.fail(true, 'F11: a cancel that lands with the payment leaves the booking CANCELLED and PAID with no refund on record')
     test.setTimeout(400_000)
     const host = await world.host()
     const home = await world.listing(host)
     const lost: string[] = []
-    // It does not happen every time (about 1 round in 10), so it is tried until it is seen, or 200 times
-    const MOST = 200
+    // Before the fix (finding F11) this went wrong about 1 round in 10, so it is given many chances
+    const MOST = Math.max(ROUNDS * 4, 60)
     let rounds = 0
     for (let round = 0; round < MOST && lost.length === 0; round++, rounds++) {
       const guest = await world.guest()
@@ -190,6 +189,8 @@ test.describe('races: paying', () => {
       // The guest paid in full and the stay is off, but nothing says they are owed their money
       if (row.status === 'CANCELLED' && charged && (!row.refund || Math.abs(row.refund.amount - row.totalPrice) > 0.005)) lost.push(state)
       if (row.status !== 'CANCELLED') expect(row, state).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID' })
+      // Whoever lost was told so: a cancel that lost to the payment is refused, not half done
+      if (row.status !== 'CANCELLED') expect(replies[1].status, state).toBe(409)
     }
     measured(lost.length ? `cancel at the moment of payment: on round ${rounds} the booking was left cancelled and paid with no refund on record` : `cancel at the moment of payment: clean in all ${rounds} rounds`)
     expect(lost).toEqual([])

@@ -20,6 +20,8 @@ const bookingInclude = {
 } as const
 
 type Action = 'accept' | 'decline' | 'cancel' | 'host-cancel' | 'end-tenancy'
+/** What someone is told when a payment landed while they were cancelling: nothing was cancelled. */
+const PAYMENT_ARRIVED = 'A payment for this booking arrived a moment ago, so it has not been cancelled. Please look at the refund you would get and confirm again.'
 const VALID_ACTIONS: Action[] = ['accept', 'decline', 'cancel', 'host-cancel', 'end-tenancy']
 
 /**
@@ -232,7 +234,11 @@ export async function PATCH(
     try {
       updated = await db.$transaction(async (tx) => {
         const result = await tx.booking.update({
-          where: { id, status: booking.status },
+          // Still as it was when the refund was worked out: the same status AND
+          // the same payment status. A payment that lands in between changes
+          // the second (lib/paymentSettle.ts), this update then matches
+          // nothing, and the person is shown the refund they are now owed.
+          where: { id, status: booking.status, paymentStatus: booking.paymentStatus },
           data: { status: 'CANCELLED', cancelledBy: by, cancelledAt: new Date(), cancelReason },
           include: bookingInclude,
         })
@@ -286,6 +292,12 @@ export async function PATCH(
       })
     } catch (txErr) {
       if (txErr instanceof Prisma.PrismaClientKnownRequestError && (txErr.code === 'P2025' || txErr.code === 'P2002')) {
+        // Something changed underneath. If a payment arrived, the booking still
+        // stands and is now paid: nothing was cancelled, and they must look again.
+        const now = await db.booking.findUnique({ where: { id }, select: { status: true, paymentStatus: true } })
+        if (now && now.status === booking.status && now.paymentStatus !== booking.paymentStatus) {
+          return NextResponse.json({ error: PAYMENT_ARRIVED, code: 'PAYMENT_ARRIVED' }, { status: 409 })
+        }
         return NextResponse.json({ error: 'This booking has already been cancelled' }, { status: 409 })
       }
       throw txErr
