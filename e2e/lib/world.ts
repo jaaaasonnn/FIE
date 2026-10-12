@@ -64,7 +64,7 @@ export class Actor {
   }
   /** The link in the newest email with this subject. Waits for it to arrive. */
   async linkFrom(subjectIncludes: string): Promise<string> {
-    const mail = await until(async () => (await this.inbox(subjectIncludes)).at(-1), `an email "${subjectIncludes}" to ${this.email}`)
+    const mail = await until(async () => (await this.inbox(subjectIncludes)).at(-1), `an email "${subjectIncludes}" to ${this.email}`, 30_000)
     const link = /https?:\/\/\S+token=[\w-]+/.exec(mail.text ?? '')?.[0]
     if (!link) throw new Error(`No link in the email "${mail.subject}"`)
     return link

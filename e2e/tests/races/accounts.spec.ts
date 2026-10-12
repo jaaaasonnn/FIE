@@ -2,8 +2,10 @@ import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
-import { ROUNDS, measured, serverErrors, statuses, together } from '../../lib/race'
+import { allowForRounds, ROUNDS, measured, serverErrors, statuses, together } from '../../lib/race'
 import { call, cron, freshIp } from '../../lib/world'
+
+test.beforeEach(allowForRounds)
 
 // Accounts and limits when requests arrive together.
 

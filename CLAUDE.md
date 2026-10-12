@@ -222,6 +222,14 @@ The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a t
   - The person is sent `account.suspended` or `account.restored` (email only; it never carries the admin's reason).
 - **Still open:** npm audit lists 12 issues, none in Next (on 16.3.8, pinned exactly; a test fails if it goes below). They are MapLibre 5 (fixed in 6, the only one that runs in a browser), vitest 3 (fixed in 4), the Prisma CLI and the ESLint tooling: each needs a major upgrade not yet done. Admin accounts have no second factor.
 
+## End-to-end tests
+
+- `e2e/` holds the end-to-end, race, failure and fuzz tests. They run against a production build on this machine with a local Postgres and local stand-ins for Paystack, Resend, storage, Sentry and the map. `e2e/README.md` has the commands and the guards; `e2e/FINDINGS.md` lists every bug and weakness found.
+- Start with `npm run e2e:up` (stop `next dev` first: they share `.next`), then `npm run e2e:smoke` or `npm run e2e`. After changing anything under `src/`, start with `node e2e/run.mjs up --build`.
+- Every process is started by `e2e/run.mjs`, which builds the environment from `e2e/env.e2e` and never reads `.env`. Never run Prisma or the tests against the test stack any other way, and never point them at the real database. The switches are on in `e2e/env.e2e` only.
+- A test for a known bug expects the right behaviour and is marked `test.fail()` with the finding's number. When the bug is fixed the test starts passing and Playwright reports "expected to fail": remove the mark then.
+- The unit tests (`npm test`) are separate and unchanged: `src/**/*.test.ts`.
+
 ## Key Technical Decisions & Why
 - **MapTiler over Mapbox** — avoids Mapbox's credit card requirement during development
 - **Paystack over direct MTN MoMo API** — covers all three Ghanaian mobile money networks plus cards, stronger docs, settles to Ghana bank accounts

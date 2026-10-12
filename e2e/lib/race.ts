@@ -24,3 +24,8 @@ export function measured(description: string) {
   test.info().annotations.push({ type: 'measured', description })
   console.log(`  measured: ${description}`)
 }
+
+/** More rounds need more time: a minute, plus eight seconds a round. Used as `test.beforeEach(allowForRounds)`. */
+export async function allowForRounds({}: object, testInfo: import('@playwright/test').TestInfo) {
+  testInfo.setTimeout(Math.max(testInfo.timeout, 60_000 + ROUNDS * 8_000))
+}

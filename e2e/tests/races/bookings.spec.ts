@@ -2,8 +2,10 @@ import { test, expect } from '../../lib/test'
 import { db, ageBooking } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
-import { ROUNDS, cancel, measured, serverErrors, statuses, together } from '../../lib/race'
+import { allowForRounds, ROUNDS, cancel, measured, serverErrors, statuses, together } from '../../lib/race'
 import { APP, cron } from '../../lib/world'
+
+test.beforeEach(allowForRounds)
 
 // Two people at the same instant. Every pair of requests goes to two
 // different server processes, as two Vercel instances would get them.

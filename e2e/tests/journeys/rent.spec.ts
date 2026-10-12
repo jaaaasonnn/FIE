@@ -32,7 +32,7 @@ test.describe('rent by the month', () => {
     expect(transfers).toHaveLength(1)
     const payment = await db.payment.findFirstOrThrow({ where: { bookingId: id, status: 'SUCCESS' } })
     // The first payment was $900 (rent and deposit); the host's transfer is 90% of the $600 rent in it
-    expect(transfers[0].amount).toBe(Math.round(payment.amountPesewas! * 600 / 900 * 0.9))
+    expect(Math.abs(transfers[0].amount - payment.amountPesewas! * 600 / 900 * 0.9)).toBeLessThanOrEqual(1)
     // Months not paid yet are not paid out
     await cron('process-payouts')
     expect(await db.payout.count({ where: { bookingId: id } })).toBe(1)

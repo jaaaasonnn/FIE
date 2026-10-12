@@ -2,8 +2,10 @@ import { test, expect } from '../../lib/test'
 import { db, ageBooking } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
-import { serverErrors, together } from '../../lib/race'
+import { allowForRounds, serverErrors, together } from '../../lib/race'
 import { day, type Actor, type World } from '../../lib/world'
+
+test.beforeEach(allowForRounds)
 
 // Rent paid by the month: the same button pressed twice, the same instalment paid twice.
 

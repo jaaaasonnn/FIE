@@ -34,7 +34,8 @@ async function fence(context: BrowserContext, problems: Problems) {
 
 function watch(page: Page, problems: Problems) {
   page.on('console', (m) => { if (m.type() === 'error') problems.console.push(m.text().slice(0, 300)) })
-  page.on('pageerror', (e) => problems.pageErrors.push(String(e).slice(0, 300)))
+  // (WebKit reports a prefetch that navigation cancelled as "cannot load … due to access control checks": not an error of the page)
+  page.on('pageerror', (e) => { if (!/due to access control checks/.test(String(e))) problems.pageErrors.push(String(e).slice(0, 300)) })
   page.on('response', (r) => { if (r.status() >= 400) problems.failedRequests.push(`${r.status()} ${r.request().method()} ${r.url().replace(/\?.*/, '')}`) })
   // (the browser posting a content-policy report to the fake Sentry address is not a page request)
   page.on('requestfailed', (r) => { const why = r.failure()?.errorText ?? ''; if (!/ERR_ABORTED|cancelled|NS_BINDING_ABORTED|blockedbyclient/i.test(why) && !/\/api\/\d+\/security\//.test(r.url())) problems.failedRequests.push(`failed ${r.url().replace(/\?.*/, '')} (${why})`) })
