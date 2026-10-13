@@ -11,7 +11,8 @@ const plusMonths = (iso: string, months: number) => { const d = new Date(`${iso}
 async function monthly(world: World, host: Actor, months = 3) {
   const guest = await world.guest()
   const home = await world.listing(host, { rentalModes: ['TEMP_STAY'], priceMonthly: 600, damageDeposit: 300, priceNightly: undefined })
-  const checkIn = day(45 + Math.floor(Math.random() * 150))
+  // Never the 29th to the 31st: adding months to those does not land on a whole month
+  const checkIn = day(45 + Math.floor(Math.random() * 150)).replace(/-(29|30|31)$/, '-28')
   const { id } = await world.paidBooking(guest, home.id, { rentalMode: 'TEMP_STAY', checkIn, checkOut: plusMonths(checkIn, months) })
   const instalments = await db.instalment.findMany({ where: { bookingId: id }, orderBy: { sequence: 'asc' } })
   return { guest, id, instalments }
