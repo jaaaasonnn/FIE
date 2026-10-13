@@ -253,6 +253,12 @@ describe('messages', () => {
 })
 
 describe('site copy', () => {
+  it('says on the terms page how the exchange rate is really kept: fetched every 6 hours', () => {
+    const page = text(renderToStaticMarkup(createElement(TermsPage)))
+    expect(page).toContain('The USD/GHS exchange rate is updated automatically every 6 hours, and FieGH may correct it by hand.')
+    expect(page).not.toMatch(/updated weekly/i)
+  })
+
   it('states the new fees on the terms page, with no old figure left', () => {
     const page = text(renderToStaticMarkup(createElement(TermsPage)))
     expect(page).toContain('Guests pay no service fee. Hosts keep 90% of the rent: FieGH takes a 10% commission from each payout.')

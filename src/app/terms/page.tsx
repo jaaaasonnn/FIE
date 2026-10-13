@@ -59,7 +59,7 @@ export default function TermsPage() {
             },
             {
               title: '4. Payments and Fees',
-              body: 'All payments are processed via Paystack or Mobile Money. ' + GUEST_FEE_LINE + ' ' + HOST_COMMISSION_LINE + ' All monetary amounts are stored in USD and displayed in both USD and GHS. The USD/GHS exchange rate is updated weekly by FieGH administrators. FieGH does not support cash payments or direct bank transfers outside the platform.'
+              body: 'All payments are processed via Paystack or Mobile Money. ' + GUEST_FEE_LINE + ' ' + HOST_COMMISSION_LINE + ' All monetary amounts are stored in USD and displayed in both USD and GHS. The USD/GHS exchange rate is updated automatically every 6 hours, and FieGH may correct it by hand. FieGH does not support cash payments or direct bank transfers outside the platform.'
             },
             {
               title: '5. Held payments and payouts',
