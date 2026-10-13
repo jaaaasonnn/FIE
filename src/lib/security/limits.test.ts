@@ -167,6 +167,23 @@ describe('signing up', () => {
     expect((state.tables.authRequest ?? []).filter((r) => r.kind === 'SIGN_UP')).toHaveLength(made)
   })
 
+  it('two sign-ups with one email at the same instant: one account, and the other is told the address is taken', async () => {
+    const twin = (ip: string) => signUp(json('POST', { name: 'Twin', email: 'twin@example.test', password: 'a long password' }, from(ip)))
+    const replies = await Promise.all([twin('198.51.100.1'), twin('198.51.100.2'), twin('198.51.100.3')])
+    expect(replies.map((r) => r.status).sort()).toEqual([201, 409, 409])
+    for (const lost of replies.filter((r) => r.status === 409)) expect((await lost.json()).error).toBe('Email already registered')
+    expect(state.tables.user.filter((u) => u.email === 'twin@example.test')).toHaveLength(1)
+    // Only the account that was made is counted
+    expect((state.tables.authRequest ?? []).filter((r) => r.kind === 'SIGN_UP')).toHaveLength(1)
+  })
+
+  it('two sign-ups with one phone number at the same instant: the other is told the number is taken', async () => {
+    const twin = (ip: string) => signUp(json('POST', { name: 'Twin', phone: '0241234567', password: 'a long password' }, from(ip)))
+    const replies = await Promise.all([twin('198.51.100.1'), twin('198.51.100.2')])
+    expect(replies.map((r) => r.status).sort()).toEqual([201, 409])
+    expect((await replies.find((r) => r.status === 409)!.json()).error).toBe('Phone number already registered')
+  })
+
   it('does not count a sign-up that was refused', async () => {
     for (let i = 0; i < 8; i++) expect((await signUp(json('POST', { name: 'x', email: 'ama@example.test', password: 'a long password' }, from('203.0.113.7')))).status).toBe(409)
     expect((await join(1)).status).toBe(201)

@@ -43,15 +43,17 @@ test.describe('races: accounts', () => {
   })
 
   test('the person who loses a simultaneous sign-up is told the address is taken, not that something broke', async () => {
-    test.fail(true, 'F8: the loser of two simultaneous sign-ups gets HTTP 500 "Failed to create account" instead of 409')
     const made: string[] = []
     try {
       const errors: string[] = []
       for (let round = 0; round < 6; round++) {
         const email = `e2e-twin-${tag()}@fiegh.test`
-        const replies = await together(...[0, 1, 0, 1].map((server) => () => call('POST', '/api/auth/signup', { name: 'E2E Twin', email, password: 'Twin-pass-12345', role: 'GUEST' }, { server: server as 0 | 1 })))
+        const replies = await together(...[0, 1, 0, 1].map((server) => () => call('POST', '/api/auth/signup', { name: 'E2E Twin', email, password: 'Twin-pass-12345', role: 'GUEST' }, { server: server as 0 | 1, ip: freshIp() })))
         made.push(...replies.filter((r) => r.status === 201).map((r) => r.json.user.id))
         errors.push(...serverErrors(replies))
+        // One account; everyone else is told the address is taken
+        expect(statuses(replies), `round ${round}`).toEqual([201, 409, 409, 409])
+        for (const lost of replies.filter((r) => r.status === 409)) expect(lost.json.error).toBe('Email already registered')
       }
       expect(errors).toEqual([])
     } finally { const { purge } = await import('../../lib/db'); await purge(made) }
@@ -106,8 +108,15 @@ test.describe('races: limits when requests arrive together', () => {
   test('the sign-in limit holds once the burst is over', async ({ world }) => {
     const person = await world.guest()
     const ip = freshIp()
-    await together(...Array.from({ length: 8 }, (_, i) => () => call('POST', '/api/auth/signin', { identifier: person.email, password: `wrong-${i}` }, { ip })))
-    // Whatever got through at once, the account is now locked, even for the right password
+    const burst = await together(...Array.from({ length: 8 }, (_, i) => () => call('POST', '/api/auth/signin', { identifier: person.email, password: `wrong-${i}` }, { ip })))
+    let checked = burst.filter((r) => r.status === 401).length
+    // A burst can be refused early, so fewer than 5 may have been checked. Guessing on, one at a time:
+    // 5 wrong passwords are checked in all, burst included, and not one more
+    for (let i = 0; i < 8; i++) {
+      if ((await call('POST', '/api/auth/signin', { identifier: person.email, password: `wrong-again-${i}` }, { ip })).status === 401) checked++
+    }
+    expect(checked).toBe(5)
+    // And the account is now locked, even for the right password
     expect((await call('POST', '/api/auth/signin', { identifier: person.email, password: person.password }, { ip })).status).toBe(429)
     expect((await call('POST', '/api/auth/signin', { identifier: person.email, password: person.password }, { ip: freshIp() })).status).toBe(429)
   })

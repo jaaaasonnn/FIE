@@ -160,7 +160,8 @@ export function fakeDb(tables: Tables) {
   function insert(model: string, data: Row): Row {
     for (const keys of UNIQUE[model] ?? []) {
       if (keys.every((k) => data[k] != null) && rows(model).some((r) => keys.every((k) => same(r[k], data[k])))) {
-        throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test' })
+        // As Prisma reports it on Postgres: the fields of the index that refused
+        throw new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'test', meta: { target: keys } })
       }
     }
     const row = { id: `${model}_${++made}`, createdAt: new Date(), updatedAt: new Date(), ...data }

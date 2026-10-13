@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
@@ -84,6 +85,13 @@ export async function POST(req: Request) {
       })
     } catch (error) {
       await notCounted()
+      // Someone else took this email or phone a moment ago, between the look
+      // above and the create: the unique index refused ours. The same answer
+      // as when the look finds it.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        const target = JSON.stringify(error.meta?.target ?? '')
+        return NextResponse.json({ error: target.includes('phone') ? 'Phone number already registered' : 'Email already registered' }, { status: 409 })
+      }
       throw error
     }
 
