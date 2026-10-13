@@ -70,23 +70,68 @@ test.describe('the server is killed half way', () => {
     await undo()
     launcher('app:start', '3201')
     expect((await db.payout.findFirstOrThrow({ where: { bookingId: id } })).status).toBe('PENDING')
-    // The dead run is picked up and sent again with the same reference: Paystack refuses the second one
+    // The dead run is picked up. Before anything is sent again Paystack is asked
+    // for the transfer under this reference, and the one it holds is adopted.
     await makeStale(id)
     await cron('process-payouts', { server: 0 })
     await cron('process-payouts', { server: 1 })
     const transfers = await fakes.transfers(`booking ${id}`)
     expect(transfers, 'Paystack holds one transfer for this booking').toHaveLength(1)
     expect(transfers[0].transfer_code).toBe(accepted[0].transfer_code)
+    expect(transfers[0].duplicateAttempts, 'no second transfer was ever asked for').toBe(0)
     const mid = await db.payout.findFirstOrThrow({ where: { bookingId: id } })
-    measured(`killed after Paystack accepted the transfer: the resumed attempt was refused as a duplicate (${transfers[0].duplicateAttempts} time(s)) and the payout row is ${mid.status}: ${mid.failureReason ?? 'no reason'}`)
+    expect(mid).toMatchObject({ status: 'PROCESSING', paystackTransferCode: accepted[0].transfer_code, failureReason: null })
     // Paystack then reports the transfer it did make as successful
     await fakes.webhook(APP[0], 'transfer.success', { reference: transfers[0].reference })
     const done = await db.payout.findFirstOrThrow({ where: { bookingId: id } })
-    expect.soft(done.status, `F11: the money reached the host, but the payout row says ${done.status} (${done.failureReason ?? ''})`).toBe('COMPLETED')
+    expect(done.status).toBe('COMPLETED')
     // Whatever the row says, nothing may ever send this booking's money a second time
     await db.payout.updateMany({ where: { bookingId: id }, data: { lastFailedAt: new Date(Date.now() - 3 * 3_600_000) } })
     await cron('process-payouts'); await cron('process-payouts')
     expect(await fakes.transfers(`booking ${id}`), 'still one transfer after two more runs').toHaveLength(1)
+    await expectInvariants()
+  })
+
+  test('Paystack takes a transfer and never answers: it is not marked failed, Paystack is asked before anything is sent again, and the host is paid exactly once', async ({ world }) => {
+    test.setTimeout(150_000)
+    const host = await world.host()
+    const id = await due(world, host)
+    const mine = (run: { json: { results: { bookingId: string; action: string }[]; resumed: { bookingId: string; action: string }[] } }) =>
+      [...run.json.results, ...run.json.resumed].filter((r) => r.bookingId === id).map((r) => r.action)
+    // Paystack makes the transfer, and its answer never comes: the app gives up after 15 seconds
+    const undo = await fakes.rule('transfer', 'swallow', { match: `booking ${id}`, times: 1 })
+    const started = Date.now()
+    const first = await cron('process-payouts', { server: 0, timeoutMs: 60_000 })
+    await undo()
+    measured(`with Paystack silent on a transfer, the payout job answered ${first.status} after ${Math.round((Date.now() - started) / 1000)} s`)
+    expect(first.status).toBe(200)
+    expect(mine(first)).toEqual(['unanswered'])
+    expect(await fakes.transfers(`booking ${id}`), 'Paystack did make the transfer').toHaveLength(1)
+    const left = await db.payout.findFirstOrThrow({ where: { bookingId: id } })
+    expect(left).toMatchObject({ status: 'PENDING', failureReason: null, retryCount: 0, paystackTransferCode: null })
+
+    // While the claim is fresh nothing is done: the first attempt may still be in flight
+    await cron('process-payouts', { server: 1 })
+    // Later, with Paystack unable to say what it holds, still nothing is sent and nothing is marked failed
+    await makeStale(id)
+    const silent = await fakes.rule('transfer-lookup', 'hang', { match: left.paystackTransferReference! })
+    const blind = await cron('process-payouts', { server: 1, timeoutMs: 60_000 })
+    await silent()
+    expect(mine(blind)).toEqual(['unanswered'])
+    expect(await db.payout.findFirstOrThrow({ where: { bookingId: id } })).toMatchObject({ status: 'PENDING', failureReason: null, retryCount: 0 })
+
+    // Once Paystack can be asked, the transfer it holds is adopted
+    await makeStale(id)
+    await cron('process-payouts', { server: 0 })
+    const transfers = await fakes.transfers(`booking ${id}`)
+    expect(transfers).toHaveLength(1)
+    expect(transfers[0].duplicateAttempts, 'no second transfer was ever asked for').toBe(0)
+    expect(await db.payout.findFirstOrThrow({ where: { bookingId: id } })).toMatchObject({ status: 'PROCESSING', paystackTransferCode: transfers[0].transfer_code, paystackTransferReference: left.paystackTransferReference })
+    await fakes.webhook(APP[0], 'transfer.success', { reference: transfers[0].reference })
+    expect((await db.payout.findFirstOrThrow({ where: { bookingId: id } })).status).toBe('COMPLETED')
+    await cron('process-payouts'); await cron('process-payouts')
+    expect(await fakes.transfers(`booking ${id}`), 'still one transfer after two more runs').toHaveLength(1)
+    expect(await db.payout.count({ where: { bookingId: id } })).toBe(1)
     await expectInvariants()
   })
 

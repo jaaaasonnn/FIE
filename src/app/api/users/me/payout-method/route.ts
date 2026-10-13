@@ -1,3 +1,4 @@
+import { OutboundTimeoutError, PAYSTACK_NOT_ANSWERING, READ_TIMEOUT_MS, readWithRetry, sendOnce } from '@/lib/outbound'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
@@ -95,7 +96,7 @@ export async function POST(req: Request) {
     }
 
     // 1. Resolve — the account must actually exist before we trust it.
-    const resolveRes = await fetch(
+    const resolveRes = await readWithRetry(
       `https://api.paystack.co/bank/resolve?account_number=${encodeURIComponent(accountNumber)}&bank_code=${encodeURIComponent(bankCode)}`,
       { headers: { Authorization: `Bearer ${secret}` } },
     )
@@ -112,7 +113,8 @@ export async function POST(req: Request) {
 
     // 2. Register as a transfer recipient — this is what a future payout
     // actually sends money to; resolving alone doesn't create anything.
-    const recipientRes = await fetch('https://api.paystack.co/transferrecipient', {
+    // Made once, never repeated here: a second try could leave two recipients
+    const recipientRes = await sendOnce('https://api.paystack.co/transferrecipient', {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -122,7 +124,7 @@ export async function POST(req: Request) {
         bank_code: bankCode,
         currency: 'GHS',
       }),
-    })
+    }, READ_TIMEOUT_MS)
     const recipientJson = await recipientRes.json().catch(() => null)
     if (!recipientRes.ok || !recipientJson?.status || !recipientJson.data?.recipient_code) {
       console.error('[Payout method] Paystack recipient creation failed:', { httpStatus: recipientRes.status, message: recipientJson?.message })
@@ -166,6 +168,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ payoutMethod: updated })
   } catch (error) {
+    // Nothing was saved: the payout method is as it was
+    if (error instanceof OutboundTimeoutError) return NextResponse.json({ error: PAYSTACK_NOT_ANSWERING }, { status: 504 })
     console.error('Payout method POST error:', error)
     return NextResponse.json({ error: 'Failed to save payout method' }, { status: 500 })
   }

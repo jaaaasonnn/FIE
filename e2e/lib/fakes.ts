@@ -13,8 +13,8 @@ export type FakeTx = { reference: string; amount: number; currency: string; emai
 export type FakeTransfer = { reference: string; amount: number; recipient: string; reason: string; transfer_code: string; status: string; duplicateAttempts: number }
 export type FakeRefund = { id: number; transaction_reference: string; amount: number; merchant_note: string; status: string }
 export type FakeEmail = { id: string; to: string[]; subject: string; text?: string; html?: string; from?: string; key?: string }
-export type Endpoint = 'initialize' | 'verify' | 'transfer' | 'refund' | 'refund-list' | 'resolve' | 'recipient' | 'banks' | 'resend' | 'storage' | 'rate'
-export type Behaviour = 'http500' | 'http400' | 'http429' | 'malformed' | 'empty' | 'reset' | 'hang' | 'delay'
+export type Endpoint = 'initialize' | 'verify' | 'transfer' | 'transfer-lookup' | 'refund' | 'refund-list' | 'resolve' | 'recipient' | 'banks' | 'resend' | 'storage' | 'rate'
+export type Behaviour = 'http500' | 'http400' | 'http429' | 'malformed' | 'empty' | 'reset' | 'hang' | 'swallow' | 'delay'
 
 export const fakes = {
   /** Transactions the app started at the fake Paystack. `match` is any text in them, such as a booking id. */

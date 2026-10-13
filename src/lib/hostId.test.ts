@@ -190,7 +190,7 @@ describe('every way a payout can be sent', () => {
     const guard = body.indexOf('if (!hostIdApproved(host))')
     expect(guard).toBeGreaterThan(-1)
     expect(body.slice(guard, guard + 120)).toContain('throw new HostIdNotApprovedError(hostId)')
-    for (const later of ['db.payout.findFirst', 'db.payout.create', 'db.payout.updateMany', 'holdPayout(', 'fetch(`${PAYSTACK_BASE}/transfer`']) {
+    for (const later of ['db.payout.findFirst', 'db.payout.create', 'db.payout.updateMany', 'holdPayout(', 'findTransfer(', 'sendOnce(`${PAYSTACK_BASE}/transfer`']) {
       expect(body.indexOf(later), later).toBeGreaterThan(guard)
     }
     // There is one transfer call in the file, and it is inside that function

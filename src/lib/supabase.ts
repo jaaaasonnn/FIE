@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js'
 import { WebSocket } from 'ws'
+import { STORAGE_TIMEOUT_MS, fetchWithLimit } from '@/lib/outbound'
 
 // supabase-js always spins up a Realtime client internally, which needs a
 // global WebSocket constructor that Node 20 doesn't provide. We only use
@@ -16,7 +17,8 @@ if (!globalThis.WebSocket) {
 export const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } },
+  // Every storage call has a time limit (lib/outbound.ts)
+  { auth: { persistSession: false }, global: { fetch: fetchWithLimit(STORAGE_TIMEOUT_MS) } },
 )
 
 export const AVATARS_BUCKET = 'avatars'

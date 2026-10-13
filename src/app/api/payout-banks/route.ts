@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireHost } from '@/lib/roles'
+import { OutboundTimeoutError, PAYSTACK_NOT_ANSWERING, readWithRetry } from '@/lib/outbound'
 
 /**
  * GET /api/payout-banks — Ghana bank list (excluding mobile money, which
@@ -19,7 +20,7 @@ export async function GET() {
   }
 
   try {
-    const res = await fetch('https://api.paystack.co/bank?country=ghana&currency=GHS', {
+    const res = await readWithRetry('https://api.paystack.co/bank?country=ghana&currency=GHS', {
       headers: { Authorization: `Bearer ${secret}` },
     })
     const json = await res.json().catch(() => null)
@@ -34,6 +35,7 @@ export async function GET() {
 
     return NextResponse.json({ banks })
   } catch (error) {
+    if (error instanceof OutboundTimeoutError) return NextResponse.json({ error: PAYSTACK_NOT_ANSWERING }, { status: 504 })
     console.error('Payout banks GET error:', error)
     return NextResponse.json({ error: 'Failed to load bank list' }, { status: 500 })
   }

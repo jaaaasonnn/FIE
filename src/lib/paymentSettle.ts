@@ -10,6 +10,7 @@
 // follows the booking's rules and marks the instalment paid in the same step.
 // A later one marks only its instalment paid: the booking is already confirmed.
 
+import { readWithRetry } from '@/lib/outbound'
 import * as Sentry from '@sentry/nextjs'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
@@ -263,12 +264,14 @@ export type ChargeLookup = { ok: true; charge: PaystackCharge } | { ok: false; e
 /**
  * Asks Paystack what became of a transaction. Read-only. A reference Paystack
  * has never heard of (the guest never reached its page) counts as abandoned.
+ * Never waits longer than READ_TIMEOUT_MS (lib/outbound.ts): with no answer
+ * the payment is left as it is and looked at again later.
  */
 export async function fetchCharge(reference: string): Promise<ChargeLookup> {
   const secret = process.env.PAYSTACK_SECRET_KEY
   if (!secret || secret.startsWith('your_') || !secret.startsWith('sk_')) return { ok: false, error: 'Paystack is not configured' }
   try {
-    const res = await fetch(`${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
+    const res = await readWithRetry(`${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(reference)}`, {
       headers: { Authorization: `Bearer ${secret}` },
     })
     let json: { status?: boolean; message?: string; data?: { status?: unknown; amount?: unknown; currency?: unknown } } | null = null

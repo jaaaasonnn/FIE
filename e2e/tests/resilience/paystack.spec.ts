@@ -51,14 +51,18 @@ test.describe('Paystack fails when a payment is started', () => {
   }
 
   test('Paystack never answers: the guest is not left waiting for ever', async ({ world }) => {
-    test.fail(true, 'F9: calls to Paystack have no time limit, so a request waits until the platform kills it')
     const { guest, id } = await unpaid(world)
     const undo = await fakes.rule('initialize', 'hang', { match: id })
     const started = Date.now()
     const reply = await world.startPayment(guest, id, { timeoutMs: 20_000 })
     measured(`with Paystack silent, starting a payment ${reply.status === 0 ? 'had not answered after' : `answered ${reply.status} after`} ${Math.round((Date.now() - started) / 1000)} s`)
     await undo()
-    expect(reply.status, 'an answer within 20 seconds').not.toBe(0)
+    expect(reply.status, 'an answer within 20 seconds').toBe(502)
+    expect(reply.json.error).toBe('Paystack is not answering. Please try again in a moment.')
+    // The attempt is closed, nothing is paid, and trying again works
+    expect((await db.payment.findMany({ where: { bookingId: id } })).map((p) => p.status)).toEqual(['FAILED'])
+    expect((await db.booking.findUniqueOrThrow({ where: { id } })).paymentStatus).toBe('UNPAID')
+    expect((await world.startPayment(guest, id)).status).toBe(200)
   })
 })
 

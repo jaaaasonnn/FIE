@@ -10,6 +10,7 @@ import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdAppr
 import { PayoutMethodTooNewError, WAITING_FOR_NEW_METHOD, payoutMethodSettled } from '@/lib/payoutMethod'
 import { HostSuspendedError, WAITING_FOR_SUSPENSION, isSuspended } from '@/lib/suspension'
 import { NO_CEDI_AMOUNT } from '@/lib/cediShare'
+import { OutboundTimeoutError, readWithRetry, sendOnce } from '@/lib/outbound'
 import { payoutCedis } from '@/lib/payoutCedis'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
@@ -34,7 +35,14 @@ export type InitiateHostPayoutResult = {
   /** true if Paystack was never called this time because the row already
    *  had a transfer code (or a terminal status) from a previous attempt. */
   alreadyInitiated?: boolean
+  /** true when Paystack did not answer, so nobody knows yet whether the
+   *  transfer was made. The row stays PENDING and nothing is recorded as
+   *  failed; the next run asks Paystack before it sends anything. */
+  unanswered?: boolean
 }
+
+/** Recorded nowhere: the reason given in the job's report while a transfer's fate is not known. */
+export const TRANSFER_UNANSWERED = 'Paystack did not answer in time. The transfer will be checked before anything is sent again.'
 
 /**
  * Initiates (or safely resumes) the Paystack transfer that pays a host for
@@ -217,6 +225,9 @@ export async function initiateHostPayout({
   // PENDING row cannot both send it. A claim older than STALE_CLAIM_MS with
   // nothing recorded is a run that died; taking it over reuses the same
   // reference, which Paystack will not pay twice.
+  // An earlier attempt may have reached Paystack: a claim that went stale (the
+  // run died, or Paystack never answered), or a retry after a failure.
+  const mayHaveBeenSent = payout.initiatedAt !== null || payout.retryCount > 0
   const claimedAt = new Date()
   const claim = await db.payout.updateMany({
     where: {
@@ -232,6 +243,19 @@ export async function initiateHostPayout({
   }
 
   const secret = getSecret()
+
+  // Before anything is sent a second time, ask Paystack what it holds under
+  // this reference and act on that. A refusal of a duplicate reference is
+  // not relied on.
+  if (mayHaveBeenSent && payout.paystackTransferReference) {
+    const held = await findTransfer(payout.paystackTransferReference, secret)
+    if (held === 'unknown') {
+      // Could not ask: nothing is sent and nothing is marked failed. The claim
+      // goes stale and the next run asks again.
+      return { ok: false, payout, error: TRANSFER_UNANSWERED, unanswered: true }
+    }
+    if (held) return { ...(await adoptTransfer(payout.id, held)), alreadyInitiated: true }
+  }
 
   // The host's share of the cedis the guest paid, at the rate they paid at
   const [amountPesewas] = await payoutCedis([{ bookingId, instalmentId: instalment?.id ?? null, coveredFromDeposit: instalment?.coveredFromDeposit, amount }])
@@ -261,7 +285,8 @@ export async function initiateHostPayout({
   }
 
   try {
-    const res = await fetch(`${PAYSTACK_BASE}/transfer`, {
+    // One attempt with a time limit, never repeated here (lib/outbound.ts)
+    const res = await sendOnce(`${PAYSTACK_BASE}/transfer`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${secret}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -302,6 +327,13 @@ export async function initiateHostPayout({
     })
     return { ok: true, payout: updated }
   } catch (error) {
+    // No answer in time: Paystack may have made the transfer. It is NOT
+    // recorded as failed, which would send it again on a retry. The row stays
+    // PENDING under its claim, and the next run asks Paystack first.
+    if (error instanceof OutboundTimeoutError) {
+      console.error(`[Payouts] Paystack did not answer for payout ${payout.id}: left PENDING to be checked`)
+      return { ok: false, payout, error: TRANSFER_UNANSWERED, unanswered: true }
+    }
     console.error('[Payouts] Transfer initiate network error:', error)
     const failed = await recordPayoutFailure(
       payout.id,
@@ -310,6 +342,46 @@ export async function initiateHostPayout({
     )
     return { ok: false, payout: failed, error: 'Network error calling Paystack' }
   }
+}
+
+type PaystackTransfer = { transfer_code?: string; status?: string }
+
+/**
+ * Asks Paystack for the transfer made under one of our references. Read-only.
+ * Returns it, null when Paystack has none, or 'unknown' when Paystack could
+ * not be asked (in which case nothing must be sent).
+ */
+async function findTransfer(reference: string, secret: string): Promise<PaystackTransfer | null | 'unknown'> {
+  try {
+    const res = await readWithRetry(`${PAYSTACK_BASE}/transfer/verify/${encodeURIComponent(reference)}`, {
+      headers: { Authorization: `Bearer ${secret}` },
+    })
+    let json: { status?: boolean; message?: string; data?: PaystackTransfer } | null = null
+    try { json = await res.json() } catch { /* handled below */ }
+    if ((res.status === 404 || res.status === 400) && /not found/i.test(json?.message ?? '')) return null
+    if (!res.ok || !json?.status || !json.data?.transfer_code) return 'unknown'
+    return json.data
+  } catch {
+    return 'unknown'
+  }
+}
+
+/** Writes onto our row a transfer Paystack already holds for it, instead of sending another. */
+async function adoptTransfer(payoutId: string, transfer: PaystackTransfer): Promise<InitiateHostPayoutResult> {
+  const code = transfer.transfer_code!
+  if (transfer.status === 'failed' || transfer.status === 'reversed') {
+    // It was made and has conclusively failed. Kept with its code, so a retry uses a new reference.
+    await db.payout.update({ where: { id: payoutId }, data: { paystackTransferCode: code } })
+    const failed = await recordPayoutFailure(payoutId, `Paystack transfer ${transfer.status}`, { completedAt: new Date() })
+    return { ok: false, payout: failed, error: failed.failureReason ?? undefined }
+  }
+  const done = transfer.status === 'success'
+  const updated = await db.payout.update({
+    where: { id: payoutId },
+    data: { paystackTransferCode: code, failureReason: null, ...(done ? { status: 'COMPLETED', completedAt: new Date() } : { status: 'PROCESSING' }) },
+  })
+  if (done) notify('payout.sent', { payoutId })
+  return { ok: true, payout: updated }
 }
 
 /**
@@ -459,6 +531,8 @@ export type RetryResult = {
   waitingForSuspension?: boolean
   /** True when nothing was attempted because the payout method was saved in the last day */
   waitingForNewMethod?: boolean
+  /** True when Paystack did not answer: the payout is PENDING and is checked on the next run */
+  unanswered?: boolean
 }
 
 /**
@@ -547,6 +621,7 @@ export async function retryFailedPayouts(): Promise<RetryResult[]> {
         status: result.payout.status,
         retryCount: result.payout.retryCount,
         error: result.error,
+        ...(result.unanswered ? { unanswered: true } : {}),
       })
     } catch (error) {
       // The host's ID stopped being approved between the check above and the

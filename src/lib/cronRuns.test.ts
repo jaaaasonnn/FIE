@@ -197,8 +197,10 @@ beforeEach(() => {
   fetchMock.mockReset()
   // Paystack takes a moment to answer, as a real network call does. That
   // gap is where a second run could otherwise send the same payout.
-  fetchMock.mockImplementation(async () => {
+  fetchMock.mockImplementation(async (url: string) => {
     await new Promise((resolve) => setTimeout(resolve, 0))
+    // Asked whether a transfer already exists under a reference: it has none
+    if (String(url).includes('/transfer/verify/')) return new Response(JSON.stringify({ status: false, message: 'Transfer not found' }), { status: 404 })
     return paystackOk()
   })
   vi.stubGlobal('fetch', fetchMock)

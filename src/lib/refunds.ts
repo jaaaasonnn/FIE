@@ -5,6 +5,7 @@
 // that asks Paystack to move the money, and it does nothing unless
 // REFUNDS_ENABLED is exactly "true" (lib/payoutSwitches.ts).
 
+import { readWithRetry, sendOnce } from '@/lib/outbound'
 import * as Sentry from '@sentry/nextjs'
 import type { Refund } from '@prisma/client'
 import { db } from '@/lib/db'
@@ -169,7 +170,10 @@ export async function sendRefund(refundId: string): Promise<SendRefundResult> {
       }
     }
 
-    const res = await fetch(`${PAYSTACK_BASE}/refund`, {
+    // One attempt with a time limit, never repeated here (lib/outbound.ts).
+    // If it is cut off, the failure recorded below means the next attempt
+    // first asks Paystack whether this refund already exists.
+    const res = await sendOnce(`${PAYSTACK_BASE}/refund`, {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -205,9 +209,15 @@ export async function sendRefund(refundId: string): Promise<SendRefundResult> {
  * not be asked (in which case nothing must be sent).
  */
 async function findExistingRefund(reference: string, refundId: string, headers: Record<string, string>): Promise<PaystackRefund | null | 'unknown'> {
-  const res = await fetch(`${PAYSTACK_BASE}/refund?reference=${encodeURIComponent(reference)}&perPage=100`, { headers })
+  let res: Response
   let json: { status?: boolean; data?: PaystackRefund[] } | null = null
-  try { json = await res.json() } catch { /* handled below */ }
+  try {
+    res = await readWithRetry(`${PAYSTACK_BASE}/refund?reference=${encodeURIComponent(reference)}&perPage=100`, { headers })
+    try { json = await res.json() } catch { /* handled below */ }
+  } catch {
+    // No answer, or no connection: nothing is known, so nothing is sent
+    return 'unknown'
+  }
   if (!res.ok || !json?.status || !Array.isArray(json.data)) return 'unknown'
 
   // Matched here as well as by the query, in case the filter is ignored

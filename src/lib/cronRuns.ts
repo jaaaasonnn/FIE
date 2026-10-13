@@ -182,6 +182,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
 export type PayoutAction =
   | 'paid'                        // transfer started (or already under way)
   | 'failed'                      // attempted, recorded as failed
+  | 'unanswered'                  // Paystack did not answer: left PENDING, and checked with Paystack before anything is sent again
   | 'waiting-for-payout-method'   // host has no verified payout method yet
   | 'waiting-for-suspension'      // host's account is suspended: nothing written, sent once it is restored
   | 'waiting-for-host-id'         // host's ID is not approved: nothing written, sent once it is
@@ -279,7 +280,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       const result = await initiateHostPayout({ hostId: booking.hostId, bookingId: booking.id, amount, instalmentId: item.instalmentId })
       results.push({
         ...base,
-        action: result.ok ? 'paid' : 'failed',
+        action: result.ok ? 'paid' : result.unanswered ? 'unanswered' : 'failed',
         payoutId: result.payout.id,
         status: result.payout.status,
         error: result.error,
@@ -345,7 +346,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     }
     try {
       const result = await initiateHostPayout({ hostId: payout.hostId, bookingId: payout.bookingId!, amount: payout.amount, instalmentId: payout.instalmentId })
-      resumed.push({ ...base, action: result.ok ? 'paid' : 'failed', status: result.payout.status, error: result.error })
+      resumed.push({ ...base, action: result.ok ? 'paid' : result.unanswered ? 'unanswered' : 'failed', status: result.payout.status, error: result.error })
     } catch (error) {
       if (error instanceof HostSuspendedError) {
         resumed.push({ ...base, action: 'waiting-for-suspension', status: payout.status })

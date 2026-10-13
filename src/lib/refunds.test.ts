@@ -352,6 +352,32 @@ describe('failures', () => {
     expect(refund()).toMatchObject({ status: 'PROCESSING', retryCount: 1 })
   })
 
+  it('a refund Paystack never answered is tried again only after asking what Paystack already holds', async () => {
+    const timeout = () => new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+    fetchMock.mockImplementationOnce(async () => { throw timeout() })
+    owed(partRefund)
+    await sendRefund('refund_1')
+    expect(refund().failureReason).toBe('Network error calling Paystack: No answer within 15 seconds')
+    expect(classifyRefundFailure(refund().failureReason as string)).toBe('TRANSIENT')
+
+    // Paystack cannot be asked either: nothing is sent
+    advance(31)
+    fetchMock.mockImplementation(async () => { throw timeout() })
+    await runRefunds()
+    expect(calls('POST')).toHaveLength(1)
+    expect(refund().failureReason).toBe('Could not check Paystack for an existing refund')
+
+    // Now it answers, and it holds the refund from the request that timed out
+    advance(31)
+    fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
+      (init?.method ?? 'GET') === 'GET'
+        ? json({ status: true, data: [{ id: 333, status: 'processing', merchant_note: 'FieGH refund refund_1', transaction_reference: 'FIE-booking_1-1' }] })
+        : created())
+    await runRefunds()
+    expect(calls('POST')).toHaveLength(1)
+    expect(refund()).toMatchObject({ status: 'PROCESSING', paystackRefundId: '333' })
+  })
+
   it('adopts a refund Paystack already has instead of sending a second one', async () => {
     fetchMock.mockImplementationOnce(async () => { throw new Error('socket hang up') })
     owed(partRefund)

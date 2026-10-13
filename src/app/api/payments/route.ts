@@ -10,6 +10,7 @@ import { laterInstalmentRefusal, nextPayable, outstanding, RENT_ALREADY_SETTLED 
 import type { Payment } from '@prisma/client'
 import { awaitPage, claimPaymentSlot, closeOpenPayment, reusable } from '@/lib/openPayment'
 import { fetchCharge, settlePayment } from '@/lib/paymentSettle'
+import { OutboundTimeoutError, PAYSTACK_NOT_ANSWERING, READ_TIMEOUT_MS, sendOnce } from '@/lib/outbound'
 
 /** What the guest is told when Paystack could not be asked to start the payment. Paystack's own wording stays in the server log. */
 const PAYMENT_NOT_STARTED = 'The payment could not be started. Please try again in a moment.'
@@ -280,24 +281,27 @@ export async function POST(req: Request) {
     ])
 
     let paystackRes: Response
+    let paystackRaw: string
     try {
-      paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+      // One attempt with a time limit (lib/outbound.ts): the guest is never left waiting
+      paystackRes = await sendOnce('https://api.paystack.co/transaction/initialize', {
         method:  'POST',
         headers: {
           Authorization:  `Bearer ${secret}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(paystackPayload),
-      })
+      }, READ_TIMEOUT_MS)
+      // Read as text first so we can log Paystack's exact raw body on failure
+      paystackRaw = await paystackRes.text()
     } catch (error) {
-      // The connection to Paystack dropped: the same answer as any other failure to start
+      // The connection to Paystack dropped, or it did not answer in time: the
+      // attempt is closed like any other failure to start. If Paystack did
+      // make the page, nobody was given it.
       console.error('[Paystack] Initialize Transaction could not be reached:', error instanceof Error ? error.name : 'unknown')
       await closeAttempt()
-      return NextResponse.json({ error: PAYMENT_NOT_STARTED }, { status: 502 })
+      return NextResponse.json({ error: error instanceof OutboundTimeoutError ? PAYSTACK_NOT_ANSWERING : PAYMENT_NOT_STARTED }, { status: 502 })
     }
-
-    // Read as text first so we can log Paystack's exact raw body on failure
-    const paystackRaw = await paystackRes.text()
     let paystackJson: {
       status: boolean
       message: string

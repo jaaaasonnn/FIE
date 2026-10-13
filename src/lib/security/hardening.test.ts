@@ -268,6 +268,15 @@ describe('starting a payment', () => {
     expect(state.tables.booking[0].paymentReference ?? null).toBeNull()
   })
 
+  it('tells the guest when Paystack does not answer in time, and closes the attempt so they can try again', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new DOMException('The operation was aborted due to timeout', 'TimeoutError') }))
+    const res = await pay()
+    expect(res.status).toBe(502)
+    expect((await res.json()).error).toBe('Paystack is not answering. Please try again in a moment.')
+    expect(state.tables.payment.map((p) => p.status)).toEqual(['FAILED'])
+    expect(state.tables.booking[0].paymentReference ?? null).toBeNull()
+  })
+
   it('keeps Paystack\'s own error wording out of the answer', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ status: false, message: 'Invalid key: sk_test_hard… for guest@example.test' }), { status: 401 })))
     const res = await pay()

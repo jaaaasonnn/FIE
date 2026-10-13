@@ -93,6 +93,9 @@ const SECRET = 'sk_test_retrypolicy'
 /** An ID FieGH has approved: the flag, an APPROVED document and the admin who reviewed it (lib/hostId.ts) */
 const approvedId = { isVerified: true, verification: { status: 'APPROVED', reviewedById: 'admin_1' } }
 const fetchMock = vi.fn()
+/** The references Paystack was asked about, and what it holds ('silent': it does not answer) */
+const lookups: string[] = []
+const held: { transfer: null | 'silent' | { transfer_code: string; status: string } } = { transfer: null }
 let clock = new Date('2026-09-22T12:00:00Z').getTime()
 
 const paystackError = (httpStatus: number, message: string) =>
@@ -123,7 +126,21 @@ beforeEach(() => {
   state.users.push({ id: 'host_1', paystackRecipientCode: 'RCP_1', payoutMethodVerifiedAt: new Date('2026-01-01T00:00:00Z'), payoutMethod: 'MOMO', ...approvedId })
   sentry.captureException.mockReset()
   fetchMock.mockReset()
-  vi.stubGlobal('fetch', fetchMock)
+  // Asked whether a transfer already exists under a reference (before any
+  // re-send), Paystack says it has none, unless a test says otherwise. Every
+  // other call is answered by fetchMock, in the order the test queued.
+  lookups.length = 0
+  held.transfer = null
+  vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+    if (String(url).includes('/transfer/verify/')) {
+      lookups.push(String(url).split('/').pop()!)
+      if (held.transfer === 'silent') throw new DOMException('timed out', 'TimeoutError')
+      return held.transfer
+        ? new Response(JSON.stringify({ status: true, data: held.transfer }), { status: 200 })
+        : new Response(JSON.stringify({ status: false, message: 'Transfer not found' }), { status: 404 })
+    }
+    return fetchMock(url, init)
+  })
   vi.stubEnv('PAYSTACK_SECRET_KEY', SECRET)
   // Payouts are off unless both switches are set (lib/payoutSwitches.ts)
   vi.stubEnv('PAYOUTS_ENABLED', 'true')
@@ -386,5 +403,112 @@ describe('webhook failures', () => {
     expect(alerts()).toHaveLength(1)
     advanceHour()
     expect(await retryFailedPayouts()).toEqual([])
+  })
+})
+
+// ─── Paystack does not answer (lib/outbound.ts) ─────────────────────────────
+
+describe('a transfer Paystack never answered', () => {
+  const timeout = () => new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+  const posts = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/transfer'))
+
+  it('is not recorded as failed: the payout stays PENDING, with no retry counted and no alert', async () => {
+    fetchMock.mockRejectedValueOnce(timeout())
+    const result = await start()
+    expect(result).toMatchObject({ ok: false, unanswered: true })
+    expect(payout()).toMatchObject({ status: 'PENDING', retryCount: 0, failureReason: null, paystackTransferCode: null })
+    expect(payout().initiatedAt).toBeInstanceOf(Date)
+    expect(alerts()).toHaveLength(0)
+    // Nothing for the retry policy to pick up, however long passes
+    advanceHour()
+    expect(await retryFailedPayouts()).toEqual([])
+    expect(posts()).toHaveLength(1)
+  })
+
+  it('is left alone while the claim is fresh: the first attempt may still be in flight', async () => {
+    fetchMock.mockRejectedValueOnce(timeout())
+    await start()
+    const again = await start()
+    expect(again).toMatchObject({ ok: true, alreadyInitiated: true })
+    expect(posts()).toHaveLength(1)
+    expect(lookups).toEqual([])
+  })
+
+  it('before sending again, Paystack is asked for the transfer: one it already holds is adopted, not sent twice', async () => {
+    fetchMock.mockRejectedValueOnce(timeout())
+    await start()
+    const reference = payout().paystackTransferReference
+    held.transfer = { transfer_code: 'TRF_first', status: 'pending' }
+    advanceHour()
+    const again = await start()
+    expect(lookups).toEqual([reference])
+    expect(again).toMatchObject({ ok: true, alreadyInitiated: true })
+    expect(payout()).toMatchObject({ status: 'PROCESSING', paystackTransferCode: 'TRF_first', paystackTransferReference: reference })
+    // The one request that timed out is the only transfer ever asked for
+    expect(posts()).toHaveLength(1)
+  })
+
+  it('a transfer Paystack says has already succeeded is marked completed, and nothing is sent', async () => {
+    fetchMock.mockRejectedValueOnce(timeout())
+    await start()
+    held.transfer = { transfer_code: 'TRF_first', status: 'success' }
+    advanceHour()
+    await start()
+    expect(payout()).toMatchObject({ status: 'COMPLETED', paystackTransferCode: 'TRF_first' })
+    expect(payout().completedAt).toBeInstanceOf(Date)
+    expect(posts()).toHaveLength(1)
+  })
+
+  it('is sent again, with the same reference, only when Paystack says it holds no such transfer', async () => {
+    fetchMock.mockRejectedValueOnce(timeout()).mockResolvedValueOnce(paystackOk('TRF_second'))
+    await start()
+    const reference = payout().paystackTransferReference
+    advanceHour()
+    const again = await start()
+    expect(lookups).toEqual([reference])
+    expect(again.ok).toBe(true)
+    expect(posts()).toHaveLength(2)
+    expect(posts().map(([, init]) => JSON.parse(init.body).reference)).toEqual([reference, reference])
+    expect(payout()).toMatchObject({ status: 'PROCESSING', paystackTransferCode: 'TRF_second' })
+  })
+
+  it('is not sent at all while Paystack cannot be asked: nothing is known, so nothing moves', async () => {
+    fetchMock.mockRejectedValueOnce(timeout())
+    await start()
+    held.transfer = 'silent'
+    for (let run = 0; run < 3; run++) {
+      advanceHour()
+      expect(await start()).toMatchObject({ ok: false, unanswered: true })
+    }
+    expect(posts()).toHaveLength(1)
+    expect(payout()).toMatchObject({ status: 'PENDING', retryCount: 0, failureReason: null })
+    expect(alerts()).toHaveLength(0)
+  })
+
+  it('a transfer Paystack made and then failed is recorded as failed, and retried under a new reference', async () => {
+    fetchMock.mockRejectedValueOnce(timeout()).mockResolvedValueOnce(paystackOk('TRF_new'))
+    await start()
+    const reference = payout().paystackTransferReference
+    held.transfer = { transfer_code: 'TRF_first', status: 'failed' }
+    advanceHour()
+    expect(await start()).toMatchObject({ ok: false })
+    expect(payout()).toMatchObject({ status: 'FAILED', paystackTransferCode: 'TRF_first', failureReason: 'Paystack transfer failed' })
+    held.transfer = null
+    advanceHour()
+    await retryFailedPayouts()
+    expect(payout().paystackTransferReference).not.toBe(reference)
+    expect(payout()).toMatchObject({ status: 'PROCESSING', paystackTransferCode: 'TRF_new' })
+  })
+
+  it('a retry after a dropped connection also asks first, and adopts a transfer that did get through', async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'))
+    await start()
+    expect(payout().status).toBe('FAILED')
+    held.transfer = { transfer_code: 'TRF_got_through', status: 'pending' }
+    advanceHour()
+    const [retried] = await retryFailedPayouts()
+    expect(retried).toMatchObject({ ok: true, status: 'PROCESSING' })
+    expect(payout().paystackTransferCode).toBe('TRF_got_through')
+    expect(posts()).toHaveLength(1)
   })
 })

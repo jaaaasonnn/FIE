@@ -33,6 +33,7 @@ const next = (prefix) => `${prefix}_${(++state.seq).toString(36)}${crypto.random
 // ── helpers ────────────────────────────────────────────────────────────────
 const read = (req) => new Promise((resolve) => { const chunks = []; req.on('data', (c) => chunks.push(c)); req.on('end', () => resolve(Buffer.concat(chunks))) })
 const send = (res, status, body, headers = {}) => {
+  if (res.swallowed) return
   const payload = Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : JSON.stringify(body))
   res.writeHead(status, { 'content-type': typeof body === 'string' || Buffer.isBuffer(body) ? 'text/html; charset=utf-8' : 'application/json', 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', ...headers })
   res.end(payload)
@@ -54,6 +55,7 @@ async function misbehave(endpoint, text, res) {
     case 'malformed': send(res, 200, '<html>not json', { 'content-type': 'application/json' }); return true
     case 'empty': send(res, 200, '', { 'content-type': 'application/json' }); return true
     case 'reset': res.socket?.destroy(); return true
+    case 'swallow': res.swallowed = true; return false // does what was asked, then never answers: the caller cannot know it went through
     case 'hang': rule.waiting = (rule.waiting ?? 0) + 1; return true // never answers: the caller times out, or the test kills it
     default: return false
   }
@@ -118,6 +120,7 @@ async function paystack(req, res, url, body) {
   const endpoint = path === '/transaction/initialize' ? 'initialize'
     : path.startsWith('/transaction/verify/') ? 'verify'
     : path === '/transfer' ? 'transfer'
+    : path.startsWith('/transfer/verify/') ? 'transfer-lookup'
     : path === '/refund' && req.method === 'POST' ? 'refund'
     : path === '/refund' ? 'refund-list'
     : path === '/bank/resolve' ? 'resolve'
@@ -139,6 +142,12 @@ async function paystack(req, res, url, body) {
     if (!t) return send(res, 404, { status: false, message: 'Transaction reference not found' })
     t.verified = (t.verified ?? 0) + 1
     return send(res, 200, { status: true, message: 'Verification successful', data: chargeData(t) })
+  }
+  if (endpoint === 'transfer-lookup') {
+    const tr = state.transfers.get(decodeURIComponent(path.split('/').pop()))
+    if (!tr) return send(res, 404, { status: false, message: 'Transfer not found' })
+    tr.lookups = (tr.lookups ?? 0) + 1
+    return send(res, 200, { status: true, message: 'Transfer retrieved', data: { transfer_code: tr.transfer_code, status: tr.status, reference: tr.reference, amount: tr.amount } })
   }
   if (endpoint === 'transfer') {
     const p = json()

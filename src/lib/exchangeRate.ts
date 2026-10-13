@@ -1,3 +1,4 @@
+import { readWithRetry } from '@/lib/outbound'
 import { db } from '@/lib/db'
 import { EXCHANGE_RATE_BUFFER } from '@/lib/utils'
 
@@ -29,7 +30,7 @@ async function fetchLiveRate(): Promise<{ ok: true; rate: number } | { ok: false
   }
 
   try {
-    const res = await fetch(`${API_BASE}/${apiKey}/pair/USD/GHS`, {
+    const res = await readWithRetry(`${API_BASE}/${apiKey}/pair/USD/GHS`, {
       // Cron runs are one-off server-to-server calls — no benefit to Next's
       // request cache here, and a cached miss would defeat the whole point.
       cache: 'no-store',

@@ -1217,7 +1217,7 @@ describe('call sites', () => {
       "'refund.needs_attention', { refundId: refund.id }",
       "status === 'PROCESSED' ? 'refund.arrived' : 'refund.sent', { refundId }",
     ])
-    expect(calls('src/lib/payouts.ts')).toEqual(["'payout.held', { payoutId: held.id }", "'payout.failed', { payoutId }"])
+    expect(calls('src/lib/payouts.ts')).toEqual(["'payout.held', { payoutId: held.id }", "'payout.sent', { payoutId }", "'payout.failed', { payoutId }"])
     expect(calls('src/lib/cronRuns.ts')).toEqual([
       "'payout.held_for_id', { bookingId: booking.id, instalmentId: item.instalmentId }",
       "'payout.waiting', { bookingId: booking.id, instalmentId: item.instalmentId }",
