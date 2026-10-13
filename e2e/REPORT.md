@@ -16,7 +16,7 @@ marked as known-failing any more. `FINDINGS.md` has what was done for each.
 | Core set in Firefox, WebKit, tablet, iPhone and Android sizes | 75 passed, 19 skipped as before, 1 failed (see below) |
 | Fuzz: 1,360 hostile bodies to 34 routes, 240 hostile query strings | none answered wrongly, with nothing set aside |
 | Accessibility scan | passes against a baseline with no unnamed button, field or select box |
-| Unit tests in six time zones | 1,340 passed in each (1,355 after 15 overwritten tests were restored; see below) |
+| Unit tests in six time zones | 1,355 passed in each |
 | Removal proofs | 185 of 185 hold |
 
 The one failure in the other browsers was the test "signing out from the menu"
@@ -31,12 +31,11 @@ Two things went wrong during the work and were put right:
 - The F14 commit wrote its new tests over an existing file of 15 tests
   (`src/lib/security/input.test.ts`). The removal proofs caught it. The file
   is restored exactly as it was and the new tests are in
-  `unreadable.test.ts`. The six time-zone runs were made before the restore,
-  so they ran 1,340 tests; the full set of 1,355 was run once afterwards, in
-  the local time zone only.
-- One slow unit test (20 password checks, about 4 seconds against a 5 second
-  limit) failed once while the test stack was still running, and passed in
-  every run after it was stopped.
+  `unreadable.test.ts`. The six time-zone runs were repeated afterwards with
+  all 1,355 tests.
+- One slow unit test (23 real password checks, about 4.5 seconds against a
+  5 second limit) failed twice in the time-zone runs and passed alone. It was
+  already that slow before this branch. It now has a 20 second limit.
 
 The first go's report follows as it was written.
 

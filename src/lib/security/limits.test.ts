@@ -116,7 +116,8 @@ describe('signing in', () => {
     expect((await login('ama@example.test', PASSWORD, '192.0.2.44')).status).toBe(200)
     forward(60 * MIN + 1000)
     expect((await login('ama@example.test', PASSWORD)).status).toBe(200)
-  })
+    // 23 real password checks, about 4.5 seconds: more room than the usual 5-second limit
+  }, 20_000)
 
   it('refuses a password or address that is not text, or is absurdly long, without hashing it', async () => {
     const compare = vi.spyOn(bcrypt, 'compare')
