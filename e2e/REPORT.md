@@ -1,4 +1,48 @@
-# End-to-end test report: first go (stages 0 to 3)
+# End-to-end test report
+
+## After the fixes (2026-10-13, branch `e2e-fixes`)
+
+Run against a production build of the branch, on this machine, with the local
+test stack. All 17 findings of the first go are fixed except the text
+contrast part of F12, which is a proposal (`CONTRAST-PROPOSAL.md`). No test is
+marked as known-failing any more. `FINDINGS.md` has what was done for each.
+
+| Run | Result |
+|---|---|
+| Everything in Chromium | 147 passed, none on a retry (4 skipped: the opt-in contrast measurement) |
+| Crashes and the database, run alone | 10 passed |
+| Every race at 50 rounds, first time | 30 passed |
+| Every race at 50 rounds, second time | 30 passed |
+| Core set in Firefox, WebKit, tablet, iPhone and Android sizes | 75 passed, 19 skipped as before, 1 failed (see below) |
+| Fuzz: 1,360 hostile bodies to 34 routes, 240 hostile query strings | none answered wrongly, with nothing set aside |
+| Accessibility scan | passes against a baseline with no unnamed button, field or select box |
+| Unit tests in six time zones | 1,340 passed in each (1,355 after 15 overwritten tests were restored; see below) |
+| Removal proofs | 185 of 185 hold |
+
+The one failure in the other browsers was the test "signing out from the menu"
+on the tablet set-up: the test asked for the dashboard while the app was still
+doing its own redirect after signing out. The sign-out code is unchanged on
+this branch. The test was corrected and then passed 36 times out of 36 across
+the six browser set-ups. The whole other-browser run was not repeated after
+that.
+
+Two things went wrong during the work and were put right:
+
+- The F14 commit wrote its new tests over an existing file of 15 tests
+  (`src/lib/security/input.test.ts`). The removal proofs caught it. The file
+  is restored exactly as it was and the new tests are in
+  `unreadable.test.ts`. The six time-zone runs were made before the restore,
+  so they ran 1,340 tests; the full set of 1,355 was run once afterwards, in
+  the local time zone only.
+- One slow unit test (20 password checks, about 4 seconds against a 5 second
+  limit) failed once while the test stack was still running, and passed in
+  every run after it was stopped.
+
+The first go's report follows as it was written.
+
+---
+
+# First go (stages 0 to 3)
 
 Run on 2026-10-12 against a production build of `main` + Next 16.3.8, on this
 machine, with the local test stack described in `README.md`. Nothing under
