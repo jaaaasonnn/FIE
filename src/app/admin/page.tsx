@@ -212,7 +212,7 @@ export default function AdminPage() {
           <h2 className="font-bold text-lg" style={{ color: 'var(--color-accent)' }}>
             FieGH Admin
           </h2>
-          <p className="text-xs mt-1" style={{ color: 'rgba(250,247,242,0.4)' }}>
+          <p className="text-xs mt-1" style={{ color: 'rgba(250,247,242,0.5)' }}>
             {user?.name ?? 'Admin'} · Super Admin
           </p>
         </div>
@@ -360,7 +360,7 @@ export default function AdminPage() {
                                   </div>
                                   <div>
                                     <span className="font-medium block" style={{ color: 'var(--color-text-primary)' }}>{u.name ?? '-'}</span>
-                                    <span className="text-xs text-stone-400">{u.email ?? ''}</span>
+                                    <span className="text-xs text-[#736D62]">{u.email ?? ''}</span>
                                     {u.suspendedAt && (
                                       <span className="block text-xs mt-0.5" style={{ color: '#991B1B' }} title={u.suspendedReason ?? undefined}>
                                         Suspended {new Date(u.suspendedAt).toLocaleDateString('en-GH')}{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
@@ -373,7 +373,7 @@ export default function AdminPage() {
                                 <span className="px-2 py-0.5 rounded-full text-xs"
                                   style={{
                                     backgroundColor: u.role === 'ADMIN' ? '#FEF3C7' : u.role === 'HOST' ? '#EFF6FF' : '#F0FDF4',
-                                    color: u.role === 'ADMIN' ? '#92400E' : u.role === 'HOST' ? '#2563EB' : '#059669',
+                                    color: u.role === 'ADMIN' ? '#92400E' : u.role === 'HOST' ? '#2563EB' : '#047857',
                                   }}>
                                   {u.role}
                                 </span>
@@ -389,7 +389,7 @@ export default function AdminPage() {
                                   {u.trustScore}/100
                                 </span>
                               </td>
-                              <td className="py-3 px-3 text-xs text-stone-400">
+                              <td className="py-3 px-3 text-xs text-[#736D62]">
                                 {new Date(u.createdAt).toLocaleDateString('en-GH')}
                               </td>
                               <td className="py-3 px-3">
@@ -505,7 +505,7 @@ export default function AdminPage() {
                         Update Rate
                       </button>
                     </div>
-                    <p className="text-xs text-stone-400 mt-2">
+                    <p className="text-xs text-[#736D62] mt-2">
                       Current: $1 = GH₵ {exchangeRate}
                       {rateUpdatedAt && (
                         <>
@@ -523,12 +523,12 @@ export default function AdminPage() {
                       <div className="p-4 rounded-xl" style={{ backgroundColor: '#FFF8EE' }}>
                         <p className="text-[#6B645C] text-xs mb-1">Guest Service Fee</p>
                         <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{GUEST_FEE_CHARGED ? GUEST_FEE_PERCENT : 'None'}</p>
-                        <p className="text-xs text-stone-400">{GUEST_FEE_CHARGED ? 'Added to listing price' : 'Guests pay the listing price'}</p>
+                        <p className="text-xs text-[#736D62]">{GUEST_FEE_CHARGED ? 'Added to listing price' : 'Guests pay the listing price'}</p>
                       </div>
                       <div className="p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4' }}>
                         <p className="text-[#6B645C] text-xs mb-1">Host Commission</p>
                         <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{COMMISSION_PERCENT}</p>
-                        <p className="text-xs text-stone-400">Deducted from payout</p>
+                        <p className="text-xs text-[#736D62]">Deducted from payout</p>
                       </div>
                     </div>
                   </div>

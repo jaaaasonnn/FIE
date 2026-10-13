@@ -419,7 +419,7 @@ function CheckoutPageInner() {
       <div style={{ backgroundColor: 'var(--color-accent)' }} className="py-8 px-4">
         <div className="max-w-5xl mx-auto">
           <h1 className="text-2xl font-bold text-white">{rent ? 'Pay Your Rent' : 'Complete Your Booking'}</h1>
-          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.75)' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--color-text-primary)' }}>
             {rent ? 'Your rent is held by FieGH and paid to your host once it is due' : 'Your payment is held by FieGH until after check-in'}
           </p>
         </div>
@@ -455,9 +455,10 @@ function CheckoutPageInner() {
                       style={{
                         borderColor:     payMethod === val ? 'var(--color-accent)' : 'var(--color-border)',
                         backgroundColor: payMethod === val ? 'var(--color-accent-subtle)' : 'var(--color-bg-card)',
-                        color:           payMethod === val ? 'var(--color-accent)' : 'var(--color-text-primary)',
+                        color:           payMethod === val ? 'var(--color-accent-deep)' : 'var(--color-text-primary)',
                       }}>
-                      {icon} {label}
+                      {/* The icon keeps the brand gold; only the words take the deeper shade, to be readable */}
+                      <span className="flex" style={payMethod === val ? { color: 'var(--color-accent)' } : undefined}>{icon}</span> {label}
                     </button>
                   ))}
                 </div>

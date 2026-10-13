@@ -59,7 +59,7 @@ export function StatCard({
           <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             {value}
           </p>
-          {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
+          {sub && <p className="text-xs text-[#736D62] mt-1">{sub}</p>}
         </div>
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center"

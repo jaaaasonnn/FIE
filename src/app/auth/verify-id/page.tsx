@@ -159,7 +159,7 @@ export default function VerifyIdPage() {
                 <>
                   <Upload size={32} className="mx-auto mb-2 text-stone-400" />
                   <p className="text-sm font-medium text-[#4A4540]">Tap to upload ID photo</p>
-                  <p className="text-xs text-stone-400 mt-1">JPG, PNG up to 10MB. Must be clear and readable.</p>
+                  <p className="text-xs text-[#736D62] mt-1">JPG, PNG up to 10MB. Must be clear and readable.</p>
                 </>
               )}
             </label>
@@ -193,7 +193,7 @@ export default function VerifyIdPage() {
                 <>
                   <Camera size={28} className="mx-auto mb-2 text-stone-400" />
                   <p className="text-sm font-medium text-[#4A4540]">Take a selfie</p>
-                  <p className="text-xs text-stone-400 mt-1">Face forward, good lighting</p>
+                  <p className="text-xs text-[#736D62] mt-1">Face forward, good lighting</p>
                 </>
               )}
             </label>

@@ -288,7 +288,7 @@ export default function HostPayoutsPage() {
                   label: 'Total Earned',
                   value: totalPesewas !== null ? ghsFromPesewas(totalPesewas) : usd(totalEarned),
                   sub: totalPesewas !== null ? usd(totalEarned) : '',
-                  color: 'var(--color-accent)',
+                  color: 'var(--color-accent-deep)',
                 },
                 {
                   label: 'This Month',
@@ -306,13 +306,13 @@ export default function HostPayoutsPage() {
                   label: 'Avg per Payout',
                   value: completed.length && totalPesewas !== null ? ghsFromPesewas(Math.round(totalPesewas / completed.length)) : completed.length ? `$${avg.toFixed(0)}` : 'GH₵ 0',
                   sub: completed.length ? `Based on ${completed.length} payouts` : 'No payouts yet',
-                  color: '#059669',
+                  color: '#047857',
                 },
               ].map(({ label, value, sub, color }) => (
                 <div key={label} className="soft-panel p-4 text-center">
                   <p className="text-xs text-[#6B645C] mb-1">{label}</p>
                   <p className="text-lg font-bold" style={{ color }}>{value}</p>
-                  <p className="text-xs text-stone-400 mt-0.5">{sub}</p>
+                  <p className="text-xs text-[#736D62] mt-0.5">{sub}</p>
                 </div>
               ))}
             </div>
@@ -453,11 +453,11 @@ export default function HostPayoutsPage() {
                               {methodLabel(p)} · {new Date(p.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>
                             {p.reference && (
-                              <p className="text-xs text-stone-400 mt-0.5">Ref: {p.reference}</p>
+                              <p className="text-xs text-[#736D62] mt-0.5">Ref: {p.reference}</p>
                             )}
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="font-bold text-sm" style={{ color: '#059669' }}>
+                            <p className="font-bold text-sm" style={{ color: '#047857' }}>
                               +{typeof p.amountPesewas === 'number' ? ghsFromPesewas(p.amountPesewas) : usd(p.amount)}
                             </p>
                             {typeof p.amountPesewas === 'number' && (

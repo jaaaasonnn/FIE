@@ -298,7 +298,7 @@ function HostDashboardContent() {
                             <div>
                               <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{guestName}</p>
                               <p className="text-xs text-[#6B645C]">{b.listing?.title}</p>
-                              <p className="text-xs text-stone-400">
+                              <p className="text-xs text-[#736D62]">
                                 {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
                                 {' to '}
                                 {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -344,8 +344,8 @@ function HostDashboardContent() {
                 <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Your Listings</h2>
                 <Link href="/dashboard/host/listings/new"
                   className="flex items-center gap-1 text-sm font-semibold"
-                  style={{ color: 'var(--color-accent)' }}>
-                  <Plus size={14} /> Add New
+                  style={{ color: 'var(--color-accent-deep)' }}>
+                  <Plus size={14} aria-hidden style={{ color: 'var(--color-accent)' }} /> Add New
                 </Link>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

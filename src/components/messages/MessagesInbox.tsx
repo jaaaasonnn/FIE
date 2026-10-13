@@ -450,10 +450,10 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
                       <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         {conv.otherName}
                       </span>
-                      <span className="text-xs text-stone-400">{conv.time}</span>
+                      <span className="text-xs text-[#736D62]">{conv.time}</span>
                     </div>
                     <p className="text-xs text-[#6B645C] truncate">{conv.listingTitle}</p>
-                    <p className="text-xs text-stone-400 truncate mt-0.5">{conv.lastMessage}</p>
+                    <p className="text-xs text-[#736D62] truncate mt-0.5">{conv.lastMessage}</p>
                   </div>
                   {conv.unread > 0 && (
                     <div
@@ -538,7 +538,7 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
                         }
                       >
                         {m.text}
-                        <div className={`text-xs mt-1 ${m.mine ? 'text-right opacity-60' : 'text-stone-400'}`}>
+                        <div className={`text-xs mt-1 ${m.mine ? 'text-right opacity-60' : 'text-[#736D62]'}`}>
                           {m.time}
                         </div>
                       </div>

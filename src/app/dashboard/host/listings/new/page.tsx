@@ -484,7 +484,7 @@ export default function NewListingPage() {
         <p className="text-[#6B645C] text-sm mb-8">Fill in the details to get your property live on FieGH.</p>
 
         {/* Progress */}
-        <ScrollHintRow className="mb-8" rowClassName="items-center gap-1 pb-2" fadeColor="var(--color-bg)" activeIndex={step}>
+        <ScrollHintRow className="mb-8" rowClassName="items-center gap-1 pb-2" fadeColor="var(--color-bg)" activeIndex={step} label="Steps of the listing form">
           {STEPS.map((s, i) => (
             <div key={s} className="flex items-center gap-1 flex-shrink-0">
               <div
@@ -496,7 +496,7 @@ export default function NewListingPage() {
                 }}>
                 {i < step ? <Check size={14} strokeWidth={2.5} aria-hidden /> : i + 1}
               </div>
-              <span className={`text-xs hidden sm:block ${i === step ? 'font-semibold' : 'text-stone-400'}`}
+              <span className={`text-xs hidden sm:block ${i === step ? 'font-semibold' : 'text-[#736D62]'}`}
                 style={{ color: i === step ? 'var(--brown-dark)' : undefined }}>
                 {s}
               </span>

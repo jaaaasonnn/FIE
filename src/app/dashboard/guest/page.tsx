@@ -270,9 +270,10 @@ export default function GuestDashboardPage() {
               style={{
                 borderColor: active ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: active ? '#FFF8EE' : '#fff',
-                color: active ? 'var(--amber)' : '#374151',
+                color: active ? 'var(--color-accent-deep)' : '#374151',
               }}>
-              <Icon size={16} />
+              {/* The icon keeps the brand gold; only the words take the deeper shade, to be readable */}
+              <Icon size={16} aria-hidden style={active ? { color: 'var(--amber)' } : undefined} />
               {label}
             </Link>
           ))}
@@ -370,14 +371,14 @@ export default function GuestDashboardPage() {
                                   : `${rent.overdue ? 'Rent late, was due' : 'Next rent, due'} ${formatStayDate(rent.instalment.dueDate, { day: 'numeric', month: 'short' })}`}
                               </span>
                               {formatUsd(rent.amount)}
-                              <span className="font-normal text-xs text-stone-400 ml-1">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                              <span className="font-normal text-xs text-[#736D62] ml-1">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                             </p>
                           )
                         ) : (
                           <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
                             <span className="font-normal text-xs text-[#6B645C] mr-1.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
                             {formatUsd(b.totalPrice)}
-                            <span className="font-normal text-xs text-stone-400 ml-1">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                            <span className="font-normal text-xs text-[#736D62] ml-1">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                           </p>
                         )}
                         {b.damageDeposit > 0 && (!rent || rent.kind === 'FIRST') && (
@@ -474,7 +475,7 @@ export default function GuestDashboardPage() {
                   {read && <div className="w-2 h-2 flex-shrink-0" />}
                   <div>
                     <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{message}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">{time}</p>
+                    <p className="text-xs text-[#736D62] mt-0.5">{time}</p>
                   </div>
                 </div>
               ))}

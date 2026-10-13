@@ -219,7 +219,7 @@ export default function WishlistPage() {
                           ${listing.price ?? '-'}<span className="text-xs font-normal text-[#6B645C]">{listing.priceUnit}</span>
                         </span>
                         {listing.price != null && (
-                          <div className="text-xs text-stone-400">≈ GH₵ {(listing.price * ghsRate).toLocaleString()}</div>
+                          <div className="text-xs text-[#736D62]">≈ GH₵ {(listing.price * ghsRate).toLocaleString()}</div>
                         )}
                       </div>
                       {listing.superhost && (

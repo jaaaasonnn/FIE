@@ -112,10 +112,10 @@ export function Footer() {
         </div>
 
         <div className="mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderTop: '1px solid rgba(240,184,78,0.12)' }}>
-          <p className="text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
+          <p className="text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>
             © {new Date().getFullYear()} FieGH. Made with love in Ghana.
           </p>
-          <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(250,247,242,0.4)' }}>
+          <div className="flex items-center gap-4 text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>
             <span className="inline-flex items-center gap-1"><Lock size={11} />Payments by Paystack</span>
             <span>•</span>
             <span>MoMo & Card accepted</span>

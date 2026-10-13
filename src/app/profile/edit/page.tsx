@@ -263,7 +263,7 @@ export default function EditProfilePage() {
             error={errors.bio}
             maxLength={500}
           />
-          <p className="-mt-3 text-xs text-stone-400 text-right">{form.bio.length}/500</p>
+          <p className="-mt-3 text-xs text-[#736D62] text-right">{form.bio.length}/500</p>
 
           <Input
             label="Nationality"

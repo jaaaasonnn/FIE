@@ -160,7 +160,7 @@ function ReviewRow({ v, onChanged }: { v: Verification; onChanged: () => void })
           <div>
             <p className="font-semibold" style={ink}>{v.user.name ?? 'User'} <span className="text-xs font-normal" style={muted}>· {v.user.role === 'HOST' ? 'Host' : v.user.role === 'ADMIN' ? 'Admin' : 'Guest'}</span></p>
             <p className="text-sm text-[#6B645C]">{idName}</p>
-            <p className="text-xs text-stone-400">Sent {new Date(v.createdAt).toLocaleDateString('en-GH')}</p>
+            <p className="text-xs text-[#736D62]">Sent {new Date(v.createdAt).toLocaleDateString('en-GH')}</p>
             <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: status.bg, color: status.color }}>{status.label}</span>
             {v.notes && <p className="text-xs mt-2 max-w-xs" style={muted}>Note (admins only): {v.notes}</p>}
           </div>
@@ -226,8 +226,8 @@ function Document({ url, label, alt }: { url: string | null; label: string; alt:
   if (!url) {
     return (
       <div className="flex flex-col items-center gap-1">
-        <div className="w-24 h-16 rounded-lg flex items-center justify-center text-[10px] text-stone-400" style={{ backgroundColor: '#F3F0EA', border: '1px dashed #D8D0C2' }}>None sent</div>
-        <span className="text-[10px] text-stone-400">{label}</span>
+        <div className="w-24 h-16 rounded-lg flex items-center justify-center text-[10px] text-[#736D62]" style={{ backgroundColor: '#F3F0EA', border: '1px dashed #D8D0C2' }}>None sent</div>
+        <span className="text-[10px] text-[#736D62]">{label}</span>
       </div>
     )
   }
@@ -235,7 +235,7 @@ function Document({ url, label, alt }: { url: string | null; label: string; alt:
     <a href={url} target="_blank" rel="noopener noreferrer" className="flex flex-col items-center gap-1 group">
       {/* eslint-disable-next-line @next/next/no-img-element -- a signed link to a private file, not one for the image optimiser */}
       <img src={url} alt={alt} className="w-24 h-16 rounded-lg object-cover border border-stone-200 group-hover:opacity-90" />
-      <span className="text-[10px] text-stone-400 group-hover:underline">{label}</span>
+      <span className="text-[10px] text-[#736D62] group-hover:underline">{label}</span>
     </a>
   )
 }

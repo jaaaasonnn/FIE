@@ -367,7 +367,7 @@ export default function EditListingPage() {
                     style={{
                       borderColor:     form.rentalModes.includes(key) ? 'var(--amber)' : '#E5E7EB',
                       backgroundColor: form.rentalModes.includes(key) ? '#FFF8EE'      : '#fff',
-                      color:           form.rentalModes.includes(key) ? 'var(--amber)'  : '#6B7280',
+                      color:           form.rentalModes.includes(key) ? 'var(--color-accent-deep)'  : '#6B7280',
                     }}>
                     {label}
                   </button>
@@ -467,7 +467,7 @@ export default function EditListingPage() {
             </Button>
             <button
               type="button"
-              className="flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium border border-red-200 text-red-600 hover:bg-red-50"
+              className="flex items-center gap-2 px-5 py-3 rounded-full text-sm font-medium border border-red-200 text-red-700 hover:bg-red-50"
               onClick={() => { setDeleteError(''); setDeleteOpen(true) }}>
               <Trash2 size={15} /> Delete Listing
             </button>

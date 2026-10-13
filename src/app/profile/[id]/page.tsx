@@ -55,7 +55,7 @@ function TrustRing({ score }: { score: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>{score}</span>
-        <span className="text-xs text-stone-400">Trust</span>
+        <span className="text-xs text-[#736D62]">Trust</span>
       </div>
     </div>
   )
@@ -175,11 +175,11 @@ export default function ProfilePage() {
 
               <div className="grid grid-cols-2 gap-3 text-xs text-[#6B645C] mb-4">
                 <div className="p-3 rounded-xl bg-stone-50">
-                  <p className="text-stone-400 mb-0.5">Response rate</p>
+                  <p className="text-[#736D62] mb-0.5">Response rate</p>
                   <p className="font-semibold text-sm">-</p>
                 </div>
                 <div className="p-3 rounded-xl bg-stone-50">
-                  <p className="text-stone-400 mb-0.5">Response time</p>
+                  <p className="text-[#736D62] mb-0.5">Response time</p>
                   <p className="font-semibold text-sm">-</p>
                 </div>
               </div>
@@ -278,7 +278,7 @@ export default function ProfilePage() {
                     </div>
                   </div>
                   <p className="text-sm text-[#6B645C]">{r.comment}</p>
-                  <p className="text-xs text-stone-400 mt-2">
+                  <p className="text-xs text-[#736D62] mt-2">
                     {new Date(r.date).toLocaleDateString('en-GH', { month: 'short', year: 'numeric' })}
                   </p>
                 </div>

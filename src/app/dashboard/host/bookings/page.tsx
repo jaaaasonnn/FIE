@@ -248,7 +248,7 @@ export default function HostBookingsPage() {
                           </span>
                         </div>
                         <p className="text-xs text-[#6B645C] mb-1">{b.listing.title} · {MODE_LABELS[b.rentalMode] ?? b.rentalMode}</p>
-                        <p className="text-xs text-stone-400">
+                        <p className="text-xs text-[#736D62]">
                           {formatStayDate(b.checkIn, { day: 'numeric', month: 'short' })}
                           {' to '}
                           {formatStayDate(b.checkOut, { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -265,7 +265,7 @@ export default function HostBookingsPage() {
                       </span>
                       <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         ${b.totalPrice.toLocaleString()}
-                        <span className="text-xs font-normal text-stone-400 block">
+                        <span className="text-xs font-normal text-[#736D62] block">
                           You earn {formatUsd(hostShare(b.subtotal))} after commission{rent ? ', month by month' : ''}
                         </span>
                         {rent?.kind === 'NEXT' && (

@@ -113,7 +113,7 @@ export function ListingPhotoManager({ listingId, photos, onPhotosChange }: Listi
             {uploading
               ? <Loader2 size={24} className="text-stone-400 mb-2 animate-spin" />
               : <Upload size={24} className="text-stone-400 mb-2" />}
-            <span className="text-xs text-stone-400">{uploading ? 'Uploading…' : photos.length === 0 ? 'Cover photo' : 'Add photos'}</span>
+            <span className="text-xs text-[#736D62]">{uploading ? 'Uploading…' : photos.length === 0 ? 'Cover photo' : 'Add photos'}</span>
           </label>
         )}
       </div>
