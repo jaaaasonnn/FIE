@@ -1,3 +1,4 @@
+import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
@@ -77,9 +78,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     if (!note.ok) return NextResponse.json({ error: note.error }, { status: 400 })
 
     // Serializable, like booking creation, so a guest's booking and a host's
-    // block for the same days cannot both succeed.
+    // block for the same days cannot both succeed. An abort is run again
+    // (lib/serialRetry.ts): only a clash the transaction finds is a clash.
     try {
-      const created = await db.$transaction(async (tx) => {
+      const created = await withSerialRetry(() => db.$transaction(async (tx) => {
         // A booking takes a day when that day's midday falls inside the stay
         const clash = await tx.booking.findFirst({
           where: {
@@ -111,7 +113,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           })
         }
         return fresh.length
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
 
       return NextResponse.json({ blocked: created, alreadyBlocked: range.days.length - created }, { status: 201 })
     } catch (txErr) {
@@ -119,8 +121,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       if (code === 'BOOKING_CLASH') {
         return NextResponse.json({ error: (txErr as Error).message }, { status: 409 })
       }
-      if (code === 'P2034') {
-        return NextResponse.json({ error: 'Those dates were just booked. Reload the calendar and try again.' }, { status: 409 })
+      // Aborted every time it was run: nothing was blocked, and nothing is known about the dates
+      if (txErr instanceof BusyError) {
+        return NextResponse.json({ error: BUSY_TRY_AGAIN }, { status: 503, headers: { 'Retry-After': '2' } })
       }
       throw txErr
     }

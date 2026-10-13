@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { describe, expect, it, vi } from 'vitest'
 import { Prisma } from '@prisma/client'
 import { BUSY_TRY_AGAIN, BusyError, SERIAL_BACKOFF_MS, SERIAL_RETRIES, isSerializationFailure, withSerialRetry } from '@/lib/serialRetry'
@@ -41,6 +43,28 @@ describe('running an aborted transaction again', () => {
     for (const ms of pauses) {
       expect(ms).toBeGreaterThanOrEqual(SERIAL_BACKOFF_MS.min)
       expect(ms).toBeLessThanOrEqual(SERIAL_BACKOFF_MS.max)
+    }
+  })
+})
+
+describe('every Serializable transaction in the app', () => {
+  const ROOT = path.resolve(__dirname, '..')
+  const files = (dir: string): string[] => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = path.join(dir, entry.name)
+    if (entry.isDirectory()) return files(full)
+    return /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name) ? [full] : []
+  })
+
+  it('is run again when Postgres aborts it: none answers an abort as if it were a real clash', () => {
+    const serializable = files(ROOT).filter((file) => fs.readFileSync(file, 'utf8').includes('isolationLevel: Prisma.TransactionIsolationLevel.Serializable'))
+    expect(serializable.map((file) => path.relative(ROOT, file)).sort()).toEqual([
+      'app/api/bookings/route.ts', 'app/api/listings/[id]/blocked-dates/route.ts', 'lib/depositCover.ts', 'lib/listingChecks.ts',
+    ])
+    for (const file of serializable) {
+      const source = fs.readFileSync(file, 'utf8')
+      expect(source.match(/withSerialRetry\(\(\) => db\.\$transaction\(/g), file).toHaveLength(source.match(/TransactionIsolationLevel\.Serializable/g)!.length)
+      // P2034 is handled in one place only
+      expect(source, file).not.toContain("'P2034'")
     }
   })
 })

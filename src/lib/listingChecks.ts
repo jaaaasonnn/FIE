@@ -10,6 +10,7 @@
 // fields set, once. That makes the table the record of who checked what, who
 // removed it and why.
 
+import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
 import { Prisma, type Listing } from '@prisma/client'
 import { db } from '@/lib/db'
 import { notify } from '@/lib/messaging/notify'
@@ -79,8 +80,9 @@ export async function markChecked({
 
   const expiresAt = checkExpiry(now)
   try {
-    // Serializable: of two admins (or two clicks) at the same moment, one is aborted
-    const check = await db.$transaction(async (tx) => {
+    // Serializable: of two admins (or two clicks) at the same moment, one is aborted.
+    // An abort is run again (lib/serialRetry.ts): the second run finds what really changed, if anything did.
+    const check = await withSerialRetry(() => db.$transaction(async (tx) => {
       // The listing must still be exactly what was read and judged above
       const current = await tx.listing.findUnique({ where: { id: listingId }, select: { digitalAddress: true, photos: true, isActive: true, moderationHold: true } })
       if (!current || current.digitalAddress !== listing.digitalAddress || current.photos !== listing.photos || !current.isActive || current.moderationHold) {
@@ -101,14 +103,16 @@ export async function markChecked({
           photos: JSON.stringify(photoList(listing.photos)),
         },
       })
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
     console.info('[Listing checks] checked', { listingId, checkId: check.id, adminId })
     notify('listing.checked', { checkId: check.id })
     return { ok: true, checkId: check.id, expiresAt }
   } catch (error) {
-    if (error instanceof Changed || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034')) {
+    if (error instanceof Changed) {
       return { ok: false, status: 409, error: 'This listing changed a moment ago. Nothing was recorded. Please look at it again.' }
     }
+    // Aborted every time it was run: nothing was recorded, and nothing is known to have changed
+    if (error instanceof BusyError) return { ok: false, status: 503, error: BUSY_TRY_AGAIN }
     throw error
   }
 }

@@ -13,6 +13,7 @@
 // The record of each cover is on the instalment itself: how much, which admin,
 // and when. A cover is never undone here; a mistake is put right by hand.
 
+import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { rentDepositCoverEnabled } from '@/lib/payoutSwitches'
@@ -72,7 +73,8 @@ export async function coverFromDeposit({
   try {
     // Serializable, so two covers on the same booking cannot both spend the
     // same deposit: one of them is aborted
-    await db.$transaction(async (tx) => {
+    // (an abort is run again, lib/serialRetry.ts: the second run finds what really changed, if anything did)
+    await withSerialRetry(() => db.$transaction(async (tx) => {
       // Part of the where: a second click, or a payment that settled it in
       // the meantime, changes nothing
       const updated = await tx.instalment.updateMany({
@@ -90,11 +92,13 @@ export async function coverFromDeposit({
       // Never more out of the deposit than was paid into it
       const used = await tx.instalment.aggregate({ where: { bookingId: booking.id }, _sum: { coveredFromDeposit: true } })
       if ((used._sum.coveredFromDeposit ?? 0) > booking.damageDeposit - depositRefunded + 0.005) throw new Changed()
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
   } catch (error) {
-    if (error instanceof Changed || (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034')) {
+    if (error instanceof Changed) {
       return { ok: false, status: 409, error: 'This rent payment or its deposit changed a moment ago. Nothing was covered. Please look again.' }
     }
+    // Aborted every time it was run: nothing was covered, and nothing is known to have changed
+    if (error instanceof BusyError) return { ok: false, status: 503, error: BUSY_TRY_AGAIN }
     throw error
   }
 
