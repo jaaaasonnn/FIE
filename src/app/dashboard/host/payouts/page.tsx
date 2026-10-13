@@ -361,7 +361,7 @@ export default function HostPayoutsPage() {
                     {(['MOMO', 'BANK'] as const).map((m) => (
                       <button key={m} onClick={() => setFormMethod(m)}
                         className="flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all"
-                        style={{ borderColor: formMethod === m ? 'var(--amber)' : '#E5E7EB', backgroundColor: formMethod === m ? '#FFF8EE' : '#fff', color: formMethod === m ? 'var(--amber)' : '#6B7280' }}>
+                        style={{ borderColor: formMethod === m ? 'var(--amber)' : '#E5E7EB', backgroundColor: formMethod === m ? '#FFF8EE' : '#fff', color: formMethod === m ? 'var(--color-accent-deep)' : '#6B7280' }}>
                         {m === 'MOMO' ? 'MoMo' : 'Bank'}
                       </button>
                     ))}

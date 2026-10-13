@@ -341,7 +341,7 @@ export default function NewListingPage() {
               style={{
                 borderColor: form.cancellationPolicy === p ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: form.cancellationPolicy === p ? '#FFF8EE' : '#fff',
-                color: form.cancellationPolicy === p ? 'var(--amber)' : '#6B7280'
+                color: form.cancellationPolicy === p ? 'var(--color-accent-deep)' : '#6B7280'
               }}>
               {POLICY_LABELS[p as Policy]}
             </button>

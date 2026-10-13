@@ -333,9 +333,10 @@ function SearchContent() {
               style={{
                 border:          `1px solid ${showFilters ? 'var(--color-accent)' : 'var(--color-border)'}`,
                 backgroundColor: showFilters ? 'var(--color-accent-subtle)' : 'var(--color-bg-card)',
-                color:           showFilters ? 'var(--color-accent)'        : 'var(--color-text-primary)',
+                color:           showFilters ? 'var(--color-accent-deep)'   : 'var(--color-text-primary)',
               }}>
-              <SlidersHorizontal size={15} />
+              {/* The icon keeps the brand gold; only the word takes the deeper shade, to be readable */}
+              <SlidersHorizontal size={15} aria-hidden style={showFilters ? { color: 'var(--color-accent)' } : undefined} />
               Filters
             </button>
 
