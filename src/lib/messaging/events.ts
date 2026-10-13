@@ -3,6 +3,7 @@
 // caller holds (a stale booking, an amount from a request) can end up in a
 // message. A loader returns null when there is nothing to say.
 
+import { payoutCedis } from '@/lib/payoutCedis'
 import { db } from '@/lib/db'
 import { HOST_CANCEL_REASONS } from '@/lib/cancellationPolicy'
 import { hostShare, outcomeLabel, reasonLabel } from '@/lib/disputes'
@@ -117,6 +118,9 @@ async function booking(bookingId: string): Promise<Loaded | null> {
     : !second ? undefined
     : `That first payment covers the rent to ${ghanaDate(first.periodEnd)}${first.depositAmount > 0 ? ' and the damage deposit' : ''}. After that the rent is ${usd(second.amount)} a month, due from ${ghanaDate(second.dueDate)}.`
   const rate = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
+  // The host's payout, in dollars and in the cedis the guest paid (lib/payoutCedis.ts)
+  const payoutUsd = hostShare(first ? first.amount : b.subtotal, b.refund?.stayRefund ?? 0)
+  const [payoutPesewas] = await payoutCedis([{ bookingId: b.id, instalmentId: first?.id ?? null, amount: payoutUsd }])
   const reasonCode = (b.cancelReason ?? '').split(':')[0]
   return {
     key: b.id,
@@ -144,7 +148,8 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       refundPesewas: b.refund?.amountPesewas ?? null,
       refundId: b.refund?.id,
       expiredFor: b.cancelReason === 'NO_HOST_RESPONSE' ? 'NO_HOST_RESPONSE' : 'UNPAID_EXPIRED',
-      payoutUsd: hostShare(first ? first.amount : b.subtotal, b.refund?.stayRefund ?? 0),
+      payoutUsd,
+      payoutPesewas,
     },
   }
 }
@@ -169,6 +174,7 @@ async function instalment({ instalmentId }: { instalmentId: string }): Promise<L
   if (!loaded) return null
   const payment = i.payments[0]
   const days = daysPastDue(i.dueDate)
+  const [payoutPesewas] = await payoutCedis([{ bookingId: i.bookingId, instalmentId: i.id, coveredFromDeposit: i.coveredFromDeposit, amount: hostShare(i.amount) }])
   return {
     ...loaded,
     key: i.id,
@@ -186,6 +192,7 @@ async function instalment({ instalmentId }: { instalmentId: string }): Promise<L
       shortfallUsd: outstanding(i),
       depositLeftUsd: depositLeft(i.booking.damageDeposit, i.booking.instalments, i.booking.refund?.depositRefund ?? 0),
       payoutUsd: hostShare(i.amount),
+      payoutPesewas,
     },
   }
 }
@@ -215,11 +222,13 @@ async function refund({ refundId }: { refundId: string }): Promise<Loaded | null
 async function payout({ payoutId, pesewas }: { payoutId: string; pesewas?: unknown }): Promise<Loaded | null> {
   const p = await db.payout.findUnique({
     where: { id: payoutId },
-    select: { id: true, bookingId: true, amount: true, failureReason: true, instalment: { select: { periodStart: true } } },
+    select: { id: true, bookingId: true, instalmentId: true, amount: true, failureReason: true, instalment: { select: { periodStart: true, coveredFromDeposit: true } } },
   })
   if (!p?.bookingId) return null
   const loaded = await booking(p.bookingId)
   const sent = Number(pesewas)
+  // What Paystack says it sent, when the webhook carries it; otherwise worked out from the guest's payment
+  const [worked] = await payoutCedis([{ bookingId: p.bookingId, instalmentId: p.instalmentId, coveredFromDeposit: p.instalment?.coveredFromDeposit, amount: p.amount }])
   return loaded && {
     ...loaded,
     key: p.id,
@@ -228,7 +237,7 @@ async function payout({ payoutId, pesewas }: { payoutId: string; pesewas?: unkno
       ...loaded.facts, payoutId: p.id, payoutUsd: p.amount, failureReason: p.failureReason,
       // Set when the payout is for one instalment of rent
       rentPeriodStart: p.instalment?.periodStart,
-      payoutPesewas: Number.isInteger(sent) && sent > 0 ? sent : null,
+      payoutPesewas: Number.isInteger(sent) && sent > 0 ? sent : worked,
     },
   }
 }

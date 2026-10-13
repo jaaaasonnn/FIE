@@ -90,8 +90,12 @@ export const HOST_ID_BANNER: Record<Exclude<HostIdState, 'APPROVED'>, { title: s
 }
 
 /** Added to the banner on the payouts page when money has fallen due and is waiting. */
-export function waitingForIdLine(amountUsd: number, count: number): string {
-  const amount = `$${amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+export function waitingForIdLine(amountUsd: number, count: number, amountPesewas?: number | null): string {
+  const dollars = `$${amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  // Cedis first, as it will be sent, with dollars beside; dollars alone when the cedis cannot be worked out
+  const amount = typeof amountPesewas === 'number'
+    ? `GH₵ ${(amountPesewas / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${dollars})`
+    : dollars
   return `${amount} is waiting for you (${count} ${count === 1 ? 'payout' : 'payouts'}). It is sent once your ID is approved.`
 }
 

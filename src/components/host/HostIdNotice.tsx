@@ -6,7 +6,7 @@ import { IdCard } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { HOST_ID_BANNER, LISTING_ID_NOTICE, VERIFY_ID_PATH, waitingForIdLine, type HostIdState } from '@/lib/hostId'
 
-type Loaded = { idState: HostIdState; waitingForId: { count: number; amount: number } | null }
+type Loaded = { idState: HostIdState; waitingForId: { count: number; amount: number; amountPesewas?: number | null } | null }
 
 /**
  * Tells a host, on their own pages, that FieGH pays them only once their ID
@@ -69,7 +69,7 @@ export function HostIdNotice({ variant = 'banner', showWaiting = false, classNam
           <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{words.body}</p>
           {showWaiting && loaded.waitingForId && (
             <p className="text-sm mt-1 font-medium" style={{ color: 'var(--color-text-primary)' }}>
-              {waitingForIdLine(loaded.waitingForId.amount, loaded.waitingForId.count)}
+              {waitingForIdLine(loaded.waitingForId.amount, loaded.waitingForId.count, loaded.waitingForId.amountPesewas)}
             </p>
           )}
         </div>

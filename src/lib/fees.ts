@@ -32,3 +32,17 @@ export const HOST_COMMISSION_LINE =
 export function serviceFeeRefundRule(price: string, hasServiceFee: boolean = GUEST_FEE_CHARGED): string | null {
   return hasServiceFee ? `The service fee is refunded only when the whole ${price} is refunded.` : null
 }
+
+// ── Payouts are in cedis ───────────────────────────────────────────────────
+// A host is sent a fixed share of the cedis the guest paid (lib/cediShare.ts).
+// These are the only sentences that say so; pages and emails use them as they are.
+
+/** Said to a host: the FAQ, the become-a-host page, the payouts page. */
+export const PAYOUT_IN_CEDIS_LINE = 'Payouts are sent in Ghana cedis. Each one is your share of the cedis the guest paid, at the exchange rate on the day they paid, so a later change in the rate does not change it.'
+/** The same, as the Terms say it. */
+export const PAYOUT_IN_CEDIS_TERMS = 'Payouts are sent in Ghana cedis. A payout is the host\'s share of the cedis the guest paid, at the exchange rate on the day the guest paid. A later change in the rate does not change it.'
+/** Under the amounts on the payouts page. */
+export const PAYOUT_DOLLARS_NOTE = 'The amount in dollars beside each payout is your share of the booking\'s dollar price.'
+/** One line in the "payout sent" email. */
+export const PAYOUT_SENT_NOTE = 'It is your share of the cedis the guest paid, at the exchange rate on the day they paid.'
+

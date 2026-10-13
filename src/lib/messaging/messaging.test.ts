@@ -64,6 +64,13 @@ vi.mock('@/lib/db', async () => {
       disputeEvent: one('disputeEvent'), message: one('message'), listing: one('listing'),
       verification: one('verification'), review: one('review'), instalment: one('instalment'), listingCheck: one('listingCheck'),
       exchangeRate: { findFirst: async () => ({ usdToGhs: 15.5 }) },
+      // The successful payments a payout is worked out from (lib/payoutCedis.ts): the booking's own, as the fixture has them
+      payment: {
+        findMany: async () => ((state.booking?.payments as Row[] | undefined) ?? []).map((p) => ({
+          bookingId: state.booking!.id, instalmentId: p.instalmentId ?? null,
+          amount: p.amount ?? state.booking!.totalPrice, amountPesewas: p.amountPesewas ?? null,
+        })),
+      },
       user: {
         findMany: async ({ where }: { where: Row }) => state.users.filter((u) => matches(u, where)).map((u) => ({ ...u })),
         findUnique: async ({ where }: { where: Row }) => {
@@ -757,7 +764,7 @@ describe('recording an event', () => {
       ;(state.booking!.host as Row).paystackRecipientCode = null
       expect((await writeMessages('payout.waiting', { bookingId: 'booking_1' })).written).toBe(2)
       // The host's share of the $300 stay price after the commission
-      expect(one({ event: 'payout.waiting', channel: 'EMAIL' }).body).toContain('Your payout of $270.00 for the stay')
+      expect(one({ event: 'payout.waiting', channel: 'EMAIL' }).body).toContain('Your payout of GH₵ 4,185.00 ($270.00) for the stay')
       expect(one({ event: 'payout.waiting', channel: 'SMS' }).body).toBe('FieGH: A payout for "Sea-view apartment in Labadi" is waiting. Add a payout method in FieGH to be paid: https://fiegh.com/dashboard/host/payouts')
     })
 
@@ -780,8 +787,23 @@ describe('recording an event', () => {
       for (const pesewas of [undefined, 'abc', -5, 12.5]) {
         state.logs.length = 0
         await writeMessages('payout.sent', { payoutId: 'payout_1', pesewas })
-        expect(one({ event: 'payout.sent', channel: 'SMS' }).body).toContain('Your payout of $276.00 for')
+        // No usable figure from Paystack: worked out from the cedis the guest paid, never from today's rate
+        expect(one({ event: 'payout.sent', channel: 'SMS' }).body).toContain('Your payout of GHS 4,278.00 for')
       }
+      // Dollars alone only when the guest's payment has no stored cedi amount
+      state.logs.length = 0
+      ;(state.booking!.payments as Row[])[0].amountPesewas = null
+      await writeMessages('payout.sent', { payoutId: 'payout_1' })
+      expect(one({ event: 'payout.sent', channel: 'SMS' }).body).toContain('Your payout of $276.00 for')
+    })
+
+    it('says in the "payout sent" email that it is a share of the cedis the guest paid', async () => {
+      world()
+      state.payout = { id: 'payout_1', bookingId: 'booking_1', amount: 270, failureReason: null }
+      await writeMessages('payout.sent', { payoutId: 'payout_1', pesewas: 418_500 })
+      const email = one({ event: 'payout.sent', channel: 'EMAIL' }).body
+      expect(email).toContain('We have sent your payout of GH₵ 4,185.00 ($270.00) for the stay')
+      expect(email).toContain('It is your share of the cedis the guest paid, at the exchange rate on the day they paid.')
     })
   })
 
@@ -834,7 +856,7 @@ describe('a host whose ID is not approved', () => {
     const email = one({ event: 'payout.held_for_id', channel: 'EMAIL' })
     expect(email.userId).toBe('host_1')
     expect(email.subject).toBe('A payout is waiting for your ID check: Sea-view apartment in Labadi')
-    expect(email.body).toContain('Your payout of $270.00 for the stay at Sea-view apartment in Labadi')
+    expect(email.body).toContain('Your payout of GH₵ 4,185.00 ($270.00) for the stay at Sea-view apartment in Labadi')
     expect(email.body).toContain('is ready, but we have not approved your ID yet. We are holding it for you.')
     expect(email.body).toContain('Send your ID and, once it is approved, the payout goes out on our next payout run.')
     expect(email.body).toContain('https://fiegh.com/auth/verify-id')

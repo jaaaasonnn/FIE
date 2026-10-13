@@ -18,7 +18,7 @@ vi.mock('next/link', () => ({ default: ({ children, href }: { children: unknown;
 
 import { PLATFORM_COMMISSION, SERVICE_FEE_RATE, calculateFees } from '@/lib/utils'
 import {
-  COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, HOST_KEEPS_PERCENT, percent, serviceFeeRefundRule,
+  COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, HOST_KEEPS_PERCENT, PAYOUT_IN_CEDIS_LINE, PAYOUT_IN_CEDIS_TERMS, PAYOUT_SENT_NOTE, percent, serviceFeeRefundRule,
 } from '@/lib/fees'
 import { commonRuleLines, quoteRefund } from '@/lib/cancellationPolicy'
 import { previewCancellation, type CancelBooking } from '@/lib/cancellation'
@@ -331,3 +331,43 @@ describe('site copy', () => {
     expect(read('components/admin/AdminDisputes.tsx')).toMatch(/b\.serviceFee > 0 && <div><dt>Service fee<\/dt>/)
   })
 })
+
+describe('payouts are in cedis', () => {
+  const read = (file: string) => fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8')
+
+  it('says so in one place, in plain words, and never promises today\'s rate', () => {
+    for (const line of [PAYOUT_IN_CEDIS_LINE, PAYOUT_IN_CEDIS_TERMS]) {
+      expect(line).toMatch(/^Payouts are sent in Ghana cedis\./)
+      expect(line).toMatch(/share of the cedis the guest paid, at the exchange rate on the day (they|the guest) paid/)
+      expect(line).not.toMatch(/current rate|today/i)
+    }
+    expect(PAYOUT_SENT_NOTE).toBe('It is your share of the cedis the guest paid, at the exchange rate on the day they paid.')
+  })
+
+  it('is said on the FAQ and in the Terms', () => {
+    expect(text(renderToStaticMarkup(createElement(FaqPage)))).toContain(PAYOUT_IN_CEDIS_LINE)
+    expect(text(renderToStaticMarkup(createElement(TermsPage)))).toContain(PAYOUT_IN_CEDIS_TERMS)
+  })
+
+  it('is said on the become-a-host page and the payouts page, from the same sentence', () => {
+    expect(read('app/become-a-host/page.tsx')).toContain("Payouts cannot be sent until it is saved. ' + PAYOUT_IN_CEDIS_LINE")
+    const payouts = read('app/dashboard/host/payouts/page.tsx')
+    expect(payouts).toContain('{PAYOUT_IN_CEDIS_LINE} {PAYOUT_DOLLARS_NOTE}')
+    // The sentence it replaces was the opposite of what now happens
+    expect(payouts).not.toContain('converted at the current rate')
+  })
+
+  it('no page a host reads still says a payout is converted at the current rate', () => {
+    for (const file of ['app/faq/page.tsx', 'app/terms/page.tsx', 'app/become-a-host/page.tsx', 'app/dashboard/host/payouts/page.tsx', 'app/dashboard/host/page.tsx', 'lib/hostId.ts', 'lib/messaging/templates.ts']) {
+      expect(read(file), file).not.toMatch(/payouts?[^.]*(converted|current rate|today's rate)/i)
+    }
+  })
+
+  it('every payout message gives the amount in cedis first, with dollars beside it', () => {
+    const templates = read('lib/messaging/templates.ts')
+    // The one helper that writes a payout's amount, and the SMS, which has its own form
+    expect(templates.match(/usd\(f\.payoutUsd \?\? 0\)/g)).toHaveLength(2)
+    expect(templates.match(/\$\{payout\(f\)\}/g)!.length).toBeGreaterThanOrEqual(9)
+  })
+})
+

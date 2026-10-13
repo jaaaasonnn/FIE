@@ -1,6 +1,6 @@
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
-import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, serviceFeeRefundRule } from '@/lib/fees'
+import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, PAYOUT_IN_CEDIS_TERMS, serviceFeeRefundRule } from '@/lib/fees'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_TERMS } from '@/lib/listingCheckRules'
 import { PAYOUTS_NEED_ID } from '@/lib/hostId'
@@ -63,7 +63,7 @@ export default function TermsPage() {
             },
             {
               title: '5. Held payments and payouts',
-              body: 'Guest payments are held by FieGH. For short stays, the host is paid 48 hours after check-in, unless the guest has reported a problem that is still open. Payouts for monthly and long-term rentals are made one rent payment at a time: the first 48 hours after move-in, and each later one once its rent has been paid and has fallen due. ' + PAYOUTS_NEED_ID + ' A damage deposit is paid with the booking, held by FieGH, and returned by our team after check-out.'
+              body: 'Guest payments are held by FieGH. For short stays, the host is paid 48 hours after check-in, unless the guest has reported a problem that is still open. Payouts for monthly and long-term rentals are made one rent payment at a time: the first 48 hours after move-in, and each later one once its rent has been paid and has fallen due. ' + PAYOUTS_NEED_ID + ' ' + PAYOUT_IN_CEDIS_TERMS + ' A damage deposit is paid with the booking, held by FieGH, and returned by our team after check-out.'
             },
             {
               title: '6. Reporting a problem',

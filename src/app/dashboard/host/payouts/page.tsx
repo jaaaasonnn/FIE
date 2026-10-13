@@ -5,6 +5,8 @@ import Link from 'next/link'
 import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X, Landmark, Smartphone, Wallet } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { ghsFromPesewas } from '@/lib/utils'
+import { PAYOUT_DOLLARS_NOTE, PAYOUT_IN_CEDIS_LINE } from '@/lib/fees'
+import { NO_CEDI_AMOUNT } from '@/lib/cediShare'
 import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { NEW_METHOD_NOTE } from '@/lib/payoutMethod'
 
@@ -13,6 +15,7 @@ type ApiPayout = {
   amount: number
   /** The payout in pesewas: the host's share of the cedis the guest paid. Null when it cannot be worked out. */
   amountPesewas?: number | null
+  failureReason?: string | null
   currency: string
   method: string
   momoNetwork: string | null
@@ -441,7 +444,9 @@ export default function HostPayoutsPage() {
                             )}
                             {p.status === 'HELD' && (
                               <p className="text-xs mt-0.5" style={{ color: '#92400E' }}>
-                                Too large for one automatic transfer. Our team is sending it to you directly.
+                                {p.failureReason === NO_CEDI_AMOUNT
+                                  ? 'We could not work this payout out automatically. Our team is sending it to you directly.'
+                                  : 'Too large for one automatic transfer. Our team is sending it to you directly.'}
                               </p>
                             )}
                             <p className="text-xs text-[#6B645C] mt-0.5">
@@ -473,7 +478,7 @@ export default function HostPayoutsPage() {
 
             <div className="mt-4 p-4 rounded-xl text-sm"
               style={{ backgroundColor: '#FFF8EE', border: '1px solid var(--gold)', color: 'var(--color-text-primary)' }}>
-              <strong>Payout schedule:</strong> Short stay payments are sent 48 hours after guest check-in. If the guest reports a problem, the payout waits for our decision. For monthly and long-term stays, the first payment is paid out 48 hours after move-in, and each later month once its rent has been paid and has fallen due. All amounts are in USD and converted at the current rate.
+              <strong>Payout schedule:</strong> Short stay payments are sent 48 hours after guest check-in. If the guest reports a problem, the payout waits for our decision. For monthly and long-term stays, the first payment is paid out 48 hours after move-in, and each later month once its rent has been paid and has fallen due. {PAYOUT_IN_CEDIS_LINE} {PAYOUT_DOLLARS_NOTE}
             </div>
           </>
         )}

@@ -137,6 +137,9 @@ describe('what hosts are told', () => {
     expect(HOST_ID_BANNER.REJECTED).toEqual({ title: 'We could not approve the ID you sent', body: 'Please send a clear photo of the whole document. We hold your payouts until your ID is approved.', action: 'Send your ID again' })
     expect(waitingForIdLine(1234.5, 3)).toBe('$1,234.50 is waiting for you (3 payouts). It is sent once your ID is approved.')
     expect(waitingForIdLine(270, 1)).toBe('$270.00 is waiting for you (1 payout). It is sent once your ID is approved.')
+    // Cedis first, as it will be sent, with dollars beside
+    expect(waitingForIdLine(270, 1, 418_500)).toBe('GH₵ 4,185.00 ($270.00) is waiting for you (1 payout). It is sent once your ID is approved.')
+    expect(waitingForIdLine(270, 1, null)).toBe('$270.00 is waiting for you (1 payout). It is sent once your ID is approved.')
     expect(PAYOUTS_NEED_ID).toBe('Payouts are held until the host\'s ID has been approved.')
     expect(WHO_NEEDS_ID).toBe('Guests do not need one. Hosts need one before they can be paid.')
   })

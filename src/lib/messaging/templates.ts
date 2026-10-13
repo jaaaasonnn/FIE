@@ -12,6 +12,7 @@
 //  - An event marked `optional` is one a person can turn off in their profile.
 //    Everything else is about their booking or their money and is always sent.
 
+import { PAYOUT_SENT_NOTE } from '@/lib/fees'
 import { aboutGhs, firstName, ghanaDate, ghanaTime, ghs, sms, smsGhs, usd } from '@/lib/messaging/format'
 import { TOKEN_PLACEHOLDER } from '@/lib/sealed'
 import { SUPPORT_EMAIL } from '@/lib/contact'
@@ -515,6 +516,7 @@ export const TEMPLATES = {
         lines: [
           hello(f.hostName),
           `We have sent your payout of ${payout(f)} for ${payoutFor(f)}.`,
+          ...(f.payoutPesewas ? [PAYOUT_SENT_NOTE] : []),
           'It went to the payout method on your account. Mobile money usually arrives within minutes; a bank account can take a working day.',
         ],
         link: payoutsLink,
@@ -532,7 +534,7 @@ export const TEMPLATES = {
           subject: `Your payout for ${home(f)} is delayed`,
           lines: [
             hello(f.hostName),
-            `We could not send your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)}.`,
+            `We could not send your payout of ${payout(f)} for ${payoutFor(f)}.`,
             'Our team has been told and is looking into it. Please check that the payout method on your account is still correct.',
             `If you have questions, write to ${f.supportEmail}.`,
           ],
@@ -544,7 +546,7 @@ export const TEMPLATES = {
         email: {
           subject: 'A host payout failed',
           lines: [
-            `A payout of ${usd(f.payoutUsd ?? 0)} for ${home(f)} failed and will not be retried.`,
+            `A payout of ${payout(f)} for ${home(f)} failed and will not be retried.`,
             `Why: ${f.failureReason ?? 'not recorded'}.`,
             `Payout ${f.payoutId}. Booking ${f.bookingId}.`,
           ],
@@ -562,7 +564,7 @@ export const TEMPLATES = {
         subject: `A payout is waiting for you: ${home(f)}`,
         lines: [
           hello(f.hostName),
-          `Your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)} is ready, but there is no payout method on your account yet.`,
+          `Your payout of ${payout(f)} for ${payoutFor(f)} is ready, but there is no payout method on your account yet.`,
           'Add a mobile money number or a bank account and we will send it within the hour.',
         ],
         link: { label: 'Add a payout method', path: '/dashboard/host/payouts' },
@@ -579,13 +581,13 @@ export const TEMPLATES = {
         subject: `A payout is waiting for your ID check: ${home(f)}`,
         lines: [
           hello(f.hostName),
-          `Your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)} is ready, but we have not approved your ID yet. We are holding it for you.`,
+          `Your payout of ${payout(f)} for ${payoutFor(f)} is ready, but we have not approved your ID yet. We are holding it for you.`,
           'Send your ID and, once it is approved, the payout goes out on our next payout run.',
           ...(f.hostHasPayoutMethod === false ? ['You also have no payout method on your account yet. Please add one so we can pay you.'] : []),
         ],
         link: sendIdLink,
       },
-      inApp: { title: 'A payout is waiting for your ID check', body: `${usd(f.payoutUsd ?? 0)} for ${home(f)} is held until your ID is approved. Send your ID to be paid.` },
+      inApp: { title: 'A payout is waiting for your ID check', body: `${payout(f)} for ${home(f)} is held until your ID is approved. Send your ID to be paid.` },
     }],
   },
 
@@ -598,7 +600,7 @@ export const TEMPLATES = {
           subject: `Your payout for ${home(f)} is being sent by our team`,
           lines: [
             hello(f.hostName),
-            `Your payout of ${usd(f.payoutUsd ?? 0)} for ${payoutFor(f)} is larger than we can send in one automatic transfer.`,
+            `Your payout of ${payout(f)} for ${payoutFor(f)} is larger than we can send in one automatic transfer.`,
             'Our team has been told and will send it to you directly. You do not need to do anything.',
             `If you have questions, write to ${f.supportEmail}.`,
           ],
@@ -610,13 +612,13 @@ export const TEMPLATES = {
         email: {
           subject: 'A host payout is held: over the transfer limit',
           lines: [
-            `A payout of ${usd(f.payoutUsd ?? 0)} for ${home(f)} is over the transfer limit. It was not sent and will not be split or retried.`,
+            `A payout of ${payout(f)} for ${home(f)} is over the transfer limit. It was not sent and will not be split or retried.`,
             'Pay it to the host by hand.',
             `Payout ${f.payoutId}. Booking ${f.bookingId}.`,
           ],
           link: adminLink,
         },
-        inApp: { title: 'A payout is held: over the transfer limit', body: `${usd(f.payoutUsd ?? 0)} for ${home(f)}. Pay it to the host by hand. Payout ${f.payoutId}.` },
+        inApp: { title: 'A payout is held: over the transfer limit', body: `${payout(f)} for ${home(f)}. Pay it to the host by hand. Payout ${f.payoutId}.` },
       },
     ],
   },

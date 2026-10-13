@@ -5,7 +5,7 @@ import { RENTAL_MODES } from '@/lib/rentalModes'
 import { FaqAccordion } from '@/components/faq/FaqAccordion'
 import { POLICIES, POLICY_LABELS, policyRuleLines } from '@/lib/cancellationPolicy'
 import { DECISION_AIM, GUEST_REASONS, HOST_REASONS, MAX_EVIDENCE_PER_SIDE } from '@/lib/disputes'
-import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
+import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_KEEPS_PERCENT, PAYOUT_IN_CEDIS_LINE } from '@/lib/fees'
 import { ADVANCE_RULE_NOTE } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_FAQ } from '@/lib/listingCheckRules'
@@ -134,7 +134,7 @@ const FAQS = [
     questions: [
       { q: 'How much does it cost to list on FieGH?', a: `Listing is completely free. FieGH takes a ${COMMISSION_PERCENT} commission from each payout, so you keep ${HOST_KEEPS_PERCENT} of the rent. ${GUEST_FEE_LINE} No listing fees, no subscription.` },
       { q: 'What is Superhost status?', a: 'Superhost is automatically awarded to hosts with a 4.8+ average rating and at least 10 completed reviews. It shows as a gold badge on your profile and listings, and increases your bookings.' },
-      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). For monthly and long-term stays you are paid for the first payment 48 hours after move-in, and for each later month once its rent has been paid and has fallen due. ' + PAYOUTS_NEED_ID + ' You will see your net payout (after the ' + COMMISSION_PERCENT + ' commission) clearly in your dashboard.' },
+      { q: 'How do I get paid?', a: 'For short stays you get paid 48 hours after the guest checks in, via MTN MoMo (primary) or bank transfer (secondary). For monthly and long-term stays you are paid for the first payment 48 hours after move-in, and for each later month once its rent has been paid and has fallen due. ' + PAYOUTS_NEED_ID + ' You will see your net payout (after the ' + COMMISSION_PERCENT + ' commission) clearly in your dashboard. ' + PAYOUT_IN_CEDIS_LINE },
       { q: 'What if a guest reports a problem with my home?', a: 'You are notified and can reply once, with photos. The payout for that stay waits until our team decides. ' + DECISION_AIM },
       { q: 'What if a guest damages my home?', a: HOST_PROBLEM_ANSWER },
       { q: 'For long-term rentals, how do I collect advance payment?', a: `Choose how many months of rent the tenant pays up front when you create the listing. ${ADVANCE_RULE_NOTE} The tenant sees this before they book, pays the advance and the deposit through FieGH once you accept, and then pays each month through FieGH. We remind them before each payment is due.` },

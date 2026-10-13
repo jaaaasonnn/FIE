@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Percent, Wallet, ShieldCheck, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { COMMISSION_PERCENT, GUEST_FEE_LINE, HOST_KEEPS_PERCENT } from '@/lib/fees'
+import { COMMISSION_PERCENT, GUEST_FEE_LINE, HOST_KEEPS_PERCENT, PAYOUT_IN_CEDIS_LINE } from '@/lib/fees'
 import { BECOME_A_HOST_ID } from '@/lib/hostId'
 
 const POINTS = [
@@ -17,7 +17,7 @@ const POINTS = [
   {
     icon: Wallet,
     title: 'You need a payout method to get paid',
-    body: 'Add a mobile money number or bank account from your host dashboard. Payouts cannot be sent until it is saved.',
+    body: 'Add a mobile money number or bank account from your host dashboard. Payouts cannot be sent until it is saved. ' + PAYOUT_IN_CEDIS_LINE,
   },
   {
     icon: ShieldCheck,
