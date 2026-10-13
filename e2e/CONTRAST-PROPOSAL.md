@@ -1,9 +1,45 @@
-# Text contrast: a proposal (nothing here is applied)
+# Text contrast: applied
 
-Finding F12 has two parts. The buttons, fields and select boxes with no name
-are fixed. This is the other part: text whose colour is too close to its
-background. Nothing in `src/` has been changed for it. This page is for you to
-approve, change or refuse.
+This was a proposal. It was approved and applied on 2026-10-13, with these
+answers: the grey is `#736D62`; the line in the checkout's gold bar is dark and
+the bar is unchanged; the green and the red were done too. No brand colour
+changed: the gold `#C9932E`, the logo, `#FAF7F2` and Manrope are as they were.
+
+## The result
+
+Measured by the same scanner (axe, WCAG 2.1 A and AA) before and after, on a
+build of each.
+
+| | Before | After |
+|---|---|---|
+| Text below 4.5 to 1, on the 47 pages | 252 elements on 47 pages | 0 |
+| Other failures on those pages (the step bar, the FAQ list) | 10 elements on 2 pages | 0 |
+| The 12 main states the scan now also opens | not scanned before | 0 |
+
+`a11y-baseline.json` is now empty for all four kinds of visitor, so the scan
+fails on any failure at all.
+
+The 12 states: search with filters open; the FAQ with an answer open; a
+listing with the calendar open; checkout paying by card; payouts with the
+payout form open, for MoMo and for a bank; and "new listing" with its error
+shown and at each of its six steps.
+
+Three places were changed beyond the five named for change 4, because the
+wider scan found the same failure in them: the selected cancellation policy on
+"new listing", the selected button in the payout method form, and the Filters
+button on search while open. They are in a commit of their own.
+
+Pictures of seven pages, each from a real build before and after, are in
+`proposals/contrast/`: `home`, `listing`, `checkout`, `guest-dashboard`,
+`host-dashboard`, `admin-users` and `payouts`, each as `-before.jpg` and
+`-after.jpg`. To take them again: `E2E_SHOTS=after node e2e/run.mjs test
+tests/a11y/contrast-shots.spec.ts --project=chromium --workers=1`.
+
+Still not measured: text that only appears after something happens that the
+scan does not do (dialogs, error messages other than the one on "new
+listing", a selected amenity), text over a photo, and placeholder text.
+
+The proposal as it was written follows.
 
 ## What was measured
 
@@ -69,13 +105,3 @@ The changes are small on purpose. Each pair is the same page, before and after.
 - The scanner sees a page as it loads. Text that appears later (a dialog, a later step of the listing form, an error message) was not measured. Changes 2 and 3 cover most of it, because the same two greys are used there.
 - Placeholder text in fields is not checked by this rule. Two fields use `placeholder:text-stone-400`.
 - Text over a photo or a gradient cannot be measured by the scanner and was not.
-
-## To repeat the measurement
-
-```bash
-node e2e/run.mjs up
-E2E_CONTRAST_PROPOSAL=1 node e2e/run.mjs test tests/a11y/contrast-proposal.spec.ts --project=chromium --workers=1
-```
-
-It writes the pictures to `e2e/proposals/contrast/` and the figures to
-`e2e/.reports/contrast-proposal.json`. Without the variable the file is skipped.

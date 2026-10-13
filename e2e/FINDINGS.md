@@ -29,13 +29,11 @@ fails).
 | F16 | Low | Fixed | The photo list is read inside the transaction that saves it, behind a lock on the listing's row. Five uploads at once are all kept. | `e38e0f2` |
 | F14 | Low | Fixed | Every route reads its body through one helper that cannot throw and refuses anything that is not a JSON object. Wrong types are refused in payments, wishlists, notifications and the payout method. 1,360 hostile bodies to 34 routes: none answered wrongly. | `fb2baf2` |
 | F15 | Low | Fixed | `bedrooms` must be a whole number, and a null byte in any query string is refused in every API route that reads one. | `fb2baf2` |
-| F12 | Medium | Part fixed | Every button, field and select box has a name: the 13 critical kinds are gone from the baseline. Text contrast is **not** changed: `e2e/CONTRAST-PROPOSAL.md` has the proposal, measured, with pictures, for approval. | `439b571`, proposal `dd1b29d` |
+| F12 | Medium | Fixed | Every button, field and select box has a name. Text contrast was changed as approved (seven small colour changes, no brand colour touched): 252 failing elements on 47 pages before, none after. The step bar on "new listing" can be scrolled by keyboard and the FAQ's first list is built correctly. The scan now also opens 12 main states, and its baseline is empty. | `439b571`, `9146068`, `8921895` |
 
 ## What remains
 
-- **Text contrast (F12).** 224 elements on all 47 pages are below 4.5 to 1. The proposal brings that to none with seven small colour changes. Nothing is applied until it is approved.
-- **Two smaller accessibility items (F12)**, not in the kinds that were asked for: the step bar on "new listing" cannot be scrolled with the keyboard, and the FAQ's first list is built as a definition list with the wrong structure.
-- **Terms, section 4** still says the exchange rate is "updated weekly by FieGH administrators". It is fetched automatically every 6 hours. Seen while changing the payout wording; left alone because it is not about payouts.
+- **Text contrast in states the scan does not open (F12).** Gold is still the text colour of some selected buttons that were not measured: a selected amenity on the two listing forms, the filter tabs on the host bookings and guest messages pages, and the rental-type badges on a listing page. Placeholder text and text over photos are not measured either.
 - **A payout whose payment has no stored cedi amount is held for a person.** That is by design, but it means any booking paid before cedi amounts were stored will not be paid out automatically. `PAYOUTS_NOT_BEFORE` should keep such bookings out anyway.
 - **Bookings can answer 503 "busy".** Only when Postgres aborts the same booking nine times running. Not seen at 8 retries in any run; at 4 it was seen under four sets of race tests at once.
 - **A burst can be refused early.** The three limits that count first can let fewer through than the limit when many requests arrive at one instant (2 to 5 of 20 sign-in guesses were checked). Never more.

@@ -1,60 +1,6 @@
 {
- "signed out": [
-  "confirm email (bad link) | color-contrast",
-  "faq | color-contrast",
-  "faq | definition-list",
-  "faq | dlitem",
-  "forgot password | color-contrast",
-  "home | color-contrast",
-  "host profile | color-contrast",
-  "how it works | color-contrast",
-  "listing | color-contrast",
-  "log in | color-contrast",
-  "privacy | color-contrast",
-  "reset password (bad link) | color-contrast",
-  "search (short stays in Cape Coast) | color-contrast",
-  "search | color-contrast",
-  "sign up as host | color-contrast",
-  "sign up | color-contrast",
-  "terms | color-contrast"
- ],
- "guest": [
-  "become a host | color-contrast",
-  "booking | color-contrast",
-  "checkout | color-contrast",
-  "edit profile | color-contrast",
-  "guest dashboard | color-contrast",
-  "guest messages | color-contrast",
-  "guest payments | color-contrast",
-  "home (signed in) | color-contrast",
-  "listing (signed in) | color-contrast",
-  "report a problem | color-contrast",
-  "send ID | color-contrast",
-  "wishlist | color-contrast"
- ],
- "host": [
-  "calendar | color-contrast",
-  "edit listing | color-contrast",
-  "edit profile (host) | color-contrast",
-  "host bookings | color-contrast",
-  "host dashboard | color-contrast",
-  "host messages | color-contrast",
-  "new listing | color-contrast",
-  "new listing | scrollable-region-focusable",
-  "payouts | color-contrast"
- ],
- "admin": [
-  "admin | color-contrast",
-  "admin: Bookings | color-contrast",
-  "admin: Disputes | color-contrast",
-  "admin: Listing checks | color-contrast",
-  "admin: Listings | color-contrast",
-  "admin: Messages | color-contrast",
-  "admin: Payments | color-contrast",
-  "admin: Rent | color-contrast",
-  "admin: Reviews | color-contrast",
-  "admin: Settings | color-contrast",
-  "admin: Users | color-contrast",
-  "admin: Verifications | color-contrast"
- ]
+ "signed out": [],
+ "guest": [],
+ "host": [],
+ "admin": []
 }
