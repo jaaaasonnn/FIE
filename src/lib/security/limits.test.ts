@@ -56,6 +56,30 @@ describe('signing in', () => {
     expect(failures().filter((r) => r.userId === signInKey('ama@example.test'))).toHaveLength(0)
   })
 
+  it('twenty wrong passwords sent at the same instant: no more than 5 are checked', async () => {
+    const replies = await Promise.all(Array.from({ length: 20 }, (_, i) => login('ama@example.test', `wrong-${i}`)))
+    const checked = replies.filter((r) => r.status === 401).length
+    // Never more than the limit. It can be fewer, even none: each one counts every attempt written before it looked
+    expect(checked).toBeLessThanOrEqual(LIMITS.signInPerAccount.max)
+    expect(replies.filter((r) => r.status === 429)).toHaveLength(20 - checked)
+    // Only the guesses that were checked are on record
+    expect(failures()).toHaveLength(checked)
+  })
+
+  it('a refused attempt leaves nothing on record, so being refused does not keep the lock going', async () => {
+    for (let i = 0; i < 5; i++) await login('ama@example.test', 'wrong')
+    for (let i = 0; i < 10; i++) expect((await login('ama@example.test', PASSWORD)).status).toBe(429)
+    expect(failures()).toHaveLength(5)
+    forward(15 * MIN + 1000)
+    expect((await login('ama@example.test', PASSWORD)).status).toBe(200)
+  })
+
+  it('the right password leaves no attempt on record', async () => {
+    await login('ama@example.test', 'wrong')
+    expect((await login('ama@example.test', PASSWORD)).status).toBe(200)
+    expect(failures()).toHaveLength(0)
+  })
+
   it('counts the address as typed, so capitals and spaces do not dodge the lock', async () => {
     for (const typed of ['ama@example.test', 'AMA@example.test', ' ama@example.test ', 'Ama@Example.Test', 'ama@example.test']) await login(typed, 'wrong')
     expect((await login('ama@example.test', PASSWORD)).status).toBe(429)

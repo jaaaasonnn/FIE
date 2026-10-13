@@ -94,7 +94,6 @@ test.describe('races: accounts', () => {
 
 test.describe('races: limits when requests arrive together', () => {
   test('twenty wrong passwords at the same instant: no more than 5 are checked', async ({ world }) => {
-    test.fail(true, 'F4: the sign-in limit counts after it checks, so guesses sent together all get through')
     const person = await world.guest()
     const ip = freshIp()
     const replies = await together(...Array.from({ length: 20 }, (_, i) => () => call('POST', '/api/auth/signin', { identifier: person.email, password: `wrong-${i}` }, { ip, server: (i % 2) as 0 | 1 })))

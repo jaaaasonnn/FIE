@@ -64,6 +64,44 @@ export async function record(kind: string, { key = null, ipHash = null }: { key?
   await db.authRequest.create({ data: { kind, userId: key, ipHash, createdAt: now } })
 }
 
+type Window = { max: number; windowMs: number }
+export type Claim = { ok: true; release: () => Promise<void> } | { ok: false }
+
+/**
+ * Counts this attempt FIRST, then asks whether that was one too many.
+ *
+ * Counting first and acting afterwards ("how many so far? fine, go on, then
+ * write it down") lets any number of requests sent at the same instant all
+ * read the same count and all go on. Here each request writes its own row
+ * before it counts, so it counts itself and every row written before it: of
+ * `max + n` requests at one instant, at most `max` can find themselves within
+ * the limit. It needs no lock and no transaction. In a burst it can refuse a
+ * little early (fewer than `max` get through), never late.
+ *
+ * A refused attempt takes its own row away again, so being refused does not
+ * keep the lock going. `release` does the same for an attempt that turns out
+ * not to count (a right password, a message that was not sent).
+ */
+export async function claim(
+  kind: string,
+  { key = null, ipHash = null }: { key?: string | null; ipHash?: string | null },
+  limits: { perKey?: Window; perIp?: Window },
+  now: Date = new Date(),
+): Promise<Claim> {
+  const row = await db.authRequest.create({ data: { kind, userId: key, ipHash, createdAt: now } })
+  const release = async () => { await db.authRequest.deleteMany({ where: { id: row.id } }) }
+  const [forKey, fromIp] = await Promise.all([
+    key && limits.perKey ? countRecent(kind, { key }, limits.perKey.windowMs, now) : 0,
+    ipHash && limits.perIp ? countRecent(kind, { ipHash }, limits.perIp.windowMs, now) : 0,
+  ])
+  // Each count includes this attempt's own row
+  if ((limits.perKey && forKey > limits.perKey.max) || (limits.perIp && fromIp > limits.perIp.max)) {
+    await release()
+    return { ok: false }
+  }
+  return { ok: true, release }
+}
+
 /** The answer when a limit is reached: 429, with how long to wait. */
 export function tooMany(message: string, retryAfterSeconds: number): NextResponse {
   return NextResponse.json({ error: message }, { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } })

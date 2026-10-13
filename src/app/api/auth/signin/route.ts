@@ -6,7 +6,7 @@ import { mustVerifyEmail } from '@/lib/roles'
 import { createSession } from '@/lib/session'
 import { SUSPENDED_SIGN_IN, isSuspended } from '@/lib/suspension'
 import { ipHashOf } from '@/lib/authTokens'
-import { LIMITS, SIGN_IN_FAILED, TOO_MANY_SIGN_INS, countRecent, record, signInKey, tooMany } from '@/lib/rateLimit'
+import { LIMITS, SIGN_IN_FAILED, TOO_MANY_SIGN_INS, claim, signInKey, tooMany } from '@/lib/rateLimit'
 
 /**
  * A real bcrypt hash of a password nobody has. When there is no account for
@@ -32,11 +32,11 @@ export async function POST(req: Request) {
     // phone as typed, so the answer is the same whether or not it has an account.
     const key = signInKey(identifier)
     const ipHash = ipHashOf(req)
-    const [forAccount, fromIp] = await Promise.all([
-      countRecent(SIGN_IN_FAILED, { key }, LIMITS.signInPerAccount.windowMs),
-      ipHash ? countRecent(SIGN_IN_FAILED, { ipHash }, LIMITS.signInPerIp.windowMs) : 0,
-    ])
-    if (forAccount >= LIMITS.signInPerAccount.max || fromIp >= LIMITS.signInPerIp.max) {
+    // The attempt is written down before the password is looked at
+    // (lib/rateLimit.ts), so guesses sent at the same instant cannot all slip
+    // past the count. It stays on record only if the password is wrong.
+    const attempt = await claim(SIGN_IN_FAILED, { key, ipHash }, { perKey: LIMITS.signInPerAccount, perIp: LIMITS.signInPerIp })
+    if (!attempt.ok) {
       return tooMany(TOO_MANY_SIGN_INS, LIMITS.signInPerAccount.windowMs / 1000)
     }
 
@@ -53,10 +53,10 @@ export async function POST(req: Request) {
     // account takes as long to refuse as one with the wrong password
     const valid = await bcrypt.compare(password, user?.passwordHash ?? NO_ACCOUNT_HASH)
     if (!user || !user.passwordHash || !valid) {
-      await record(SIGN_IN_FAILED, { key, ipHash })
+      // A wrong password: the attempt written above stays, and counts
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
-    // Signed in: earlier wrong guesses for this account no longer count
+    // Signed in: this attempt and earlier wrong guesses for this account no longer count
     await db.authRequest.deleteMany({ where: { kind: SIGN_IN_FAILED, userId: key } })
 
     // A suspended account cannot be signed in to. Said only to someone who
