@@ -70,6 +70,10 @@ const isObject = (v: unknown): v is Row => v !== null && typeof v === 'object' &
 const same = (a: unknown, b: unknown) => (a instanceof Date && b instanceof Date ? a.getTime() === b.getTime() : (a ?? null) === (b ?? null))
 const less = (a: unknown, b: unknown) => (a instanceof Date && b instanceof Date ? a.getTime() < b.getTime() : (a as number) < (b as number))
 
+const aborts = { left: 0 }
+/** Makes the next `count` transactions fail as Postgres fails one it has aborted (P2034). 0 puts things back. */
+export function abortNextTransactions(count: number) { aborts.left = count }
+
 export function fakeDb(tables: Tables) {
   const rows = (model: string) => (tables[model] ??= [])
 
@@ -210,7 +214,15 @@ export function fakeDb(tables: Tables) {
   const db: Record<string, unknown> = new Proxy({}, {
     get(_target, prop: string) {
       if (prop === '$transaction') {
-        return async (work: unknown) => (typeof work === 'function' ? (work as (tx: unknown) => unknown)(db) : Promise.all(work as Promise<unknown>[]))
+        return async (work: unknown) => {
+          if (typeof work !== 'function') return Promise.all(work as Promise<unknown>[])
+          // As Postgres does to a Serializable transaction it cannot prove safe
+          if (aborts.left > 0) {
+            aborts.left--
+            throw new Prisma.PrismaClientKnownRequestError('could not serialize access due to read/write dependencies among transactions', { code: 'P2034', clientVersion: 'test' })
+          }
+          return (work as (tx: unknown) => unknown)(db)
+        }
       }
       if (prop === 'then') return undefined
       if (!cache.has(prop)) cache.set(prop, model(prop))

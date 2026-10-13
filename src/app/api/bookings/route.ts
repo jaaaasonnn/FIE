@@ -17,6 +17,7 @@ import { HOSTS_ONLY_MESSAGE, requireVerifiedEmail } from '@/lib/roles'
 import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
 import { buildSchedule, tenancyStands } from '@/lib/rentRules'
+import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
 
 /** What a guest or host is shown of a rent instalment: no admin's id. */
 const instalmentSelect = {
@@ -84,21 +85,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'This listing cannot be booked at the moment. Please contact support.' }, { status: 409 })
     }
 
-    // A booking holds a home's dates before anything is paid. One guest may
-    // hold only so many at once, and make only so many in an hour, so nobody
-    // can empty a host's calendar for nothing.
-    // Confirmed bookings waiting for payment, and requests waiting for a
-    // host's answer, are counted apart: each has its own limit.
-    const [openUnpaid, openRequests, lastHour] = await Promise.all([
-      db.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } }),
-      db.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'PENDING' } }),
-      db.booking.count({ where: { guestId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } }),
-    ])
-    // An instant booking is confirmed at once and waits to be paid for; anything else is a request
-    if (listing.instantBook && openUnpaid >= LIMITS.openUnpaidBookings) return tooMany(TOO_MANY_OPEN_BOOKINGS, 60)
-    if (!listing.instantBook && openRequests >= LIMITS.openRequests) return tooMany(TOO_MANY_OPEN_REQUESTS, 60)
-    if (lastHour >= LIMITS.bookingsPerHour) return tooMany(TOO_MANY_BOOKINGS, 60 * 60)
-
     const quote = quoteStay(listing, rentalMode, checkIn, checkOut)
     if (!quote.ok) {
       return NextResponse.json({ error: quote.error }, { status: 400 })
@@ -111,9 +97,31 @@ export async function POST(req: Request) {
     // READ COMMITTED would let two concurrent requests for overlapping dates
     // both pass the conflict check before either commits, double-booking
     // the listing. This forces Postgres to abort one of them instead.
+    //
+    // Postgres also aborts transactions that have nothing to do with each
+    // other, so an abort is run again (lib/serialRetry.ts). Only a conflict
+    // the transaction itself finds is "these dates are taken".
     let booking
+    let overLimit: { error: string; retryAfter: number } | null = null
     try {
-      booking = await db.$transaction(async (tx) => {
+      booking = await withSerialRetry(() => db.$transaction(async (tx) => {
+        // A booking holds a home's dates before anything is paid. One guest
+        // may hold only so many at once, and make only so many in an hour, so
+        // nobody can empty a host's calendar for nothing. Counted inside the
+        // transaction: two bookings by one guest at the same instant cannot
+        // both be counted as "under the limit".
+        // Confirmed bookings waiting for payment, and requests waiting for a
+        // host's answer, are counted apart: each has its own limit.
+        overLimit = null
+        const openUnpaid = await tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } })
+        const openRequests = await tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'PENDING' } })
+        const lastHour = await tx.booking.count({ where: { guestId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } })
+        // An instant booking is confirmed at once and waits to be paid for; anything else is a request
+        if (listing.instantBook && openUnpaid >= LIMITS.openUnpaidBookings) overLimit = { error: TOO_MANY_OPEN_BOOKINGS, retryAfter: 60 }
+        else if (!listing.instantBook && openRequests >= LIMITS.openRequests) overLimit = { error: TOO_MANY_OPEN_REQUESTS, retryAfter: 60 }
+        else if (lastHour >= LIMITS.bookingsPerHour) overLimit = { error: TOO_MANY_BOOKINGS, retryAfter: 60 * 60 }
+        if (overLimit) return null
+
         const conflict = await tx.booking.findFirst({
           where: {
             listingId,
@@ -196,20 +204,25 @@ export async function POST(req: Request) {
         }
 
         return newBooking
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable })
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
     } catch (txErr) {
       const code = (txErr as NodeJS.ErrnoException).code ?? (txErr as Error).message
-      // Postgres also raises P2034 when Serializable isolation detects a
-      // write conflict and aborts the transaction — treat it the same as an
-      // explicit date conflict rather than a generic 500.
-      if (code === 'DATE_CONFLICT' || code === 'P2034') {
+      if (code === 'DATE_CONFLICT') {
         return NextResponse.json(
           { error: 'These dates are no longer available. Please choose different dates.' },
           { status: 409 },
         )
       }
+      // Aborted every time it was run: nothing was written, and nothing is
+      // known about the dates. Never "no longer available".
+      if (txErr instanceof BusyError) {
+        return NextResponse.json({ error: BUSY_TRY_AGAIN }, { status: 503, headers: { 'Retry-After': '2' } })
+      }
       throw txErr
     }
+    const refused = overLimit as { error: string; retryAfter: number } | null
+    if (refused) return tooMany(refused.error, refused.retryAfter)
+    if (!booking) throw new Error('The booking transaction ended with no booking and no reason')
 
     // A request needs the host's answer. An instant booking says nothing
     // until it is paid for, which is when it is really a booking.

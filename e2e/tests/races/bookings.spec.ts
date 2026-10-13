@@ -11,23 +11,20 @@ test.beforeEach(allowForRounds)
 // different server processes, as two Vercel instances would get them.
 
 test.describe('races: dates', () => {
-  test('two guests book the same dates at the same instant: one gets them, never both', async ({ world }) => {
+  test('two guests book the same dates at the same instant: exactly one gets them', async ({ world }) => {
     const host = await world.host()
     const home = await world.listing(host)
-    let bothLost = 0
     for (let round = 0; round < ROUNDS; round++) {
       const [ama, kofi] = [await world.guest(), await world.guest()]
       const dates = world.dates(2)
       const replies = await together(() => world.book(ama, home.id, { ...dates, server: 0 }), () => world.book(kofi, home.id, { ...dates, server: 1 }))
       expect(serverErrors(replies), `round ${round}`).toEqual([])
       const won = replies.filter((r) => r.status === 201).length
-      expect(won, `round ${round}: ${JSON.stringify(statuses(replies))}`).toBeLessThanOrEqual(1)
-      if (won === 0) bothLost++
+      // One winner, every round: never both, and never neither (which would leave the dates unsold)
+      expect(won, `round ${round}: ${JSON.stringify(statuses(replies))}`).toBe(1)
       for (const lost of replies.filter((r) => r.status !== 201)) expect(lost.status).toBe(409)
     }
     await expectInvariants()
-    // Both losing is safe, but leaves the dates unsold and both guests told to try again (finding F3)
-    measured(`neither guest got the dates in ${bothLost} of ${ROUNDS} rounds`)
   })
 
   test('a guest books while the host blocks the same dates: only one of the two happens', async ({ world }) => {
@@ -77,7 +74,6 @@ test.describe('races: dates', () => {
 
 test.describe('races: bookings that have nothing to do with each other', () => {
   test('ten guests book ten different homes at the same instant: all ten get their dates', async ({ world }) => {
-    test.fail(true, 'F3: unrelated bookings made at the same moment abort each other and are answered "These dates are no longer available"')
     const host = await world.host()
     const pairs = await Promise.all(Array.from({ length: 10 }, async () => ({ guest: await world.guest(), home: await world.listing(host) })))
     const replies = await together(...pairs.map(({ guest, home }, i) => () => world.book(guest, home.id, { ...world.dates(2), server: (i % 2) as 0 | 1 })))

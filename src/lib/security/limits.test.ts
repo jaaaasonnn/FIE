@@ -1,6 +1,9 @@
 import bcrypt from 'bcryptjs'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Row } from '@/lib/testing/fakeDb'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import fs from 'fs'
+import path from 'path'
+import { abortNextTransactions, type Row } from '@/lib/testing/fakeDb'
+import { BUSY_TRY_AGAIN, SERIAL_RETRIES } from '@/lib/serialRetry'
 import type { State } from './harness'
 
 // Limits on what anyone can do over and over: guessing passwords, making
@@ -154,6 +157,45 @@ describe('booking', () => {
     person(state, 'host', 'HOST')
     for (let i = 1; i <= 14; i++) home(state, `home${i}`, 'host', { instantBook: i % 2 === 1 })
     as(state, 'ama')
+  })
+
+  describe('when Postgres aborts the transaction', () => {
+    afterEach(() => abortNextTransactions(0))
+
+    it('runs it again, and the guest gets their dates', async () => {
+      abortNextTransactions(SERIAL_RETRIES)
+      const reply = await request('home1', 9)
+      expect(reply.status).toBe(201)
+      expect(state.tables.booking).toHaveLength(1)
+    })
+
+    it('says "busy, try again" when it is aborted every time, never that the dates are taken, and writes nothing', async () => {
+      abortNextTransactions(SERIAL_RETRIES + 1)
+      const reply = await request('home1', 9)
+      expect(reply.status).toBe(503)
+      expect(reply.headers.get('Retry-After')).toBe('2')
+      expect((await reply.json()).error).toBe(BUSY_TRY_AGAIN)
+      expect(state.tables.booking ?? []).toHaveLength(0)
+      expect(state.tables.blockedDate ?? []).toHaveLength(0)
+      // And the same guest can book the same dates a moment later
+      expect((await request('home1', 9)).status).toBe(201)
+    })
+
+    it('still answers a real clash of dates with 409, at once', async () => {
+      expect((await request('home1', 9)).status).toBe(201)
+      person(state, 'kofi', 'GUEST', { email: 'kofi@example.test', passwordHash: null })
+      as(state, 'kofi')
+      const clash = await request('home1', 9)
+      expect(clash.status).toBe(409)
+      expect((await clash.json()).error).toMatch(/no longer available/)
+    })
+
+    it('counts the guest\'s open bookings inside the transaction, so two made at the same instant cannot both be under the limit', () => {
+      const source = fs.readFileSync(path.resolve(__dirname, '../../app/api/bookings/route.ts'), 'utf8')
+      const transaction = source.slice(source.indexOf('withSerialRetry(() => db.$transaction('), source.indexOf('TransactionIsolationLevel.Serializable'))
+      expect(transaction.match(/tx\.booking\.count\(\{ where: \{ guestId/g)).toHaveLength(3)
+      expect(source).not.toMatch(/db\.booking\.count\(\{ where: \{ guestId, (paymentStatus|createdAt)/)
+    })
   })
 
   it('lets a guest hold 2 confirmed bookings that are not paid for, and no more', async () => {

@@ -113,24 +113,16 @@ test.describe('races: limits when requests arrive together', () => {
     expect((await call('POST', '/api/auth/signin', { identifier: person.email, password: person.password }, { ip: freshIp() })).status).toBe(429)
   })
 
-  test('six instant bookings at the same instant: how many are held unpaid (measured; finding F5)', async ({ world }) => {
-    // Sometimes 2, sometimes 3: it depends on which transactions abort. Measured, not asserted, so it cannot flake.
+  test('six instant bookings at the same instant by one guest: two are held unpaid, the other four are refused', async ({ world }) => {
     const host = await world.host()
-    const guest = await world.guest()
-    const homes = await Promise.all(Array.from({ length: 6 }, () => world.listing(host)))
-    let held = 0
-    // (bookings on different homes can abort each other, F3: go again until each has a real answer)
-    let waiting = homes
-    for (let attempt = 0; attempt < 6 && waiting.length; attempt++) {
-      const replies = await together(...waiting.map((home, i) => () => world.book(guest, home.id, { ...world.dates(1), server: (i % 2) as 0 | 1 })))
-      expect(serverErrors(replies)).toEqual([])
-      held += replies.filter((r) => r.status === 201).length
-      waiting = waiting.filter((_, i) => replies[i].status === 409)
-      if (replies.some((r) => r.status === 429)) break
+    for (let round = 0; round < ROUNDS; round++) {
+      const guest = await world.guest()
+      const homes = await Promise.all(Array.from({ length: 6 }, () => world.listing(host)))
+      const replies = await together(...homes.map((home, i) => () => world.book(guest, home.id, { ...world.dates(1), server: (i % 2) as 0 | 1 })))
+      expect(serverErrors(replies), `round ${round}`).toEqual([])
+      expect(statuses(replies), `round ${round}`).toEqual([201, 201, 429, 429, 429, 429])
+      expect(await db.booking.count({ where: { guestId: guest.id, status: 'CONFIRMED', paymentStatus: 'UNPAID' } })).toBe(2)
     }
-    measured(`${held} unpaid bookings were held at once by one guest (the limit is 2)`)
-    expect(held).toBeGreaterThanOrEqual(1)
-    expect(held).toBeLessThanOrEqual(6)
   })
 
   test('forty messages at the same instant: no more than 30 are sent', async ({ world }) => {
