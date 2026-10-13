@@ -1,5 +1,5 @@
 import { cn } from '@/lib/utils'
-import { InputHTMLAttributes, forwardRef } from 'react'
+import { InputHTMLAttributes, forwardRef, useId } from 'react'
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string
@@ -10,10 +10,13 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, leftIcon, ...props }, ref) => {
+    // The label is tied to its field, so a screen reader says what the field is for and a click on the label lands in it
+    const generated = useId()
+    const id = props.id ?? generated
     return (
       <div className="w-full">
         {label && (
-          <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+          <label htmlFor={id} className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
             {label}
           </label>
         )}
@@ -37,6 +40,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             )}
             style={{ }}
             {...props}
+            id={id}
           />
         </div>
         {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
@@ -55,10 +59,12 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 }
 
 export function Select({ label, error, options, className, ...props }: SelectProps) {
+  const generated = useId()
+  const id = props.id ?? generated
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+        <label htmlFor={id} className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
           {label}
         </label>
       )}
@@ -73,6 +79,7 @@ export function Select({ label, error, options, className, ...props }: SelectPro
         )}
         style={{ }}
         {...props}
+        id={id}
       >
         {options.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -86,10 +93,12 @@ export function Select({ label, error, options, className, ...props }: SelectPro
 export function Textarea({
   label, error, className, ...props
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; error?: string }) {
+  const generated = useId()
+  const id = props.id ?? generated
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
+        <label htmlFor={id} className="block text-sm font-medium mb-1.5" style={{ color: 'var(--color-text-primary)' }}>
           {label}
         </label>
       )}
@@ -106,6 +115,7 @@ export function Textarea({
         )}
         style={{ }}
         {...props}
+        id={id}
       />
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </div>

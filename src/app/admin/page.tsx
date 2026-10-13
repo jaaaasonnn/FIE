@@ -490,8 +490,9 @@ export default function AdminPage() {
 
                     <div className="flex gap-3 items-end">
                       <div className="flex-1">
-                        <label className="text-xs text-[#6B645C] block mb-1">1 USD = ? GHS</label>
+                        <label htmlFor="exchange-rate" className="text-xs text-[#6B645C] block mb-1">1 USD = ? GHS</label>
                         <input
+                          id="exchange-rate"
                           type="number"
                           value={exchangeRate}
                           onChange={(e) => setExchangeRate(e.target.value)}

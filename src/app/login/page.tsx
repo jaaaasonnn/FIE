@@ -138,10 +138,11 @@ function LoginContent() {
         {tab === 'login' && (
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <label htmlFor="login-identifier" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
                 Email or phone number
               </label>
               <input
+                  id="login-identifier"
                 type="text"
                 value={loginId}
                 onChange={(e) => setLoginId(e.target.value)}
@@ -159,11 +160,12 @@ function LoginContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <label htmlFor="login-password" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="login-password"
                   type={showPw ? 'text' : 'password'}
                   value={loginPw}
                   onChange={(e) => setLoginPw(e.target.value)}
@@ -181,10 +183,11 @@ function LoginContent() {
                 <button
                   type="button"
                   onClick={() => setShowPw(!showPw)}
+                  aria-label={showPw ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
-                  {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPw ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
                 </button>
               </div>
             </div>
@@ -255,10 +258,11 @@ function LoginContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <label htmlFor="signup-name" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
                 Full name
               </label>
               <input
+                  id="signup-name"
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -272,10 +276,11 @@ function LoginContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <label htmlFor="signup-email" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
                 Email address
               </label>
               <input
+                  id="signup-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -289,11 +294,12 @@ function LoginContent() {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <label htmlFor="signup-password" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
                 Password
               </label>
               <div className="relative">
                 <input
+                  id="signup-password"
                   type={showPw2 ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -305,18 +311,20 @@ function LoginContent() {
                   onBlur={(e)   => (e.target.style.borderColor = 'var(--color-border)')}
                 />
                 <button type="button" onClick={() => setShowPw2(!showPw2)}
+                  aria-label={showPw2 ? 'Hide password' : 'Show password'}
                   className="absolute right-3 top-1/2 -translate-y-1/2"
                   style={{ color: 'var(--color-text-secondary)' }}>
-                  {showPw2 ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showPw2 ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
                 </button>
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
+              <label htmlFor="signup-confirm" className="block text-xs font-semibold mb-1.5" style={{ color: 'var(--color-text-secondary)' }}>
                 Confirm password
               </label>
               <input
+                  id="signup-confirm"
                 type="password"
                 value={confirmPw}
                 onChange={(e) => setConfirmPw(e.target.value)}

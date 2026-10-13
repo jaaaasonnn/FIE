@@ -15,7 +15,7 @@ import { ADMIN_TABS, buildSite, type Visitor } from '../../lib/sitemap'
 
 const BASELINE = path.join(__dirname, '../../a11y-baseline.json')
 const REPORTS = path.join(__dirname, '../../.reports')
-type Found = { visitor: string; page: string; rule: string; impact: string; nodes: number; help: string; example: string }
+type Found = { visitor: string; page: string; rule: string; impact: string; nodes: number; help: string; example: string; where: { target: string; html: string }[] }
 
 for (const visitor of ['signed out', 'guest', 'host', 'admin'] as Visitor[]) {
   test(`accessibility scan as ${visitor}`, async ({ page, world, signIn }) => {
@@ -25,7 +25,7 @@ for (const visitor of ['signed out', 'guest', 'host', 'admin'] as Visitor[]) {
     const found: Found[] = []
     const scan = async (name: string) => {
       const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
-      for (const v of result.violations) found.push({ visitor, page: name, rule: v.id, impact: v.impact ?? 'unknown', nodes: v.nodes.length, help: v.help, example: v.nodes[0]?.html.slice(0, 160) ?? '' })
+      for (const v of result.violations) found.push({ visitor, page: name, rule: v.id, impact: v.impact ?? 'unknown', nodes: v.nodes.length, help: v.help, example: v.nodes[0]?.html.slice(0, 160) ?? '', where: v.id === 'color-contrast' ? [] : v.nodes.map((n) => ({ target: n.target.join(' '), html: n.html.slice(0, 220) })) })
     }
     for (const stop of site.pages[visitor]) {
       await test.step(stop.name, async () => {

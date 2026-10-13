@@ -290,6 +290,7 @@ function SearchContent() {
               style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
               <Search size={15} style={{ color: 'var(--color-text-muted)' }} className="flex-shrink-0" />
               <input
+                aria-label="Search by city or neighbourhood"
                 placeholder="Search by city, neighbourhood..."
                 value={filters.query}
                 onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
@@ -389,7 +390,7 @@ function SearchContent() {
                 { label: 'Bedrooms', value: filters.bedrooms,     key: 'bedrooms',     options: [1,2,3,4,5].map((n) => ({ val: String(n), label: `${n}+ beds` })) },
                 { label: 'Sort',     value: filters.sort,         key: 'sort',         options: SORT_OPTIONS.map((o) => ({ val: o.value, label: o.label })) },
               ].map(({ label, value, key, options }) => (
-                <select key={key} value={value}
+                <select key={key} aria-label={label} value={value}
                   onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
                   className="text-xs p-2 rounded-lg"
                   style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)' }}>
@@ -399,12 +400,12 @@ function SearchContent() {
               ))}
 
               <div className="flex gap-2 items-center">
-                <input type="number" placeholder="Min $" value={filters.minPrice}
+                <input aria-label="Lowest price in dollars" type="number" placeholder="Min $" value={filters.minPrice}
                   onChange={(e) => setFilters((f) => ({ ...f, minPrice: e.target.value }))}
                   className="w-full text-xs p-2 rounded-lg"
                   style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }} />
                 <span style={{ color: 'var(--color-text-muted)' }}>to</span>
-                <input type="number" placeholder="Max $" value={filters.maxPrice}
+                <input aria-label="Highest price in dollars" type="number" placeholder="Max $" value={filters.maxPrice}
                   onChange={(e) => setFilters((f) => ({ ...f, maxPrice: e.target.value }))}
                   className="w-full text-xs p-2 rounded-lg"
                   style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }} />

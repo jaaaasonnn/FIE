@@ -486,6 +486,7 @@ function CheckoutPageInner() {
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Your MoMo Number</label>
                     <input
+                      aria-label="Your MoMo number"
                       type="tel"
                       placeholder="0241 234 567"
                       value={momoNumber}
@@ -514,6 +515,7 @@ function CheckoutPageInner() {
                     <div key={label}>
                       <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>{label}</label>
                       <input
+                        aria-label={label}
                         placeholder={ph}
                         value={val}
                         onChange={(e) => set(fmt(e.target.value))}

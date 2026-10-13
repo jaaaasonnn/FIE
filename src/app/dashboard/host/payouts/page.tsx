@@ -365,32 +365,32 @@ export default function HostPayoutsPage() {
                   </div>
                   {formMethod === 'MOMO' && (
                     <div className="space-y-3">
-                      <select value={momoNetwork} onChange={(e) => setMomoNetwork(e.target.value)}
+                      <select aria-label="Mobile money network" value={momoNetwork} onChange={(e) => setMomoNetwork(e.target.value)}
                         className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400">
                         <option value="">Select MoMo Network</option>
                         <option value="MTN">MTN Mobile Money</option>
                         <option value="VODAFONE">Vodafone Cash</option>
                         <option value="AIRTELTIGO">AirtelTigo Money</option>
                       </select>
-                      <input value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)}
+                      <input aria-label="Mobile money number" value={momoNumber} onChange={(e) => setMomoNumber(e.target.value)}
                         placeholder="MoMo number (e.g. 0241234567)"
                         className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
                     </div>
                   )}
                   {formMethod === 'BANK' && (
                     <div className="space-y-3">
-                      <select value={bankCode} onChange={(e) => setBankCode(e.target.value)}
+                      <select aria-label="Bank" value={bankCode} onChange={(e) => setBankCode(e.target.value)}
                         className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400">
                         <option value="">{banks.length ? 'Select your bank' : 'Loading banks…'}</option>
                         {banks.map((b) => <option key={b.code} value={b.code}>{b.name}</option>)}
                       </select>
-                      <input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)}
+                      <input aria-label="Bank account number" value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)}
                         placeholder="Account number"
                         className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
                     </div>
                   )}
                   <div>
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                    <input aria-label="Your password" type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                       placeholder="Re-enter your password to confirm"
                       className="w-full p-3 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-amber-400" />
                     <p className="text-xs text-[#6B645C] mt-1">Required to change where your payouts are sent.</p>

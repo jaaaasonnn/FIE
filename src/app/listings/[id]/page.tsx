@@ -432,14 +432,14 @@ export default function ListingDetailPage() {
             )}
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} /></button>
+            <button aria-label="Share this home" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} aria-hidden /></button>
             <button onClick={toggleWishlist} disabled={wishBusy}
               className="p-2 rounded-full hover:bg-stone-100 transition-all"
               style={{ color: wishlisted ? '#EF4444' : '#6B7280' }}
               aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
               <Heart size={18} className={wishlisted ? 'fill-red-500' : ''} />
             </button>
-            <button className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Flag size={16} /></button>
+            <button aria-label="Report this listing" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Flag size={16} aria-hidden /></button>
           </div>
         </div>
 
@@ -785,7 +785,7 @@ export default function ListingDetailPage() {
                       selectsStart startDate={checkIn ?? undefined} endDate={checkOut ?? undefined}
                       minDate={today} excludeDates={takenDays}
                       placeholderText="Add date" dateFormat="dd MMM yyyy"
-                      customInput={<input style={dpInputStyle} readOnly />}
+                      customInput={<input aria-label="Check-in date" style={dpInputStyle} readOnly />}
                       wrapperClassName="w-full" popperPlacement="bottom-start" />
                   </div>
                   <div>
@@ -798,7 +798,7 @@ export default function ListingDetailPage() {
                       maxDate={fromDayKey(lastCheckOutKey) ?? undefined}
                       excludeDates={noCheckOutDays}
                       placeholderText="Add date" dateFormat="dd MMM yyyy"
-                      customInput={<input style={dpInputStyle} readOnly />}
+                      customInput={<input aria-label="Check-out date" style={dpInputStyle} readOnly />}
                       wrapperClassName="w-full" popperPlacement="bottom-end" />
                   </div>
                 </div>
@@ -812,11 +812,11 @@ export default function ListingDetailPage() {
                     <DatePicker selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
                       minDate={today} excludeDates={takenDays}
                       placeholderText="Select date" dateFormat="dd MMM yyyy"
-                      customInput={<input style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
+                      customInput={<input aria-label="Move-in date" style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
                   </div>
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Number of months (1 to 11)</label>
-                    <input type="number" min={1} max={11} value={months}
+                    <input aria-label="Number of months" type="number" min={1} max={11} value={months}
                       onChange={(e) => setMonths(parseInt(e.target.value) || 1)}
                       className="w-full text-sm p-2.5 rounded-xl focus:outline-none"
                       style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)', color: 'var(--color-text-primary)' }} />
@@ -831,7 +831,7 @@ export default function ListingDetailPage() {
                   <DatePicker selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
                     minDate={today} excludeDates={takenDays}
                     placeholderText="Select date" dateFormat="dd MMM yyyy"
-                    customInput={<input style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
+                    customInput={<input aria-label="Preferred move-in date" style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
                 </div>
               )}
 

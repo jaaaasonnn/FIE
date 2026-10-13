@@ -152,6 +152,7 @@ export function ReviewModal({
                 </div>
 
                 <textarea
+                  aria-label="Your review"
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={type === 'GUEST_TO_HOST' ? 'Share details of your stay…' : 'Share what it was like hosting this guest…'}

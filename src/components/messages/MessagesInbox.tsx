@@ -416,6 +416,7 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
               <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-50">
                 <Search size={14} className="text-stone-400" />
                 <input
+                  aria-label={role === 'guest' ? 'Search messages' : 'Search guests'}
                   placeholder={role === 'guest' ? 'Search messages...' : 'Search guests...'}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -558,6 +559,7 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
 
                 <form onSubmit={sendMessage} className="p-4 border-t border-stone-100 flex items-center gap-3 bg-white">
                   <input
+                    aria-label="Message"
                     value={newMsg}
                     onChange={(e) => setNewMsg(e.target.value)}
                     placeholder={role === 'guest' ? 'Type a message...' : 'Type a message to your guest...'}

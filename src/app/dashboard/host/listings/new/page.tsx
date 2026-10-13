@@ -377,6 +377,7 @@ export default function NewListingPage() {
         <button
           type="button"
           onClick={() => setForm({ ...form, instantBook: !form.instantBook })}
+          aria-pressed={form.instantBook} aria-label="Instant Book"
           className="w-12 h-6 rounded-full transition-all relative"
           style={{ backgroundColor: form.instantBook ? 'var(--amber)' : '#D1D5DB' }}
         >
