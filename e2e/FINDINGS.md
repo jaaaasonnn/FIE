@@ -1,9 +1,55 @@
 # Findings from the end-to-end tests
 
-Working list, kept as the tests are written. Nothing under `src/` has been
-changed for any of these. A test marked `test.fail()` with the finding's
-number expects the right behaviour and fails today; it starts passing (and
-the mark must then be removed) once the fix is in.
+Seventeen findings from the first go, and what became of each. The first
+table is where things stand on the `e2e-fixes` branch. The second is the
+findings as they were written when found, kept as the record of each fault.
+
+No test is marked `test.fail()` any more: every test that expected the right
+behaviour and failed now passes with the mark removed. Each fix also has unit
+tests and one or more removal proofs (take the fix out, and a named test
+fails).
+
+## Where things stand
+
+| # | Rank | Status | How it was fixed | Commit |
+|---|---|---|---|---|
+| F11 | Critical | Fixed | The cancel's update now also requires the payment status it read, so a cancel and a payment landing together cannot both go through. As a safety net, the hourly refund job records the full refund, with a Sentry alert, for any cancelled or declined booking that holds a successful payment and no refund. It obeys `REFUNDS_ENABLED` and `?dryRun=1` and cannot record a second refund. | `b85b15d` |
+| F2 | High | Fixed | One open payment per booking or instalment (`src/lib/openPayment.ts`). Pressing Pay again hands back the same Paystack page (`Payment.authorizationUrl`); if that payment was paid it is settled, if it failed a new one starts. An open payment is handed back for 6 hours and never past `payBy`. | `bc1bbfc` |
+| F10 | Low | Fixed | A dropped connection while starting a payment closes the attempt as `FAILED` and answers 502, like every other failure to start. | `bc1bbfc` |
+| F17 | High | Fixed | A host is sent a fixed share of the cedis the guest paid, rounded down (`src/lib/cediShare.ts`). Each rent instalment uses its own payment. A payment with no stored cedi amount is held with a Sentry alert, never converted at today's rate. Hosts are told in the FAQ, the Terms, the become-a-host page, the payouts page and the payout messages. | `0c6b5cd`, wording `775f61d` |
+| F9 | High | Fixed | Every call out of the server has a time limit (`src/lib/outbound.ts`): 10 s for a read, 15 s for a transfer or refund, 30 s for storage. A transfer that gets no answer is not recorded as failed; before anything is sent again Paystack is asked for the transfer by its reference and what it says is acted on. | `aa2eed1` |
+| F3 | Medium | Fixed | A booking transaction that Postgres aborts is run again, up to 8 times with a short random pause (`src/lib/serialRetry.ts`). Only a clash the transaction finds is "dates no longer available". The same now holds for the host calendar, listing checks and deposit cover. | `785ba1e`, `373e7f1` |
+| F5 | Low | Fixed | The guest's limits are counted inside the booking transaction. Six instant bookings at once: two held, four refused, every round. | `785ba1e` |
+| F4 | High | Fixed | A sign-in attempt is written down before the password is checked, then counted (`claim()` in `src/lib/rateLimit.ts`). Of 20 guesses at one instant no more than 5 are checked. | `63807ef` |
+| F7 | Medium | Fixed | The same for sign-up: no more than 5 accounts from one address however many arrive together, and the rest are refused before any hashing. | `ce445a0` |
+| F6 | Low | Fixed | The same for messages: no more than 30 stored of 40 sent together. | `d4f0407` |
+| F8 | Low | Fixed | The loser of a simultaneous sign-up is answered 409 "already registered". | `bb65975` |
+| F1 | Medium | Fixed | The log-in form says it will choose the destination before it signs in, so the redirect in the link is followed. | `a7745e1` |
+| F13 | Low | Fixed | A host is not sent `Booking.paymentReference`, nor the address of the guest's Paystack page (found while fixing it). The booking update route now filters what it sends back as well. | `d50e60f` |
+| F16 | Low | Fixed | The photo list is read inside the transaction that saves it, behind a lock on the listing's row. Five uploads at once are all kept. | `e38e0f2` |
+| F14 | Low | Fixed | Every route reads its body through one helper that cannot throw and refuses anything that is not a JSON object. Wrong types are refused in payments, wishlists, notifications and the payout method. 1,360 hostile bodies to 34 routes: none answered wrongly. | `fb2baf2` |
+| F15 | Low | Fixed | `bedrooms` must be a whole number, and a null byte in any query string is refused in every API route that reads one. | `fb2baf2` |
+| F12 | Medium | Part fixed | Every button, field and select box has a name: the 13 critical kinds are gone from the baseline. Text contrast is **not** changed: `e2e/CONTRAST-PROPOSAL.md` has the proposal, measured, with pictures, for approval. | `439b571`, proposal `dd1b29d` |
+
+## What remains
+
+- **Text contrast (F12).** 224 elements on all 47 pages are below 4.5 to 1. The proposal brings that to none with seven small colour changes. Nothing is applied until it is approved.
+- **Two smaller accessibility items (F12)**, not in the kinds that were asked for: the step bar on "new listing" cannot be scrolled with the keyboard, and the FAQ's first list is built as a definition list with the wrong structure.
+- **Terms, section 4** still says the exchange rate is "updated weekly by FieGH administrators". It is fetched automatically every 6 hours. Seen while changing the payout wording; left alone because it is not about payouts.
+- **A payout whose payment has no stored cedi amount is held for a person.** That is by design, but it means any booking paid before cedi amounts were stored will not be paid out automatically. `PAYOUTS_NOT_BEFORE` should keep such bookings out anyway.
+- **Bookings can answer 503 "busy".** Only when Postgres aborts the same booking nine times running. Not seen at 8 retries in any run; at 4 it was seen under four sets of race tests at once.
+- **A burst can be refused early.** The three limits that count first can let fewer through than the limit when many requests arrive at one instant (2 to 5 of 20 sign-in guesses were checked). Never more.
+- **Message limit on the day it is deployed.** Messages sent in the hour before are not in the new count, so for that one hour a sender could send up to 30 more.
+- Everything listed as "not built" in the project notes is still not built: payouts for long stays made before instalments existed, refunds after check-in outside a dispute, host cancellation penalties, returning the damage deposit, a second factor for admins.
+
+## Found along the way
+
+- F13: the new `Payment.authorizationUrl` column would have been sent to hosts. Fixed in the same commit.
+- F3: with test retries switched off, marking a listing as checked answered 409 "changed a moment ago" when nothing had changed. The same fault as F3, in three other places. Fixed in `373e7f1`.
+- The e2e test "the sign-in limit holds once the burst is over" assumed a burst always left the account locked. It now asserts the rule itself: exactly 5 wrong passwords are checked, then the account is locked.
+- The monthly-stay test helper picked move-in days on the 29th to the 31st about one run in ten, which made two rent tests fail for no fault of the app. Fixed in `9cd8e48`.
+
+## The findings as they were found
 
 | # | Rank | What | How to see it | Test |
 |---|---|---|---|---|
