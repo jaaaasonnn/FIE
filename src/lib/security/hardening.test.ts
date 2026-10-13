@@ -185,7 +185,7 @@ describe('how much one request may ask for', () => {
 })
 
 describe('starting a payment', () => {
-  const pay = () => startPayment(json('POST', { bookingId: 'booking', method: 'MOMO' }))
+  const pay = (over: Record<string, unknown> = {}) => startPayment(json('POST', { bookingId: 'booking', method: 'MOMO', ...over }))
   beforeEach(() => {
     vi.stubEnv('PAYSTACK_SECRET_KEY', 'sk_test_hardening')
     stay(state, 'booking', 'home', 'guest', 'host', { paymentStatus: 'UNPAID', payBy: new Date(NOW.getTime() + 60 * 60 * 1000) })
@@ -200,11 +200,72 @@ describe('starting a payment', () => {
       return new Response(JSON.stringify({ status: true, message: 'ok', data: { authorization_url: 'https://checkout.paystack.com/x', access_code: 'x', reference } }), { status: 200 })
     }))
     expect((await pay()).status).toBe(200)
+    // The first attempt is closed (say the card was declined); the next one is a new payment
+    state.tables.payment[0].status = 'FAILED'
     expect((await pay()).status).toBe(200)
     for (const reference of seen) expect(reference).toMatch(/^FIE-booking-\d{13}-[0-9a-f]{16}$/)
     // Same booking, same millisecond: still two different references
     expect(new Set(seen).size).toBe(2)
     expect(state.tables.payment.map((p) => p.gatewayReference)).toEqual(seen)
+  })
+
+  it('pressing Pay again while a payment is open gives back the same Paystack page, not a second payment', async () => {
+    const asked: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { body?: string }) => {
+      asked.push(String(url))
+      // Asked what became of the open payment: nobody has paid it yet
+      if (String(url).includes('/transaction/verify/')) return new Response(JSON.stringify({ status: true, data: { status: 'abandoned', amount: null, currency: null } }), { status: 200 })
+      const reference = JSON.parse(init!.body!).reference as string
+      return new Response(JSON.stringify({ status: true, message: 'ok', data: { authorization_url: `https://checkout.paystack.com/${reference}`, access_code: 'x', reference } }), { status: 200 })
+    }))
+    const first = await (await pay()).json()
+    const second = await (await pay()).json()
+    const third = await (await pay()).json()
+    expect(second).toMatchObject({ authorizationUrl: first.authorizationUrl, reference: first.reference, reused: true })
+    expect(third.reference).toBe(first.reference)
+    expect(state.tables.payment).toHaveLength(1)
+    expect(state.tables.payment[0]).toMatchObject({ status: 'PENDING', authorizationUrl: first.authorizationUrl })
+    // Paystack was asked to start one payment only
+    expect(asked.filter((u) => u.endsWith('/transaction/initialize'))).toHaveLength(1)
+  })
+
+  it('pressing Pay again after the open payment was paid settles it and starts nothing', async () => {
+    let paid = false
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { body?: string }) => {
+      if (String(url).includes('/transaction/verify/')) {
+        const row = state.tables.payment[0]
+        return new Response(JSON.stringify({ status: true, data: { status: paid ? 'success' : 'abandoned', amount: row.amountPesewas, currency: 'GHS' } }), { status: 200 })
+      }
+      const reference = JSON.parse(init!.body!).reference as string
+      return new Response(JSON.stringify({ status: true, message: 'ok', data: { authorization_url: 'https://checkout.paystack.com/x', access_code: 'x', reference } }), { status: 200 })
+    }))
+    expect((await pay()).status).toBe(200)
+    paid = true
+    const again = await pay()
+    expect(again.status).toBe(400)
+    expect(await again.json()).toMatchObject({ code: 'ALREADY_PAID' })
+    expect(state.tables.payment.map((p) => p.status)).toEqual(['SUCCESS'])
+    expect(state.tables.booking[0]).toMatchObject({ paymentStatus: 'PAID' })
+  })
+
+  it('choosing another way to pay closes the open payment and starts a new one', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: { body?: string }) => {
+      if (String(url).includes('/transaction/verify/')) return new Response(JSON.stringify({ status: true, data: { status: 'abandoned', amount: null, currency: null } }), { status: 200 })
+      const reference = JSON.parse(init!.body!).reference as string
+      return new Response(JSON.stringify({ status: true, message: 'ok', data: { authorization_url: `https://checkout.paystack.com/${reference}`, access_code: 'x', reference } }), { status: 200 })
+    }))
+    expect((await pay()).status).toBe(200)
+    expect((await pay({ method: 'CARD' })).status).toBe(200)
+    expect(state.tables.payment.map((p) => [p.method, p.status])).toEqual([['MOMO', 'FAILED'], ['CARD', 'PENDING']])
+  })
+
+  it('a dropped connection to Paystack closes the attempt and answers like any other failure to start', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('fetch failed') }))
+    const res = await pay()
+    expect(res.status).toBe(502)
+    expect((await res.json()).error).toBe('The payment could not be started. Please try again in a moment.')
+    expect(state.tables.payment.map((p) => p.status)).toEqual(['FAILED'])
+    expect(state.tables.booking[0].paymentReference ?? null).toBeNull()
   })
 
   it('keeps Paystack\'s own error wording out of the answer', async () => {

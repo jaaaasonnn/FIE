@@ -57,6 +57,11 @@ vi.mock('@/lib/db', async () => {
 
   const db = {
     payment: {
+      // The payment still open for a booking or instalment, if any (lib/openPayment.ts)
+      findFirst: async ({ where }: { where: Row }) => {
+        const row = state.payments.filter((p) => matches(p, where)).at(-1)
+        return row ? { ...row } : null
+      },
       findUnique: async ({ where }: { where: Row }) => {
         await tick()
         const row = state.payments.find((p) => matches(p, where))

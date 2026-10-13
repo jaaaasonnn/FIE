@@ -38,6 +38,10 @@ const RELATIONS: Record<string, Record<string, Relation>> = {
     payouts: { model: 'payout', foreign: 'bookingId', many: true },
     refund: { model: 'refund', foreign: 'bookingId' },
   },
+  payment: {
+    booking: { model: 'booking', local: 'bookingId' },
+    instalment: { model: 'instalment', local: 'instalmentId' },
+  },
   message: {
     sender: { model: 'user', local: 'senderId' },
     receiver: { model: 'user', local: 'receiverId' },

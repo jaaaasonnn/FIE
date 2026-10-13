@@ -33,13 +33,12 @@ test.describe('Paystack fails when a payment is started', () => {
       const { guest, id } = await unpaid(world)
       const undo = await fakes.rule('initialize', behaviour, { match: id })
       const failed = await world.startPayment(guest, id)
-      expect([500, 502], failed.text).toContain(failed.status)
+      expect(failed.status, failed.text).toBe(502)
       expect(failed.text).not.toMatch(NO_LEAK)
       expect(failed.json.error).toBeTruthy()
       const payments = await db.payment.findMany({ where: { bookingId: id } })
-      // The attempt is closed as failed, or (when the connection drops, finding F10) left open; never counted as paid
-      measured(`Paystack ${what} at the start of a payment: HTTP ${failed.status}, the payment row is left ${payments.map((p) => p.status)}`)
-      expect(payments.every((p) => ['FAILED', 'PENDING'].includes(p.status))).toBe(true)
+      // The attempt is closed, whatever went wrong, so nothing is left half open
+      expect(payments.map((p) => p.status)).toEqual(['FAILED'])
       expect((await db.booking.findUniqueOrThrow({ where: { id } })).paymentStatus).toBe('UNPAID')
       await undo()
       const again = await world.startPayment(guest, id)

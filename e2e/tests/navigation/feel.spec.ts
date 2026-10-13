@@ -168,7 +168,6 @@ test.describe('pressed twice', () => {
   })
 
   test('checkout open in two tabs: once paid in one, the other cannot charge again', async ({ page, context, world, signIn }) => {
-    test.fail(true, 'F2: the second tab starts a second Paystack payment for a booking that is already paid')
     const host = await world.host()
     const guest = await world.guest()
     const home = await world.listing(host)

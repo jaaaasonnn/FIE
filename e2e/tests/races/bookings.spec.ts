@@ -97,7 +97,7 @@ test.describe('races: paying', () => {
       expect(serverErrors(starts), `round ${round}`).toEqual([])
       // Whatever reached Paystack is paid by the guest (the worst case: both tabs completed)
       const txs = await fakes.tx(id)
-      expect(txs.length, 'at least one payment page was opened').toBeGreaterThan(0)
+      expect(txs.length, 'one payment page was opened, however many times Pay was pressed').toBe(1)
       for (const tx of txs) await fakes.setTx(tx.reference, { status: 'success' })
       await together(...txs.map((tx, i) => () => world.verify(guest, tx.reference, { server: (i % 2) as 0 | 1 })))
       const payments = await db.payment.findMany({ where: { bookingId: id } })
@@ -110,12 +110,20 @@ test.describe('races: paying', () => {
   })
 
   test('pay pressed twice opens one payment page at Paystack, not several', async ({ world }) => {
-    test.fail(true, 'F2: every press of Pay starts a new Paystack payment, so a guest with two tabs can be charged twice')
     const host = await world.host()
     const guest = await world.guest()
     const home = await world.listing(host)
     const id = await world.mustBook(guest, home.id)
-    await together(() => world.startPayment(guest, id, { server: 0 }), () => world.startPayment(guest, id, { server: 1 }))
+    const starts = await together(() => world.startPayment(guest, id, { server: 0 }), () => world.startPayment(guest, id, { server: 1 }), () => world.startPayment(guest, id, { server: 0 }))
+    expect(serverErrors(starts)).toEqual([])
+    expect((await fakes.tx(id)).length).toBe(1)
+    // Every press that was answered was sent to the same page
+    const pages = starts.filter((r) => r.status === 200).map((r) => r.json.authorizationUrl)
+    expect(pages.length).toBeGreaterThanOrEqual(1)
+    expect(new Set(pages).size).toBe(1)
+    // And pressing again later, from either server, is still that page
+    const later = await world.startPayment(guest, id, { server: 1 })
+    expect(later.json).toMatchObject({ authorizationUrl: pages[0], reused: true })
     expect((await fakes.tx(id)).length).toBe(1)
   })
 

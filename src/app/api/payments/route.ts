@@ -7,6 +7,12 @@ import {
   CANCELLED_BY_SYSTEM, EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, NO_HOST_RESPONSE, PAY_WINDOW_PASSED, pastPayBy,
 } from '@/lib/payDeadline'
 import { laterInstalmentRefusal, nextPayable, outstanding, RENT_ALREADY_SETTLED } from '@/lib/rentRules'
+import type { Payment } from '@prisma/client'
+import { awaitPage, claimPaymentSlot, closeOpenPayment, reusable } from '@/lib/openPayment'
+import { fetchCharge, settlePayment } from '@/lib/paymentSettle'
+
+/** What the guest is told when Paystack could not be asked to start the payment. Paystack's own wording stays in the server log. */
+const PAYMENT_NOT_STARTED = 'The payment could not be started. Please try again in a moment.'
 
 /**
  * GET /api/payments?guestId=…
@@ -205,35 +211,49 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Amount too small to charge via Paystack.' }, { status: 400 })
     }
 
-    // The reference cannot be guessed from the booking: it ends in 16 random characters
-    const reference = `FIE-${bookingId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
-    // Persist payment attempt + reference BEFORE calling Paystack so the webhook/verify
-    // callback can find this booking even if the user closes the tab mid-checkout.
-    const [payment] = await db.$transaction([
-      db.payment.create({
-        data: {
-          bookingId,
-          instalmentId:     instalment?.id ?? null,
-          amount:           amountUsd,
-          currency:         'USD',
-          method,
-          status:           'PENDING',
-          gatewayReference: reference,
-          // Exactly what Paystack is asked to charge, and the rate used, so
-          // a refund can return the same cedis (lib/cancellationPolicy.ts)
-          amountPesewas,
-          usdToGhs,
-        },
-      }),
-      // The booking's reference is that of its first payment: a later rent
-      // payment leaves it alone
-      db.booking.update({
-        where: { id: bookingId },
-        data:  laterInstalment ? {} : { paymentReference: reference },
-      }),
-    ])
+    // One open payment per booking or instalment (lib/openPayment.ts). The
+    // payment is written BEFORE Paystack is called, so the webhook and the
+    // verify callback can find it even if the guest closes the tab.
+    let payment: Payment | null = null
+    for (let pass = 0; pass < 3 && !payment; pass++) {
+      const slot = await claimPaymentSlot({
+        bookingId, instalmentId: instalment?.id ?? null, amount: amountUsd, method,
+        // The reference cannot be guessed from the booking: it ends in 16 random characters
+        gatewayReference: `FIE-${bookingId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,
+        amountPesewas, usdToGhs,
+      }, { stampBooking: !laterInstalment })
+      if (slot.kind === 'new') { payment = slot.payment; break }
+
+      // A payment is already open. Another request may be asking Paystack for its page right now.
+      const open = await awaitPage(slot.payment)
+      if (!open || open.status !== 'PENDING') continue
+      // What became of it at Paystack? Paid: it is settled, and there is nothing more to pay.
+      const lookup = open.gatewayReference ? await fetchCharge(open.gatewayReference) : null
+      if (lookup?.ok && lookup.charge.status === 'success') {
+        await settlePayment(lookup.charge)
+        return NextResponse.json({ error: laterInstalment ? RENT_ALREADY_SETTLED : 'Booking already paid', code: 'ALREADY_PAID' }, { status: 400 })
+      }
+      if (lookup?.ok && lookup.charge.status === 'failed') { await settlePayment(lookup.charge); continue }
+      // Still open: the same page again, never a second payment
+      if (reusable(open, method)) {
+        return NextResponse.json({
+          payment:          { id: open.id, status: open.status },
+          authorizationUrl: open.authorizationUrl,
+          reference:        open.gatewayReference,
+          amountGhs:        Number(((open.amountPesewas ?? amountPesewas) / 100).toFixed(2)),
+          reused:           true,
+          message:          'Payment already started. Redirect to Paystack to complete.',
+        })
+      }
+      // It cannot be handed back (no page was ever stored, another way of paying was chosen, or it is too old): close it and start again
+      await closeOpenPayment(open.id)
+    }
+    if (!payment) {
+      return NextResponse.json({ error: 'A payment for this booking is being started. Please try again in a moment.' }, { status: 409 })
+    }
+    const reference = payment.gatewayReference!
 
     const paystackPayload = {
       email,
@@ -253,14 +273,28 @@ export async function POST(req: Request) {
       },
     }
 
-    const paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
-      method:  'POST',
-      headers: {
-        Authorization:  `Bearer ${secret}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(paystackPayload),
-    })
+    // If this request stops here for any reason, the attempt is closed and the guest can start again
+    const closeAttempt = () => db.$transaction([
+      db.payment.updateMany({ where: { id: payment.id, status: 'PENDING' }, data: { status: 'FAILED' } }),
+      db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
+    ])
+
+    let paystackRes: Response
+    try {
+      paystackRes = await fetch('https://api.paystack.co/transaction/initialize', {
+        method:  'POST',
+        headers: {
+          Authorization:  `Bearer ${secret}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(paystackPayload),
+      })
+    } catch (error) {
+      // The connection to Paystack dropped: the same answer as any other failure to start
+      console.error('[Paystack] Initialize Transaction could not be reached:', error instanceof Error ? error.name : 'unknown')
+      await closeAttempt()
+      return NextResponse.json({ error: PAYMENT_NOT_STARTED }, { status: 502 })
+    }
 
     // Read as text first so we can log Paystack's exact raw body on failure
     const paystackRaw = await paystackRes.text()
@@ -273,10 +307,7 @@ export async function POST(req: Request) {
       paystackJson = JSON.parse(paystackRaw)
     } catch {
       console.error('[Paystack] Initialize Transaction non-JSON response:', { httpStatus: paystackRes.status, length: paystackRaw.length })
-      await db.$transaction([
-        db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
-        db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
-      ])
+      await closeAttempt()
       return NextResponse.json(
         { error: 'Unexpected response from Paystack.' },
         { status: 502 },
@@ -290,16 +321,16 @@ export async function POST(req: Request) {
       console.error('[Paystack] Initialize Transaction failed:', { httpStatus: paystackRes.status, message: paystackJson.message })
 
       // Roll back the pending payment so the guest can retry cleanly
-      await db.$transaction([
-        db.payment.update({ where: { id: payment.id }, data: { status: 'FAILED' } }),
-        db.booking.update({ where: { id: bookingId }, data: laterInstalment ? {} : { paymentReference: null } }),
-      ])
+      await closeAttempt()
       return NextResponse.json(
         // Paystack's own wording stays in the server log; the guest gets ours
-        { error: 'The payment could not be started. Please try again in a moment.' },
+        { error: PAYMENT_NOT_STARTED },
         { status: 502 },
       )
     }
+
+    // Kept so that pressing Pay again leads back to this same page
+    await db.payment.update({ where: { id: payment.id }, data: { authorizationUrl: paystackJson.data.authorization_url } })
 
     return NextResponse.json({
       payment:          { id: payment.id, status: payment.status },
