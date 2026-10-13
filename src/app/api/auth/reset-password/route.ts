@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { resetPassword } from '@/lib/authTokens'
 
@@ -10,7 +11,7 @@ import { resetPassword } from '@/lib/authTokens'
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const result = await resetPassword(body?.token, body?.password)
     if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status })
     return NextResponse.json({ message: 'Your password has been changed. Please sign in with the new one.' })

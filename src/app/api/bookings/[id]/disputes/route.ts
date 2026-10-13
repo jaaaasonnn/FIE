@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
@@ -79,7 +80,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     })
     if (!eligibility.ok) return NextResponse.json({ error: eligibility.message }, { status: 409 })
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     if (!isReasonFor(role, body.reason)) return NextResponse.json({ error: 'Choose what the problem is' }, { status: 400 })
     const description = typeof body.description === 'string' ? body.description.trim() : ''
     if (description.length < MIN_DESCRIPTION) {

@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { OutboundTimeoutError, PAYSTACK_NOT_ANSWERING, READ_TIMEOUT_MS, readWithRetry, sendOnce } from '@/lib/outbound'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
@@ -52,10 +53,11 @@ export async function POST(req: Request) {
     if (auth.error) return auth.error
     const sessionUser = auth.user
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const { password, payoutMethod, payoutMomoNetwork, payoutMomoNumber, payoutBankCode, payoutBankAccountNumber } = body
 
-    if (!password) {
+    if (!password || typeof password !== 'string') {
       return NextResponse.json({ error: 'Please re-enter your password to confirm this change' }, { status: 400 })
     }
 
@@ -88,6 +90,10 @@ export async function POST(req: Request) {
       }
       bankCode = payoutBankCode
       accountNumber = payoutBankAccountNumber
+    }
+    // Both are text: a number or a list here would be sent on to Paystack and stored as it is
+    if (typeof accountNumber !== 'string' || typeof bankCode !== 'string') {
+      return NextResponse.json({ error: 'The account number and bank must be text' }, { status: 400 })
     }
 
     const secret = process.env.PAYSTACK_SECRET_KEY

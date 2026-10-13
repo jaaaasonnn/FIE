@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { endAllSessions, getUserFromToken, sessionToken } from '@/lib/session'
 import { SIGN_IN_MESSAGE } from '@/lib/roles'
 import { MIN_PASSWORD_LENGTH } from '@/lib/authTokens'
-import { MAX_PASSWORD_LENGTH } from '@/lib/validate'
+import { MAX_PASSWORD_LENGTH, jsonObject } from '@/lib/validate'
 import { LIMITS, countRecent, record, tooMany } from '@/lib/rateLimit'
 import { notify } from '@/lib/messaging/notify'
 
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const sessionUser = token ? await getUserFromToken(token) : null
     if (!sessionUser) return NextResponse.json({ error: SIGN_IN_MESSAGE }, { status: 401 })
 
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const { currentPassword, newPassword } = body ?? {}
     if (typeof currentPassword !== 'string' || !currentPassword || currentPassword.length > MAX_PASSWORD_LENGTH) {
       return NextResponse.json({ error: 'Enter your current password.' }, { status: 400 })

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { ACCOUNT_LIMITS, parseText } from '@/lib/validate'
+import { ACCOUNT_LIMITS, parseText, jsonObject, unreadableBody } from '@/lib/validate'
 import { getSessionUser } from '@/lib/session'
 import { validateGhanaPhone, normalizePhone } from '@/lib/utils'
 import { maskEmail } from '@/lib/messaging/format'
@@ -60,7 +60,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
     }
 
-    const { name: rawName, phone, bio: rawBio, nationality: rawNationality, businessName: rawBusiness, optionalEmails } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { name: rawName, phone, bio: rawBio, nationality: rawNationality, businessName: rawBusiness, optionalEmails } = body
 
     // Each the right type and a sensible size; names on one line (lib/validate.ts)
     const fields = {

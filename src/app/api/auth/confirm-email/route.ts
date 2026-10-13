@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { BAD_LINK, confirmEmail } from '@/lib/authTokens'
 
@@ -12,7 +13,7 @@ import { BAD_LINK, confirmEmail } from '@/lib/authTokens'
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const result = await confirmEmail(body?.token)
     if (!result.ok) return NextResponse.json({ error: BAD_LINK }, { status: 400 })
     return NextResponse.json({

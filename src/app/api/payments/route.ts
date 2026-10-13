@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import crypto from 'crypto'
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    if (hasNullByte(new URL(req.url).searchParams)) return unreadableQuery()
     const guestId = new URL(req.url).searchParams.get('guestId')
     if (!guestId) {
       return NextResponse.json({ error: 'guestId required' }, { status: 400 })
@@ -85,11 +87,16 @@ export async function POST(req: Request) {
     const unverified = requireVerifiedEmail(user)
     if (unverified) return unverified
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const { bookingId, method, instalmentId } = body as { bookingId?: string; method?: string; instalmentId?: unknown }
 
     if (!bookingId || !method) {
       return NextResponse.json({ error: 'Missing bookingId or method' }, { status: 400 })
+    }
+    // Ids are text. Anything else would be handed to the database as it is.
+    if (typeof bookingId !== 'string' || (instalmentId !== undefined && instalmentId !== null && typeof instalmentId !== 'string')) {
+      return NextResponse.json({ error: 'bookingId and instalmentId must be text' }, { status: 400 })
     }
     if (method !== 'MOMO' && method !== 'CARD') {
       return NextResponse.json({ error: 'method must be MOMO or CARD' }, { status: 400 })

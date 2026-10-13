@@ -1,3 +1,4 @@
+import { hasNullByte, unreadableQuery } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
@@ -26,6 +27,7 @@ export async function GET(req: Request) {
 
   try {
     const params = new URL(req.url).searchParams
+    if (hasNullByte(params)) return unreadableQuery()
     const config = messagingConfig()
     const email = channelGate('EMAIL')
     const sms = channelGate('SMS')

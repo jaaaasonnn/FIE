@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
@@ -31,8 +32,10 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
   }
 
-  const { id } = await req.json()
-  if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 })
+  const body = await jsonObject(req)
+  if (!body) return unreadableBody()
+  const { id } = body
+  if (!id || typeof id !== 'string') return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
   const notification = await db.notification.findUnique({ where: { id } })
   if (!notification) return NextResponse.json({ error: 'Notification not found' }, { status: 404 })

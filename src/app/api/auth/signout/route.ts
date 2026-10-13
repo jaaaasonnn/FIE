@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { SESSION_COOKIE, endAllSessions, endSession, getUserFromToken, sessionToken } from '@/lib/session'
 
@@ -8,7 +9,7 @@ import { SESSION_COOKIE, endAllSessions, endSession, getUserFromToken, sessionTo
  */
 export async function POST(req: Request) {
   const token = await sessionToken()
-  const body = await req.json().catch(() => ({}))
+  const body = (await jsonObject(req)) ?? {}
 
   let ended = 0
   if (token) {

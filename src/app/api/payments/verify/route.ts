@@ -37,7 +37,8 @@ export async function GET(req: Request) {
   const reference = url.searchParams.get('reference')
   const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
 
-  if (!reference) {
+  // No reference, or one no payment could have (a null byte, which the database refuses)
+  if (!reference || reference.includes('\u0000')) {
     return NextResponse.redirect(`${baseUrl}/dashboard/guest`)
   }
 

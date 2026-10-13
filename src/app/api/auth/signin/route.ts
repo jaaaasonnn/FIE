@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
@@ -17,7 +18,9 @@ const NO_ACCOUNT_HASH = '$2b$12$8a2e.5QaptJCdcpDBIIjz.NHuhhZ4jN.WuE.Lvsw5aDlYqWV
 
 export async function POST(req: Request) {
   try {
-    const { identifier, password } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { identifier, password } = body
 
     if (typeof identifier !== 'string' || typeof password !== 'string' || !identifier.trim() || !password) {
       return NextResponse.json({ error: 'Phone/email and password are required' }, { status: 400 })

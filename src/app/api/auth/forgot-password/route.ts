@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { RESET_REQUESTED, ipHashOf, requestPasswordReset } from '@/lib/authTokens'
 
@@ -11,7 +12,7 @@ import { RESET_REQUESTED, ipHashOf, requestPasswordReset } from '@/lib/authToken
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     await requestPasswordReset(body?.email, ipHashOf(req))
   } catch (error) {
     // Even a fault gives the same answer; it is logged without the address

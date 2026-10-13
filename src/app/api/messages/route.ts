@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { notify } from '@/lib/messaging/notify'
 import { LIMITS, MESSAGE_SENT, TOO_MANY_MESSAGES, claim, tooMany } from '@/lib/rateLimit'
-import { manyLines } from '@/lib/validate'
+import { manyLines, jsonObject, unreadableBody, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { MAX_MESSAGE_LENGTH, NO_REASON_TO_MESSAGE } from '@/lib/rateLimit'
 
 const messageInclude = {
@@ -32,6 +32,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
     const otherUserId = searchParams.get('otherUserId')
     const bookingId = searchParams.get('bookingId')
     const listingId = searchParams.get('listingId')
@@ -75,7 +76,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You must be signed in to send messages' }, { status: 401 })
     }
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const receiverId: unknown = body.receiverId
     const bookingId: unknown = body.bookingId || null
     const listingId: unknown = body.listingId || null
@@ -195,7 +197,8 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     // Support both new shape (otherUserId) and legacy (senderId + receiverId)
     const otherUserId = body.otherUserId || body.senderId
     const listingId = body.listingId as string | undefined

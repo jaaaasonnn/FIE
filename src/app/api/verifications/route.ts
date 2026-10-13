@@ -5,7 +5,7 @@ import { requireAdmin } from '@/lib/roles'
 import { notify } from '@/lib/messaging/notify'
 import { supabaseAdmin, VERIFICATION_DOCS_BUCKET } from '@/lib/supabase'
 import { hostIdApproved } from '@/lib/hostId'
-import { manyLines } from '@/lib/validate'
+import { manyLines, jsonObject, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
 
 const MAX_DOC_BYTES = 10 * 1024 * 1024 // 10MB
@@ -128,6 +128,7 @@ export async function GET(req: Request) {
     }
 
     const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
     const status = searchParams.get('status')
 
     const where: Record<string, unknown> = {}
@@ -171,7 +172,7 @@ export async function PATCH(req: Request) {
     const { user, error } = await requireAdmin()
     if (error) return error
 
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const { verificationId, status } = body
     const notes = typeof body.notes === 'string' ? manyLines(body.notes).slice(0, 1000) : ''
 

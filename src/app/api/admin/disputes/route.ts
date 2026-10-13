@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
@@ -81,7 +82,8 @@ export async function POST(req: Request) {
     if (auth.error) return auth.error
     const admin = auth.user
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const { disputeId, action } = body
     if (typeof disputeId !== 'string') return NextResponse.json({ error: 'disputeId is required' }, { status: 400 })
 

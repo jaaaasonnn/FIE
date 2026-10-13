@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
     const sessionUser = await getSessionUser()
     if (!sessionUser) return NextResponse.json({ error: SIGN_IN_MESSAGE }, { status: 401 })
 
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const account = await db.user.findUnique({ where: { id: sessionUser.id }, select: { id: true, email: true, passwordHash: true } })
     if (!account) return NextResponse.json({ error: SIGN_IN_MESSAGE }, { status: 401 })
     if (typeof body?.password !== 'string' || !account.passwordHash || !(await bcrypt.compare(body.password, account.passwordHash))) {

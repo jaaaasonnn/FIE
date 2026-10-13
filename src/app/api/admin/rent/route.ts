@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
@@ -91,7 +92,8 @@ export async function POST(req: Request) {
     const auth = await requireAdmin()
     if (auth.error) return auth.error
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     if (body.action !== 'cover') return NextResponse.json({ error: 'Unknown action' }, { status: 400 })
     if (typeof body.instalmentId !== 'string') return NextResponse.json({ error: 'instalmentId is required' }, { status: 400 })
 

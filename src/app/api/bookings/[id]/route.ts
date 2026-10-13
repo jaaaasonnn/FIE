@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
@@ -69,7 +70,8 @@ export async function PATCH(
     }
 
     const { id } = await params
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const action: Action = body.action
 
     if (!VALID_ACTIONS.includes(action)) {

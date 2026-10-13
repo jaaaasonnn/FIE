@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { notify } from '@/lib/messaging/notify'
-import { parseText } from '@/lib/validate'
+import { parseText, jsonObject, unreadableBody, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { Prisma } from '@prisma/client'
 
 const MAX_REVIEW_LENGTH = 2000
@@ -13,6 +13,7 @@ const MAX_REPLY_LENGTH = 1000
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
 
     // Authenticated self-lookup — includes the caller's own unpublished
     // reviews too, since a review sits unpublished until both sides of a
@@ -74,7 +75,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You must be signed in to leave a review' }, { status: 401 })
     }
 
-    const { bookingId, rating, comment: rawComment, type } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { bookingId, rating, comment: rawComment, type } = body
 
     if (typeof bookingId !== 'string' || !bookingId || !rating || !rawComment || !type) {
       return NextResponse.json({ error: 'Missing required review fields' }, { status: 400 })
@@ -192,7 +195,9 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
     }
 
-    const { reviewId, hostReply: rawReply } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { reviewId, hostReply: rawReply } = body
     if (typeof reviewId !== 'string' || !reviewId) return NextResponse.json({ error: 'Review not found' }, { status: 404 })
     const parsedReply = parseText(rawReply, { label: 'The reply', max: MAX_REPLY_LENGTH, lines: true })
     if (!parsedReply.ok) return NextResponse.json({ error: parsedReply.error }, { status: 400 })

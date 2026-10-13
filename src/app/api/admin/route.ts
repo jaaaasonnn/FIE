@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
@@ -15,6 +16,7 @@ export async function GET(req: Request) {
 
   try {
     const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
     const type = searchParams.get('type')
 
     if (type === 'stats') {
@@ -85,7 +87,9 @@ export async function POST(req: Request) {
   if (error) return error
 
   try {
-    const { type, ...data } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { type, ...data } = body
 
     if (type === 'update-exchange-rate') {
       // Every charge, refund and payout is worked out from this number, so a

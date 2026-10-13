@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
@@ -31,7 +32,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
     if (dispute.response) return NextResponse.json({ error: 'You have already replied' }, { status: 409 })
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const response = typeof body.response === 'string' ? body.response.trim() : ''
     if (response.length < MIN_DESCRIPTION) {
       return NextResponse.json({ error: `Write your reply in at least ${MIN_DESCRIPTION} characters` }, { status: 400 })

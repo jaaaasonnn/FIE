@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
@@ -71,7 +72,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const { error } = await requireCalendarAccess(id)
     if (error) return error
 
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const range = parseDayRange(body.start, body.end, { forBlocking: true })
     if (!range.ok) return NextResponse.json({ error: range.error }, { status: 400 })
     const note = parseNote(body.note)
@@ -140,7 +141,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const { error } = await requireCalendarAccess(id)
     if (error) return error
 
-    const body = await req.json().catch(() => ({}))
+    const body = (await jsonObject(req)) ?? {}
     const range = parseDayRange(body.start, body.end, { forBlocking: false })
     if (!range.ok) return NextResponse.json({ error: range.error }, { status: 400 })
 

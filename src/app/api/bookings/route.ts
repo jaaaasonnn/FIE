@@ -5,7 +5,7 @@ import { calculateFees } from '@/lib/utils'
 import { getSessionUser } from '@/lib/session'
 import { quoteStay } from '@/lib/bookingQuote'
 import { depositIsSound } from '@/lib/listingInput'
-import { parseText } from '@/lib/validate'
+import { parseText, jsonObject, unreadableBody, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { bookingFor } from '@/lib/privacy'
 import { isSuspended } from '@/lib/suspension'
 
@@ -36,7 +36,8 @@ export async function POST(req: Request) {
     const unverified = requireVerifiedEmail(user)
     if (unverified) return unverified
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const {
       listingId, rentalMode,
       checkIn, checkOut, specialRequests,
@@ -239,6 +240,7 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
     const id        = searchParams.get('id')
     const guestId   = searchParams.get('guestId')
     const hostId    = searchParams.get('hostId')

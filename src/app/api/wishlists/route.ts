@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
@@ -43,12 +44,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
     }
 
-    const { listingId } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { listingId } = body
     // Always the session user — never a client-supplied userId, which
     // would let a caller add/remove entries on anyone else's wishlist.
     const userId = user.id
 
-    if (!listingId) {
+    if (!listingId || typeof listingId !== 'string') {
       return NextResponse.json({ error: 'listingId required' }, { status: 400 })
     }
 
@@ -61,6 +64,10 @@ export async function POST(req: Request) {
       await db.wishlist.delete({ where: { userId_listingId: { userId, listingId } } })
       return NextResponse.json({ wishlisted: false })
     }
+
+    // Only a home that exists can be saved: anything else would be refused by the database as a server fault
+    const listing = await db.listing.findUnique({ where: { id: listingId }, select: { id: true } })
+    if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
     await db.wishlist.create({ data: { userId, listingId } })
     return NextResponse.json({ wishlisted: true }, { status: 201 })

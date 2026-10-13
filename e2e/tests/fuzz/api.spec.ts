@@ -39,7 +39,6 @@ const bodyFor = (valid: Record<string, unknown>) => fc.record(
   { requiredKeys: [] },
 )
 
-const KNOWN_F14 = ['/api/payments', '/api/wishlists', '/api/notifications', '/api/users/me/payout-method']
 type Route = { name: string; method: string; path: string; as: Actor | null; valid: Record<string, unknown> }
 const bad: string[] = []
 function judge(route: Route, sent: unknown, reply: Reply) {
@@ -119,13 +118,11 @@ test.describe('hostile input', () => {
     expect(await db.user.count({ where: { email: { startsWith: 'e2e-fuzz' }, role: 'ADMIN' } })).toBe(0)
     await expectInvariants()
     // Accounts the sign-up route did make from an acceptable body are removed with the rest at the end of the run.
-    // Four routes are known to answer 500 to a wrong type (finding F14, tested on its own below): everything else must be clean.
-    const elsewhere = bad.filter((b) => !KNOWN_F14.some((route) => b.includes(route)))
-    expect([...new Set(elsewhere.map((b) => b.replace(/ for .*/, '')))].slice(0, 40), `${elsewhere.length} wrong answers; examples in e2e/.reports/fuzz-bodies.json`).toEqual([])
+    // Every route, with nothing set aside
+    expect([...new Set(bad.map((b) => b.replace(/ for .*/, '')))].slice(0, 40), `${bad.length} wrong answers; examples in e2e/.reports/fuzz-bodies.json`).toEqual([])
   })
 
   test('a wrong type in the body is answered 400 by payments, wishlists, notifications and the payout method', async ({ world }) => {
-    test.fail(true, 'F14: these four routes pass a value of the wrong type straight to the database or to bcrypt and answer 500')
     const host = await world.host()
     const guest = await world.guest()
     const replies = [
@@ -138,7 +135,6 @@ test.describe('hostile input', () => {
   })
 
   test('bodies that are not JSON at all', async ({ world }) => {
-    test.fail(true, 'F14: seven routes answer 500, not 400, to a body that is empty or is not JSON')
     const guest = await world.guest()
     const wrong: string[] = []
     const raws: [string, string, Record<string, string>?][] = [
@@ -165,8 +161,7 @@ test.describe('hostile input', () => {
       fc.constantFrom('/api/listings', '/api/listings/region-counts', '/api/bookings', '/api/reviews', '/api/messages', '/api/payments', '/api/notifications', '/api/exchange-rate', '/api/payouts', '/api/wishlists'),
       fc.dictionary(fc.constantFrom('page', 'limit', 'mode', 'region', 'city', 'minPrice', 'maxPrice', 'bedrooms', 'checkIn', 'checkOut', 'months', 'hostId', 'guestId', 'id', 'listingId', 'featured', 'checked', 'mine', 'revieweeId', 'with', 'bookingId'), hostile.map((v) => (typeof v === 'string' ? v.slice(0, 3000) : JSON.stringify(v) ?? '')), { maxKeys: 6 }),
       async (path, raw) => {
-        // Two known gaps in the search route (finding F15) are tested on their own below, so they are kept out of this run
-        const query = Object.fromEntries(Object.entries(raw).filter(([key, value]) => !(path === '/api/listings' && key === 'bedrooms') && !value.includes('\u0000')))
+        const query = raw
         const reply = await guest.call('GET', `${path}?${new URLSearchParams(query)}`, undefined, { timeoutMs: 20_000 })
         if (reply.status === 0 || reply.status >= 500 || LEAK.test(reply.text.slice(0, 4000))) wrong.push(`GET ${path}?${new URLSearchParams(query).toString().slice(0, 200)}: ${reply.status} ${reply.text.slice(0, 100)}`)
       }), { numRuns: RUNS * 6, seed: SEED, endOnFailure: true })
@@ -176,7 +171,6 @@ test.describe('hostile input', () => {
   })
 
   test('search answers 400, not 500, to a bedroom count that is not a number and to a null byte', async () => {
-    test.fail(true, 'F15: search answers 500 to bedrooms=abc, and search and the reviews list answer 500 to a null byte')
     const replies = await Promise.all(['/api/listings?bedrooms=abc', '/api/listings?mode=%00', '/api/listings?city=%00', '/api/reviews?listingId=%00'].map((url) => call('GET', url)))
     expect(replies.map((r) => r.status)).toEqual([400, 400, 400, 400])
   })

@@ -5,12 +5,14 @@ import { db } from '@/lib/db'
 import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
 import { ipHashOf, requestVerification } from '@/lib/authTokens'
-import { ACCOUNT_LIMITS, MAX_PASSWORD_LENGTH, parseText } from '@/lib/validate'
+import { ACCOUNT_LIMITS, MAX_PASSWORD_LENGTH, parseText, jsonObject, unreadableBody } from '@/lib/validate'
 import { LIMITS, SIGN_UP, TOO_MANY_SIGN_UPS, claim, tooMany } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
   try {
-    const { name: rawName, email: rawEmail, phone, password, role, businessName: rawBusiness, nationality: rawNationality } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { name: rawName, email: rawEmail, phone, password, role, businessName: rawBusiness, nationality: rawNationality } = body
 
     const parsedName = parseText(rawName, { label: 'Name', max: ACCOUNT_LIMITS.name, required: true })
     if (!parsedName.ok) return NextResponse.json({ error: parsedName.error }, { status: 400 })

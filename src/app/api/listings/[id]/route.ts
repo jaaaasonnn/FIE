@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { isPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
@@ -109,7 +110,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const { error, listing, user } = await requireOwnedListing(id)
     if (error) return error
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const isAdmin = user.role === 'ADMIN'
 
     const data: Record<string, unknown> = {}

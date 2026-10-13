@@ -1,3 +1,4 @@
+import { jsonObject } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
   if (error) return error
 
   try {
-    const body = await req.json().catch(() => null)
+    const body = await jsonObject(req)
     if (!body || typeof body !== 'object') return NextResponse.json({ error: 'Choose an account' }, { status: 400 })
 
     const now = new Date()

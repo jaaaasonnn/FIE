@@ -1,3 +1,4 @@
+import { hasNullByte, unreadableQuery } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
@@ -17,6 +18,7 @@ export async function GET(req: Request) {
     if (auth.error) return auth.error
     const user = auth.user
 
+    if (hasNullByte(new URL(req.url).searchParams)) return unreadableQuery()
     const hostId = new URL(req.url).searchParams.get('hostId')
     if (!hostId) {
       return NextResponse.json({ error: 'hostId required' }, { status: 400 })

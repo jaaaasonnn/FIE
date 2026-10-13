@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { asPolicy } from '@/lib/cancellationPolicy'
 import { db } from '@/lib/db'
 import { parseListingDetails, parseListingMoney } from '@/lib/listingInput'
-import { MAX_PAGE_SIZE, clampWhole } from '@/lib/validate'
+import { MAX_PAGE_SIZE, clampWhole, jsonObject, unreadableBody, hasNullByte, unreadableQuery, wholeFromQuery } from '@/lib/validate'
 import { getSessionUser } from '@/lib/session'
 import { requireHost, requireVerifiedEmail } from '@/lib/roles'
 import { hasContactDetails } from '@/lib/moderation'
@@ -17,6 +17,7 @@ import { HOST_NOT_SUSPENDED } from '@/lib/suspension'
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
     const mode = searchParams.get('mode')
     const region = searchParams.get('region')
     const city = searchParams.get('city')
@@ -52,7 +53,12 @@ export async function GET(req: Request) {
     if (region) where.region = region
     if (city) where.city = { contains: city }
     if (propertyType) where.propertyType = propertyType
-    if (bedrooms) where.bedrooms = { gte: parseInt(bedrooms) }
+    if (bedrooms) {
+      // A whole number of rooms, or the filter is refused: "abc" would reach the database as not-a-number
+      const atLeast = wholeFromQuery(bedrooms, 0, 100)
+      if (atLeast === null) return NextResponse.json({ error: 'bedrooms must be a whole number' }, { status: 400 })
+      where.bedrooms = { gte: atLeast }
+    }
     if (featured) where.isFeatured = true
     if (mode) where.rentalModes = { contains: mode }
 
@@ -132,7 +138,8 @@ export async function POST(req: Request) {
     const unverified = requireVerifiedEmail(user)
     if (unverified) return unverified
 
-    const body = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
     const { title, propertyType, region, city, bedrooms, advanceMonthsRequired, digitalAddress, cancellationPolicy, isActive: requestedIsActive } = body
 
     // Always use the authenticated user as host — never trust client hostId
