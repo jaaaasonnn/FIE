@@ -12,6 +12,8 @@ import { db } from '@/lib/db'
 const MIN = 60 * 1000
 const HOUR = 60 * MIN
 
+const MESSAGES_PER_HOUR = 30
+
 export const LIMITS = {
   /** Wrong passwords for one account (or one email or phone that has none) */
   signInPerAccount: { max: 5, windowMs: 15 * MIN },
@@ -26,11 +28,13 @@ export const LIMITS = {
   /** Bookings one guest may make in an hour, however they end */
   bookingsPerHour: 10,
   /** Messages one person may send in an hour */
-  messagesPerHour: 30,
+  messagesPerHour: MESSAGES_PER_HOUR,
+  messagesPerSender: { max: MESSAGES_PER_HOUR, windowMs: HOUR },
 } as const
 
 export const SIGN_IN_FAILED = 'SIGN_IN_FAILED'
 export const SIGN_UP = 'SIGN_UP'
+export const MESSAGE_SENT = 'MESSAGE_SENT'
 
 export const TOO_MANY_SIGN_INS = 'Too many sign-in attempts. Please wait 15 minutes and try again, or reset your password.'
 export const TOO_MANY_SIGN_UPS = 'Too many accounts have been created from this connection. Please try again in an hour.'

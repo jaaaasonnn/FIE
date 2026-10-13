@@ -336,6 +336,22 @@ describe('messages', () => {
     expect((await write({ receiverId: 'host', listingId: 'home', content: 'One more' })).status).toBe(201)
   })
 
+  it('forty messages sent at the same instant: no more than 30 are stored', async () => {
+    const replies = await Promise.all(Array.from({ length: 40 }, (_, i) => write({ receiverId: 'host', listingId: 'home', content: `Message ${i}` })))
+    const sent = replies.filter((r) => r.status === 201).length
+    expect(sent).toBeLessThanOrEqual(LIMITS.messagesPerHour)
+    expect(replies.filter((r) => r.status === 429)).toHaveLength(40 - sent)
+    expect(state.tables.message ?? []).toHaveLength(sent)
+    // One count per message stored
+    expect((state.tables.authRequest ?? []).filter((r) => r.kind === 'MESSAGE_SENT')).toHaveLength(sent)
+  })
+
+  it('does not count a message that was not sent', async () => {
+    for (let i = 0; i < 40; i++) expect((await write({ receiverId: 'host', listingId: 'home', content: 'call me on whatsapp' })).status).toBe(400)
+    expect((state.tables.authRequest ?? []).filter((r) => r.kind === 'MESSAGE_SENT')).toHaveLength(0)
+    expect((await write({ receiverId: 'host', listingId: 'home', content: 'Hello' })).status).toBe(201)
+  })
+
   it('refuses a message that is too long, or not text', async () => {
     expect((await write({ receiverId: 'host', listingId: 'home', content: 'x'.repeat(MAX_MESSAGE_LENGTH + 1) })).status).toBe(400)
     expect((await write({ receiverId: 'host', listingId: 'home', content: { $gt: '' } })).status).toBe(400)

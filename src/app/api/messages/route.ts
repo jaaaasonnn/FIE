@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { notify } from '@/lib/messaging/notify'
-import { LIMITS, TOO_MANY_MESSAGES, tooMany } from '@/lib/rateLimit'
+import { LIMITS, MESSAGE_SENT, TOO_MANY_MESSAGES, claim, tooMany } from '@/lib/rateLimit'
 import { manyLines } from '@/lib/validate'
 import { MAX_MESSAGE_LENGTH, NO_REASON_TO_MESSAGE } from '@/lib/rateLimit'
 
@@ -141,9 +141,6 @@ export async function POST(req: Request) {
       if (!wroteFirst) return NextResponse.json({ error: NO_REASON_TO_MESSAGE }, { status: 403 })
     }
 
-    const sentLastHour = await db.message.count({ where: { senderId: user.id, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } })
-    if (sentLastHour >= LIMITS.messagesPerHour) return tooMany(TOO_MANY_MESSAGES, 60 * 60)
-
     // Auto-flag messages containing contact details (scam prevention)
     const contactPattern = /(\+?233|\b0[2-5]\d{8}\b|whatsapp|@gmail|@yahoo|pay me direct)/i
     if (contactPattern.test(content)) {
@@ -153,16 +150,29 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    const message = await db.message.create({
-      data: {
-        senderId: user.id,
-        receiverId,
-        bookingId,
-        listingId,
-        content,
-      },
-      include: messageInclude,
-    })
+    // So many an hour from one person. The message is counted before it is
+    // stored (lib/rateLimit.ts), so ones sent at the same instant cannot all
+    // slip past the count. Last, so only a message that would be sent counts.
+    const place = await claim(MESSAGE_SENT, { key: `message:${user.id}` }, { perKey: LIMITS.messagesPerSender })
+    if (!place.ok) return tooMany(TOO_MANY_MESSAGES, 60 * 60)
+
+    let message
+    try {
+      message = await db.message.create({
+        data: {
+          senderId: user.id,
+          receiverId,
+          bookingId,
+          listingId,
+          content,
+        },
+        include: messageInclude,
+      })
+    } catch (error) {
+      // Not sent, so not counted
+      await place.release()
+      throw error
+    }
 
     notify('message.received', { messageId: message.id })
 

@@ -125,7 +125,6 @@ test.describe('races: limits when requests arrive together', () => {
   })
 
   test('forty messages at the same instant: no more than 30 are sent', async ({ world }) => {
-    test.fail(true, 'F6: the limit of 30 messages an hour counts before it sends, so messages sent together all get through')
     const host = await world.host()
     const guest = await world.guest()
     const home = await world.listing(host)
