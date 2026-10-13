@@ -137,7 +137,6 @@ test.describe('races: limits when requests arrive together', () => {
   })
 
   test('five sign-ups an hour from one address holds when ten arrive together', async () => {
-    test.fail(true, 'F7: the sign-up limit counts after it creates, so sign-ups sent together all get through')
     const ip = freshIp()
     const made: string[] = []
     try {

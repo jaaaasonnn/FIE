@@ -5,7 +5,7 @@ import { validateGhanaPhone, normalizePhone, normalizeEmail } from '@/lib/utils'
 import { notify } from '@/lib/messaging/notify'
 import { ipHashOf, requestVerification } from '@/lib/authTokens'
 import { ACCOUNT_LIMITS, MAX_PASSWORD_LENGTH, parseText } from '@/lib/validate'
-import { LIMITS, SIGN_UP, TOO_MANY_SIGN_UPS, countRecent, record, tooMany } from '@/lib/rateLimit'
+import { LIMITS, SIGN_UP, TOO_MANY_SIGN_UPS, claim, tooMany } from '@/lib/rateLimit'
 
 export async function POST(req: Request) {
   try {
@@ -40,20 +40,26 @@ export async function POST(req: Request) {
 
     const normalizedPhone = phone ? normalizePhone(phone) : null
 
-    // So many accounts from one address in an hour is not a person signing up
+    // So many accounts from one address in an hour is not a person signing
+    // up. The sign-up is written down before anything is made
+    // (lib/rateLimit.ts), so ones sent at the same instant cannot all slip
+    // past the count, and none of them reaches the password hashing.
     const ipHash = ipHashOf(req)
-    if (ipHash && (await countRecent(SIGN_UP, { ipHash }, LIMITS.signUpPerIp.windowMs)) >= LIMITS.signUpPerIp.max) {
+    const place = ipHash ? await claim(SIGN_UP, { ipHash }, { perIp: LIMITS.signUpPerIp }) : null
+    if (place && !place.ok) {
       return tooMany(TOO_MANY_SIGN_UPS, LIMITS.signUpPerIp.windowMs / 1000)
     }
+    // A sign-up that makes no account is not counted
+    const notCounted = async () => { if (place?.ok) await place.release() }
 
     // Check existing user
     if (email) {
       const existing = await db.user.findUnique({ where: { email } })
-      if (existing) return NextResponse.json({ error: 'Email already registered' }, { status: 409 })
+      if (existing) { await notCounted(); return NextResponse.json({ error: 'Email already registered' }, { status: 409 }) }
     }
     if (normalizedPhone) {
       const existing = await db.user.findUnique({ where: { phone: normalizedPhone } })
-      if (existing) return NextResponse.json({ error: 'Phone number already registered' }, { status: 409 })
+      if (existing) { await notCounted(); return NextResponse.json({ error: 'Phone number already registered' }, { status: 409 }) }
     }
 
     // Never trust the client's role: only the two self-service roles are
@@ -63,19 +69,23 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 12)
 
-    const user = await db.user.create({
-      data: {
-        name,
-        email: email || null,
-        phone: normalizedPhone,
-        passwordHash,
-        role: safeRole,
-        businessName: businessName || null,
-        nationality: nationality || 'Ghanaian'
-      }
-    })
-
-    await record(SIGN_UP, { ipHash })
+    let user
+    try {
+      user = await db.user.create({
+        data: {
+          name,
+          email: email || null,
+          phone: normalizedPhone,
+          passwordHash,
+          role: safeRole,
+          businessName: businessName || null,
+          nationality: nationality || 'Ghanaian'
+        }
+      })
+    } catch (error) {
+      await notCounted()
+      throw error
+    }
 
     const { passwordHash: _, ...userWithoutPassword } = user
 

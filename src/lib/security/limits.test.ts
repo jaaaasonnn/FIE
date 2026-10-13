@@ -157,6 +157,16 @@ describe('signing up', () => {
     expect((await join(101)).status).toBe(201)
   })
 
+  it('ten sign-ups from one address at the same instant: no more than 5 make an account, and the rest are never hashed', async () => {
+    const replies = await Promise.all(Array.from({ length: 10 }, (_, i) => join(100 + i)))
+    const made = replies.filter((r) => r.status === 201).length
+    expect(made).toBeLessThanOrEqual(LIMITS.signUpPerIp.max)
+    expect(replies.filter((r) => r.status === 429)).toHaveLength(10 - made)
+    expect(state.tables.user.filter((u) => String(u.email).startsWith('new1'))).toHaveLength(made)
+    // One count per account made: the refused ones took theirs away
+    expect((state.tables.authRequest ?? []).filter((r) => r.kind === 'SIGN_UP')).toHaveLength(made)
+  })
+
   it('does not count a sign-up that was refused', async () => {
     for (let i = 0; i < 8; i++) expect((await signUp(json('POST', { name: 'x', email: 'ama@example.test', password: 'a long password' }, from('203.0.113.7')))).status).toBe(409)
     expect((await join(1)).status).toBe(201)
