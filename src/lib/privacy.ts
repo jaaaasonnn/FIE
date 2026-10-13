@@ -28,7 +28,10 @@ export function contactShared(booking: { status: string; paymentStatus: string }
  *  - The other person's phone and email are left out until the booking is
  *    confirmed and paid. Your own are always yours to see; an admin sees all.
  *  - A host never gets the guest's payment references or the provider's
- *    refund ids: they are the guest's, and a host has no use for them.
+ *    refund ids: they are the guest's, and a host has no use for them. The
+ *    booking's own `paymentReference` is the same value as its first
+ *    payment's reference, so it is left out too. So is the address of the
+ *    guest's Paystack page (`authorizationUrl`), which carries the reference.
  */
 export function bookingFor<T extends BookingView>(booking: T, viewer: Viewer): T {
   if (viewer.role === 'ADMIN') return booking
@@ -40,8 +43,9 @@ export function bookingFor<T extends BookingView>(booking: T, viewer: Viewer): T
     ...booking,
     ...(booking.guest !== undefined && !isGuest && !shared ? { guest: without(booking.guest) } : {}),
     ...(booking.host !== undefined && !isHost && !shared ? { host: without(booking.host) } : {}),
+    ...(isHost && !isGuest && 'paymentReference' in booking ? { paymentReference: null } : {}),
     ...(isHost && !isGuest && booking.payments
-      ? { payments: booking.payments.map((payment) => omit(payment, ['gatewayReference', 'momoNumber'])) }
+      ? { payments: booking.payments.map((payment) => omit(payment, ['gatewayReference', 'authorizationUrl', 'momoNumber'])) }
       : {}),
     ...(isHost && !isGuest && booking.refund
       ? { refund: omit(booking.refund, ['paystackRefundId', 'failureReason']) }

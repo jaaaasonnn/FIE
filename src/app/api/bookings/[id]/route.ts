@@ -12,6 +12,7 @@ import { notify } from '@/lib/messaging/notify'
 import { dayKey } from '@/lib/hostCalendar'
 import { OPEN_INSTALMENT_STATUSES, SETTLED_INSTALMENT_STATUSES, endTenancyQuote, refundableRent } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { bookingFor } from '@/lib/privacy'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -181,7 +182,8 @@ export async function PATCH(
           include: bookingInclude,
         })
         notify(action === 'accept' ? 'booking.accepted' : 'booking.declined', { bookingId: id })
-        return NextResponse.json({ booking: updated })
+        // As the person asking may see it (lib/privacy.ts)
+        return NextResponse.json({ booking: bookingFor(updated, sessionUser) })
       } catch (txErr) {
         if (txErr instanceof Prisma.PrismaClientKnownRequestError && txErr.code === 'P2025') {
           return NextResponse.json({ error: `Cannot ${action} a booking that is no longer pending` }, { status: 409 })
@@ -325,7 +327,7 @@ export async function PATCH(
         : `Your booking is cancelled. Under the ${preview.policyLabel} policy nothing is refunded.`
 
     return NextResponse.json({
-      booking: updated,
+      booking: bookingFor(updated, sessionUser),
       refund: quote ? { ...quote, recorded: !!refundId } : null,
       message,
     })

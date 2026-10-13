@@ -31,7 +31,7 @@ beforeEach(() => {
   person(state, 'admin', 'ADMIN')
   person(state, 'stranger')
   home(state, 'home', 'host')
-  ;(state.tables.payment ??= []).push({ id: 'pay_1', bookingId: 'booking', amount: 300, status: 'SUCCESS', method: 'MOMO', gatewayReference: 'FIE-booking-1', momoNumber: '0242222222', amountPesewas: 450000 })
+  ;(state.tables.payment ??= []).push({ id: 'pay_1', bookingId: 'booking', amount: 300, status: 'SUCCESS', method: 'MOMO', gatewayReference: 'FIE-booking-1', authorizationUrl: 'https://checkout.paystack.com/FIE-booking-1', momoNumber: '0242222222', amountPesewas: 450000 })
   ;(state.tables.refund ??= []).push({ id: 'ref_1', bookingId: 'booking', paymentId: 'pay_1', amount: 50, status: 'PROCESSED', paystackRefundId: 'RFD_123', failureReason: null, reason: 'DISPUTE_PARTIAL', stayRefund: 50 })
 })
 
@@ -78,19 +78,23 @@ describe('phone numbers and emails on a booking', () => {
   })
 
   it('a host never gets the guest\'s payment references or mobile money number', async () => {
-    stay(state, 'booking', 'home', 'guest', 'host')
+    stay(state, 'booking', 'home', 'guest', 'host', { paymentReference: 'FIE-booking-1' })
     as(state, 'host')
     for (const text of [JSON.stringify(await one()), JSON.stringify(await list('hostId=host'))]) {
       expect(text).not.toContain('FIE-booking-1')
+      expect(text).not.toContain('checkout.paystack.com')
       expect(text).not.toContain('0242222222"')
       expect(text).not.toContain('RFD_123')
     }
     const forHost = await one()
+    // The booking's own reference is the same value as its first payment's
+    expect(forHost.paymentReference).toBeNull()
     expect(forHost.payments[0]).toMatchObject({ id: 'pay_1', amount: 300, status: 'SUCCESS' })
     expect(forHost.refund).toMatchObject({ amount: 50, status: 'PROCESSED' })
     // The guest still sees their own
     as(state, 'guest')
     expect((await one()).payments[0].gatewayReference).toBe('FIE-booking-1')
+    expect((await one()).paymentReference).toBe('FIE-booking-1')
   })
 
   it('leaves a booking no one else may see as it was: a stranger gets nothing', async () => {

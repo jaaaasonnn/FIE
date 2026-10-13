@@ -169,7 +169,6 @@ test.describe('paying', () => {
   })
 
   test('the host is not shown the guest\'s Paystack payment reference', async ({ world }) => {
-    test.fail(true, 'F13: the booking a host is sent carries Booking.paymentReference, the guest\'s Paystack reference')
     const host = await world.host()
     const guest = await world.guest()
     const home = await world.listing(host)
