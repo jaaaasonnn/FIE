@@ -12,7 +12,6 @@ test.describe('deep links', () => {
   for (const [name, target] of [['a checkout link', (b: string) => `/checkout/${b}`], ['the host dashboard', () => '/dashboard/host/bookings?tab=requests'], ['the guest payments page', () => '/dashboard/guest/payments']] as const) {
     test(`${name}, opened while signed out, comes back to the same place after logging in @core`, async ({ page, world, browserName }) => {
       test.skip(browserName === 'webkit', FORM_LOGIN_NEEDS_HTTPS)
-      test.fail(true, 'F1: after logging in, the redirect is overridden and the person lands on their dashboard')
       const host = await world.host()
       const guest = await world.guest()
       const home = await world.listing(host)

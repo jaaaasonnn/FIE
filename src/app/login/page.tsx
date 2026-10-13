@@ -64,9 +64,13 @@ function LoginContent() {
     setLoginErr('')
     if (!loginId || !loginPw) { setLoginErr('Please fill in all fields.'); return }
     setLoginBusy(true)
+    // This form decides where to go next. Said before signing in, because
+    // signing in sets the user, and the "already logged in" effect above
+    // would otherwise send them to their dashboard first and win.
+    mountedWithUser.current = true
     const result = await signIn(loginId, loginPw)
     setLoginBusy(false)
-    if (result.error) { setLoginErr(result.error); return }
+    if (result.error) { mountedWithUser.current = false; setLoginErr(result.error); return }
     // For sign-in, honour the redirect param so users land back where they came from.
     // Only follow internal paths to prevent open-redirect.
     const dest = isSafeRedirect(redirect) ? redirect : (result.user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
@@ -81,9 +85,11 @@ function LoginContent() {
     if (password.length < 8) { setSignupErr('Password must be at least 8 characters.'); return }
     if (password !== confirmPw) { setSignupErr('Passwords do not match.'); return }
     setSignupBusy(true)
+    // As in handleLogin: this form decides where to go next
+    mountedWithUser.current = true
     const result = await signUp({ name: name.trim(), email: email.trim(), password, role })
     setSignupBusy(false)
-    if (result.error) { setSignupErr(result.error); return }
+    if (result.error) { mountedWithUser.current = false; setSignupErr(result.error); return }
     // For sign-up, ALWAYS go to the role-based dashboard — never follow the redirect
     // param, because a new user has no prior destination to return to.
     router.replace(role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
