@@ -211,6 +211,7 @@ export function fakeDb(tables: Tables) {
     },
   })
 
+  let queue: Promise<unknown> = Promise.resolve()
   const cache = new Map<string, ReturnType<typeof model>>()
   const db: Record<string, unknown> = new Proxy({}, {
     get(_target, prop: string) {
@@ -222,7 +223,10 @@ export function fakeDb(tables: Tables) {
             aborts.left--
             throw new Prisma.PrismaClientKnownRequestError('could not serialize access due to read/write dependencies among transactions', { code: 'P2034', clientVersion: 'test' })
           }
-          return (work as (tx: unknown) => unknown)(db)
+          // One at a time, as the row locks of a real database make transactions on the same rows wait their turn
+          const run = queue.then(() => (work as (tx: unknown) => unknown)(db))
+          queue = run.catch(() => {})
+          return run
         }
       }
       if (prop === 'then') return undefined

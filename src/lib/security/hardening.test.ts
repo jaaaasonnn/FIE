@@ -9,6 +9,9 @@ import type { State } from './harness'
 
 const state = vi.hoisted(() => ({ tables: {}, user: null } as State))
 const stored = vi.hoisted(() => [] as { bucket: string; path: string; contentType: string; bytes: number }[])
+const removed = vi.hoisted(() => [] as string[])
+/** Something to run while a file is being taken out of storage, to put two requests in a known order */
+const hooks = vi.hoisted(() => ({ duringRemove: null as null | (() => Promise<unknown>) }))
 vi.mock('@/lib/db', async () => ({ db: (await import('@/lib/testing/fakeDb')).fakeDb(state.tables) }))
 vi.mock('@/lib/session', () => ({ getSessionUser: async () => (state.user ? { ...state.user } : null) }))
 vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
@@ -17,7 +20,7 @@ vi.mock('@/lib/supabase', () => ({
   supabaseAdmin: { storage: { from: (bucket: string) => ({
     upload: async (p: string, body: Buffer, options: { contentType: string }) => { stored.push({ bucket, path: p, contentType: options.contentType, bytes: body.length }); return { error: null } },
     getPublicUrl: (p: string) => ({ data: { publicUrl: `https://storage.test/object/public/${bucket}/${p}` } }),
-    remove: async () => ({ error: null }),
+    remove: async (paths: string[]) => { removed.push(...paths); const during = hooks.duringRemove; hooks.duringRemove = null; await during?.(); return { error: null } },
   }) } },
 }))
 
@@ -26,7 +29,7 @@ import { NOT_AN_IMAGE, sniffImage } from '@/lib/imageBytes'
 import { MAX_MANUAL_RATE_STEP, manualRateRefusal } from '@/lib/exchangeRate'
 import { MAX_PAGE_SIZE, clampWhole } from '@/lib/validate'
 import { POST as uploadAvatar } from '@/app/api/users/me/photo/route'
-import { POST as uploadListingPhotos } from '@/app/api/listings/[id]/photos/route'
+import { DELETE as removeListingPhoto, POST as uploadListingPhotos } from '@/app/api/listings/[id]/photos/route'
 import { POST as uploadId } from '@/app/api/verifications/route'
 import { POST as uploadEvidence } from '@/app/api/disputes/[id]/evidence/route'
 import { POST as adminAction } from '@/app/api/admin/route'
@@ -52,6 +55,8 @@ const form = (fields: Record<string, File | string | File[]>) => {
 beforeEach(() => {
   reset(state)
   stored.length = 0
+  removed.length = 0
+  hooks.duringRemove = null
   vi.unstubAllEnvs()
   vi.unstubAllGlobals()
   vi.useFakeTimers({ toFake: ['Date'] })
@@ -114,6 +119,46 @@ describe('uploads', () => {
     expect(res.status).toBe(400)
     expect(stored).toEqual([])
     expect(state.tables.listing[0].photos).toBe('[]')
+  })
+
+  describe('listing photos changed at the same moment', () => {
+    const photos = () => JSON.parse(state.tables.listing[0].photos as string) as string[]
+    const upload = (count = 1) => uploadListingPhotos(form({ photos: Array.from({ length: count }, (_, i) => file(JPEG, 'image/jpeg', `p${i}.jpg`)) }), params('home'))
+    beforeEach(() => as(state, 'host'))
+
+    it('five uploads at the same moment are all kept', async () => {
+      const replies = await Promise.all(Array.from({ length: 5 }, () => upload()))
+      expect(replies.map((r) => r.status)).toEqual([200, 200, 200, 200, 200])
+      expect(photos()).toHaveLength(5)
+      expect(new Set(photos()).size).toBe(5)
+      // Every file that was stored is on the listing
+      expect(stored.map((s) => `https://storage.test/object/public/listing-photos/${s.path}`).sort()).toEqual([...photos()].sort())
+    })
+
+    it('a photo added while another is being removed is kept, and the one removed is gone', async () => {
+      await upload(2)
+      const [first, second] = photos()
+      // The removal has read the list; while its file is being deleted, an upload starts and finishes
+      let added: Response | undefined
+      hooks.duringRemove = async () => { added = await upload() }
+      const gone = await removeListingPhoto(json('DELETE', { url: first }), params('home'))
+      expect([gone.status, added?.status]).toEqual([200, 200])
+      expect(photos()).toHaveLength(2)
+      expect(photos()).not.toContain(first)
+      expect(photos()[0]).toBe(second)
+      expect((await gone.json()).photos).toEqual(photos())
+    })
+
+    it('uploads that together would pass 12 photos: the ones over are refused and their files taken out of storage again', async () => {
+      await upload(10)
+      const replies = await Promise.all([upload(2), upload(2)])
+      expect(replies.map((r) => r.status).sort()).toEqual([200, 400])
+      expect(photos()).toHaveLength(12)
+      expect((await replies.find((r) => r.status === 400)!.json()).error).toBe('A listing can have at most 12 photos (12 already uploaded)')
+      // The two files of the refused upload are not left behind with nothing pointing at them
+      expect(removed).toHaveLength(2)
+      for (const gone of removed) expect(photos().join(' ')).not.toContain(gone)
+    })
   })
 })
 

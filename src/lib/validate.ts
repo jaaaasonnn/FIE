@@ -100,3 +100,69 @@ export function clampWhole(raw: string | null, fallback: number, min: number, ma
   const value = raw !== null && /^\d{1,9}$/.test(raw) ? Number(raw) : fallback
   return Math.min(max, Math.max(min, value))
 }
+
+// ── Request bodies ─────────────────────────────────────────────────────────
+
+// As loose as req.json() itself: each route checks the type of what it uses
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type JsonBody = Record<string, any>
+
+/** What a person is told when a request's body is not a JSON object. */
+export const BODY_NOT_READABLE = 'The request could not be read. Please try again.'
+
+/**
+ * A request's body as a JSON object, or null when it is empty, is not JSON, or
+ * is JSON that is not an object (null, a number, a list, a string). Never
+ * throws, so a route cannot answer a body it cannot read with a 500.
+ *
+ * Null too when any text in it, at any depth, holds a null byte. Postgres
+ * refuses the byte, so an id or an address carrying one would end as a 500.
+ */
+export async function jsonObject(req: Request): Promise<JsonBody | null> {
+  let body: unknown
+  try { body = await req.json() } catch { return null }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null
+  return holdsNullByte(body) ? null : (body as JsonBody)
+}
+
+/** True when a string anywhere in the value (a key or a value, at any depth) holds a null byte. */
+function holdsNullByte(value: unknown, depth = 0): boolean {
+  if (typeof value === 'string') return value.includes('\u0000')
+  if (value === null || typeof value !== 'object') return false
+  // Deeper than any real request: refused rather than walked
+  if (depth > 64) return true
+  if (Array.isArray(value)) return value.some((item) => holdsNullByte(item, depth + 1))
+  return Object.entries(value).some(([key, item]) => key.includes('\u0000') || holdsNullByte(item, depth + 1))
+}
+
+/** The answer to a body that could not be read: 400, the same from every route. */
+export function unreadableBody(): Response {
+  return Response.json({ error: BODY_NOT_READABLE }, { status: 400 })
+}
+
+// ── Query strings ──────────────────────────────────────────────────────────
+
+/** What a person is told when a filter in the address cannot be used. */
+export const QUERY_NOT_READABLE = 'That request could not be read. Please check the address and try again.'
+
+/**
+ * True when any name or value in the query string holds a null byte. Postgres
+ * refuses the byte in text, so a filter carrying one would end as a 500.
+ */
+export function hasNullByte(searchParams: URLSearchParams): boolean {
+  for (const [key, value] of searchParams) if (key.includes('\u0000') || value.includes('\u0000')) return true
+  return false
+}
+
+/** The answer to a query string that cannot be used: 400, the same from every route. */
+export function unreadableQuery(): Response {
+  return Response.json({ error: QUERY_NOT_READABLE }, { status: 400 })
+}
+
+/** A whole number from the query string within a range, or null when it is anything else ("abc", "2.5", "1e9"). */
+export function wholeFromQuery(raw: string, min: number, max: number): number | null {
+  if (!/^\d{1,9}$/.test(raw.trim())) return null
+  const value = Number(raw.trim())
+  return value >= min && value <= max ? value : null
+}
+

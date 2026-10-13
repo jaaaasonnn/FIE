@@ -1,3 +1,4 @@
+import { jsonObject, unreadableBody } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
@@ -5,16 +6,32 @@ import { supabaseAdmin, LISTING_PHOTOS_BUCKET } from '@/lib/supabase'
 import { clearChecks, tellCleared } from '@/lib/listingChecks'
 import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
 
+type PhotoChange = { ok: true; photos: string[] } | { ok: false; error: string }
+
 /**
- * Saves the new photo list and, in the same transaction, removes "Address and
+ * Changes the photo list and, in the same transaction, removes "Address and
  * photos checked": the photos are no longer the ones that were checked.
+ *
+ * `photos` is one JSON column, so a change is read, change, write. Two
+ * changes at the same moment would both read the same list and the second
+ * write would throw the first one's photos away. So the list is read INSIDE
+ * the transaction, after a write to the listing's row: Postgres gives that
+ * row to one transaction at a time, and the second waits there and then
+ * reads the list the first one left.
  */
-async function savePhotos(id: string, photos: string[]) {
-  const cleared = await db.$transaction(async (tx) => {
-    await tx.listing.update({ where: { id }, data: { photos: JSON.stringify(photos) } })
-    return clearChecks(tx, id, 'PHOTOS_CHANGED')
+async function changePhotos(id: string, change: (current: string[]) => PhotoChange): Promise<PhotoChange> {
+  let cleared: Awaited<ReturnType<typeof clearChecks>> | null = null
+  const result = await db.$transaction(async (tx) => {
+    // The write that makes a second change to this listing wait its turn
+    const row = await tx.listing.update({ where: { id }, data: { updatedAt: new Date() }, select: { photos: true } })
+    const next = change(parsePhotos(row.photos))
+    if (!next.ok) return next
+    await tx.listing.update({ where: { id }, data: { photos: JSON.stringify(next.photos) } })
+    cleared = await clearChecks(tx, id, 'PHOTOS_CHANGED')
+    return next
   })
-  tellCleared(cleared)
+  if (cleared) tellCleared(cleared)
+  return result
 }
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024 // 5MB — matches the bucket's own file_size_limit
@@ -94,8 +111,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 
     const newUrls: string[] = []
+    const newPaths: string[] = []
     for (const { buffer, type } of images) {
       const path = `${id}/${crypto.randomUUID()}.jpg`
+      newPaths.push(path)
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from(LISTING_PHOTOS_BUCKET)
@@ -110,10 +129,19 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       newUrls.push(publicUrlData.publicUrl)
     }
 
-    const photos = [...existing, ...newUrls]
-    await savePhotos(id, photos)
+    // Added to the list as it stands now, not as it was read before the
+    // upload: another upload may have finished in between
+    const saved = await changePhotos(id, (current) => (current.length + newUrls.length > MAX_PHOTOS_PER_LISTING
+      ? { ok: false, error: `A listing can have at most ${MAX_PHOTOS_PER_LISTING} photos (${current.length} already uploaded)` }
+      : { ok: true, photos: [...current, ...newUrls] }))
+    if (!saved.ok) {
+      // Other uploads filled the listing while these were being stored: take them out again
+      const { error: removeError } = await supabaseAdmin.storage.from(LISTING_PHOTOS_BUCKET).remove(newPaths)
+      if (removeError) console.error('Listing photo Storage remove error:', removeError)
+      return NextResponse.json({ error: saved.error }, { status: 400 })
+    }
 
-    return NextResponse.json({ photos })
+    return NextResponse.json({ photos: saved.photos })
   } catch (error) {
     console.error('Listing photos POST error:', error)
     return NextResponse.json({ error: 'Failed to upload photos' }, { status: 500 })
@@ -132,7 +160,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const { listing, error } = await requireOwnedListing(id)
     if (error) return error
 
-    const { url } = await req.json()
+    const body = await jsonObject(req)
+    if (!body) return unreadableBody()
+    const { url } = body
     if (!url) return NextResponse.json({ error: 'url is required' }, { status: 400 })
 
     const existing = parsePhotos(listing!.photos)
@@ -148,10 +178,10 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
       if (removeError) console.error('Listing photo Storage remove error (continuing anyway):', removeError)
     }
 
-    const photos = existing.filter((p) => p !== url)
-    await savePhotos(id, photos)
+    // Taken out of the list as it stands now, so a photo added at the same moment is kept
+    const saved = await changePhotos(id, (current) => ({ ok: true, photos: current.filter((p) => p !== url) }))
 
-    return NextResponse.json({ photos })
+    return NextResponse.json({ photos: saved.ok ? saved.photos : existing })
   } catch (error) {
     console.error('Listing photos DELETE error:', error)
     return NextResponse.json({ error: 'Failed to remove photo' }, { status: 500 })

@@ -182,12 +182,11 @@ test.describe('hostile input', () => {
   })
 
   test('five photos uploaded at the same moment are all kept', async ({ world }) => {
-    test.fail(true, 'F16: photo uploads sent together overwrite each other: each says it succeeded, some photos are lost')
     const host = await world.host()
     const home = await world.listing(host)
     const real = fs.readFileSync(path.join(__dirname, '../../fixtures/photo.jpg'))
     let kept = 5, said = 5
-    // It depends on timing, so it is tried until it is seen (it usually is the first time)
+    // Ten times over: every upload that says it succeeded is on the listing
     for (let round = 0; round < 10 && kept === said; round++) {
       await db.listing.update({ where: { id: home.id }, data: { photos: '[]' } })
       const replies = await Promise.all(Array.from({ length: 5 }, (_, i) => { const f = new FormData(); f.append('photos', new File([real], `c${i}.jpg`, { type: 'image/jpeg' })); return host.call('POST', `/api/listings/${home.id}/photos`, undefined, { form: f, server: (i % 2) as 0 | 1 }) }))
@@ -195,6 +194,7 @@ test.describe('hostile input', () => {
       kept = JSON.parse((await db.listing.findUniqueOrThrow({ where: { id: home.id } })).photos).length
     }
     measured(`${said} uploads said they succeeded; the listing kept ${kept} photos`)
+    expect(said).toBe(5)
     expect(kept).toBe(said)
   })
 
