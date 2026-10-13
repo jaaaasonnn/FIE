@@ -70,8 +70,13 @@ test.describe('accounts', () => {
     else await page.getByRole('button', { name: 'Open menu' }).click()
     await page.getByRole('button', { name: /log ?out|sign ?out/i }).or(page.getByRole('menuitem', { name: /log ?out|sign ?out/i })).or(page.getByText(/^(Log ?out|Sign ?out)$/i)).first().click()
     await expect.poll(async () => db.session.count({ where: { userId: guest.id } })).toBe(0)
-    await page.goto('/dashboard/guest')
-    await expect(page).toHaveURL(/\/login\?redirect=/)
+    // Signing out sends the page somewhere itself: to log in when the dashboard notices, then home. Asking for
+    // the dashboard while either is under way gets cut short ("interrupted by another navigation"), or is
+    // followed by the move to home. So it is asked for until the answer stands: the dashboard is closed.
+    await expect(async () => {
+      await page.goto('/dashboard/guest').catch(() => {})
+      await expect(page).toHaveURL(/\/login\?redirect=/, { timeout: 4000 })
+    }).toPass({ timeout: 30_000 })
     void Header
   })
 
