@@ -18,12 +18,16 @@ interface ScrollHintRowProps {
    *  moves on its own (e.g. a step indicator), not just static tab strips
    *  the user taps directly. */
   activeIndex?: number
+  /** A name for the row when nothing inside it can take focus (a step
+   *  indicator). The row itself then takes focus, so the arrow keys scroll it.
+   *  Rows of buttons or links do not need one: the keyboard reaches them through their items. */
+  label?: string
 }
 
 // Horizontally-scrollable row (tabs, filter pills, step indicators, …) that
 // shows a gold chevron on whichever edge(s) still hide content, since a
 // bare overflow-x-auto strip gives no visual hint that it scrolls.
-export function ScrollHintRow({ children, className, rowClassName, fadeColor, activeIndex }: ScrollHintRowProps) {
+export function ScrollHintRow({ children, className, rowClassName, fadeColor, activeIndex, label }: ScrollHintRowProps) {
   const { scrollRef, scrollEl, canScrollLeft, canScrollRight } = useScrollAffordance()
 
   useEffect(() => {
@@ -34,7 +38,8 @@ export function ScrollHintRow({ children, className, rowClassName, fadeColor, ac
 
   return (
     <div className={cn('relative', className)}>
-      <div ref={scrollRef} className={cn('flex overflow-x-auto', rowClassName)}>
+      <div ref={scrollRef} className={cn('flex overflow-x-auto', rowClassName)}
+        {...(label ? { tabIndex: 0, role: 'group', 'aria-label': label } : {})}>
         {children}
       </div>
       {canScrollLeft && (

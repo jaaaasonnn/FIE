@@ -226,12 +226,14 @@ export default function FAQPage() {
               </p>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-10 gap-y-8">
                 {TRUST.map(({ icon: Icon, title, desc }) => (
-                  <div key={title} className="flex gap-4">
-                    <Icon size={22} strokeWidth={1.75} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
-                    <div>
-                      <dt className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{title}</dt>
-                      <dd className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{desc}</dd>
-                    </div>
+                  // A group in a list of terms may hold only the term and its description, so the
+                  // icon sits inside the term, placed where it was: to the left, with the same gap
+                  <div key={title} className="relative pl-[38px]">
+                    <dt className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+                      <Icon size={22} strokeWidth={1.75} aria-hidden className="absolute left-0 top-0.5" style={{ color: 'var(--color-accent-deep)' }} />
+                      {title}
+                    </dt>
+                    <dd className="mt-1 text-sm leading-relaxed" style={{ color: 'var(--color-text-secondary)' }}>{desc}</dd>
                   </div>
                 ))}
               </dl>
