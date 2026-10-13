@@ -9,6 +9,8 @@ import { notify } from '@/lib/messaging/notify'
 import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
 import { PayoutMethodTooNewError, WAITING_FOR_NEW_METHOD, payoutMethodSettled } from '@/lib/payoutMethod'
 import { HostSuspendedError, WAITING_FOR_SUSPENSION, isSuspended } from '@/lib/suspension'
+import { NO_CEDI_AMOUNT } from '@/lib/cediShare'
+import { payoutCedis } from '@/lib/payoutCedis'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 const MIN_TRANSFER_PESEWAS = 100 // Paystack's own floor is GHS 1
@@ -61,6 +63,11 @@ export type InitiateHostPayoutResult = {
  * `amount` is the USD amount to actually pay the host — i.e. already net
  * of platform commission — not the booking's gross price.
  *
+ * What is sent is that share of the cedis the guest actually paid
+ * (lib/payoutCedis.ts), not a conversion at today's rate. A payout whose
+ * payment has no stored cedi amount is HELD with an alert, like one over the
+ * limit: it is never converted at today's rate.
+ *
  * With `instalmentId` the payout is for one rent instalment of a monthly or
  * long-term booking, which must be settled. There is one payout per
  * instalment; a booking with none has one payout, stored with instalmentSeq 0.
@@ -111,7 +118,7 @@ export async function initiateHostPayout({
     throw new Error(`Booking ${bookingId} has an open dispute: payout on hold`)
   }
   const instalment = instalmentId
-    ? await db.instalment.findUnique({ where: { id: instalmentId }, select: { id: true, bookingId: true, sequence: true, status: true, amount: true } })
+    ? await db.instalment.findUnique({ where: { id: instalmentId }, select: { id: true, bookingId: true, sequence: true, status: true, amount: true, coveredFromDeposit: true } })
     : null
   if (instalmentId) {
     if (!instalment || instalment.bookingId !== bookingId) {
@@ -226,9 +233,14 @@ export async function initiateHostPayout({
 
   const secret = getSecret()
 
-  const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
-  const usdToGhs = rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
-  const amountPesewas = Math.round(amount * usdToGhs * 100)
+  // The host's share of the cedis the guest paid, at the rate they paid at
+  const [amountPesewas] = await payoutCedis([{ bookingId, instalmentId: instalment?.id ?? null, coveredFromDeposit: instalment?.coveredFromDeposit, amount }])
+  // A payment from before cedi amounts were stored: a person works it out.
+  // Never a guess at today's rate.
+  if (amountPesewas === null) {
+    const held = await holdPayout(payout.id, NO_CEDI_AMOUNT, 'NO_CEDI_AMOUNT', {})
+    return { ok: false, payout: held, error: NO_CEDI_AMOUNT }
+  }
 
   if (amountPesewas < MIN_TRANSFER_PESEWAS) {
     const failed = await recordPayoutFailure(payout.id, 'Amount too small to transfer via Paystack', { initiatedAt: new Date() })
@@ -239,7 +251,12 @@ export async function initiateHostPayout({
   // smaller transfers and never sent to Paystack to be refused.
   const limit = payoutLimitPesewas()
   if (limit !== null && amountPesewas > limit) {
-    const held = await holdPayout(payout.id, amountPesewas, limit)
+    const held = await holdPayout(
+      payout.id,
+      `Over the transfer limit: GHS ${(amountPesewas / 100).toFixed(2)} is more than the GHS ${(limit / 100).toFixed(2)} one transfer may be. Pay it by hand.`,
+      'OVER_LIMIT', { amountPesewas, limitPesewas: limit },
+    )
+    notify('payout.held', { payoutId: held.id })
     return { ok: false, payout: held, error: held.failureReason ?? 'Over the transfer limit' }
   }
 
@@ -296,33 +313,35 @@ export async function initiateHostPayout({
 }
 
 /**
- * Marks a payout HELD because it is over the transfer limit. One alert, and
- * the admins are told; the job never picks a HELD payout up again.
+ * Marks a payout HELD for a person to pay: it is over the transfer limit, or
+ * the guest's payment has no stored cedi amount. One alert; the job never
+ * picks a HELD payout up again.
  */
-async function holdPayout(payoutId: string, amountPesewas: number, limitPesewas: number): Promise<Payout> {
+async function holdPayout(payoutId: string, reason: string, why: 'OVER_LIMIT' | 'NO_CEDI_AMOUNT', sums: Record<string, number>): Promise<Payout> {
   const now = new Date()
   const held = await db.payout.update({
     where: { id: payoutId },
     data: {
       status: 'HELD',
-      failureReason: `Over the transfer limit: GHS ${(amountPesewas / 100).toFixed(2)} is more than the GHS ${(limitPesewas / 100).toFixed(2)} one transfer may be. Pay it by hand.`,
+      failureReason: reason,
       alertedAt: now,
     },
   })
-  console.error(`[Payouts] Payout ${held.id} is over the transfer limit and is held`)
-  Sentry.captureMessage('A host payout is over the transfer limit and is held: pay it by hand', {
+  console.error(`[Payouts] Payout ${held.id} is held (${why})`)
+  Sentry.captureMessage(why === 'OVER_LIMIT'
+    ? 'A host payout is over the transfer limit and is held: pay it by hand'
+    : 'A host payout is held: the guest\'s payment has no stored cedi amount. Pay it by hand', {
     level: 'error',
-    tags: { area: 'payouts', payout_failure: 'OVER_LIMIT' },
+    tags: { area: 'payouts', payout_failure: why },
     fingerprint: ['payout-held', held.id],
     // IDs and amounts only: no account or mobile money numbers
     contexts: {
       payout: {
         payoutId: held.id, hostId: held.hostId, bookingId: held.bookingId, instalmentSeq: held.instalmentSeq,
-        amount: held.amount, currency: held.currency, amountPesewas, limitPesewas,
+        amount: held.amount, currency: held.currency, ...sums,
       },
     },
   })
-  notify('payout.held', { payoutId: held.id })
   return held
 }
 

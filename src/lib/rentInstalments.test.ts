@@ -100,6 +100,18 @@ vi.mock('@/lib/db', async () => {
 
   const db = {
     payment: {
+      // The successful payments a payout is worked out from (lib/payoutCedis.ts).
+      // A month marked PAID by hand in a test, with no payment row, was paid at 15 cedis to the dollar.
+      findMany: async ({ where }: { where: Row }) => {
+        const real = state.payments.filter((p) => matches(p, where))
+        const assumed = state.instalments
+          .filter((i) => i.status === 'PAID' && (where.bookingId as { in: unknown[] }).in.includes(i.bookingId) && !real.some((p) => p.instalmentId === i.id))
+          .map((i) => {
+            const amount = (i.amount as number) + (i.depositAmount as number) - (i.coveredFromDeposit as number)
+            return { bookingId: i.bookingId, instalmentId: i.id, amount, amountPesewas: Math.round(amount * 1500), createdAt: i.paidAt }
+          })
+        return [...real, ...assumed].sort((a, b) => (a.createdAt as Date).getTime() - (b.createdAt as Date).getTime())
+      },
       // The payment still open for a booking or instalment, if any (lib/openPayment.ts)
       findFirst: async ({ where }: { where: Row }) => {
         const row = state.payments.filter((p) => matches(p, where)).at(-1)
@@ -959,6 +971,51 @@ describe('paying the host for rent', () => {
     expect(paid(await runPayouts())).toEqual([[1, 2700], [2, 900]])
   })
 
+  describe('in the cedis the tenant paid', () => {
+    const sent = () => transfers().map(([, init]) => JSON.parse(init.body).amount)
+    /** The tenant's own payment for a later month, at the rate on the day they paid it. */
+    const paidWith = (seq: number, amount: number, amountPesewas: number | null, over: Row = {}) => {
+      Object.assign(inst(seq), { status: 'PAID', paidAt: inst(seq).dueDate, ...over })
+      state.payments.push({
+        id: `payment_m${seq}`, bookingId: 'booking_1', instalmentId: `inst_${seq}`, amount, currency: 'USD', method: 'MOMO',
+        amountPesewas, usdToGhs: amountPesewas ? amountPesewas / amount / 100 : null, gatewayReference: `FIE-m${seq}`, status: 'SUCCESS', createdAt: inst(seq).dueDate,
+      })
+    }
+
+    it('each month is paid out from its own payment, at the rate that payment was made at', async () => {
+      // The first payment was made at 15 cedis to the dollar; month 4's rent of $1,000 at 18
+      paidWith(2, 1000, 1_800_000)
+      at('2027-04-15T12:00:00Z')
+      await runPayouts()
+      expect(sent()).toEqual([4_050_000, 1_620_000])
+    })
+
+    it('a month covered from the deposit is paid out at the rate the deposit was paid at', async () => {
+      Object.assign(inst(2), { status: 'COVERED', coveredFromDeposit: 1000, paidAt: new Date('2027-04-20T09:00:00Z') })
+      at('2027-04-20T10:00:00Z')
+      await runPayouts()
+      // 90% of $1,000 of the first payment ($3,500 for 5,250,000 pesewas)
+      expect(sent()).toEqual([4_050_000, 1_350_000])
+    })
+
+    it('a month part covered and then paid off is paid out from both payments, each at its own rate', async () => {
+      // $400 from the deposit (paid at 15), then the tenant paid the other $600 at 18
+      paidWith(2, 600, 1_080_000, { coveredFromDeposit: 400 })
+      at('2027-04-15T12:00:00Z')
+      await runPayouts()
+      expect(sent()).toEqual([4_050_000, 540_000 + 972_000])
+    })
+
+    it('a month whose payment has no stored cedi amount is held for a person, and the others still go', async () => {
+      paidWith(2, 1000, null)
+      at('2027-04-15T12:00:00Z')
+      const run = await runPayouts()
+      expect(run.results.map((r) => [r.instalmentSeq, r.action, r.status])).toEqual([[1, 'paid', 'PROCESSING'], [2, 'failed', 'HELD']])
+      expect(sent()).toEqual([4_050_000])
+      expect(sentryIssues()).toEqual(['NO_CEDI_AMOUNT'])
+    })
+  })
+
   it('makes one payout per instalment, however many runs overlap', async () => {
     paidThrough(3)
     at('2027-06-01T12:00:00Z')
@@ -1082,6 +1139,7 @@ describe('paying the host for rent', () => {
   it('still allows only one payout for a stay paid in one go', async () => {
     state.instalments.length = 0
     Object.assign(booking(), { rentalMode: 'SHORT_STAY', subtotal: 300, checkIn: day('2027-01-15'), checkOut: day('2027-01-18') })
+    Object.assign(state.payments[0], { instalmentId: null })
     at('2027-01-17T13:00:00Z')
     await Promise.all([runPayouts(), runPayouts()])
     expect(state.payouts).toHaveLength(1)

@@ -15,6 +15,8 @@ import { SETTLED_INSTALMENT_STATUSES, payoutReleaseAt } from '@/lib/rentRules'
 import { HOST_ID_SELECT, HostIdNotApprovedError, WAITING_FOR_HOST_ID, hostIdApproved } from '@/lib/hostId'
 import { PayoutMethodTooNewError, payoutMethodSettled } from '@/lib/payoutMethod'
 import { HostSuspendedError, isSuspended } from '@/lib/suspension'
+import { NO_CEDI_AMOUNT } from '@/lib/cediShare'
+import { payoutCedis } from '@/lib/payoutCedis'
 
 const HOUR_MS = 60 * 60 * 1000
 /**
@@ -105,7 +107,12 @@ export function dueInstalmentPayoutWhere(now: Date, notBefore: Date | null): Pri
 export type DuePayout = {
   bookingId: string
   hostId: string
+  /** The host's share in dollars, as the booking is priced */
   amount: number
+  /** What will be sent: that share of the cedis the guest paid (lib/payoutCedis.ts). Null when the payment has no stored cedi amount. */
+  amountPesewas: number | null
+  /** Rent on this instalment that an admin took from the damage deposit */
+  coveredFromDeposit?: number
   dueAt: Date
   hasPayoutMethod: boolean
   /** False while FieGH has not approved the host's ID: the payout waits (lib/hostId.ts) */
@@ -134,7 +141,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
   const instalments = await db.instalment.findMany({
     where: { ...dueInstalmentPayoutWhere(now, notBefore), ...(hostId ? { booking: { ...payableBookingWhere(notBefore), hostId } } : {}) },
     select: {
-      id: true, sequence: true, amount: true, dueDate: true, paidAt: true,
+      id: true, sequence: true, amount: true, dueDate: true, paidAt: true, coveredFromDeposit: true,
       booking: { select: { id: true, hostId: true, checkIn: true, refund: { select: { stayRefund: true } }, host } },
     },
     orderBy: [{ bookingId: 'asc' }, { sequence: 'asc' }],
@@ -143,6 +150,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
   const due: DuePayout[] = stays.map((b) => ({
     bookingId: b.id, hostId: b.hostId,
     amount: hostPayoutAmount(b.subtotal, b.refund?.stayRefund ?? 0),
+    amountPesewas: null,
     dueAt: new Date(b.checkIn.getTime() + PAYOUT_DELAY_MS),
     hasPayoutMethod: hasMethod(b.host),
     hostIdApproved: hostIdApproved(b.host),
@@ -156,6 +164,7 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
       bookingId: i.booking.id, hostId: i.booking.hostId,
       // A dispute's part refund comes out of the first payment only
       amount: hostPayoutAmount(i.amount, i.sequence === 1 ? i.booking.refund?.stayRefund ?? 0 : 0),
+      amountPesewas: null, coveredFromDeposit: i.coveredFromDeposit ?? 0,
       dueAt,
       hasPayoutMethod: hasMethod(i.booking.host),
       hostIdApproved: hostIdApproved(i.booking.host),
@@ -164,6 +173,9 @@ export async function duePayouts(now: Date, notBefore: Date | null, hostId?: str
       instalmentId: i.id, instalmentSeq: i.sequence,
     })
   }
+  // Each one in the cedis the guest paid, read in one query
+  const cedis = await payoutCedis(due)
+  due.forEach((item, n) => { item.amountPesewas = cedis[n] })
   return due
 }
 
@@ -175,12 +187,15 @@ export type PayoutAction =
   | 'waiting-for-host-id'         // host's ID is not approved: nothing written, sent once it is
   | 'waiting-for-new-payout-method' // payout method saved less than a day ago: nothing written, sent once the day is up
   | 'would-pay'                   // dry run
+  | 'would-hold'                  // dry run: the guest's payment has no stored cedi amount, so a live run would hold it for a person
   | 'error'                       // could not be attempted this run
 
 export type PayoutRunResult = {
   bookingId: string
   hostId: string
   amount: number
+  /** The transfer in pesewas: the host's share of the cedis the guest paid. Null when it cannot be worked out. */
+  amountPesewas?: number | null
   action: PayoutAction
   /** Set when the payout is for one rent instalment */
   instalmentId?: string
@@ -222,7 +237,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
     const { amount, dueAt } = item
     const booking = { id: item.bookingId, hostId: item.hostId }
     const base = {
-      bookingId: booking.id, hostId: booking.hostId, amount,
+      bookingId: booking.id, hostId: booking.hostId, amount, amountPesewas: item.amountPesewas,
       ...(item.instalmentId ? { instalmentId: item.instalmentId, instalmentSeq: item.instalmentSeq } : {}),
     }
 
@@ -257,7 +272,7 @@ export async function runPayouts({ dryRun = false, now = new Date() }: { dryRun?
       continue
     }
     if (!live) {
-      results.push({ ...base, action: 'would-pay' })
+      results.push(item.amountPesewas === null ? { ...base, action: 'would-hold', error: NO_CEDI_AMOUNT } : { ...base, action: 'would-pay' })
       continue
     }
     try {

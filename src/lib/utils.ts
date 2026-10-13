@@ -22,6 +22,11 @@ export function formatPrice(usd: number, mode: 'nightly' | 'monthly' | 'annual')
   return `$${usd.toFixed(0)}${label}`
 }
 
+/** An amount in pesewas as cedis: 324000 is "GH₵ 3,240.00". */
+export function ghsFromPesewas(pesewas: number): string {
+  return `GH₵ ${(pesewas / 100).toLocaleString('en-GH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 export function ghsAmount(usd: number): string {
   return `GH₵ ${(usd * GHS_RATE).toLocaleString('en-GH', { minimumFractionDigits: 2 })}`
 }

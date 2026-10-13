@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { monthEarnings, type EarningsBooking } from '@/lib/hostEarnings'
+import { monthEarnings, monthEarningsPesewas, type EarningsBooking } from '@/lib/hostEarnings'
 import { hostShare } from '@/lib/disputes'
 
 // The host dashboard's "This Month" figure. It is March 2027 throughout.
@@ -94,5 +94,45 @@ describe('this month\'s earnings', () => {
 
   it('is zero with no bookings', () => {
     expect(earned()).toBe(0)
+  })
+})
+
+describe('this month\'s earnings in cedis', () => {
+  const pesewas = (...bookings: EarningsBooking[]) => monthEarningsPesewas(bookings, NOW)
+  const paid = (amount: number, amountPesewas: number | null, instalmentId: string | null = null, createdAt = day('2027-03-01')) =>
+    ({ status: 'SUCCESS', instalmentId, amount, amountPesewas, createdAt })
+
+  it('is the host\'s share of the cedis the guest paid, not today\'s rate', () => {
+    // $400 paid at 12 cedis to the dollar, with a $100 deposit in the same payment
+    expect(pesewas(stay({ payments: [paid(500, 600_000)] }))).toBe(432_000)
+  })
+
+  it('adds stays paid at different rates, each at its own', () => {
+    expect(pesewas(stay({ payments: [paid(400, 480_000)] }), stay({ payments: [paid(400, 640_000)] }))).toBe(432_000 + 576_000)
+  })
+
+  it('ignores payments that did not succeed', () => {
+    expect(pesewas(stay({ payments: [{ ...paid(400, 999_999), status: 'DUPLICATE' }, paid(400, 480_000)] }))).toBe(432_000)
+  })
+
+  it('counts each settled month of rent from its own payment', () => {
+    const tenancy = stay({
+      checkIn: day('2027-01-15'), subtotal: 12_000,
+      instalments: [
+        { id: 'i1', sequence: 1, status: 'PAID', dueDate: day('2027-01-02'), amount: 3000 },
+        { id: 'i2', sequence: 2, status: 'PAID', dueDate: day('2027-03-15'), amount: 1000 },
+      ],
+      payments: [paid(3500, 5_250_000, 'i1', day('2027-01-02')), paid(1000, 1_800_000, 'i2', day('2027-03-15'))],
+    })
+    expect(pesewas(tenancy)).toBe(1_620_000)
+  })
+
+  it('is null, so the page shows dollars alone, when a payment has no stored cedi amount', () => {
+    expect(pesewas(stay({ payments: [paid(400, null)] }))).toBeNull()
+    expect(pesewas(stay({ payments: [] }))).toBeNull()
+  })
+
+  it('is zero when nothing was earned this month', () => {
+    expect(pesewas(stay({ checkIn: day('2027-04-01'), payments: [paid(400, 480_000)] }))).toBe(0)
   })
 })

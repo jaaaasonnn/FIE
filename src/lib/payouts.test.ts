@@ -41,7 +41,13 @@ vi.mock('@/lib/db', () => ({
     user: { findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null },
     // Every booking here was made after the PAYOUTS_NOT_BEFORE date set below
     booking: { findUnique: async () => ({ createdAt: new Date('2026-09-01T00:00:00Z'), status: 'CONFIRMED', subtotal: 1000, refund: null, disputes: [] }) },
-    exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
+    // Today's rate, which no payout may be worked out from (lib/payoutCedis.ts)
+    exchangeRate: { findFirst: async () => ({ usdToGhs: 99 }) },
+    // Every guest here paid $1,000 for the stay at 15 cedis to the dollar
+    payment: {
+      findMany: async ({ where }: { where: { bookingId: { in: string[] } } }) =>
+        where.bookingId.in.map((bookingId) => ({ bookingId, instalmentId: null, amount: 1000, amountPesewas: 1_500_000 })),
+    },
     payout: {
       findFirst: async ({ where }: { where: Row }) => {
         const row = payoutRows().find((p) => matches(p, where))

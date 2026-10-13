@@ -12,7 +12,7 @@ import { formatStayDate } from '@/lib/stayDates'
 import { NotificationsList } from '@/components/NotificationsList'
 import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
 import { HostIdNotice } from '@/components/host/HostIdNotice'
-import { monthEarnings } from '@/lib/hostEarnings'
+import { monthEarnings, monthEarningsPesewas } from '@/lib/hostEarnings'
 import { COMMISSION_PERCENT } from '@/lib/fees'
 
 type ApiListing = {
@@ -112,6 +112,8 @@ function HostDashboardContent() {
   // The host's share of what has been paid for stays and rent that fall in
   // this calendar month in Ghana (lib/hostEarnings.ts)
   const earnedThisMonth = monthEarnings(bookings)
+  // The same in the cedis guests paid, which is what the payouts will be. Null when it cannot be worked out.
+  const earnedPesewas = monthEarningsPesewas(bookings)
 
   const firstName = user?.name?.split(' ')[0] ?? 'Host'
 
@@ -222,8 +224,10 @@ function HostDashboardContent() {
               <StatCard
                 icon={<DollarSign size={18} style={{ color: 'var(--color-accent)' }} />}
                 label="This Month"
-                value={`$${earnedThisMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
-                sub={`Paid stays and rent, after ${COMMISSION_PERCENT} commission`}
+                value={earnedPesewas !== null
+                  ? `GH₵ ${Math.round(earnedPesewas / 100).toLocaleString('en-GH')}`
+                  : `$${earnedThisMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                sub={`${earnedPesewas !== null ? `$${earnedThisMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })} · ` : ''}Paid stays and rent, after ${COMMISSION_PERCENT} commission`}
               />
               <StatCard
                 icon={<Calendar size={18} style={{ color: '#2563EB' }} />}

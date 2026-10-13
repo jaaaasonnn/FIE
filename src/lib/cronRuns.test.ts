@@ -6,6 +6,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 type Row = Record<string, unknown>
 const state = vi.hoisted(() => ({
   bookings: [] as Row[], users: [] as Row[], payouts: [] as Row[],
+  /** What the guest paid, per booking id. A booking not named here was paid for at 15 cedis to the dollar. */
+  paid: {} as Record<string, { amount: number; amountPesewas: number | null }>,
   writes: 0,
 }))
 const sentry = vi.hoisted(() => ({
@@ -89,7 +91,15 @@ vi.mock('@/lib/db', async () => {
         },
       },
       user: { findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null },
-      exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
+      // Today's rate, which no payout may be worked out from (lib/payoutCedis.ts)
+      exchangeRate: { findFirst: async () => ({ usdToGhs: 99 }) },
+      payment: {
+        findMany: async ({ where }: { where: { bookingId: { in: string[] } } }) =>
+          state.bookings.filter((b) => where.bookingId.in.includes(b.id as string)).map((b) => ({
+            bookingId: b.id, instalmentId: null,
+            ...(state.paid[b.id as string] ?? { amount: b.subtotal as number, amountPesewas: Math.round((b.subtotal as number) * 1500) }),
+          })),
+      },
       // None of these bookings is paid in instalments: those are covered in rentInstalments.test.ts
       instalment: { findMany: async () => [] },
       payout: {
@@ -180,6 +190,7 @@ beforeEach(() => {
   state.payouts.length = 0
   state.users.length = 0
   state.users.push({ id: 'host_1', ...verifiedHost })
+  for (const id of Object.keys(state.paid)) delete state.paid[id]
   state.writes = 0
   sentry.captureException.mockReset()
   sentry.captureMessage.mockReset()
@@ -237,7 +248,7 @@ describe('with the switches off', () => {
     booking()
     const run = await runPayouts()
     expect(run).toMatchObject({ mode: 'dry-run', reason: 'PAYOUTS_ENABLED is not set to true', checked: 1 })
-    expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'would-pay' }])
+    expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, amountPesewas: 135_000, action: 'would-pay' }])
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.writes).toBe(0)
     expect(state.payouts).toHaveLength(0)
@@ -344,9 +355,69 @@ describe('one payout per paid stay', () => {
   it('sends the host their share in pesewas, with a reason naming the booking', async () => {
     booking({ subtotal: 240 })
     await runPayouts()
-    // $240 less the 10% commission is $216, at 15 cedis to the dollar
+    // $240 less the 10% commission is $216, at the 15 cedis to the dollar the guest paid at
     expect(sentBody()).toMatchObject({ source: 'balance', amount: 324000, recipient: 'RCP_1' })
     expect(state.payouts[0]).toMatchObject({ amount: 216, currency: 'USD', status: 'PROCESSING' })
+  })
+
+  it('sends a share of the cedis the guest paid, whatever the exchange rate is on the day', async () => {
+    // The guest paid $240 at 12 cedis to the dollar. Today's rate (99 in this file) plays no part.
+    booking({ subtotal: 240 })
+    state.paid.booking_1 = { amount: 240, amountPesewas: 288_000 }
+    const run = await runPayouts()
+    expect(sentBody().amount).toBe(259_200)   // 90% of the 288,000 pesewas paid
+    expect(run.results[0]).toMatchObject({ action: 'paid', amount: 216, amountPesewas: 259_200 })
+  })
+
+  it('takes the share from the stay price only when the payment also carried a damage deposit', async () => {
+    // $240 stay plus a $60 deposit, paid at 15.5: the deposit is not the host's
+    booking({ subtotal: 240 })
+    state.paid.booking_1 = { amount: 300, amountPesewas: 465_000 }
+    await runPayouts()
+    expect(sentBody().amount).toBe(334_800)   // 90% of 240 x 15.5 x 100
+  })
+
+  it('after a part refund, sends the share of the cedis that were not refunded', async () => {
+    // $400 paid at 12 cedis; $150 of the stay price went back to the guest (180,000 pesewas)
+    booking({ subtotal: 400, paymentStatus: 'PARTIALLY_REFUNDED', refund: { reason: 'DISPUTE_PARTIAL', stayRefund: 150 } })
+    state.paid.booking_1 = { amount: 400, amountPesewas: 480_000 }
+    await runPayouts()
+    expect(sentBody().amount).toBe(270_000)   // 90% of the 300,000 left
+  })
+
+  it('never sends a pesewa more than the host\'s share: an odd amount is rounded down', async () => {
+    booking({ subtotal: 33.33 })
+    state.paid.booking_1 = { amount: 33.33, amountPesewas: 51_662 }
+    await runPayouts()
+    // 90% of 51,662 is 46,495.8
+    expect(sentBody().amount).toBe(46_495)
+    expect(sentBody().amount).toBeLessThanOrEqual(51_662 * 0.9)
+  })
+
+  it('holds a payout whose payment has no stored cedi amount, with one alert, and never uses today\'s rate', async () => {
+    booking({ subtotal: 240 })
+    state.paid.booking_1 = { amount: 240, amountPesewas: null }
+    const run = await runPayouts()
+    expect(run.results).toMatchObject([{ action: 'failed', status: 'HELD', amountPesewas: null }])
+    expect(transferCalls()).toHaveLength(0)
+    expect(state.payouts).toHaveLength(1)
+    expect(state.payouts[0]).toMatchObject({ status: 'HELD', amount: 216, paystackTransferCode: null })
+    expect(state.payouts[0].failureReason).toMatch(/No stored cedi amount/)
+    expect(sentry.captureMessage.mock.calls.map(([, o]) => o.tags.payout_failure)).toEqual(['NO_CEDI_AMOUNT'])
+    // It is left for a person: later runs do not pick it up, send it or alert again
+    vi.setSystemTime(new Date(NOW.getTime() + 2 * 60 * 60 * 1000))
+    const again = await runPayouts()
+    expect([again.results, again.resumed, again.retried]).toEqual([[], [], []])
+    expect(transferCalls()).toHaveLength(0)
+    expect(sentry.captureMessage).toHaveBeenCalledTimes(1)
+  })
+
+  it('a dry run says it would hold such a payout, not that it would pay it', async () => {
+    booking({ subtotal: 240 })
+    state.paid.booking_1 = { amount: 240, amountPesewas: null }
+    const run = await runPayouts({ dryRun: true })
+    expect(run.results).toMatchObject([{ action: 'would-hold', amountPesewas: null }])
+    expect(state.writes).toBe(0)
   })
 
   it('pays stays of any length once, 48 hours after check-in', async () => {
@@ -428,7 +499,7 @@ describe('a host with no payout method', () => {
     booking()
     for (let i = 0; i < 3; i++) {
       const run = await runPayouts()
-      expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-payout-method' }])
+      expect(run.results).toEqual([{ bookingId: 'booking_1', hostId: 'host_1', amount: 90, amountPesewas: 135_000, action: 'waiting-for-payout-method' }])
     }
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.payouts).toHaveLength(0)
@@ -484,7 +555,7 @@ describe('a host whose ID is not approved', () => {
   const heldNotices = () => notifyMock.mock.calls.filter(([event]) => event === 'payout.held_for_id').map(([, ids]) => ids)
   /** The host has a payout method, so the ID is the only thing in the way */
   const hostId = (id: Row) => { state.users[0] = { id: 'host_1', ...verifiedHost, isVerified: false, verification: null, ...id } }
-  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-host-id' }
+  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, amountPesewas: 135_000, action: 'waiting-for-host-id' }
   const stuck = (over: Row = {}) => {
     booking()
     state.payouts.push({
@@ -664,7 +735,7 @@ describe('a host whose ID is not approved', () => {
 
 describe('a host whose account is suspended', () => {
   const suspend = (on: boolean) => { state.users[0] = { id: 'host_1', ...verifiedHost, suspendedAt: on ? new Date(NOW.getTime() - 60 * 1000) : null } }
-  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-suspension' }
+  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, amountPesewas: 135_000, action: 'waiting-for-suspension' }
 
   beforeEach(() => {
     switchesOn()
@@ -730,7 +801,7 @@ describe('a host whose account is suspended', () => {
 describe('a payout method saved less than 24 hours ago', () => {
   const HOUR = 60 * 60 * 1000
   const savedAgo = (ms: number) => { state.users[0] = { id: 'host_1', ...verifiedHost, payoutMethodVerifiedAt: new Date(NOW.getTime() - ms) } }
-  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, action: 'waiting-for-new-payout-method' }
+  const waitingRow = { bookingId: 'booking_1', hostId: 'host_1', amount: 90, amountPesewas: 135_000, action: 'waiting-for-new-payout-method' }
 
   beforeEach(() => {
     switchesOn()

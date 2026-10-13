@@ -4,13 +4,15 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { DollarSign, CheckCircle, Clock, Plus, Loader2, AlertTriangle, X, Landmark, Smartphone, Wallet } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-import { useExchangeRate } from '@/context/ExchangeRateContext'
+import { ghsFromPesewas } from '@/lib/utils'
 import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { NEW_METHOD_NOTE } from '@/lib/payoutMethod'
 
 type ApiPayout = {
   id: string
   amount: number
+  /** The payout in pesewas: the host's share of the cedis the guest paid. Null when it cannot be worked out. */
+  amountPesewas?: number | null
   currency: string
   method: string
   momoNetwork: string | null
@@ -79,11 +81,10 @@ function savedMethodLabel(m: SavedPayoutMethod): string {
 
 export default function HostPayoutsPage() {
   const { user, loading: authLoading } = useAuth()
-  const { rate: ghsRate } = useExchangeRate()
   const [loadedPayouts, setPayouts] = useState<ApiPayout[]>([])
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   // Money that has fallen due but cannot be sent until a payout method is saved
-  const [waiting, setWaiting] = useState<{ count: number; amount: number } | null>(null)
+  const [waiting, setWaiting] = useState<{ count: number; amount: number; amountPesewas?: number | null } | null>(null)
   // Loading and the visible list are derived from which user the data was
   // loaded for, rather than reset/toggled inside the effect.
   const isCurrent = !!user && loadedFor === user.id
@@ -202,14 +203,18 @@ export default function HostPayoutsPage() {
     }
   }
 
+  // Cedis first, with dollars beside. A sum is in cedis only when every payout in it can be worked out in cedis.
+  const usd = (n: number, digits = 0) => `$${n.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: 2 })}`
+  const cedis = (list: ApiPayout[]) => (list.every((p) => typeof p.amountPesewas === 'number') ? list.reduce((s, p) => s + (p.amountPesewas ?? 0), 0) : null)
   const completed = payouts.filter((p) => p.status === 'COMPLETED')
   const totalEarned = completed.reduce((s, p) => s + p.amount, 0)
+  const totalPesewas = cedis(completed)
   const monthStart = new Date()
   monthStart.setDate(1)
   monthStart.setHours(0, 0, 0, 0)
-  const thisMonth = payouts
-    .filter((p) => new Date(p.createdAt) >= monthStart && p.status !== 'FAILED')
-    .reduce((s, p) => s + p.amount, 0)
+  const monthPayouts = payouts.filter((p) => new Date(p.createdAt) >= monthStart && p.status !== 'FAILED')
+  const thisMonth = monthPayouts.reduce((s, p) => s + p.amount, 0)
+  const monthPesewas = cedis(monthPayouts)
   const pendingCount = payouts.filter((p) => p.status === 'PENDING' || p.status === 'PROCESSING').length
   const avg = completed.length ? totalEarned / completed.length : 0
 
@@ -263,7 +268,7 @@ export default function HostPayoutsPage() {
                 <Wallet size={18} aria-hidden style={{ color: 'var(--color-accent-deep)', flexShrink: 0, marginTop: 2 }} />
                 <div>
                   <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                    ${waiting.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} is waiting to be paid to you
+                    {typeof waiting.amountPesewas === 'number' ? `${ghsFromPesewas(waiting.amountPesewas)} (${usd(waiting.amount, 2)})` : usd(waiting.amount, 2)} is waiting to be paid to you
                   </p>
                   <p className="text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>
                     {waiting.count === 1 ? 'One stay is' : `${waiting.count} stays are`} ready for payout, but you have not added a payout method yet.
@@ -278,14 +283,14 @@ export default function HostPayoutsPage() {
               {[
                 {
                   label: 'Total Earned',
-                  value: `$${totalEarned.toLocaleString()}`,
-                  sub: `≈ GH₵ ${(totalEarned * ghsRate).toLocaleString()}`,
+                  value: totalPesewas !== null ? ghsFromPesewas(totalPesewas) : usd(totalEarned),
+                  sub: totalPesewas !== null ? usd(totalEarned) : '',
                   color: 'var(--color-accent)',
                 },
                 {
                   label: 'This Month',
-                  value: `$${thisMonth.toLocaleString()}`,
-                  sub: pendingCount ? `${pendingCount} payout pending` : 'No pending payouts',
+                  value: monthPesewas !== null ? ghsFromPesewas(monthPesewas) : usd(thisMonth),
+                  sub: `${monthPesewas !== null ? `${usd(thisMonth)} · ` : ''}${pendingCount ? `${pendingCount} payout pending` : 'No pending payouts'}`,
                   color: '#2563EB',
                 },
                 {
@@ -296,7 +301,7 @@ export default function HostPayoutsPage() {
                 },
                 {
                   label: 'Avg per Payout',
-                  value: completed.length ? `$${avg.toFixed(0)}` : '$0',
+                  value: completed.length && totalPesewas !== null ? ghsFromPesewas(Math.round(totalPesewas / completed.length)) : completed.length ? `$${avg.toFixed(0)}` : 'GH₵ 0',
                   sub: completed.length ? `Based on ${completed.length} payouts` : 'No payouts yet',
                   color: '#059669',
                 },
@@ -448,8 +453,11 @@ export default function HostPayoutsPage() {
                           </div>
                           <div className="text-right flex-shrink-0">
                             <p className="font-bold text-sm" style={{ color: '#059669' }}>
-                              +${p.amount.toLocaleString()}
+                              +{typeof p.amountPesewas === 'number' ? ghsFromPesewas(p.amountPesewas) : usd(p.amount)}
                             </p>
+                            {typeof p.amountPesewas === 'number' && (
+                              <p className="text-xs text-[#6B645C]">{usd(p.amount)}</p>
+                            )}
                             <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full mt-1"
                               style={{ backgroundColor: s.bg, color: s.color }}>
                               {s.icon} {s.label}

@@ -206,7 +206,6 @@ test.describe('jobs', () => {
 test.describe('the exchange rate moves between the payment and the payout', () => {
   // Here, alone: the rate is one row that every booking on the site reads
   test('the host is never sent more cedis than 90% of what the guest was charged', async ({ world }) => {
-    test.fail(true, 'F17: the payout is converted at the rate on the day it is sent, not the rate the guest was charged at')
     const host = await world.host()
     const guest = await world.guest()
     const home = await world.listing(host, { priceNightly: 100 })
@@ -221,7 +220,9 @@ test.describe('the exchange rate moves between the payment and the payout', () =
       await cron('process-payouts')
       const [transfer] = await until(async () => { const t = await fakes.transfers(`booking ${id}`); return t.length ? t : null }, 'the transfer')
       measured(`the guest was charged ${payment.amountPesewas} pesewas; after the rate moved 15% the host was sent ${transfer.amount} (${Math.round(transfer.amount / payment.amountPesewas! * 1000) / 10}% of it)`)
-      expect(transfer.amount).toBeLessThanOrEqual(Math.round(payment.amountPesewas! * 0.9) + 1)
+      // The stay price is all of this payment (no deposit, no fee), so the host's share is 90% of it: not a pesewa more, and no more than one less
+      expect(transfer.amount).toBeLessThanOrEqual(payment.amountPesewas! * 0.9)
+      expect(transfer.amount).toBeGreaterThan(payment.amountPesewas! * 0.9 - 1)
     } finally {
       await db.exchangeRate.update({ where: { id: rate.id }, data: { usdToGhs: rate.usdToGhs } })
     }
