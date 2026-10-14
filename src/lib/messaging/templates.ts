@@ -13,7 +13,7 @@
 //    Everything else is about their booking or their money and is always sent.
 
 import { PAYOUT_SENT_NOTE } from '@/lib/fees'
-import { aboutGhs, firstName, ghanaDate, ghanaTime, ghs, sms, smsGhs, usd } from '@/lib/messaging/format'
+import { aboutGhs, aboutSmsGhs, firstName, ghanaDate, ghanaTime, ghs, sms, smsGhs, smsSafe, SMS_MAX, usd } from '@/lib/messaging/format'
 import { TOKEN_PLACEHOLDER } from '@/lib/sealed'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_BADGE } from '@/lib/listingCheckRules'
@@ -135,6 +135,13 @@ const rent = (f: Facts) => `${usd(f.rentUsd ?? 0)}${f.usdToGhs ? ` (${aboutGhs(f
 const rentPaid = (f: Facts) => (f.paidPesewas ? `${ghs(f.paidPesewas)} (${usd(f.rentUsd ?? 0)})` : usd(f.rentUsd ?? 0))
 const rentMonth = (f: Facts) => `the period starting ${ghanaDate(f.rentPeriodStart!)}`
 const rentLink = (f: Facts) => ({ label: 'Pay your rent', path: `/checkout/${f.bookingId}?instalment=${f.instalmentId}` })
+/** Rent not yet paid, for SMS: cedis at today's rate, marked "about", since the charge is made at the rate on the day. Dollars only if no rate is known. */
+const smsRent = (f: Facts) => (f.usdToGhs ? aboutSmsGhs(f.rentUsd ?? 0, f.usdToGhs) : usd(f.rentUsd ?? 0))
+/** The support address when it fits in one SMS; otherwise the message still makes sense without it. */
+function payoutMethodSms(supportEmail: string): string {
+  const full = smsSafe(`FieGH: The payout method on your account was changed. If this was not you, write to ${supportEmail} straight away.`)
+  return full.length <= SMS_MAX ? full : 'FieGH: The payout method on your account was changed. If this was not you, contact FieGH support straight away.'
+}
 const RENT_HOW = 'Rent is charged in cedis at the rate on the day you pay. Nothing is taken automatically: you pay each month yourself, by card or mobile money.'
 /**
  * A link that carries a single-use token. The stored message holds the
@@ -636,7 +643,7 @@ export const TEMPLATES = {
         ],
         link: rentLink(f),
       },
-      sms: sms(f.title, (t) => `FieGH: Rent of ${usd(f.rentUsd ?? 0)} for "${t}" is due on ${ghanaDate(f.rentDue!, true)}. Pay from your booking: ${bookingUrl(f)}`),
+      sms: sms(f.title, (t) => `FieGH: Rent of ${smsRent(f)} for "${t}" is due on ${ghanaDate(f.rentDue!, true)}. Pay from your booking: ${bookingUrl(f)}`),
     }],
   },
 
@@ -653,7 +660,7 @@ export const TEMPLATES = {
         ],
         link: rentLink(f),
       },
-      sms: sms(f.title, (t) => `FieGH: Rent of ${usd(f.rentUsd ?? 0)} for "${t}" is due today. Pay from your booking: ${bookingUrl(f)}`),
+      sms: sms(f.title, (t) => `FieGH: Rent of ${smsRent(f)} for "${t}" is due today. Pay from your booking: ${bookingUrl(f)}`),
     }],
   },
 
@@ -672,7 +679,7 @@ export const TEMPLATES = {
         ],
         link: rentLink(f),
       },
-      sms: sms(f.title, (t) => `FieGH: Rent of ${usd(f.rentUsd ?? 0)} for "${t}" was due on ${ghanaDate(f.rentDue!, true)} and is late. Please pay today: ${bookingUrl(f)}`),
+      sms: sms(f.title, (t) => `FieGH: Rent of ${smsRent(f)} for "${t}" was due on ${ghanaDate(f.rentDue!, true)} and is late. Please pay today: ${bookingUrl(f)}`),
     }],
   },
 
@@ -849,7 +856,7 @@ export const TEMPLATES = {
         ],
         link: payoutsLink,
       },
-      sms: `FieGH: The payout method on your account was changed. If this was not you, write to ${f.supportEmail} straight away.`,
+      sms: payoutMethodSms(f.supportEmail),
     }],
   },
 

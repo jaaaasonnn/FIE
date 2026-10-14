@@ -122,7 +122,7 @@ vi.mock('@/lib/db', async () => {
 
 import { normalizeEmail } from '@/lib/utils'
 import { channelGate } from '@/lib/messaging/config'
-import { ghanaDate, ghanaTime, ghs, maskEmail, maskPhone, scrub, sms, smsGhs, smsSafe } from '@/lib/messaging/format'
+import { ghanaDate, ghanaTime, ghs, gsmLength, GSM_EXTENSION, maskEmail, maskPhone, scrub, sms, smsGhs, smsSafe } from '@/lib/messaging/format'
 import { EVENT_NAMES, SAMPLE_FACTS, TEMPLATES, emailFooter, emailText, type Facts, type Piece, type Template } from '@/lib/messaging/templates'
 import { MESSAGE_ALERT_WINDOW_MS } from '@/lib/messaging/events'
 import { notify, writeMessages } from '@/lib/messaging/notify'
@@ -245,6 +245,54 @@ describe('templates', () => {
     expect(seen).toBeGreaterThan(10)
   })
 
+  it('keeps every SMS to one segment as a network counts it, in the plain SMS alphabet, at the longest realistic values', () => {
+    // A title full of characters a network counts twice or cannot carry plainly, the largest
+    // amounts, a long booking id, a long support address and a high rate
+    const LONGEST: Facts = {
+      ...WORST,
+      title: 'Villa [Akwaaba] {Labadi} | 50% off~ `pool` ^top^ \\ with a very long name indeed and more words after it',
+      supportEmail: 'customer.support.team@fiegh-ghana-holidays.example.com',
+      rentUsd: 999_999.99, usdToGhs: 99.99, payoutPesewas: 9_999_999_999, paidPesewas: 9_999_999_999,
+      rentDue: new Date('2027-12-28T12:00:00Z'), payBy: new Date('2027-12-28T23:59:00Z'),
+      checkIn: new Date('2027-12-28T12:00:00Z'), checkOut: new Date('2028-12-28T12:00:00Z'),
+      appUrl: 'https://www.fiegh.com', bookingId: 'cmzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz9',
+    }
+    let seen = 0
+    for (const event of EVENT_NAMES) {
+      for (const facts of [SAMPLE_FACTS, WORST, LONGEST, { ...LONGEST, usdToGhs: undefined }]) {
+        for (const piece of render(event, facts)) {
+          if (!piece.sms) continue
+          seen++
+          const length = gsmLength(piece.sms)
+          expect(length, `${event} is not in the plain SMS alphabet: ${piece.sms}`).not.toBeNull()
+          expect(length!, `${event}: ${piece.sms}`).toBeLessThanOrEqual(160)
+          // Nothing a network counts twice, so the length is the same however it is counted
+          for (const c of GSM_EXTENSION) expect(piece.sms, event).not.toContain(c)
+          expect(piece.sms, event).not.toMatch(/[`%]/)
+        }
+      }
+    }
+    expect(seen).toBeGreaterThan(40)
+  })
+
+  it('writes rent not yet paid in cedis, marked "about", at the rate in force', () => {
+    for (const event of ['rent.due_soon', 'rent.due_today', 'rent.overdue']) {
+      const [piece] = render(event, { ...SAMPLE_FACTS, rentUsd: 1000, usdToGhs: 15 })
+      expect(piece.sms, event).toContain('Rent of about GHS 15,000 for')
+      expect(piece.sms, event).not.toContain('$')
+    }
+    // No rate known: dollars, rather than a wrong cedi figure
+    expect(render('rent.due_today', { ...SAMPLE_FACTS, rentUsd: 1000, usdToGhs: undefined })[0].sms).toContain('Rent of $1,000.00 for')
+  })
+
+  it('keeps the payout-method SMS whole with a long support address', () => {
+    const short = render('payout_method.changed')[0].sms!
+    expect(short).toContain(SAMPLE_FACTS.supportEmail)
+    const long = render('payout_method.changed', { ...SAMPLE_FACTS, supportEmail: `${'a'.repeat(80)}@fiegh.com` })[0].sms!
+    expect(long.length).toBeLessThanOrEqual(160)
+    expect(long).toBe('FieGH: The payout method on your account was changed. If this was not you, contact FieGH support straight away.')
+  })
+
   it('sends SMS for the agreed events only', () => {
     const withSms = EVENT_NAMES.flatMap((event) => render(event).filter((p) => p.sms).map((p) => `${event} > ${p.to}`))
     expect(withSms.sort()).toEqual([
@@ -337,6 +385,18 @@ describe('formatting', () => {
     expect(sms('A'.repeat(300), (t) => `FieGH: "${t}" ${'x'.repeat(100)}`).length).toBeLessThanOrEqual(160)
     expect(sms(undefined, (t) => `FieGH: ${t}`)).toBe('FieGH: your booking')
     expect(sms('✨', (t) => `FieGH: ${t}`)).toBe('FieGH: your booking')
+  })
+
+  it('keeps out what a network counts twice or cannot carry plainly', () => {
+    expect(smsSafe('Villa [A] {B} a|b ~x^ `q` c\\d 50%')).toBe("Villa (A) (B) a/b -x 'q' c/d 50 percent")
+    expect(gsmLength('FieGH: plain')).toBe(12)
+    expect(gsmLength('a[b')).toBe(4)
+    expect(gsmLength('a`b')).toBeNull()
+    expect(gsmLength('café')).toBeNull()
+    for (let code = 0x20; code <= 0x7e; code++) {
+      const out = smsSafe(`x${String.fromCharCode(code)}x`)
+      expect(gsmLength(out), `character ${code}`).toBe(out.length)
+    }
   })
 
   it('masks addresses and scrubs them out of provider errors', () => {
@@ -584,7 +644,7 @@ describe('recording an event', () => {
       expect(one({ channel: 'EMAIL' })).toMatchObject({ subject: 'Rent for Sea-view apartment in Labadi is due today', bookingId: 'booking_1', recipientRole: 'GUEST' })
       expect(one({ channel: 'EMAIL' }).body).toContain('Your rent of $1,000.00 (about GH₵ 15,500) for Sea-view apartment in Labadi is due today.')
       expect(one({ channel: 'EMAIL' }).body).toContain('Pay your rent: https://fiegh.com/checkout/booking_1?instalment=inst_2')
-      expect(one({ channel: 'SMS' }).body).toBe('FieGH: Rent of $1,000.00 for "Sea-view apartment in Labadi" is due today. Pay from your booking: https://fiegh.com/bookings/booking_1')
+      expect(one({ channel: 'SMS' }).body).toBe('FieGH: Rent of about GHS 15,500 for "Sea-view apartment in Labadi" is due today. Pay from your booking: https://fiegh.com/bookings/booking_1')
       expect(fake.email).not.toHaveBeenCalled()
       expect(fake.sms).not.toHaveBeenCalled()
     })
@@ -597,7 +657,7 @@ describe('recording an event', () => {
       expect((await writeMessages('rent.overdue', { instalmentId: 'inst_2', day: '2027-06-13' })).written).toBe(2)
       expect(state.logs).toHaveLength(4)
       expect(one({ channel: 'SMS', dedupeKey: 'rent.overdue:inst_2:2027-06-12:guest_1:SMS' }).body).toBe(
-        'FieGH: Rent of $1,000.00 for "Sea-view apartment in Labadi" was due on 9 Jun and is late. Please pay today: https://fiegh.com/bookings/booking_1',
+        'FieGH: Rent of about GHS 15,500 for "Sea-view apartment in Labadi" was due on 9 Jun and is late. Please pay today: https://fiegh.com/bookings/booking_1',
       )
     })
 

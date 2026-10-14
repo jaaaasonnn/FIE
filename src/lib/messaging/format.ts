@@ -27,6 +27,8 @@ export const usd = (amount: number) => `$${grouped(amount, 2)}`
 export const ghs = (pesewas: number) => `GH₵ ${grouped(pesewas / 100, 2)}`
 /** The same for SMS. The cedi sign is not in the SMS alphabet and would triple the cost. */
 export const smsGhs = (pesewas: number) => `GHS ${grouped(pesewas / 100, 2)}`
+/** A dollar amount not yet paid, in cedis at a rate, for SMS: "about GHS 15,000". */
+export const aboutSmsGhs = (amountUsd: number, usdToGhs: number) => `about GHS ${grouped(Math.round(amountUsd * usdToGhs), 0)}`
 /** A dollar price in cedis at a rate, rounded, for amounts not yet paid: "about GH₵ 1,130". */
 export const aboutGhs = (amountUsd: number, usdToGhs: number) => `about GH₵ ${grouped(Math.round(amountUsd * usdToGhs), 0)}`
 
@@ -39,14 +41,44 @@ export function firstName(name: string | null | undefined): string {
 
 export const SMS_MAX = 160
 
-/** Text an SMS can carry in one plain segment: printable ASCII only. */
+// The SMS alphabet (GSM 03.38). Every printable ASCII character is in its
+// basic table except these: the backtick is not in it at all (one would turn
+// the whole message into the Unicode encoding, 70 characters a message), and
+// the rest are in the extension table, which costs two characters each.
+/** Characters a network counts twice. */
+export const GSM_EXTENSION = '[]{}\\^~|'
+const GSM_SWAP: Record<string, string> = { '[': '(', ']': ')', '{': '(', '}': ')', '\\': '/', '|': '/', '^': '', '~': '-', '`': "'" }
+
+/**
+ * Text an SMS can carry in one plain segment: printable ASCII, with nothing
+ * from the extension table and no backtick, so every character counts once.
+ * "%" is written out: some gateways refuse a message that holds it.
+ */
 export function smsSafe(text: string): string {
   return text
     .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')      // accents off: "Cafe" with an accent to "Cafe"
     .replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '"')
     .replace(/[\u2013\u2014]/g, '-').replace(/\u20B5/g, 'GHS')
     .replace(/[^\x20-\x7E]/g, '')
+    .replace(/[[\]{}\\|^~`]/g, (c) => GSM_SWAP[c])
+    .replace(/%/g, ' percent')
     .replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * The length of a text as a network counts it in the plain SMS alphabet: one
+ * for each basic character, two for each extension character. Null when the
+ * text holds anything outside the alphabet, which would force Unicode.
+ */
+export function gsmLength(text: string): number | null {
+  // The basic table's printable ASCII: everything from space to "~" but the backtick and the extension characters
+  let length = 0
+  for (const c of text) {
+    if (GSM_EXTENSION.includes(c)) length += 2
+    else if (c >= ' ' && c <= '~' && c !== '`') length += 1
+    else return null
+  }
+  return length
 }
 
 /**
