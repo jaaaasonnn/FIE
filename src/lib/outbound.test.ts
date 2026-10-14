@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
-  MONEY_TIMEOUT_MS, OutboundTimeoutError, READ_RETRIES, READ_TIMEOUT_MS, STORAGE_TIMEOUT_MS,
+  MESSAGE_TIMEOUT_MS, MONEY_TIMEOUT_MS, OutboundTimeoutError, READ_RETRIES, READ_TIMEOUT_MS, STORAGE_TIMEOUT_MS,
   fetchWithLimit, readWithRetry, sendOnce,
 } from '@/lib/outbound'
 
@@ -22,6 +22,7 @@ describe('the limits', () => {
     expect(READ_TIMEOUT_MS).toBe(10_000)
     expect(MONEY_TIMEOUT_MS).toBe(15_000)
     expect(STORAGE_TIMEOUT_MS).toBe(30_000)
+    expect(MESSAGE_TIMEOUT_MS).toBe(8_000)
   })
 })
 
@@ -32,6 +33,16 @@ describe('a call that moves money', () => {
     const started = Date.now()
     await expect(sendOnce('https://api.paystack.co/transfer', { method: 'POST' }, 60)).rejects.toBeInstanceOf(OutboundTimeoutError)
     expect(Date.now() - started).toBeLessThan(2000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('also stops at the caller\'s own signal, whichever comes first, and calls that a timeout too', async () => {
+    const fetchMock = silent()
+    vi.stubGlobal('fetch', fetchMock)
+    const stop = new AbortController()
+    const call = sendOnce('https://sms.arkesel.com/api/v2/sms/send', { method: 'POST' }, 60_000, stop.signal)
+    stop.abort()
+    await expect(call).rejects.toBeInstanceOf(OutboundTimeoutError)
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 

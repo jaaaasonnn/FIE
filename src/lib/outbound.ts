@@ -14,6 +14,8 @@ export const READ_TIMEOUT_MS = 10_000
 export const MONEY_TIMEOUT_MS = 15_000
 /** The longest a file upload to storage, or any other storage call, may take. */
 export const STORAGE_TIMEOUT_MS = 30_000
+/** The longest one call to send a message (an email or an SMS) may take. One attempt. */
+export const MESSAGE_TIMEOUT_MS = 8_000
 /** How many times a read is tried again after a failure that answered quickly. */
 export const READ_RETRIES = 2
 /** The pause before each further attempt at a read. */
@@ -49,10 +51,13 @@ async function attempt(url: string, init: RequestInit, limitMs: number, signal: 
 
 /**
  * A call that moves money or makes something: a transfer, a refund, a new
- * payment page, a transfer recipient. One attempt, never repeated here.
+ * payment page, a transfer recipient, an SMS. One attempt, never repeated here.
+ * `stop` is the caller's own signal (the sending job's limit, say): the call
+ * ends at whichever comes first, and either way it is a timeout.
  */
-export function sendOnce(url: string, init: RequestInit, limitMs: number = MONEY_TIMEOUT_MS): Promise<Response> {
-  return attempt(url, init, limitMs, AbortSignal.timeout(limitMs))
+export function sendOnce(url: string, init: RequestInit, limitMs: number = MONEY_TIMEOUT_MS, stop?: AbortSignal): Promise<Response> {
+  const limit = AbortSignal.timeout(limitMs)
+  return attempt(url, init, limitMs, stop ? AbortSignal.any([limit, stop]) : limit)
 }
 
 /**
