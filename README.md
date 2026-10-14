@@ -144,12 +144,26 @@ Add `?dryRun=1` to any cron URL for a report-only run.
 Nothing is sent until it is switched on. Leave these unset until a provider account exists (see `.env.example` and CLAUDE.md):
 
 - `MESSAGING_ENABLED`: must be exactly `true` before anything can be sent. While off, every message is still recorded in the message log (admin page, Messages tab) as `LOGGED`, and is never sent later.
-- `EMAIL_PROVIDER`, `SMS_PROVIDER`: the adapter each channel sends through. Unset (or `log`) means that channel only logs. `resend` is the one real email adapter: real email goes out only with `MESSAGING_ENABLED=true` and `EMAIL_PROVIDER=resend`. There is no real SMS adapter yet.
+- `EMAIL_PROVIDER`, `SMS_PROVIDER`: the adapter each channel sends through. Unset (or `log`) means that channel only logs. `resend` is the one real email adapter: real email goes out only with `MESSAGING_ENABLED=true` and `EMAIL_PROVIDER=resend`. `arkesel` is the one real SMS adapter: real SMS goes out only with `MESSAGING_ENABLED=true` and `SMS_PROVIDER=arkesel`.
 - `RESEND_API_KEY`: the Resend API key. Read from the environment only; never logged or stored. If it is missing while email is switched on, nothing is called and each email is retried, then given up with an alert.
 - `EMAIL_FROM`: the whole From line. Default `FieGH <support@fiegh.com>`. The address must be on a domain verified in Resend.
-- `SUPPORT_EMAIL`, `SMS_SENDER_ID`: the reply-to (also shown in messages) and the SMS sender name. Defaults are support@fiegh.com and FieGH.
+- `SUPPORT_EMAIL`, `SMS_SENDER_ID`: the reply-to (also shown in messages) and the SMS sender name. Defaults are support@fiegh.com and FieGH. The sender name must be the one Arkesel has approved (1 to 11 letters, digits or spaces).
+- `ARKESEL_API_KEY`: the Arkesel SMS API key. Read from the environment only; never logged or stored. If it is missing while SMS is switched on, nothing is called and each SMS is retried, then given up with an alert.
+- `SMS_WEBHOOK_SECRET`: 32 or more random characters. With it, each SMS asks Arkesel for a delivery report on its own signed link (`/api/webhooks/sms/arkesel/<id>/<signature>`), and the Messages tab shows Delivered or Not delivered. Without it no report is asked for.
+- `SMS_LOW_BALANCE_ALERT`: a number of SMS credits. The hourly `sms-balance` job raises one alert a day while the Arkesel balance is below it. It calls Arkesel only while SMS is switched on through Arkesel.
 - `ADMIN_ALERT_EMAIL`: one shared inbox for everything admins are emailed about. Unset: each admin account that has an email address is sent it instead. With neither, the email is skipped; the in-app notices still appear.
 - `SUPPORT_PHONE`: the support phone number shown in the footer. Unset: no phone number is shown. A placeholder is never shown.
+
+To send one test email or SMS by hand before switching anything on: `npm run email:test -- you@example.com --confirm`, and `npm run sms:test -- 0XXXXXXXXX --confirm --sandbox` (Arkesel's sandbox: not delivered, not charged), then without `--sandbox` for one real SMS. Both ignore the switches and write nothing to the database.
+
+#### Before turning SMS on
+
+1. Open an Arkesel account (account.arkesel.com) and verify its phone number and email.
+2. Ask Arkesel to register the sender ID `FieGH` (or the name in `SMS_SENDER_ID`) for transactional messages, and wait for the networks to approve it. Messages from an unregistered sender ID are blocked, and MTN blocks unregistered international sender IDs.
+3. Top up SMS credit (Recharge, Purchase SMS plan).
+4. Create the API key (SMS API page) and set `ARKESEL_API_KEY`, `SMS_WEBHOOK_SECRET` and `SMS_LOW_BALANCE_ALERT` on Vercel. Nothing needs to be set in Arkesel for delivery reports: each SMS carries its own report link, which must be reachable at the real domain (`NEXTAUTH_URL`).
+5. Run `npm run sms:test -- 0XXXXXXXXX --confirm --sandbox`, then once without `--sandbox` to a phone you hold.
+6. Only then set `SMS_PROVIDER=arkesel` (with `MESSAGING_ENABLED=true`).
 
 The drill adapters (`fail-drill-email`, `fail-drill-sms`) are for rehearsing failures and are test-only. They cannot be selected in production (`NODE_ENV=production` or `VERCEL_ENV=production`): naming one there sends nothing and raises a Sentry alert.
 
