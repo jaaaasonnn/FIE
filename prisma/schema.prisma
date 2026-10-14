@@ -139,7 +139,9 @@ model MessageLog {
   dedupeKey         String    @unique
   subject           String?
   body              String
-  status            String    @default("QUEUED") // QUEUED | SENDING | LOGGED | SENT | FAILED | GAVE_UP | SKIPPED | UNKNOWN
+  // DELIVERED and UNDELIVERED come only from an SMS delivery report, and only after SENT.
+  // Never FAILED: that means "refused, try again" and would be sent a second time.
+  status            String    @default("QUEUED") // QUEUED | SENDING | LOGGED | SENT | FAILED | GAVE_UP | SKIPPED | UNKNOWN | DELIVERED | UNDELIVERED
   provider          String?
   providerMessageId String?
   error             String?
@@ -153,6 +155,9 @@ model MessageLog {
   nextAttemptAt     DateTime?
   sentAt            DateTime?
   alertedAt         DateTime?
+  // The provider's own word from its last delivery report ("DELIVERED", "EXPIRED"...), and when it came
+  deliveryStatus    String?
+  deliveryUpdatedAt DateTime?
   createdAt         DateTime  @default(now())
 
   user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
