@@ -12,6 +12,7 @@ export const FAKE = `http://127.0.0.1:${PORTS.fakes}`
 export const HOST_MAP = {
   'api.paystack.co': `${FAKE}/paystack`,
   'api.resend.com': `${FAKE}/resend`,
+  'sms.arkesel.com': `${FAKE}/arkesel`,
   'v6.exchangerate-api.com': `${FAKE}/rate`,
   'images.unsplash.com': `http://127.0.0.1:${PORTS.storage}/unsplash`,
   'e2e-storage.fiegh.test': `http://127.0.0.1:${PORTS.storage}`,
@@ -57,6 +58,7 @@ export function assertLocal(env, realKeys = new Set()) {
   for (const key of realKeys) if (env[key] === undefined) throw new GuardError(`${key} is in .env but has no test value: refusing to start`)
   if (!String(env.PAYSTACK_SECRET_KEY).startsWith('sk_test_e2e_')) throw new GuardError('PAYSTACK_SECRET_KEY is not the fake key: refusing to start')
   if (env.RESEND_API_KEY !== 're_e2e_fake') throw new GuardError('RESEND_API_KEY is not the fake key: refusing to start')
+  if (env.ARKESEL_API_KEY !== 'ark_e2e_fake') throw new GuardError('ARKESEL_API_KEY is not the fake key: refusing to start')
   if (env.SENTRY_AUTH_TOKEN) throw new GuardError('SENTRY_AUTH_TOKEN is set: refusing to start')
   const dsn = env.NEXT_PUBLIC_SENTRY_DSN ? new URL(env.NEXT_PUBLIC_SENTRY_DSN).hostname : '127.0.0.1'
   if (dsn !== '127.0.0.1') throw new GuardError('The Sentry DSN is not the local fake: refusing to start')

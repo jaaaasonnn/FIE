@@ -1,5 +1,6 @@
 // Local stand-ins for every outside service the app talks to: Paystack,
-// Resend, the exchange-rate API, Sentry, Supabase Storage and Unsplash.
+// Resend, Arkesel (SMS), the exchange-rate API, Sentry, Supabase Storage and
+// Unsplash.
 // Listens on loopback only. Holds everything in memory and calls nothing.
 //
 // Tests steer it through /__control (see lib/fakes.ts). Failure rules are
@@ -22,6 +23,8 @@ const state = {
   recipients: [],
   emails: [],
   emailKeys: new Map(),   // idempotency key -> id
+  sms: [],                // every SMS Arkesel took, sandbox ones included
+  smsBalance: 100000,     // SMS credits left at the fake Arkesel
   sentry: [],
   files: new Map(),       // bucket/path -> { type, bytes }
   calls: [],              // every request the app made to a fake
@@ -52,6 +55,12 @@ async function misbehave(endpoint, text, res) {
     case 'http500': send(res, 500, { status: false, message: 'Internal server error (fake)' }); return true
     case 'http400': send(res, 400, { status: false, message: rule.message ?? 'Bad request (fake)' }); return true
     case 'http429': send(res, 429, { status: false, message: 'Too many requests (fake)' }); return true
+    case 'http401': send(res, 401, { status: 'error', message: rule.message ?? 'Authentication failed (fake)' }); return true
+    case 'http402': send(res, 402, { status: 'error', message: rule.message ?? 'Insufficient balance or invalid coverage!' }); return true
+    case 'http403': send(res, 403, { status: 'error', message: rule.message ?? 'Inactive SMS Gateway!' }); return true
+    case 'http422': send(res, 422, { status: 'error', message: rule.message ?? 'The given data was invalid. (fake)' }); return true
+    case 'http502': send(res, 502, '<html>Bad gateway (fake)</html>'); return true
+    case 'http503': send(res, 503, '<html>Service unavailable (fake)</html>'); return true
     case 'malformed': send(res, 200, '<html>not json', { 'content-type': 'application/json' }); return true
     case 'empty': send(res, 200, '', { 'content-type': 'application/json' }); return true
     case 'reset': res.socket?.destroy(); return true
@@ -206,6 +215,41 @@ async function resend(req, res, url, body) {
   return send(res, 200, { id })
 }
 
+// ── Arkesel (SMS) ──────────────────────────────────────────────────────────
+// The two calls the app makes: send (POST /api/v2/sms/send) and the balance
+// (GET /api/v2/clients/balance-details). Answers are shaped as Arkesel's
+// published spec shows them. Delivery reports are sent only when a test asks
+// (control /sms-report), to the callback_url the message carried.
+const ARKESEL_KEY = 'ark_e2e_fake'
+async function arkesel(req, res, url, body) {
+  const text = body.toString('utf8')
+  const path = url.pathname.replace(/^\/arkesel/, '')
+  const endpoint = path === '/api/v2/sms/send' ? 'arkesel' : path === '/api/v2/clients/balance-details' ? 'arkesel-balance' : 'arkesel-other'
+  state.calls.push({ service: 'arkesel', endpoint, method: req.method, text, at: Date.now() })
+  if (await misbehave(endpoint, text, res)) return
+  if (req.headers['api-key'] !== ARKESEL_KEY) return send(res, 401, { status: 'error', message: 'Authentication failed' })
+  if (endpoint === 'arkesel-balance' && req.method === 'GET') {
+    return send(res, 200, { status: 'success', data: { sms_balance: String(state.smsBalance), main_balance: 'GHS 0.20' } })
+  }
+  if (endpoint !== 'arkesel' || req.method !== 'POST') return send(res, 404, { status: 'error', message: `Fake Arkesel has no ${req.method} ${path}` })
+  let m
+  try { m = JSON.parse(text) } catch { return send(res, 422, { status: 'error', message: 'The message field is required.' }) }
+  if (typeof m.sender !== 'string' || !m.sender || m.sender.length > 11) return send(res, 422, { status: 'error', message: 'The sender field must not be greater than 11 characters.' })
+  if (typeof m.message !== 'string' || !m.message) return send(res, 422, { status: 'error', message: 'The message field is required.' })
+  if (!Array.isArray(m.recipients) || m.recipients.length === 0) return send(res, 422, { status: 'error', message: 'The recipients field is required.' })
+  if (!m.sandbox && state.smsBalance < m.recipients.length) return send(res, 402, { status: 'error', message: 'Insufficient balance or invalid coverage!' })
+  const valid = m.recipients.filter((r) => /^233[25]\d{8}$/.test(String(r)))
+  const invalid = m.recipients.filter((r) => !valid.includes(r))
+  const data = valid.map((recipient) => {
+    const id = crypto.randomUUID()
+    state.sms.push({ id, recipient, sender: m.sender, message: m.message, callback_url: m.callback_url ?? null, sandbox: !!m.sandbox, at: Date.now() })
+    if (!m.sandbox) state.smsBalance--
+    return { recipient, id }
+  })
+  if (invalid.length) data.push({ 'invalid numbers': invalid })
+  return send(res, 200, { status: 'success', data })
+}
+
 // ── Storage and photos (second port) ───────────────────────────────────────
 async function storage(req, res, url, body) {
   if (url.pathname.startsWith('/unsplash/')) {
@@ -294,12 +338,24 @@ async function control(req, res, url, body) {
   if (path === '/refunds' && req.method === 'GET') return send(res, 200, state.refunds.filter((r) => !q.match || JSON.stringify(r).includes(q.match)))
   if (path === '/refunds' && req.method === 'POST') { const r = state.refunds.find((x) => String(x.id) === String(p.id)); if (r) r.status = p.status; return send(res, 200, r ?? {}) }
   if (path === '/recipients') return send(res, 200, state.recipients.filter((r) => !q.match || JSON.stringify(r).includes(q.match)))
+  if (path === '/sms' && req.method === 'GET') return send(res, 200, state.sms.filter((s) => (!q.to || s.recipient === q.to) && (!q.match || JSON.stringify(s).includes(q.match))))
+  if (path === '/sms-balance' && req.method === 'POST') { state.smsBalance = Number(p.balance); return send(res, 200, { balance: state.smsBalance }) }
+  if (path === '/sms-report' && req.method === 'POST') { // Arkesel reporting delivery: a GET to the message's callback_url with sms_id and status
+    const sms = state.sms.find((s) => s.id === p.id)
+    if (!sms?.callback_url) return send(res, 404, { error: 'no such SMS, or it asked for no report' })
+    const target = new URL(sms.callback_url)
+    if (p.forged) target.pathname = target.pathname.replace(/[0-9a-f]{64}$/, 'f'.repeat(64))
+    target.searchParams.set('sms_id', p.smsId ?? sms.id)
+    target.searchParams.set('status', p.status)
+    const statuses = await Promise.all(Array.from({ length: p.times ?? 1 }, () => fetch(target, { method: p.method ?? 'GET' }).then((r) => r.status).catch(() => 0)))
+    return send(res, 200, { statuses })
+  }
   if (path === '/inbox') return send(res, 200, state.emails.filter((e) => (!q.to || e.to.includes(q.to)) && (!q.match || JSON.stringify(e).includes(q.match))))
   if (path === '/sentry') return send(res, 200, state.sentry.filter((e) => !q.match || e.includes(q.match)))
   if (path === '/calls') return send(res, 200, state.calls.filter((c) => (!q.endpoint || c.endpoint === q.endpoint) && (!q.service || c.service === q.service) && (!q.match || c.text.includes(q.match))))
   if (path === '/file' && req.method === 'GET') { const f = state.files.get(q.key); return f ? send(res, 200, f.bytes, { 'content-type': f.type }) : send(res, 404, { error: 'no file' }) }
   if (path === '/files') return send(res, 200, [...state.files.keys()].filter((k) => !q.match || k.includes(q.match)))
-  if (path === '/stats') return send(res, 200, { tx: state.tx.size, transfers: state.transfers.size, refunds: state.refunds.length, emails: state.emails.length, sentry: state.sentry.length, files: state.files.size, calls: state.calls.length, rules: state.rules.length })
+  if (path === '/stats') return send(res, 200, { tx: state.tx.size, transfers: state.transfers.size, refunds: state.refunds.length, emails: state.emails.length, sms: state.sms.length, sentry: state.sentry.length, files: state.files.size, calls: state.calls.length, rules: state.rules.length })
   return send(res, 404, { error: `no control ${path}` })
 }
 
@@ -314,6 +370,7 @@ const handler = (which) => async (req, res) => {
     if (url.pathname.startsWith('/__control')) return await control(req, res, url, body)
     if (url.pathname.startsWith('/paystack')) return await paystack(req, res, url, body)
     if (url.pathname.startsWith('/resend')) return await resend(req, res, url, body)
+    if (url.pathname.startsWith('/arkesel')) return await arkesel(req, res, url, body)
     if (url.pathname.startsWith('/rate')) {
       state.calls.push({ service: 'rate', endpoint: 'rate', method: req.method, text: url.pathname, at: Date.now() })
       if (await misbehave('rate', url.pathname, res)) return
@@ -326,6 +383,6 @@ const handler = (which) => async (req, res) => {
     if (!res.headersSent) send(res, 500, { error: 'fake server error', message: String(error?.message ?? error) })
   }
 }
-http.createServer(handler('fakes')).listen(FAKES_PORT, '127.0.0.1', () => console.log(`[fakes] paystack, resend, rate, sentry on 127.0.0.1:${FAKES_PORT}`))
+http.createServer(handler('fakes')).listen(FAKES_PORT, '127.0.0.1', () => console.log(`[fakes] paystack, resend, arkesel, rate, sentry on 127.0.0.1:${FAKES_PORT}`))
 if (process.env.E2E_TLS_KEY) https.createServer({ key: fs.readFileSync(process.env.E2E_TLS_KEY), cert: fs.readFileSync(process.env.E2E_TLS_CERT) }, handler('storage')).listen(Number(process.env.E2E_TLS_PORT), '127.0.0.1', () => console.log('[fakes] photos over TLS on 127.0.0.1:' + process.env.E2E_TLS_PORT))
 http.createServer(handler('storage')).listen(STORAGE_PORT, '127.0.0.1', () => console.log(`[fakes] storage, photos on 127.0.0.1:${STORAGE_PORT}`))

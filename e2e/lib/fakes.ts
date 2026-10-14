@@ -13,8 +13,9 @@ export type FakeTx = { reference: string; amount: number; currency: string; emai
 export type FakeTransfer = { reference: string; amount: number; recipient: string; reason: string; transfer_code: string; status: string; duplicateAttempts: number }
 export type FakeRefund = { id: number; transaction_reference: string; amount: number; merchant_note: string; status: string }
 export type FakeEmail = { id: string; to: string[]; subject: string; text?: string; html?: string; from?: string; key?: string }
-export type Endpoint = 'initialize' | 'verify' | 'transfer' | 'transfer-lookup' | 'refund' | 'refund-list' | 'resolve' | 'recipient' | 'banks' | 'resend' | 'storage' | 'rate'
-export type Behaviour = 'http500' | 'http400' | 'http429' | 'malformed' | 'empty' | 'reset' | 'hang' | 'swallow' | 'delay'
+export type FakeSms = { id: string; recipient: string; sender: string; message: string; callback_url: string | null; sandbox: boolean; at: number }
+export type Endpoint = 'initialize' | 'verify' | 'transfer' | 'transfer-lookup' | 'refund' | 'refund-list' | 'resolve' | 'recipient' | 'banks' | 'resend' | 'arkesel' | 'arkesel-balance' | 'storage' | 'rate'
+export type Behaviour = 'http500' | 'http400' | 'http401' | 'http402' | 'http403' | 'http422' | 'http429' | 'http502' | 'http503' | 'malformed' | 'empty' | 'reset' | 'hang' | 'swallow' | 'delay'
 
 export const fakes = {
   /** Transactions the app started at the fake Paystack. `match` is any text in them, such as a booking id. */
@@ -29,6 +30,11 @@ export const fakes = {
   recipients: (match?: string) => get<Record<string, unknown>[]>('/recipients', { match }),
   inbox: (to?: string, match?: string) => get<FakeEmail[]>('/inbox', { to, match }),
   sentry: (match?: string) => get<string[]>('/sentry', { match }),
+  /** SMS the fake Arkesel took. `to` is 233XXXXXXXXX; `match` is any text in them. */
+  sms: (o: { to?: string; match?: string } = {}) => get<FakeSms[]>('/sms', o),
+  setSmsBalance: (balance: number) => post<{ balance: number }>('/sms-balance', { balance }),
+  /** Arkesel reporting delivery of one SMS to the link it carried. `forged` spoils the signature; `smsId` sends another id. */
+  smsReport: (id: string, status: string, o: { forged?: boolean; smsId?: string; times?: number; method?: 'GET' | 'POST' } = {}) => post<{ statuses: number[] }>('/sms-report', { id, status, ...o }),
   calls: (o: { endpoint?: Endpoint; service?: string; match?: string } = {}) => get<{ endpoint: string; text: string; at: number }[]>('/calls', o),
   files: (match?: string) => get<string[]>('/files', { match }),
   /** Makes one endpoint misbehave for requests containing `match`. Returns a function that removes the rule. */
