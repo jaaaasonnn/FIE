@@ -30,11 +30,14 @@ export const LIMITS = {
   /** Messages one person may send in an hour */
   messagesPerHour: MESSAGES_PER_HOUR,
   messagesPerSender: { max: MESSAGES_PER_HOUR, windowMs: HOUR },
+  /** SMS delivery reports one IP address may send that are refused (a bad link or a wrong id) before it is refused outright */
+  smsReportRefusalsPerIp: { max: 20, windowMs: HOUR },
 } as const
 
 export const SIGN_IN_FAILED = 'SIGN_IN_FAILED'
 export const SIGN_UP = 'SIGN_UP'
 export const MESSAGE_SENT = 'MESSAGE_SENT'
+export const SMS_REPORT_REFUSED = 'SMS_REPORT_REFUSED'
 
 export const TOO_MANY_SIGN_INS = 'Too many sign-in attempts. Please wait 15 minutes and try again, or reset your password.'
 export const TOO_MANY_SIGN_UPS = 'Too many accounts have been created from this connection. Please try again in an hour.'
