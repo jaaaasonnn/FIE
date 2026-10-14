@@ -15,6 +15,7 @@ type Message = {
   bookingId: string | null; subject: string | null; body: string; status: string
   provider: string | null; providerMessageId: string | null; error: string | null
   attempts: number; nextAttemptAt: string | null; sentAt: string | null
+  deliveryStatus: string | null; deliveryUpdatedAt: string | null
 }
 type LogData = {
   messages: Message[]; total: number; shown: number; counts: Record<string, number>; switches: Switches
@@ -42,6 +43,8 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
   QUEUED:  { bg: '#FEF3C7', color: '#92400E', label: 'Queued' },
   SENDING: { bg: '#FEF3C7', color: '#92400E', label: 'Sending' },
   SENT:    { bg: '#D1FAE5', color: '#065F46', label: 'Sent' },
+  DELIVERED: { bg: '#D1FAE5', color: '#065F46', label: 'Delivered' },
+  UNDELIVERED: { bg: '#FEE2E2', color: '#991B1B', label: 'Not delivered' },
   FAILED:  { bg: '#FEE2E2', color: '#991B1B', label: 'Failed, will retry' },
   GAVE_UP: { bg: '#FEE2E2', color: '#991B1B', label: 'Gave up' },
   SKIPPED: { bg: '#E5E7EB', color: '#374151', label: 'Skipped' },
@@ -150,6 +153,7 @@ function Log() {
                     <dt>Attempts</dt><dd>{m.attempts}</dd>
                     {m.nextAttemptAt && <><dt>Next try</dt><dd>{when(m.nextAttemptAt)}</dd></>}
                     {m.sentAt && <><dt>Sent</dt><dd>{when(m.sentAt)}</dd></>}
+                    {m.deliveryStatus && <><dt>Delivery report</dt><dd>{m.deliveryStatus}{m.deliveryUpdatedAt ? `, ${when(m.deliveryUpdatedAt)}` : ''}</dd></>}
                     {m.channel === 'SMS' && <><dt>Length</dt><dd>{m.body.length} of 160 characters</dd></>}
                     {m.bookingId && <><dt>Booking</dt><dd className="break-all">{m.bookingId}</dd></>}
                   </dl>

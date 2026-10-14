@@ -7,7 +7,7 @@ import { emailHtml } from '@/lib/messaging/emailHtml'
 import { EVENT_NAMES, SAMPLE_FACTS, TEMPLATES, emailFooter, emailText, type Template } from '@/lib/messaging/templates'
 
 const PAGE = 100
-const STATUSES = ['QUEUED', 'SENDING', 'LOGGED', 'SENT', 'FAILED', 'GAVE_UP', 'SKIPPED', 'UNKNOWN']
+const STATUSES = ['QUEUED', 'SENDING', 'LOGGED', 'SENT', 'DELIVERED', 'UNDELIVERED', 'FAILED', 'GAVE_UP', 'SKIPPED', 'UNKNOWN']
 const CHANNELS = ['EMAIL', 'SMS', 'IN_APP']
 
 /**
@@ -91,6 +91,7 @@ export async function GET(req: Request) {
         bookingId: m.bookingId, subject: m.subject, body: m.body, status: m.status,
         provider: m.provider, providerMessageId: m.providerMessageId, error: m.error,
         attempts: m.attempts, nextAttemptAt: m.nextAttemptAt, sentAt: m.sentAt,
+        deliveryStatus: m.deliveryStatus, deliveryUpdatedAt: m.deliveryUpdatedAt,
       })),
       total,
       shown: rows.length,
