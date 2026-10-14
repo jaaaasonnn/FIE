@@ -5,11 +5,13 @@
 import type { MessageProvider } from './types'
 import { failDrillEmail, failDrillSms } from './failing'
 import { resendEmail } from './resend'
+import { arkeselSms } from './arkesel'
 
 export const PROVIDERS: Record<string, MessageProvider> = {
   [resendEmail.name]: resendEmail,
+  [arkeselSms.name]: arkeselSms,
   [failDrillEmail.name]: failDrillEmail,
   [failDrillSms.name]: failDrillSms,
 }
 
-export type { MessageProvider, OutgoingMessage, SendResult } from './types'
+export type { MessageProvider, OutgoingMessage, SendIssue, SendResult } from './types'

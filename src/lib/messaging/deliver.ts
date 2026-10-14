@@ -23,14 +23,16 @@ import { channelGate, messagingConfig, type Channel } from '@/lib/messaging/conf
 import { emailHtml } from '@/lib/messaging/emailHtml'
 import { scrub } from '@/lib/messaging/format'
 import { PROVIDERS, type SendResult } from '@/lib/messaging/providers'
+import { deliveryReportUrl } from '@/lib/messaging/smsReports'
+import { MESSAGE_TIMEOUT_MS } from '@/lib/outbound'
 import { TOKEN_PLACEHOLDER, unseal } from '@/lib/sealed'
 
 const MIN = 60 * 1000
 /** Waits before the second, third and fourth attempts. After the fourth it gives up. */
 export const RETRY_DELAYS_MS = [5 * MIN, 30 * MIN, 120 * MIN]
 export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1
-/** How long one call to a provider may take. */
-export const SEND_TIMEOUT_MS = 8_000
+/** How long one call to a provider may take (lib/outbound.ts). */
+export const SEND_TIMEOUT_MS = MESSAGE_TIMEOUT_MS
 /** A row claimed this long ago with no result recorded is a run that died. */
 export const STALE_SENDING_MS = 10 * MIN
 /** Too old to be worth sending: "you have a new request" a day late does harm. */
@@ -60,6 +62,23 @@ function alert(issue: 'GAVE_UP' | 'UNKNOWN', message: string, row: Pick<MessageL
     // IDs only: never an address, a number or the message itself
     contexts: { message: { messageId: row.id, event: row.event, channel: row.channel, bookingId: row.bookingId, userId: row.userId, attempts: row.attempts, provider: row.provider, error } },
   })
+}
+
+/**
+ * The SMS account has run out of credit. One alert a run, however many
+ * messages it held up: those are retried on the usual schedule, so a top-up
+ * within about two and a half hours loses nothing.
+ */
+function alertLowBalance(provider: string, held: number) {
+  console.error('[Messaging] The SMS account is out of credit: SMS are waiting to be retried', { provider, held })
+  try {
+    Sentry.captureMessage('The SMS account is out of credit: top it up. SMS are being retried for about two and a half hours, then dropped', {
+      level: 'error',
+      tags: { area: 'messaging', messaging_issue: 'SMS_LOW_BALANCE', channel: 'SMS' },
+      fingerprint: ['messaging', 'SMS_LOW_BALANCE'],
+      contexts: { message: { provider, held } },
+    })
+  } catch { /* reporting must not stop the run */ }
 }
 
 /** Where a message goes, read at the moment of sending. Null when there is nowhere valid. */
@@ -108,6 +127,7 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
 
   const config = messagingConfig()
   const results: MessageRunItem[] = []
+  let lowBalance = 0
   for (const row of due) {
     const channel = row.channel as Channel
     const gate = gates[channel]
@@ -164,6 +184,7 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
           ...(channel === 'EMAIL' ? { replyTo: config.supportEmail, subject: row.subject ?? 'FieGH', html: emailHtml(row.subject ?? 'FieGH', text) } : {}),
           text,
           idempotencyKey: row.dedupeKey,
+          ...(channel === 'SMS' ? { reportUrl: deliveryReportUrl(config.appUrl, row.id) ?? undefined } : {}),
           signal,
         }),
         new Promise<'unsure'>((resolve) => signal.addEventListener('abort', () => { unsureWhy = `no answer within ${SEND_TIMEOUT_MS / 1000} seconds`; resolve('unsure') })),
@@ -173,6 +194,7 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
       unsureWhy = error instanceof Error ? error.message : 'the adapter threw'
     }
 
+    if (outcome !== 'unsure' && !outcome.ok && outcome.issue === 'LOW_BALANCE') lowBalance++
     if (outcome === 'unsure') {
       const error = scrub(`Outcome unknown (${unsureWhy}). It is not sent again in case it went.`)
       await settle({ status: 'UNKNOWN', error, alertedAt: now })
@@ -192,5 +214,6 @@ export async function runMessages({ dryRun = false, now = new Date() }: { dryRun
     }
   }
 
+  if (lowBalance) alertLowBalance(gates.SMS.provider, lowBalance)
   return { mode: 'live', ...summary, checked: due.length, results, stale }
 }

@@ -1,6 +1,7 @@
-// What every provider adapter looks like. Resend (./resend.ts) is the one
-// real adapter so far. Adding Arkesel or Postmark is one file that implements
-// this, plus one line in ./index.ts.
+// What every provider adapter looks like. Resend (./resend.ts) is the real
+// email adapter and Arkesel (./arkesel.ts) the real SMS one. Adding another
+// (Africa's Talking, Postmark) is one file that implements this, plus one line
+// in ./index.ts.
 
 export type OutgoingMessage = {
   /** The real address: an email address, or a phone number as +233XXXXXXXXX */
@@ -13,6 +14,12 @@ export type OutgoingMessage = {
   html?: string
   /** The message log row's dedupe key. Pass it on where the provider supports idempotency. */
   idempotencyKey: string
+  /**
+   * Where the provider may report delivery of this one message (SMS only).
+   * Built by the sending job, signed for this message log row alone; absent
+   * when no webhook secret is set, and for a test send.
+   */
+  reportUrl?: string
   /** Aborts after the sender's time limit. Pass it to fetch. */
   signal: AbortSignal
 }
@@ -25,7 +32,13 @@ export type SendResult =
    * have gone, throw instead: a throw is recorded as UNKNOWN and never retried,
    * so nothing can be sent twice.
    */
-  | { ok: false; retryable: boolean; error: string }
+  | { ok: false; retryable: boolean; error: string; issue?: SendIssue }
+
+/**
+ * What kind of refusal it was, where the adapter can tell. The sending job
+ * raises its own alert for a low balance (once a run), on top of the usual ones.
+ */
+export type SendIssue = 'LOW_BALANCE' | 'AUTH' | 'ACCOUNT' | 'SENDER_ID' | 'BAD_NUMBER' | 'CONTENT'
 
 export interface MessageProvider {
   name: string

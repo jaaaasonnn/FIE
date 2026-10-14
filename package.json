@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:tz": "for tz in UTC Europe/London America/New_York America/Los_Angeles Africa/Accra Pacific/Auckland; do echo \"== $tz\"; TZ=$tz vitest run || exit 1; done",
     "email:test": "vite-node -c vitest.config.mts scripts/send-test-email.ts",
+    "sms:test": "vite-node -c vitest.config.mts scripts/send-test-sms.ts",
     "e2e:up": "node e2e/run.mjs up",
     "e2e:down": "node e2e/run.mjs down",
     "e2e:smoke": "node e2e/run.mjs test --project=chromium --grep @smoke",
