@@ -40,5 +40,8 @@ export default defineConfig({
     { name: 'tablet', use: { ...devices['iPad (gen 7)'], ...httpsFront }, grep: core, testIgnore: /chaos\// },
     { name: 'iphone', use: { ...devices['iPhone SE'], ...httpsFront }, grep: core, testIgnore: /chaos\// },
     { name: 'android', use: { ...devices['Galaxy S9+'] }, grep: core, testIgnore: /chaos\// },
+    // The second go's performance runs and the invariant checker for the load set (e2e/load): only with
+    // E2E_PERF=1, never in the normal runs. One worker, so measurements do not compete with each other.
+    ...(process.env.E2E_PERF ? [{ name: 'perf', testDir: path.join(__dirname, 'load'), testMatch: /\.spec\.ts$/, fullyParallel: false, workers: 1, retries: 0, timeout: 600_000, use: { ...devices['Desktop Chrome'] } }] : []),
   ],
 })

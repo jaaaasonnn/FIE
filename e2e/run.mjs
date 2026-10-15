@@ -38,10 +38,22 @@ const [command, ...rest] = process.argv.slice(2)
 const log = (...a) => console.log('[e2e]', ...a)
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
+// `up --perf`: query statistics (pg_stat_statements) and the server log in e2e/.state/pglog, for the second go.
+// `up --perf=explain` also logs the plan (EXPLAIN ANALYZE, BUFFERS) of every statement over 20 ms: it slows
+// every query a little, so it is for finding slow queries, never for measuring load.
+function perfFlags() {
+  const perf = rest.find((a) => a.startsWith('--perf'))
+  if (!perf) return []
+  const libs = perf === '--perf=explain' ? 'pg_stat_statements,auto_explain' : 'pg_stat_statements'
+  return ['-c', `shared_preload_libraries=${libs}`, '-c', 'pg_stat_statements.track=all', '-c', 'track_io_timing=on',
+    '-c', 'logging_collector=on', '-c', `log_directory=${path.join(STATE, 'pglog')}`, '-c', 'log_filename=postgresql-%Y%m%d-%H%M%S.log',
+    '-c', 'log_min_duration_statement=200', '-c', 'log_checkpoints=on', '-c', 'log_lock_waits=on',
+    ...(perf === '--perf=explain' ? ['-c', 'auto_explain.log_min_duration=20', '-c', 'auto_explain.log_analyze=on', '-c', 'auto_explain.log_buffers=on', '-c', 'auto_explain.log_nested_statements=on'] : [])]
+}
 const postgres = () => new EmbeddedPostgres({
   databaseDir: path.join(STATE, 'pgdata'), user: 'postgres', password: 'e2e', port: PORTS.pg, persistent: true,
   // The connection limit of the smallest Supabase computes, so running out shows up here too
-  postgresFlags: ['-c', 'max_connections=60', '-c', 'listen_addresses=127.0.0.1', '-c', 'log_min_duration_statement=500'],
+  postgresFlags: ['-c', 'max_connections=60', '-c', 'listen_addresses=127.0.0.1', '-c', 'log_min_duration_statement=500', ...perfFlags()],
   onLog: () => {}, onError: (e) => { const text = String(e); if (!/database system is|listening on|LOG:/.test(text)) fs.appendFileSync(path.join(STATE, 'postgres.log'), text + '\n') },
 })
 

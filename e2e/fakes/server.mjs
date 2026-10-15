@@ -366,6 +366,13 @@ const handler = (which) => async (req, res) => {
     if (req.method === 'OPTIONS') return send(res, 204, '')
     // Over TLS both photo hosts arrive here; the Host header says which was meant
     if (which === 'storage' && String(req.headers.host).startsWith('images.unsplash.com')) url.pathname = `/unsplash${url.pathname}`
+    // MapTiler, for a browser told to resolve api.maptiler.com here (Lighthouse in e2e/load): the blank
+    // style the browser tests use, and nothing for tiles, sprites and fonts. Never the real MapTiler.
+    if (which === 'storage' && String(req.headers.host).startsWith('api.maptiler.com')) {
+      res.setHeader('access-control-allow-origin', '*')
+      if (url.pathname.endsWith('style.json')) return send(res, 200, { version: 8, name: 'e2e', sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#eef0f2' } }] })
+      res.writeHead(204); return res.end()
+    }
     if (which === 'storage') return await storage(req, res, url, body)
     if (url.pathname.startsWith('/__control')) return await control(req, res, url, body)
     if (url.pathname.startsWith('/paystack')) return await paystack(req, res, url, body)
