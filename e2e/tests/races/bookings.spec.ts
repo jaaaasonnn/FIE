@@ -221,3 +221,35 @@ test.describe('races: paying', () => {
     await expectInvariants()
   })
 })
+
+// G15 (second go): a payment is settled while another tab's Pay is in flight. The second request found the
+// first payment open, waited for its page, saw it was no longer PENDING (just settled), went round again and
+// found nothing open, so it started a NEW payment at Paystack for a booking that is already paid.
+test.describe('races: paying from two tabs (G15)', () => {
+  test('the first tab is paid while the second tab presses Pay: no second payment is started at Paystack', async ({ world }) => {
+    test.fail(true, 'G15: a second payment is started at Paystack for a booking paid a moment earlier (about 1 round in 9)')
+    test.setTimeout(240_000)
+    const host = await world.host()
+    const home = await world.listing(host)
+    const rounds = Math.max(ROUNDS, 45)
+    const opened: number[] = []
+    for (let round = 0; round < rounds; round++) {
+      const guest = await world.guest()
+      const id = await world.mustBook(guest, home.id)
+      const first = await world.startPayment(guest, id)
+      await fakes.setTx(first.reference!, { status: 'success' })
+      // The window: the second request has read the booking as unpaid, and the first is settled before the
+      // second claims its payment slot. Try the second request from 20 ms before the settlement to 20 ms after.
+      const offset = (round % 9) * 5 - 20
+      await Promise.all([
+        new Promise((r) => setTimeout(r, Math.max(0, offset))).then(() => world.verify(guest, first.reference!, { server: 0 })),
+        new Promise((r) => setTimeout(r, Math.max(0, -offset))).then(() => world.startPayment(guest, id, { server: 1 })),
+      ])
+      opened.push((await fakes.tx(id)).length)
+    }
+    const extra = opened.filter((n) => n > 1).length
+    measured(`a second Paystack payment was started for a paid booking in ${extra} of ${rounds} rounds`)
+    expect(extra, 'rounds where a second payment was started for a booking already paid').toBe(0)
+    await expectInvariants()
+  })
+})

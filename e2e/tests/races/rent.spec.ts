@@ -16,7 +16,8 @@ const plusMonths = (iso: string, months: number) => { const d = new Date(`${iso}
 async function tenancy(world: World, host: Actor) {
   const guest = await world.guest()
   const home = await world.listing(host, { rentalModes: ['TEMP_STAY'], priceMonthly: 600, damageDeposit: 300, priceNightly: undefined })
-  const checkIn = day(40 + Math.floor(Math.random() * 200))
+  // Never the 29th to the 31st: the test's own month arithmetic overflows there, the app clamps (lib/stayDates.ts)
+  const checkIn = day(40 + Math.floor(Math.random() * 200)).replace(/-(29|30|31)$/, '-28')
   const { id } = await world.paidBooking(guest, home.id, { rentalMode: 'TEMP_STAY', checkIn, checkOut: plusMonths(checkIn, 3) })
   const instalments = await db.instalment.findMany({ where: { bookingId: id }, orderBy: { sequence: 'asc' } })
   return { guest, id, instalments }
