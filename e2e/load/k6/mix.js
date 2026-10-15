@@ -40,6 +40,9 @@ const bookingsMade = new Counter('bookings_made')
 const paymentsSettled = new Counter('payments_settled')
 
 const abortable = SCENARIO === 'breakpoint'
+// BREAK_ON=errors: the breakpoint run stops only when failures pass 2%; the latency rules are reported, not
+// enforced. Used once, declared in the report, to find where requests start FAILING (latency breaks first).
+const latencyAborts = abortable && __ENV.BREAK_ON !== 'errors'
 export const options = {
   scenarios: { [SCENARIO]: scenarios[SCENARIO] },
   discardResponseBodies: false,
@@ -47,8 +50,8 @@ export const options = {
   thresholds: {
     // The breakpoint run stops at the first of these that fails (after a minute's grace); the others report only
     failed_requests: [{ threshold: 'rate<0.02', abortOnFail: abortable, delayAbortEval: '1m' }],
-    'http_req_duration{kind:browse}': [{ threshold: 'p(95)<2000', abortOnFail: abortable, delayAbortEval: '1m' }],
-    'http_req_duration{kind:write}': [{ threshold: 'p(95)<5000', abortOnFail: abortable, delayAbortEval: '1m' }],
+    'http_req_duration{kind:browse}': [{ threshold: 'p(95)<2000', abortOnFail: latencyAborts, delayAbortEval: '1m' }],
+    'http_req_duration{kind:write}': [{ threshold: 'p(95)<5000', abortOnFail: latencyAborts, delayAbortEval: '1m' }],
   },
 }
 

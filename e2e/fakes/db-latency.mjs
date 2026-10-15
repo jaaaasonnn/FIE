@@ -9,15 +9,28 @@ const listen = Number(process.env.E2E_LATENCY_LISTEN)
 const target = Number(process.env.E2E_LATENCY_TARGET)
 const oneWay = () => (lo + Math.random() * (hi - lo)) / 2
 
-/** Sends chunks from `from` to `to` after a delay, never out of order. */
+/** Sends chunks from `from` to `to` after a delay, strictly in order: one queue per direction, one timer at a
+ *  time (separate timers due at the same moment can fire out of order, which corrupts the Postgres protocol). */
 function pipeLate(from, to) {
+  const queue = [] // [releaseAt, chunk | null for end]
+  let timer = null
   let last = 0
-  from.on('data', (chunk) => {
-    const at = Math.max(Date.now() + oneWay(), last)
-    last = at
-    setTimeout(() => { if (!to.destroyed) to.write(chunk) }, at - Date.now())
-  })
-  from.on('end', () => setTimeout(() => to.end(), Math.max(0, last - Date.now()) + 1))
+  const pump = () => {
+    timer = null
+    while (queue.length && queue[0][0] <= Date.now()) {
+      const [, chunk] = queue.shift()
+      if (to.destroyed) return
+      if (chunk === null) to.end(); else to.write(chunk)
+    }
+    if (queue.length) timer = setTimeout(pump, Math.max(0, queue[0][0] - Date.now()))
+  }
+  const push = (chunk) => {
+    last = Math.max(Date.now() + oneWay(), last)
+    queue.push([last, chunk])
+    if (!timer) timer = setTimeout(pump, Math.max(0, queue[0][0] - Date.now()))
+  }
+  from.on('data', (chunk) => push(chunk))
+  from.on('end', () => push(null))
 }
 
 let open = 0
