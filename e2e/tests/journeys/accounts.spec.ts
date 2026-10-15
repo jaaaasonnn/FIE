@@ -1,4 +1,4 @@
-import { test, expect, FORM_LOGIN_NEEDS_HTTPS } from '../../lib/test'
+import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { call } from '../../lib/world'
@@ -47,8 +47,7 @@ test.describe('accounts', () => {
     expect(await fakes.inbox(nobody)).toHaveLength(0)
   })
 
-  test('a wrong password is refused with a plain message, and a right one lands on the dashboard for the role @core', async ({ page, world, browserName }) => {
-    test.skip(browserName === 'webkit', FORM_LOGIN_NEEDS_HTTPS)
+  test('a wrong password is refused with a plain message, and a right one lands on the dashboard for the role @core', async ({ page, world }) => {
     const host = await world.host()
     const auth = new AuthPage(page)
     await auth.gotoLogin()
@@ -80,8 +79,7 @@ test.describe('accounts', () => {
     void Header
   })
 
-  test('a suspended person is told so at log-in, and can log in again once restored', async ({ page, world, browserName }) => {
-    test.skip(browserName === 'webkit', FORM_LOGIN_NEEDS_HTTPS)
+  test('a suspended person is told so at log-in, and can log in again once restored @core', async ({ page, world }) => {
     const admin = await world.admin()
     const guest = await world.guest()
     expect((await admin.call('POST', '/api/admin/users', { userId: guest.id, action: 'suspend', reason: 'Suspended by the end-to-end journey test.' })).status).toBe(200)

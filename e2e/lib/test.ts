@@ -32,8 +32,23 @@ async function fence(context: BrowserContext, problems: Problems) {
   })
 }
 
+// The fake Sentry address is plain http (NEXT_PUBLIC_SENTRY_DSN in env.e2e, built into the page). Over the
+// https front WebKit blocks the browser's Sentry upload to it as mixed content and says only "Not allowed to
+// request resource", right after the report-only policy line naming that envelope address. The real DSN is
+// https. Each such line is let through only against one of those envelope lines; any other block still counts.
+const FAKE_SENTRY_ENVELOPE = /Refused to connect to http:\/\/127\.0\.0\.1:4010\/api\/\d+\/envelope\//
+const FAKE_SENTRY_REPORT = /^https:\/\/127\.0\.0\.1:4010\/api\/\d+\/security\//
+
 function watch(page: Page, problems: Problems) {
-  page.on('console', (m) => { if (m.type() === 'error') problems.console.push(m.text().slice(0, 300)) })
+  let sentryEnvelopes = 0
+  page.on('console', (m) => {
+    const text = m.text()
+    if (FAKE_SENTRY_ENVELOPE.test(text)) sentryEnvelopes++
+    if (m.type() !== 'error') return
+    if (text === 'Not allowed to request resource' && page.url().startsWith('https://localhost:') && sentryEnvelopes > 0) { sentryEnvelopes--; return }
+    if (/^Failed to load resource: The network connection was lost/.test(text) && FAKE_SENTRY_REPORT.test(m.location().url)) return
+    problems.console.push(text.slice(0, 300))
+  })
   // (WebKit reports a prefetch that navigation cancelled as "cannot load … due to access control checks": not an error of the page)
   page.on('pageerror', (e) => { if (!/due to access control checks/.test(String(e))) problems.pageErrors.push(String(e).slice(0, 300)) })
   page.on('response', (r) => { if (r.status() >= 400) problems.failedRequests.push(`${r.status()} ${r.request().method()} ${r.url().replace(/\?.*/, '')}`) })
@@ -82,13 +97,10 @@ export { expect }
 
 /**
  * WebKit will not keep a `Secure` cookie from a plain-http page, even on
- * localhost (Chromium and Firefox do). The app marks its session cookie
- * Secure in production mode, and this stack serves http. So logging in
- * through the form cannot work in the WebKit projects here; it would over
- * https. Tests that need it say so and are skipped there, and that is listed
- * as not tested. Everything else in WebKit signs in with the `signIn` fixture.
+ * localhost, and the app marks its session cookie Secure in production mode.
+ * So the WebKit-engine projects (webkit, tablet, iphone) reach the app through
+ * the https front that run.mjs starts on https://localhost:3443.
  */
-export const FORM_LOGIN_NEEDS_HTTPS = 'WebKit drops the Secure session cookie on http://localhost: logging in through the form needs an https front, which this stack does not have'
 
 /** Dollars as the site writes them. */
 export const usd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })}`

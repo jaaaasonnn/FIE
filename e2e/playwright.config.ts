@@ -5,6 +5,9 @@ import { defineConfig, devices } from '@playwright/test'
 // environment; lib/db.ts refuses to load without it.
 const reports = path.join(__dirname, '.reports')
 const core = /@core/
+// WebKit keeps the app's Secure session cookie only over https, as on the real site: the WebKit-engine
+// projects go through the https front (run.mjs), whose throwaway certificate only these browsers accept
+const httpsFront = { baseURL: 'https://localhost:3443', ignoreHTTPSErrors: true }
 
 export default defineConfig({
   testDir: path.join(__dirname, 'tests'),
@@ -33,9 +36,9 @@ export default defineConfig({
     { name: 'chaos', use: { ...devices['Desktop Chrome'] }, testMatch: /chaos\//, fullyParallel: false, workers: 1 },
     // The core journeys again in the other engines and on small screens with touch
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, grep: core, testIgnore: /chaos\// },
-    { name: 'webkit', use: { ...devices['Desktop Safari'] }, grep: core, testIgnore: /chaos\// },
-    { name: 'tablet', use: { ...devices['iPad (gen 7)'] }, grep: core, testIgnore: /chaos\// },
-    { name: 'iphone', use: { ...devices['iPhone SE'] }, grep: core, testIgnore: /chaos\// },
+    { name: 'webkit', use: { ...devices['Desktop Safari'], ...httpsFront }, grep: core, testIgnore: /chaos\// },
+    { name: 'tablet', use: { ...devices['iPad (gen 7)'], ...httpsFront }, grep: core, testIgnore: /chaos\// },
+    { name: 'iphone', use: { ...devices['iPhone SE'], ...httpsFront }, grep: core, testIgnore: /chaos\// },
     { name: 'android', use: { ...devices['Galaxy S9+'] }, grep: core, testIgnore: /chaos\// },
   ],
 })

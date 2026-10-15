@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 
 export const E2E_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const ROOT = path.resolve(E2E_DIR, '..')
-export const PORTS = { pg: 54329, fakes: 4010, storage: 4011, tls: 4443, app: [3200, 3201] }
+export const PORTS = { pg: 54329, fakes: 4010, storage: 4011, tls: 4443, front: 3443, app: [3200, 3201] }
 export const FAKE = `http://127.0.0.1:${PORTS.fakes}`
 /** Hosts the app has written into its code, and where the preload sends them instead. */
 export const HOST_MAP = {

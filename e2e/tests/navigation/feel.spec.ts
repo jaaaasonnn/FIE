@@ -1,4 +1,4 @@
-import { test, expect, FORM_LOGIN_NEEDS_HTTPS } from '../../lib/test'
+import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
@@ -10,8 +10,7 @@ import { AuthPage, CheckoutPage, FakePaystack, ListingPage } from '../../pages'
 
 test.describe('deep links', () => {
   for (const [name, target] of [['a checkout link', (b: string) => `/checkout/${b}`], ['the host dashboard', () => '/dashboard/host/bookings?tab=requests'], ['the guest payments page', () => '/dashboard/guest/payments']] as const) {
-    test(`${name}, opened while signed out, comes back to the same place after logging in @core`, async ({ page, world, browserName }) => {
-      test.skip(browserName === 'webkit', FORM_LOGIN_NEEDS_HTTPS)
+    test(`${name}, opened while signed out, comes back to the same place after logging in @core`, async ({ page, world }) => {
       const host = await world.host()
       const guest = await world.guest()
       const home = await world.listing(host)
@@ -59,7 +58,7 @@ test.describe('deep links', () => {
       await page.context().clearCookies()
       await page.goto(`/login?redirect=${encodeURIComponent(evil)}`)
       await new AuthPage(page).logIn(guest.email, guest.password)
-      await expect(page).toHaveURL(/localhost:3200\/dashboard/)
+      await expect(page).toHaveURL(/localhost:(3200|3443)\/dashboard/)
     }
   })
 
@@ -203,8 +202,7 @@ test.describe('pressed twice', () => {
 })
 
 test.describe('keyboard only', () => {
-  test('logging in with the keyboard alone @core', async ({ page, world, browserName }) => {
-    test.skip(browserName === 'webkit', FORM_LOGIN_NEEDS_HTTPS)
+  test('logging in with the keyboard alone @core', async ({ page, world }) => {
     const guest = await world.guest()
     await page.goto('/login')
     const identifier = page.getByPlaceholder('you@example.com or 0241234567')

@@ -26,6 +26,13 @@ function ensureCertificate() {
   const r = spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650', '-subj', '/CN=fiegh-e2e-local', '-addext', 'subjectAltName=DNS:images.unsplash.com,DNS:e2e-storage.fiegh.test', '-keyout', TLS.key, '-out', TLS.cert], { encoding: 'utf8' })
   if (r.status !== 0) throw new Error(`could not make the local certificate: ${r.stderr}`)
 }
+// A second throwaway certificate, for the https front on localhost. Only the test browsers accept it.
+const FRONT_TLS = { key: path.join(STATE, 'front-key.pem'), cert: path.join(STATE, 'front-cert.pem') }
+function ensureFrontCertificate() {
+  if (fs.existsSync(FRONT_TLS.cert)) return
+  const r = spawnSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '3650', '-subj', '/CN=localhost', '-addext', 'subjectAltName=DNS:localhost,IP:127.0.0.1,IP:::1', '-keyout', FRONT_TLS.key, '-out', FRONT_TLS.cert], { encoding: 'utf8' })
+  if (r.status !== 0) throw new Error(`could not make the front certificate: ${r.stderr}`)
+}
 fs.mkdirSync(STATE, { recursive: true })
 const [command, ...rest] = process.argv.slice(2)
 const log = (...a) => console.log('[e2e]', ...a)
@@ -89,18 +96,21 @@ async function up() {
   if (fs.existsSync(PIDS)) await down()
   fs.writeFileSync(EGRESS_LOG, '')
   ensureCertificate()
+  ensureFrontCertificate()
   const pg = postgres()
   if (!fs.existsSync(path.join(STATE, 'pgdata', 'PG_VERSION'))) { log('creating a local Postgres 17 in e2e/.state/pgdata'); await pg.initialise() }
   await pg.start()
   await setupDatabase(pg, { fresh: rest.includes('--fresh-db') })
   const fakes = spawn('node', [path.join(E2E_DIR, 'fakes/server.mjs')], { env: { ...e2eEnv(), E2E_FAKES_PORT: String(PORTS.fakes), E2E_STORAGE_PORT: String(PORTS.storage), E2E_TLS_PORT: String(PORTS.tls), E2E_TLS_KEY: TLS.key, E2E_TLS_CERT: TLS.cert }, stdio: ['ignore', fs.openSync(path.join(STATE, 'fakes.log'), 'a'), fs.openSync(path.join(STATE, 'fakes.log'), 'a')], detached: true })
   await waitFor(`${FAKE}/__control/health`, 'the fake services', 20)
+  // https in front of the first app server, for WebKit's Secure cookie
+  const front = spawn('node', [path.join(E2E_DIR, 'fakes/https-front.mjs')], { env: { PATH: process.env.PATH, E2E_FRONT_PORT: String(PORTS.front), E2E_FRONT_TARGET: String(PORTS.app[0]), E2E_FRONT_KEY: FRONT_TLS.key, E2E_FRONT_CERT: FRONT_TLS.cert }, stdio: ['ignore', fs.openSync(path.join(STATE, 'front.log'), 'a'), fs.openSync(path.join(STATE, 'front.log'), 'a')], detached: true })
   if (rest.includes('--build') || !fs.existsSync(path.join(ROOT, '.next', 'E2E_BUILD'))) build()
   const apps = PORTS.app.map((port) => startApp(port))
-  fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, apps: Object.fromEntries(PORTS.app.map((p, i) => [p, apps[i].pid])) }))
+  fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, front: front.pid, apps: Object.fromEntries(PORTS.app.map((p, i) => [p, apps[i].pid])) }))
   for (const port of PORTS.app) await waitFor(`http://localhost:${port}/api/auth/session`, `the app on ${port}`)
-  log(`up: app on ${PORTS.app.map((p) => `http://localhost:${p}`).join(' and ')}, Postgres on ${PORTS.pg}, fakes on ${PORTS.fakes}/${PORTS.storage}`)
-  const stop = async () => { killGroup(fakes.pid); for (const port of PORTS.app) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
+  log(`up: app on ${PORTS.app.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}, fakes on ${PORTS.fakes}/${PORTS.storage}`)
+  const stop = async () => { killGroup(fakes.pid); killGroup(front.pid); for (const port of [...PORTS.app, PORTS.front]) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
   process.on('SIGINT', stop); process.on('SIGTERM', stop)
   setInterval(() => {}, 1 << 30) // stay up until told to stop
 }
@@ -113,7 +123,7 @@ async function down() {
   const pids = JSON.parse(fs.readFileSync(PIDS, 'utf8'))
   if (pids.runner !== process.pid) { try { process.kill(pids.runner, 'SIGTERM') } catch {} }
   for (let i = 0; i < 40 && fs.existsSync(PIDS); i++) await sleep(250)
-  killGroup(pids.fakes); for (const port of [...PORTS.app, PORTS.fakes, PORTS.storage, PORTS.tls]) killPort(port)
+  killGroup(pids.fakes); if (pids.front) killGroup(pids.front); for (const port of [...PORTS.app, PORTS.fakes, PORTS.storage, PORTS.tls, PORTS.front]) killPort(port)
   fs.rmSync(PIDS, { force: true })
   log('down')
 }
