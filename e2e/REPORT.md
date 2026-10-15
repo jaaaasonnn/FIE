@@ -18,6 +18,101 @@ Machine: MacBook Air (Mac16,12), Apple M4, 10 cores, 16 GB, no fan; on mains pow
 
 ---
 
+## Second go, Stage B: performance (2026-10-15, branch `e2e-performance`)
+
+Chromium, production build, this MacBook Air. Machine at the start: 36 GB free, on mains power, no thermal or performance warning. Results in `e2e/.reports/stageB/`.
+
+### B1. The load set
+
+`e2e/load/seed.sql`: 20,000 users, 5,000 listings, 50,000 bookings, 200,000 blocked dates, 100,000 messages, 55,814 payments, 29,600 rent instalments, 47,495 payouts, 17,087 reviews, 30,000 wishlist entries. Set-based SQL, "random" values are hashes of each row's key so a rebuild is the same, dates counted from the day it is seeded, all ids `load_`. **Seeding takes 11-12 s, ANALYZE 1.6 s, 264 MB.** The money and date rules hold over the whole seeded database. Removing the set takes 238 s, against 11 s to make it: deleting bookings and users checks unindexed columns (see G13).
+
+### B2. Lighthouse 12.8.2 against the budgets (mobile: simulated slow 4G, CPU 4x; median of 5 runs, seeded database)
+
+| Page | LCP ≤ 2.5 s | CLS ≤ 0.1 | TBT ≤ 200 ms | JS ≤ 350 KB | of which map | Score | Empty DB: LCP / score |
+|---|---|---|---|---|---|---|---|
+| home | 3.6 s (**over**) | 0.000 (pass) | 30 ms (pass) | 318 KB (pass) | 0 KB | 91 | 3.5 s / 91 |
+| search with map | 7.1 s (**over**) | 0.000 (pass) | 178 ms (pass) | 602 KB (**over**) | 282 KB | 74 | 6.2 s / 77 |
+| listing | 4.2 s (**over**) | 0.038 (pass) | 63 ms (pass) | 353 KB (**over**) | 0 KB | 86 | 4.2 s / 86 |
+| checkout | 4.1 s (**over**) | 0.077 (pass) | 64 ms (pass) | 313 KB (pass) | 0 KB | 86 | 4.1 s / 86 |
+| guest dashboard | 3.8 s (**over**) | 0.000 (pass) | 63 ms (pass) | 356 KB (**over**) | 0 KB | 88 | 3.9 s / 88 |
+| host dashboard | 3.3 s (**over**) | 0.062 (pass) | 62 ms (pass) | 330 KB (pass) | 0 KB | 92 | 4.4 s / 85 |
+| admin | 4.2 s (**over**) | 0.000 (pass) | 58 ms (pass) | 342 KB (pass) | 0 KB | 85 | 4.1 s / 86 |
+
+Desktop (LCP / score): home 0.6 s / 100; search with map 1.5 s / 95; listing 0.9 s / 99; checkout 0.9 s / 99; guest dashboard 1.2 s / 98; host dashboard 1.0 s / 99; admin 0.9 s / 99. All within budget on desktop.
+
+- **LCP is over budget on every page on mobile.** CLS and TBT are within budget everywhere. JS is over on search (602 KB), the guest dashboard (356) and a listing (353).
+- Why: about 300 KB of JavaScript every page loads before it can draw its data, then the data is fetched from the browser. The LCP element on checkout, the dashboards and admin is text that appears only after JS + an API call. Biggest shared pieces: the Sentry browser SDK chunk (134 KB, with tracing code although tracing is off; about 63 KB of it unused), react-datepicker (46 KB) loaded on every page, the framework (44 KB). Two render-blocking stylesheets cost about 300 ms on slow 4G. Three font files, 63 KB.
+- **The map library is not loaded on pages without a map** (0 KB on all of them). On search it is 282 KB of the 602 KB; 190 KB of it is unused at first paint.
+- Search's LCP is the first listing card's photo, which is `loading="lazy"` although it is above the fold.
+- Checkout and both dashboards download each listing photo full size (1200 px, 120 KB) for an 80-px thumbnail, straight from the photo host, not through the image optimiser.
+- Data volume hardly changes the first load (empty and seeded within 0.2 s except search: 6.2 s empty, 7.1 s seeded), because pages draw first and fetch afterwards.
+
+### B3. Real conditions (Playwright, Chromium, median of 3; "usable" = the main control is on screen and React has attached to it)
+
+| Profile | Home | Search | Listing | Checkout |
+|---|---|---|---|---|
+| desktop, no throttling | 0.2 s | 0.3 s | 0.2 s | 0.2 s |
+| slow 4G | 3.8 s | 3.5 s | 4.5 s | 4.0 s |
+| 3G | 5.3 s | 4.7 s | 5.7 s | 5.2 s |
+| latency 300-600 ms per request | 1.2 s | 1.4 s | 2.0 s | 2.0 s |
+| stalls (5%) and connection resets (2%) | **never** | **never** | **never** | **never** |
+| CPU 4x slower | 0.5 s | 1.0 s | 0.6 s | 0.5 s |
+| iPhone size, slow 4G, CPU 4x | 3.8 s | 3.6 s | 4.5 s | 4.1 s |
+| low-end Android size, 3G, CPU 6x | 5.3 s | 4.8 s | 5.9 s | 5.3 s |
+
+First paint is 1.5-1.7 s on slow 4G and 3G; the page is usable 2-4 s later. Nothing shifts (CLS 0 to 0.04).
+
+**"Never" is a finding (G6), not a slow page:** with one reset among the page's requests, every page stayed on its loading state for the whole 60 s. Probes, one failure at a time: a reset JavaScript chunk leaves checkout on "Loading booking details…" for good, with no retry and no error; a reset booking request shows "Booking unavailable… Go back and pick new dates" (the booking is fine); a reset session check sends the guest to log-in (G1).
+
+Money under bad conditions:
+
+| Check | Result |
+|---|---|
+| Pay pressed three times on slow 4G | 1 request sent, 1 payment row: protected |
+| Offline when Pay is pressed | the guest is told ("Network error…"); nothing recorded; online again, one press, paid once |
+| The answer to Pay lost on the way back | the payment had been started; pressing Pay again hands back the same one: 1 row, paid once |
+| The answer to Book lost on the way back | the booking **was** made; the guest is told nothing, and pressing Book again says "Those dates just became unavailable" (G7) |
+
+### B4. Page to page (Chromium, 5 runs, cold and warm)
+
+| Pair | Click to visible (cold / warm) | Layout shift | Blank or flash |
+|---|---|---|---|
+| home → search | 166 / 164 ms | 0 | a spinner for 2 frames |
+| search → listing (card) | 141 / 148 ms | 0 | 1 blank frame |
+| home → how it works | 72 / 69 ms | 0 | none |
+| how it works → FAQ | 119 / 108 ms | 0 | none |
+| host dashboard → host bookings | 102 / 112 ms | 0 | a spinner for 2 frames |
+
+No full page reloads; every link stayed a client-side navigation. Header links are all prefetched; on the search grid only the cards in view are (12 of 56, Next's normal rule). Back from a listing to search takes 159 ms but **the place in the results is lost** (the list scrolls inside its own panel and comes back at the top, G8). Gallery: first photo eager, the rest lazy, all through the optimiser; search grid: all optimised, but the first five, above the fold, are lazy (G9).
+
+Not measured, and why: home → listing (the cached home page links to a listing that no longer exists, G10) and guest dashboard → booking (a short stay has no link to its booking page anywhere in the app, G11).
+
+### B5. Server timings (seeded database, one request at a time, 50 per route after 3 warm-ups)
+
+No route answered 5xx. Everything a guest touches is under 45 ms at p95. The slow ones:
+
+| Route | p50 | p95 | p99 |
+|---|---|---|---|
+| `GET /api/admin?type=stats` (admin overview) | 690 ms | 706 ms | 712 ms |
+| `GET /api/admin/verifications` | 642 ms | 684 ms | 687 ms |
+| `process-payouts` (dry run) | 302 ms | 308 ms | 308 ms |
+| `POST /api/auth/signin` (bcryptjs, cost 12) | 222 ms | 237 ms | 240 ms |
+| `POST /api/auth/signup` (bcryptjs) | 222 ms | 224 ms | 228 ms |
+| `GET /api/admin/listings` | 104 ms | 111 ms | 112 ms |
+| `GET /api/admin/users` | 95 ms | 99 ms | 122 ms |
+| `GET /api/admin/listing-checks` | 82 ms | 84 ms | 109 ms |
+| `GET /api/listings` with dates | 41 ms | 43 ms | 48 ms |
+
+Full list: `server-timing-seeded.json`. The 15 slowest statements with their plans (EXPLAIN ANALYZE, BUFFERS via auto_explain): `explain-top15.json`. The two slowest by far (174 ms and 134 ms) are the "payouts due" queries, run by the payout job, the admin overview and the Verifications tab: each walks every paid booking in history (42,039 and 28,635 rows) and checks Payout for each (G12). Search with dates reads every booking for the overlap test (53 ms).
+
+Sequential scans during one pass: Booking 35.6 M rows read (711 scans), Payment 19.1 M (342, never by index), Message 15.9 M (159), Payout 10.8 M, Review 5.4 M (318, never by index). Unused indexes: only unique keys that guard against duplicates (kept on purpose).
+
+**Proposed indexes** (`e2e/load/proposed-indexes.sql`, shown, not run on any live database; applied to the test database only to measure, then removed): 17 indexes on foreign keys and the date search. Measured, 30 requests a route: p95 falls 40-70% on the routes people use most (a guest's bookings 11.2 → 4.7 ms, payments 10.5 → 3.1, messages 10.5 → 4.3, a host's bookings 12.6 → 6.9, booking a home 15.5 → 6.0, a listing 11.0 → 3.0); date search 43 → 39 ms; the slow admin routes and payout job unchanged. One candidate, `Payout(instalmentId)`, made the payout job and both slow admin routes 10-20% slower, and is left out.
+
+Invariants after Stage B: all hold (`e2e/.reports/invariants/end-of-B.json`).
+
+---
+
 ## After the fixes (2026-10-13, branch `e2e-fixes`)
 
 Run against a production build of the branch, on this machine, with the local

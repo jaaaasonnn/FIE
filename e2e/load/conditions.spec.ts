@@ -3,8 +3,9 @@ import path from 'path'
 import type { BrowserContext, CDPSession, Page } from '@playwright/test'
 import { test, expect } from '../lib/test'
 import { db } from '../lib/db'
+import { problemsFence } from './fence'
 import { expectInvariants } from '../lib/invariants'
-import { CheckoutPage, FakePaystack } from '../pages'
+import { CheckoutPage, FakePaystack, ListingPage } from '../pages'
 
 // Stage B3: the site on bad connections and slow phones (Chromium only: the throttling is Chrome's).
 // For each profile and page: when something first shows, when the main control first answers (the page is
@@ -104,8 +105,6 @@ async function measure(page: Page, url: string, ready: string, label: string) {
   return { fcpMs: m.fcp ?? null, lcpMs: m.lcp ?? null, cls: m.cls ?? 0, controlVisibleMs: visibleMs, interactiveMs, blankMs: m.fcp ?? visibleMs, frames, error }
 }
 
-test.describe.configure({ mode: 'serial' })
-
 for (const p of PROFILES) {
   test(`pages on ${p.name}`, async ({ browser, world }) => {
     test.setTimeout(900_000)
@@ -116,17 +115,16 @@ for (const p of PROFILES) {
     const bookingId = await world.mustBook(guest, home.id)
     await guest.signIn()
     const pages: [string, string, string, boolean][] = [
-      ['home', '/', 'input, button', false],
-      ['search', '/search', 'input[placeholder^="Search by city"]', false],
-      ['listing', `/listings/${home.id}`, 'button:has-text("Instant Book"), button:has-text("Request to Book"), button:has-text("Reserve")', false],
-      ['checkout', `/checkout/${bookingId}`, 'button:has-text("Debit / Credit Card")', true],
+      ['home', '/', '#hero-where >> visible=true', false],
+      ['search', '/search', 'input[placeholder^="Search by city"] >> visible=true', false],
+      ['listing', `/listings/${home.id}`, 'input[placeholder="Add date"] >> visible=true', false],
+      ['checkout', `/checkout/${bookingId}`, 'button:has-text("Debit / Credit Card") >> visible=true', true],
     ]
     for (const [name, url, ready, signedIn] of pages) {
       const runs = []
       for (let i = 0; i < RUNS; i++) {
         const context = await browser.newContext({ baseURL: 'http://localhost:3200', viewport: p.viewport ?? { width: 1280, height: 800 }, isMobile: p.mobile, hasTouch: p.mobile, userAgent: p.userAgent, extraHTTPHeaders: { 'x-vercel-forwarded-for': guest.ip } })
         // the same fence every test has: no third party, map and photos answered locally
-        const { problemsFence } = await import('./fence')
         await problemsFence(context)
         if (signedIn) await context.addCookies([{ name: 'fiegh_session', value: guest.cookie!, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' }])
         const page = await context.newPage()
@@ -233,7 +231,6 @@ test('the connection drops as the guest books: the guest can try again and ends 
   await signIn(guest)
   const { checkIn, checkOut } = world.dates(2)
   await page.goto(`/listings/${home.id}`)
-  const { ListingPage } = await import('../pages')
   const listing = new ListingPage(page)
   await listing.chooseDates(checkIn, checkOut)
   let dropped = 0

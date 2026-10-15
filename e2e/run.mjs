@@ -36,6 +36,15 @@ function ensureFrontCertificate() {
 fs.mkdirSync(STATE, { recursive: true })
 const [command, ...rest] = process.argv.slice(2)
 const log = (...a) => console.log('[e2e]', ...a)
+// Load-run options (the second go): `--apps=3|4` more app servers, `--pool=N` a connection limit per app
+// process (Prisma's pool), `--db-latency=30-80` a round trip of 30 to 80 ms between the apps and Postgres
+// (Postgres moves to PG_REAL_PORT and a proxy takes its place on PORTS.pg, so every guard still holds).
+const opt = (name) => rest.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
+const APPS = [3200, 3201, 3202, 3203].slice(0, Math.min(4, Math.max(2, Number(opt('apps') ?? 2))))
+const ALL_APPS = [3200, 3201, 3202, 3203]
+const POOL = opt('pool')
+const DB_LATENCY = opt('db-latency')
+const PG_REAL_PORT = 54331
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 
 // `up --perf`: query statistics (pg_stat_statements) and the server log in e2e/.state/pglog, for the second go.
@@ -46,15 +55,18 @@ function perfFlags() {
   if (!perf) return []
   const libs = perf === '--perf=explain' ? 'pg_stat_statements,auto_explain' : 'pg_stat_statements'
   return ['-c', `shared_preload_libraries=${libs}`, '-c', 'pg_stat_statements.track=all', '-c', 'track_io_timing=on',
-    '-c', 'logging_collector=on', '-c', `log_directory=${path.join(STATE, 'pglog')}`, '-c', 'log_filename=postgresql-%Y%m%d-%H%M%S.log',
     '-c', 'log_min_duration_statement=200', '-c', 'log_checkpoints=on', '-c', 'log_lock_waits=on',
     ...(perf === '--perf=explain' ? ['-c', 'auto_explain.log_min_duration=20', '-c', 'auto_explain.log_analyze=on', '-c', 'auto_explain.log_buffers=on', '-c', 'auto_explain.log_nested_statements=on'] : [])]
 }
+const PERF_LOG = rest.some((a) => a.startsWith('--perf')) ? path.join(STATE, 'pglog', `postgresql-${new Date().toISOString().replace(/[:.]/g, '-')}.log`) : null
+if (PERF_LOG) fs.mkdirSync(path.dirname(PERF_LOG), { recursive: true })
 const postgres = () => new EmbeddedPostgres({
-  databaseDir: path.join(STATE, 'pgdata'), user: 'postgres', password: 'e2e', port: PORTS.pg, persistent: true,
+  databaseDir: path.join(STATE, 'pgdata'), user: 'postgres', password: 'e2e', port: DB_LATENCY ? PG_REAL_PORT : PORTS.pg, persistent: true,
   // The connection limit of the smallest Supabase computes, so running out shows up here too
   postgresFlags: ['-c', 'max_connections=60', '-c', 'listen_addresses=127.0.0.1', '-c', 'log_min_duration_statement=500', ...perfFlags()],
-  onLog: () => {}, onError: (e) => { const text = String(e); if (!/database system is|listening on|LOG:/.test(text)) fs.appendFileSync(path.join(STATE, 'postgres.log'), text + '\n') },
+  // In perf mode everything Postgres says (slow statements, auto_explain plans) goes to e2e/.state/pglog
+  onLog: (m) => { if (PERF_LOG) fs.appendFileSync(PERF_LOG, String(m) + '\n') },
+  onError: (e) => { const text = String(e); if (PERF_LOG) fs.appendFileSync(PERF_LOG, text + '\n'); if (!/database system is|listening on|LOG:/.test(text)) fs.appendFileSync(path.join(STATE, 'postgres.log'), text + '\n') },
 })
 
 async function reachable(url) { try { return (await fetch(url, { redirect: 'manual' })).status > 0 } catch { return false } }
@@ -99,7 +111,8 @@ function build() {
 }
 
 export function startApp(port, extraEnv = {}) {
-  const env = e2eEnv({ appPort: port, extra: { NODE_OPTIONS: `--require ${path.join(E2E_DIR, 'preload/egress.cjs')}`, E2E_HOST_MAP: JSON.stringify(HOST_MAP), E2E_EGRESS_LOG: EGRESS_LOG, E2E_TLS_PORT: String(PORTS.tls), NODE_EXTRA_CA_CERTS: TLS.cert, PORT: String(port), ...extraEnv } })
+  const pooled = POOL ? { DATABASE_URL: `${e2eEnv().DATABASE_URL}&connection_limit=${Number(POOL)}` } : {}
+  const env = e2eEnv({ appPort: port, extra: { ...pooled, NODE_OPTIONS: `--require ${path.join(E2E_DIR, 'preload/egress.cjs')}`, E2E_HOST_MAP: JSON.stringify(HOST_MAP), E2E_EGRESS_LOG: EGRESS_LOG, E2E_TLS_PORT: String(PORTS.tls), NODE_EXTRA_CA_CERTS: TLS.cert, PORT: String(port), ...extraEnv } })
   const out = fs.openSync(path.join(STATE, `app-${port}.log`), 'a')
   return spawn('npx', ['next', 'start', '-p', String(port)], { cwd: ROOT, env, stdio: ['ignore', out, out], detached: true })
 }
@@ -112,17 +125,22 @@ async function up() {
   const pg = postgres()
   if (!fs.existsSync(path.join(STATE, 'pgdata', 'PG_VERSION'))) { log('creating a local Postgres 17 in e2e/.state/pgdata'); await pg.initialise() }
   await pg.start()
+  let latency = null
+  if (DB_LATENCY) {
+    latency = spawn('node', [path.join(E2E_DIR, 'fakes/db-latency.mjs')], { env: { PATH: process.env.PATH, E2E_LATENCY_MS: DB_LATENCY, E2E_LATENCY_LISTEN: String(PORTS.pg), E2E_LATENCY_TARGET: String(PG_REAL_PORT) }, stdio: ['ignore', fs.openSync(path.join(STATE, 'db-latency.log'), 'a'), fs.openSync(path.join(STATE, 'db-latency.log'), 'a')], detached: true })
+    await sleep(500)
+  }
   await setupDatabase(pg, { fresh: rest.includes('--fresh-db') })
   const fakes = spawn('node', [path.join(E2E_DIR, 'fakes/server.mjs')], { env: { ...e2eEnv(), E2E_FAKES_PORT: String(PORTS.fakes), E2E_STORAGE_PORT: String(PORTS.storage), E2E_TLS_PORT: String(PORTS.tls), E2E_TLS_KEY: TLS.key, E2E_TLS_CERT: TLS.cert }, stdio: ['ignore', fs.openSync(path.join(STATE, 'fakes.log'), 'a'), fs.openSync(path.join(STATE, 'fakes.log'), 'a')], detached: true })
   await waitFor(`${FAKE}/__control/health`, 'the fake services', 20)
   // https in front of the first app server, for WebKit's Secure cookie
   const front = spawn('node', [path.join(E2E_DIR, 'fakes/https-front.mjs')], { env: { PATH: process.env.PATH, E2E_FRONT_PORT: String(PORTS.front), E2E_FRONT_TARGET: String(PORTS.app[0]), E2E_FRONT_KEY: FRONT_TLS.key, E2E_FRONT_CERT: FRONT_TLS.cert }, stdio: ['ignore', fs.openSync(path.join(STATE, 'front.log'), 'a'), fs.openSync(path.join(STATE, 'front.log'), 'a')], detached: true })
   if (rest.includes('--build') || !fs.existsSync(path.join(ROOT, '.next', 'E2E_BUILD'))) build()
-  const apps = PORTS.app.map((port) => startApp(port))
-  fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, front: front.pid, apps: Object.fromEntries(PORTS.app.map((p, i) => [p, apps[i].pid])) }))
-  for (const port of PORTS.app) await waitFor(`http://localhost:${port}/api/auth/session`, `the app on ${port}`)
-  log(`up: app on ${PORTS.app.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}, fakes on ${PORTS.fakes}/${PORTS.storage}`)
-  const stop = async () => { killGroup(fakes.pid); killGroup(front.pid); for (const port of [...PORTS.app, PORTS.front]) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
+  const apps = APPS.map((port) => startApp(port))
+  fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, front: front.pid, latency: latency?.pid, apps: Object.fromEntries(APPS.map((p, i) => [p, apps[i].pid])) }))
+  for (const port of APPS) await waitFor(`http://localhost:${port}/api/auth/session`, `the app on ${port}`)
+  log(`up: app on ${APPS.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}${DB_LATENCY ? ` through a ${DB_LATENCY} ms proxy (real port ${PG_REAL_PORT})` : ''}${POOL ? `, pool ${POOL} per app` : ''}, fakes on ${PORTS.fakes}/${PORTS.storage}`)
+  const stop = async () => { killGroup(fakes.pid); killGroup(front.pid); if (latency) killGroup(latency.pid); for (const port of [...ALL_APPS, PORTS.front]) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
   process.on('SIGINT', stop); process.on('SIGTERM', stop)
   setInterval(() => {}, 1 << 30) // stay up until told to stop
 }
@@ -135,7 +153,7 @@ async function down() {
   const pids = JSON.parse(fs.readFileSync(PIDS, 'utf8'))
   if (pids.runner !== process.pid) { try { process.kill(pids.runner, 'SIGTERM') } catch {} }
   for (let i = 0; i < 40 && fs.existsSync(PIDS); i++) await sleep(250)
-  killGroup(pids.fakes); if (pids.front) killGroup(pids.front); for (const port of [...PORTS.app, PORTS.fakes, PORTS.storage, PORTS.tls, PORTS.front]) killPort(port)
+  killGroup(pids.fakes); if (pids.front) killGroup(pids.front); if (pids.latency) killGroup(pids.latency); for (const port of [...ALL_APPS, PORTS.fakes, PORTS.storage, PORTS.tls, PORTS.front]) killPort(port)
   fs.rmSync(PIDS, { force: true })
   log('down')
 }

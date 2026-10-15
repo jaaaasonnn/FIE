@@ -3,6 +3,7 @@ import path from 'path'
 import type { Page } from '@playwright/test'
 import { test, expect } from '../lib/test'
 import { db } from '../lib/db'
+import { problemsFence } from './fence'
 
 // Stage B4: going from page to page. For each main pair: the time from the click until the next page's
 // main content is visible, layout shift on the way, and any blank, flash or broken state seen in between
@@ -43,8 +44,6 @@ async function stopRecording(page: Page) {
 
 type Pair = { name: string; from: string; click: (p: Page) => Promise<void>; arrived: (p: Page) => Promise<void>; signIn?: 'guest' | 'host' }
 
-test.describe.configure({ mode: 'serial' })
-
 test('page-to-page: click to visible, layout shift, blank and flash states, cold and warm', async ({ browser, world }) => {
   test.setTimeout(1_500_000)
   const host = await world.host()
@@ -54,13 +53,13 @@ test('page-to-page: click to visible, layout shift, blank and flash states, cold
   const { id: paidId } = await world.paidBooking(guest, homes[0].id)
   await guest.signIn(); await host.signIn()
 
+  // Not measured (see FINDINGS): home → listing (the cached home page links to a listing that is gone, G10) and
+  // guest dashboard → booking (a short stay has no link to its booking page anywhere in the app, G11)
   const pairs: Pair[] = [
     { name: 'home → search (header search)', from: '/', click: async (p) => { await p.getByRole('link', { name: /search|explore|find/i }).or(p.getByRole('button', { name: /^search$/i })).first().click() }, arrived: async (p) => { await p.waitForURL(/\/search/); await p.locator('a[href^="/listings/"]').first().waitFor() } },
     { name: 'search → listing (card)', from: '/search', click: async (p) => { await p.locator('a[href^="/listings/"]').first().click() }, arrived: async (p) => { await p.waitForURL(/\/listings\//); await p.getByRole('heading', { level: 1 }).waitFor() } },
-    { name: 'home → listing (card)', from: '/', click: async (p) => { await p.locator('a[href^="/listings/"]').first().click() }, arrived: async (p) => { await p.waitForURL(/\/listings\//); await p.getByRole('heading', { level: 1 }).waitFor() } },
     { name: 'home → how it works (nav)', from: '/', click: async (p) => { await p.getByRole('link', { name: 'How it Works' }).first().click() }, arrived: async (p) => { await p.waitForURL(/how-it-works/); await p.getByRole('heading', { level: 1 }).waitFor() } },
     { name: 'how it works → FAQ (nav)', from: '/how-it-works', click: async (p) => { await p.getByRole('link', { name: 'FAQ' }).first().click() }, arrived: async (p) => { await p.waitForURL(/\/faq/); await p.getByRole('heading', { level: 1 }).waitFor() } },
-    { name: 'guest dashboard → booking', from: '/dashboard/guest', signIn: 'guest', click: async (p) => { await p.locator(`a[href="/bookings/${paidId}"]`).first().click() }, arrived: async (p) => { await p.waitForURL(/\/bookings\//); await p.getByText(homes[0].title).first().waitFor() } },
     { name: 'host dashboard → host bookings', from: '/dashboard/host', signIn: 'host', click: async (p) => { await p.locator('a[href^="/dashboard/host/bookings"]').first().click() }, arrived: async (p) => { await p.waitForURL(/\/dashboard\/host\/bookings/); await p.getByRole('heading').first().waitFor() } },
   ]
 
@@ -68,7 +67,6 @@ test('page-to-page: click to visible, layout shift, blank and flash states, cold
     for (const cache of ['cold', 'warm'] as const) {
       const runs: Record<string, unknown>[] = []
       const context = await browser.newContext({ baseURL: 'http://localhost:3200', extraHTTPHeaders: { 'x-vercel-forwarded-for': guest.ip } })
-      const { problemsFence } = await import('./fence')
       await problemsFence(context)
       const who = pair.signIn === 'guest' ? guest : pair.signIn === 'host' ? host : null
       if (who) await context.addCookies([{ name: 'fiegh_session', value: who.cookie!, domain: 'localhost', path: '/', httpOnly: true, sameSite: 'Lax' }])

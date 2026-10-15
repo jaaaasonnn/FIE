@@ -82,7 +82,9 @@ const save = (extra = {}) => fs.writeFileSync(path.join(outDir, `server-timing-$
 await db.query('select pg_stat_statements_reset()')
 const tablesBefore = await all(`select relname, seq_scan, seq_tup_read, idx_scan from pg_stat_user_tables`)
 
+const ONLY = process.env.E2E_ONLY ? new RegExp(process.env.E2E_ONLY) : null // time only the routes whose name matches
 async function timeIt(name, kind, fn, n = N) {
+  if (ONLY && !ONLY.test(name)) return
   for (let i = 0; i < 3; i++) await fn()
   const samples = []; const statuses = []; let bytes = 0
   for (let i = 0; i < n; i++) { const r = await fn(); samples.push(r.ms); statuses.push(r.status); bytes = r.bytes }
@@ -106,13 +108,14 @@ await timeIt('POST /api/auth/signup (bcrypt)', 'write', () => call('POST', '/api
 const gCookies = []
 for (const g of guests.slice(0, 40)) gCookies.push(await signIn(g.email))
 let bk = 0; const made = []
+const runOffset = Math.floor(Math.random() * 3000) // fresh dates each run, so a rerun does not meet its own earlier bookings
 await timeIt('POST /api/bookings (instant book)', 'write', async () => {
-  const i = bk++; const r = await call('POST', '/api/bookings', { cookie: gCookies[i % gCookies.length], body: { listingId: instant[i % instant.length], checkIn: day(400 + i * 3), checkOut: day(402 + i * 3), rentalMode: 'SHORT_STAY', guests: 1 } })
+  const i = bk++; const r = await call('POST', '/api/bookings', { cookie: gCookies[i % gCookies.length], body: { listingId: instant[i % instant.length], checkIn: day(400 + runOffset + i * 3), checkOut: day(402 + runOffset + i * 3), rentalMode: 'SHORT_STAY', guests: 1 } })
   if (r.json?.booking?.id) made.push({ id: r.json.booking.id, cookie: gCookies[i % gCookies.length] })
   return r
 }, 30)
 let pm = 0
-await timeIt('POST /api/payments (start a payment)', 'write', () => { const b = made[pm++ % made.length]; return call('POST', '/api/payments', { cookie: b.cookie, body: { bookingId: b.id, method: 'CARD' } }) }, Math.min(30, made.length))
+if (made.length) await timeIt('POST /api/payments (start a payment)', 'write', () => { const b = made[pm++ % made.length]; return call('POST', '/api/payments', { cookie: b.cookie, body: { bookingId: b.id, method: 'CARD' } }) }, Math.min(30, made.length))
 let ms = 0
 await timeIt('POST /api/messages', 'write', () => call('POST', '/api/messages', { cookie: guest, body: { receiverId: H, listingId: L, content: `Load timing message ${ms++}` } }), 25)
 let wl = 0
