@@ -67,6 +67,24 @@ export const test = base.extend<Fixtures>({
   context: async ({ context, problems }, use) => {
     await context.setExtraHTTPHeaders({ 'x-vercel-forwarded-for': freshIp() })
     await fence(context, problems)
+    // In the projects behind the https front, addresses the app writes from NEXTAUTH_URL (Paystack's return,
+    // emails) point at http://localhost:3200, where WebKit will not send the Secure cookie. Production has one
+    // https address, so a page opened there, or a redirect to there from the fake Paystack page, is sent on to
+    // the same path on the front. (Redirects the app itself sends through the front are rewritten by the front.
+    // WebKit cannot answer a routed request with a redirect status, hence a page that moves on at once.)
+    const base = String(test.info().project.use.baseURL)
+    if (base.startsWith('https://localhost:')) {
+      const onFront = (url: string) => { const u = new URL(url); return base + u.pathname + u.search }
+      const moveOn = (route: import('@playwright/test').Route, url: string) => route.fulfill({ contentType: 'text/html', body: `<script>location.replace(${JSON.stringify(onFront(url))})</script>` })
+      await context.route(/^http:\/\/localhost:3200\//, (route) => route.request().isNavigationRequest() ? moveOn(route, route.request().url()) : route.continue())
+      await context.route(/^http:\/\/(localhost|127\.0\.0\.1):4010\/paystack\//, async (route) => {
+        if (!route.request().isNavigationRequest()) return route.continue()
+        const answer = await route.fetch({ maxRedirects: 0 })
+        const location = answer.headers()['location'] ?? ''
+        if (answer.status() >= 300 && answer.status() < 400 && /^http:\/\/localhost:3200\//.test(location)) return moveOn(route, location)
+        return route.fulfill({ response: answer })
+      })
+    }
     context.on('page', (page) => watch(page, problems))
     // The content policy is report-only: nothing is blocked, but what it WOULD block is collected here
     await context.exposeBinding('__e2eCsp', (_source, line: string) => { problems.csp.push(line) })

@@ -1,5 +1,23 @@
 # End-to-end test report
 
+## Second go, Stage A: the gaps from the first go (2026-10-15, branch `e2e-performance`)
+
+Before starting, the post-merge run on `main` (`8e0bf14`) was repeated in full under `caffeinate`: build passed, smoke 7/7, all 220 removal proofs held in one pass (the tree clean after each), build passed, smoke 7/7, `git status` clean. The first attempt had stopped at proof 85 of 220 and left that proof's edit in `src/lib/exchangeRate.ts`; the runner is now `e2e/scripts/removal-proofs.mjs`, which journals originals to disk, restores on exit and on signals, repairs a killed run on the next start and resumes (`--resume`).
+
+Machine: MacBook Air (Mac16,12), Apple M4, 10 cores, 16 GB, no fan; on mains power; 36 GB free.
+
+| Run | Result |
+|---|---|
+| https front for WebKit | `https://localhost:3443`, throwaway certificate accepted only by the webkit, tablet and iphone projects |
+| The 18 tests skipped in WebKit for the Secure cookie (6 in each of webkit, tablet, iphone) | all run, all pass. The suspended log-in test is now in the core set too (3 more) |
+| New browser journeys (`tests/journeys/clicked.spec.ts`): listing in six steps with two photos, ID sent and an admin's Reject then Approve, the "address and photos checked" form, suspend and restore from the Users tab, the payout method form, the second month's rent paid from the booking page | 6 of 6 in Chromium, 30 of 30 repeated five times, and in all six browser set-ups |
+| Everything in Chromium | 169 passed (4 skipped: the opt-in contrast measurement) |
+| Crashes and the database, alone | 10 passed |
+| Core set in Firefox, WebKit, tablet, iPhone and Android | 138 passed, 1 skipped (the map in Firefox), 1 flaky: "search by city" on the tablet (G3) |
+| New findings | G1 (Medium), G2 (High), G3 (Low, not confirmed); see `FINDINGS.md` |
+
+---
+
 ## After the fixes (2026-10-13, branch `e2e-fixes`)
 
 Run against a production build of the branch, on this machine, with the local
