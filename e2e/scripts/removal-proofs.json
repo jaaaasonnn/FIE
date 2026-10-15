@@ -1,0 +1,2687 @@
+[
+ {
+  "what": "C1: listing create refuses a bad deposit or price",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    const money = parseListingMoney(body)\n    if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })\n",
+    "replace": "    const num = (v: unknown) => (v ? parseFloat(String(v)) : null)\n    const money = { ok: true as const, value: { priceNightly: num(body.priceNightly), priceMonthly: num(body.priceMonthly), priceAnnual: num(body.priceAnnual), damageDeposit: num(body.damageDeposit) } }\n"
+   }
+  ],
+  "testFile": "src/lib/security/money.test.ts",
+  "test": "a new listing with a negative or nonsense deposit is refused"
+ },
+ {
+  "what": "C1: listing create refuses a bad price",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    const money = parseListingMoney(body)\n    if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })\n",
+    "replace": "    const num = (v: unknown) => (v ? parseFloat(String(v)) : null)\n    const money = { ok: true as const, value: { priceNightly: num(body.priceNightly), priceMonthly: num(body.priceMonthly), priceAnnual: num(body.priceAnnual), damageDeposit: num(body.damageDeposit) } }\n"
+   }
+  ],
+  "testFile": "src/lib/security/money.test.ts",
+  "test": "a new listing with a negative, zero or nonsense price is refused"
+ },
+ {
+  "what": "C1: listing edit refuses a bad deposit",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    const money = parseListingMoney(body)\n    if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })\n    Object.assign(data, money.value)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/money.test.ts",
+  "test": "an edit to a negative or nonsense deposit is refused and changes nothing"
+ },
+ {
+  "what": "C1: listing edit refuses a bad price",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    const money = parseListingMoney(body)\n    if (!money.ok) return NextResponse.json({ error: money.error }, { status: 400 })\n    Object.assign(data, money.value)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/money.test.ts",
+  "test": "an edit to a negative, zero or nonsense price is refused and changes nothing"
+ },
+ {
+  "what": "C1: a deposit below zero is refused by the rule itself",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  if (raw < 0 || (raw === 0 && !allowZero)) return",
+    "replace": "  if (raw === 0 && !allowZero) return"
+   }
+  ],
+  "testFile": "src/lib/security/money.test.ts",
+  "test": "accepts real amounts and nothing else"
+ },
+ {
+  "what": "C1: booking refuses a listing with a bad stored deposit",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "    if (!depositIsSound(listing.damageDeposit)) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/money.test.ts",
+  "test": "a listing whose stored deposit is negative cannot be booked"
+ },
+ {
+  "what": "H1: lock per account",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "{ perKey: LIMITS.signInPerAccount, perIp: LIMITS.signInPerIp }",
+    "replace": "{ perIp: LIMITS.signInPerIp }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "locks an account after 5 wrong passwords in 15 minutes, even for the right one"
+ },
+ {
+  "what": "H1: limit per IP address",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "{ perKey: LIMITS.signInPerAccount, perIp: LIMITS.signInPerIp }",
+    "replace": "{ perKey: LIMITS.signInPerAccount }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "stops one IP address after 20 wrong passwords in an hour, whatever accounts they were for"
+ },
+ {
+  "what": "H1: wrong passwords are recorded",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "      // A wrong password: the attempt written above stays, and counts\n",
+    "replace": "      await attempt.release()\n"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "answers the same for an address with no account, and locks it the same way"
+ },
+ {
+  "what": "H1: the count ignores capitals and spaces",
+  "edits": [
+   {
+    "file": "src/lib/rateLimit.ts",
+    "find": "${identifier.trim().toLowerCase()}",
+    "replace": "${identifier}"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "counts the address as typed, so capitals and spaces do not dodge the lock"
+ },
+ {
+  "what": "M11: dummy hash when there is no account",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "    const valid = await bcrypt.compare(password, user?.passwordHash ?? NO_ACCOUNT_HASH)",
+    "replace": "    const valid = user?.passwordHash ? await bcrypt.compare(password, user.passwordHash) : false"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "checks the password against a hash even when there is no account, so the answer takes as long"
+ },
+ {
+  "what": "H1: oversized or non-text input refused before hashing",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "    if (identifier.length > 320 || password.length > 200) {\n      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "refuses a password or address that is not text, or is absurdly long, without hashing it"
+ },
+ {
+  "what": "Link limit counts only link requests",
+  "edits": [
+   {
+    "file": "src/lib/authTokens.ts",
+    "find": "where: { ipHash, kind: { in: LINK_KINDS }, createdAt: since(HOUR) }",
+    "replace": "where: { ipHash, createdAt: since(HOUR) }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "keeps wrong passwords out of the limit on reset and confirmation links"
+ },
+ {
+  "what": "Low: IP address read from Vercel's headers first",
+  "edits": [
+   {
+    "file": "src/lib/authTokens.ts",
+    "find": "  const ip = req.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim()\n    || req.headers.get('x-real-ip')?.trim()\n    || req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()",
+    "replace": "  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || req.headers.get('x-real-ip')?.trim()"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "prefers the headers Vercel sets over one a visitor can send"
+ },
+ {
+  "what": "H2: sign-ups per IP address",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "    if (place && !place.ok) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "allows 5 accounts an hour from one IP address, then no more"
+ },
+ {
+  "what": "H2: sign-up email under the link limits",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "      await requestVerification(user, ipHash)",
+    "replace": "      await requestVerification(user, ipHash, { limited: false })"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "sends the confirmation link under the same limits as every other link"
+ },
+ {
+  "what": "H3: open unpaid bookings per guest",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "        if (listing.instantBook && openUnpaid >= LIMITS.openUnpaidBookings) overLimit = { error: TOO_MANY_OPEN_BOOKINGS, retryAfter: 60 }\n        else if (!listing.instantBook",
+    "replace": "        if (false) overLimit = null\n        else if (!listing.instantBook"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "lets a guest hold 2 confirmed bookings that are not paid for, and no more"
+ },
+ {
+  "what": "H3: bookings per hour",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "        else if (lastHour >= LIMITS.bookingsPerHour) overLimit = { error: TOO_MANY_BOOKINGS, retryAfter: 60 * 60 }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "lets a guest make 10 bookings in an hour, however they end, and no more"
+ },
+ {
+  "what": "M1: a first message needs a reason",
+  "edits": [
+   {
+    "file": "src/app/api/messages/route.ts",
+    "find": "      if (!wroteFirst) return NextResponse.json({ error: NO_REASON_TO_MESSAGE }, { status: 403 })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "a first message must be to the host of the home it is about, or the other person on a booking"
+ },
+ {
+  "what": "M1: a listing only counts when the message is to its host",
+  "edits": [
+   {
+    "file": "src/app/api/messages/route.ts",
+    "find": "      if (listing.hostId === receiverId) reason = true",
+    "replace": "      reason = true"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "a first message must be to the host of the home it is about, or the other person on a booking"
+ },
+ {
+  "what": "M1: messages per hour",
+  "edits": [
+   {
+    "file": "src/app/api/messages/route.ts",
+    "find": "    if (!place.ok) return tooMany(TOO_MANY_MESSAGES, 60 * 60)",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "allows 30 messages an hour and no more"
+ },
+ {
+  "what": "M1: message length",
+  "edits": [
+   {
+    "file": "src/app/api/messages/route.ts",
+    "find": "    if (content.length > MAX_MESSAGE_LENGTH) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "refuses a message that is too long, or not text"
+ },
+ {
+  "what": "H5: one-line fields lose their line breaks",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  const text = lines ? manyLines(value) : oneLine(value)",
+    "replace": "  const text = value.trim()"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a title is stored on one line, on a new listing and on an edit"
+ },
+ {
+  "what": "H5: facts are put on one line before an email is written",
+  "edits": [
+   {
+    "file": "src/lib/messaging/notify.ts",
+    "find": "[k, typeof v === 'string' ? oneLine(v) : v]",
+    "replace": "[k, v]"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "has one button, ours, and the title sits inside a sentence"
+ },
+ {
+  "what": "M8: listing create checks its fields",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    if (!details.ok) return NextResponse.json({ error: details.error }, { status: 400 })\n    const fields = details.value\n",
+    "replace": "    const fields = (details.ok ? details.value : { title: String(body.title), propertyType: String(body.propertyType), region: String(body.region), city: String(body.city), bedrooms: Number(body.bedrooms) || 1, bathrooms: 1, maxGuests: 2, minStayNights: 1, rentalModes: '[]', amenities: '[]', rules: '[]', instantBook: false }) as NonNullable<typeof details extends { ok: true; value: infer V } ? V : never>\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a field of the wrong type or size is refused on a new listing"
+ },
+ {
+  "what": "M8: listing edit checks its fields",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    if (!details.ok) return NextResponse.json({ error: details.error }, { status: 400 })\n    Object.assign(data, details.value)\n",
+    "replace": "    Object.assign(data, details.ok ? details.value : body)\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a field of the wrong type or size is refused on an edit, and changes nothing"
+ },
+ {
+  "what": "M8: an edit stores only the named fields",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    Object.assign(data, details.value)\n",
+    "replace": "    Object.assign(data, body, details.value)\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "an edit can change only the fields a host owns: nothing else in the request is stored"
+ },
+ {
+  "what": "M8: text length limit",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  if (text.length > max) return { ok: false, error: `${label} can be at most ${max} characters` }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "refuses the wrong type and the wrong size"
+ },
+ {
+  "what": "M8: text must be text",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  if (typeof value !== 'string') return { ok: false, error: `${label} must be text` }\n",
+    "replace": "  if (typeof value !== 'string') value = String(value)\n  if (typeof value !== 'string') return { ok: false, error: '' }\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "refuses the wrong type and the wrong size"
+ },
+ {
+  "what": "M8: review rating is a whole number",
+  "edits": [
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "find": "    if (typeof rating !== 'number' || !Number.isInteger(rating) || rating < 1 || rating > 5) {",
+    "replace": "    if (rating < 1 || rating > 5) {"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a rating must be a whole number of stars from 1 to 5"
+ },
+ {
+  "what": "M8: review and reply length",
+  "edits": [
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "find": "    if (!parsedReply.ok) return NextResponse.json({ error: parsedReply.error }, { status: 400 })\n    const hostReply = parsedReply.value\n",
+    "replace": "    const hostReply = parsedReply.ok ? parsedReply.value : rawReply\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a review or a reply that is too long, or not text, is refused"
+ },
+ {
+  "what": "M8: special requests length and id types",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "    if (!requests.ok) return NextResponse.json({ error: requests.error }, { status: 400 })\n",
+    "replace": "    if (!requests.ok) (requests as unknown as { value: unknown }).value = specialRequests\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "special requests that are too long, and ids that are not text, are refused"
+ },
+ {
+  "what": "M8: profile fields checked",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/route.ts",
+    "find": "      if (!parsed.ok) return NextResponse.json({ error: parsed.error }, { status: 400 })\n",
+    "replace": "      if (!parsed.ok) continue\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a profile field of the wrong type or size is refused"
+ },
+ {
+  "what": "M8: sign-up name checked",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "    if (!parsedName.ok) return NextResponse.json({ error: parsedName.error }, { status: 400 })\n",
+    "replace": "    if (!parsedName.ok) (parsedName as unknown as { value: unknown }).value = String(rawName)\n"
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a sign-up field of the wrong type or size is refused, and a role of ADMIN is ignored"
+ },
+ {
+  "what": "M8: password length cap on reset",
+  "edits": [
+   {
+    "file": "src/lib/authTokens.ts",
+    "find": "  if (password.length > MAX_PASSWORD_LENGTH) {\n    return { ok: false, status: 400, error: `Password can be at most ${MAX_PASSWORD_LENGTH} characters` }\n  }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/input.test.ts",
+  "test": "a new password longer than any real one is refused before the link is used up"
+ },
+ {
+  "what": "H6: contact hidden on one booking until paid",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "      return NextResponse.json({ booking: bookingFor({ ...booking, listing: { ...booking.listing, digitalAddress: address } }, user) })",
+    "replace": "      return NextResponse.json({ booking: { ...booking, listing: { ...booking.listing, digitalAddress: address } } })"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "an instant booking not paid for"
+ },
+ {
+  "what": "H6: contact hidden in the booking list",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "    return NextResponse.json({ bookings: bookings.map((b) => bookingFor(b, user)) })",
+    "replace": "    return NextResponse.json({ bookings })"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a host never gets the guest's payment references or mobile money number"
+ },
+ {
+  "what": "H6: the rule is confirmed AND paid",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "  return tenancyStands(booking)\n",
+    "replace": "  return booking.status === 'CONFIRMED' || tenancyStands(booking)\n"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a guest cannot collect a host's phone number by booking without paying"
+ },
+ {
+  "what": "H6: the guest's details are hidden from the host",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "    ...(booking.guest !== undefined && !isGuest && !shared ? { guest: without(booking.guest) } : {}),\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a request the host has not answered"
+ },
+ {
+  "what": "H6: payment references kept from the host",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "booking.payments.map((payment) => omit(payment, ['gatewayReference', 'authorizationUrl', 'momoNumber']))",
+    "replace": "booking.payments"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a host never gets the guest's payment references or mobile money number"
+ },
+ {
+  "what": "M6: a held or switched-off listing is not public",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "      if (!listingVisible({ ...listing, hostSuspended }, viewer, hasBooking)) {",
+    "replace": "      if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "on hold: is not public by its link"
+ },
+ {
+  "what": "M6: the hold counts even when the listing is marked active",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    if (!listing.isActive || listing.moderationHold || hostSuspended) {",
+    "replace": "    if (!listing.isActive || hostSuspended) {"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "on hold but marked active: is not public by its link"
+ },
+ {
+  "what": "M13: an admin's profile is not public",
+  "edits": [
+   {
+    "file": "src/app/api/users/[id]/route.ts",
+    "find": "      if (!profileVisible({ id, role: user.role, suspended: !!user.suspendedAt }, viewer, shareBooking)) {",
+    "replace": "      if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "an admin's profile is for admins only, so nobody can find out which accounts are admins"
+ },
+ {
+  "what": "M13: a guest's profile needs a shared booking",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "  return profile.role === 'GUEST' && shareBooking\n",
+    "replace": "  return profile.role === 'GUEST'\n"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a guest's profile is for themselves, admins and a host they have booked with"
+ },
+ {
+  "what": "Low: image optimiser pinned to this project's storage",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "hostname: storageHost(), pathname",
+    "replace": "hostname: \"*.supabase.co\", pathname"
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "optimises photos only from this project's own storage and Unsplash"
+ },
+ {
+  "what": "Image optimiser falls closed without SUPABASE_URL",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "    return \"storage.invalid\"",
+    "replace": "    return \"*.supabase.co\""
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "allows no Supabase host at all when the project's address is missing, rather than every one"
+ },
+ {
+  "what": "H4: AVIF left out of the optimiser",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "    formats: [\"image/webp\"],",
+    "replace": "    formats: [\"image/avif\", \"image/webp\"],"
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "does not ask the optimiser for AVIF"
+ },
+ {
+  "what": "H4: Auth.js packages stay removed",
+  "edits": [
+   {
+    "file": "package.json",
+    "find": "    \"next\": \"16.3.8\",",
+    "replace": "    \"next\": \"16.3.8\",\n    \"next-auth\": \"^4.24.14\","
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "no longer carries the Auth.js packages, which no code used"
+ },
+ {
+  "what": "H4: Next stays on a patched 16.3",
+  "edits": [
+   {
+    "file": "package.json",
+    "find": "    \"next\": \"16.3.8\",",
+    "replace": "    \"next\": \"16.3.7\","
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "is on a patched Next 16.3 and a patched sharp"
+ },
+ {
+  "what": "M2: only the hash of a session token is stored",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "  await db.session.create({ data: { userId, token: hashSessionToken(token), expiresAt } })",
+    "replace": "  await db.session.create({ data: { userId, token, expiresAt } })"
+   },
+   {
+    "file": "src/lib/session.ts",
+    "find": "    where: { token: hashSessionToken(token) },",
+    "replace": "    where: { token },"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "only the hash of the token is stored, never the token"
+ },
+ {
+  "what": "M2: a stored value cannot be used as a token",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "    where: { token: hashSessionToken(token) },",
+    "replace": "    where: { OR: [{ token: hashSessionToken(token) }, { token }] },"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "a value copied from the Session table does not sign anyone in"
+ },
+ {
+  "what": "M2: malformed tokens refused before the lookup",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "  if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return null\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "refuses anything that is not shaped like a token without looking it up"
+ },
+ {
+  "what": "M2: a run-out session is refused",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "  if (session.expiresAt < new Date()) {",
+    "replace": "  if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "a session that has run out is refused and removed"
+ },
+ {
+  "what": "M2: sign out everywhere ends every session",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signout/route.ts",
+    "find": "    if (user) ended = await endAllSessions(user.id)\n",
+    "replace": "    if (user) await endSession(token)\n"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "\"sign out on every device\" ends every session the person has, and nobody else's"
+ },
+ {
+  "what": "M3: the current password is needed to change it",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/password/route.ts",
+    "find": "    if (!account?.passwordHash || !(await bcrypt.compare(currentPassword, account.passwordHash))) {",
+    "replace": "    if (!account?.passwordHash) {"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "needs the current password"
+ },
+ {
+  "what": "M3: other devices are signed out on a change",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/password/route.ts",
+    "find": "    const ended = await endAllSessions(account.id, { exceptToken: token })\n",
+    "replace": "    const ended = 0\n"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "sets the new password, signs every other device out and keeps this one"
+ },
+ {
+  "what": "M3: this device stays signed in",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "    where: { userId, ...(exceptToken ? { token: { not: hashSessionToken(exceptToken) } } : {}) },",
+    "replace": "    where: { userId },"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "sets the new password, signs every other device out and keeps this one"
+ },
+ {
+  "what": "M3: new password rules",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/password/route.ts",
+    "find": "    if (newPassword === currentPassword) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "refuses a new password that is too short, too long, not text, or the same"
+ },
+ {
+  "what": "M3: wrong guesses at the current password are limited",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/password/route.ts",
+    "find": "      await record(WRONG_PASSWORD, { key })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "allows 5 wrong guesses at the current password in 15 minutes, then none, right or wrong"
+ },
+ {
+  "what": "M3: old reset links cancelled",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/password/route.ts",
+    "find": "    await db.authToken.updateMany({ where: { userId: account.id, purpose: 'RESET_PASSWORD', usedAt: null }, data: { usedAt: new Date() } })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "cancels reset links asked for before the change"
+ },
+ {
+  "what": "M2: clean-up removes only run-out sessions",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "  return (await db.session.deleteMany({ where: { expiresAt: { lt: now } } })).count",
+    "replace": "  return (await db.session.deleteMany({})).count"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "removes sessions that have run out and counts over a week old, and nothing else"
+ },
+ {
+  "what": "M2: clean-up dry run deletes nothing",
+  "edits": [
+   {
+    "file": "src/lib/cleanup.ts",
+    "find": "  const oldCounts = dryRun\n    ? await db.authRequest.count({ where: { createdAt: { lt: before } } })\n    : (await",
+    "replace": "  const oldCounts = (await"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "only counts in a dry run"
+ },
+ {
+  "what": "Clean-up job needs the cron secret",
+  "edits": [
+   {
+    "file": "src/app/api/cron/cleanup/route.ts",
+    "find": "export async function GET(req: Request) {\n  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })\n",
+    "replace": "export async function GET(req: Request) {\n"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "runs only for the cron secret"
+ },
+ {
+  "what": "Low: cron secret, no secret set lets nobody in",
+  "edits": [
+   {
+    "file": "src/lib/cronAuth.ts",
+    "find": "  if (!secret) return false\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "lets in only the exact secret, and nobody when none is set"
+ },
+ {
+  "what": "Low: every cron route uses the shared check",
+  "edits": [
+   {
+    "file": "src/app/api/cron/process-payouts/route.ts",
+    "find": "export async function GET(req: Request) {\n  if (!cronAuthorised(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })\n",
+    "replace": "export async function GET(req: Request) {\n  if (req.headers.get('authorization') !== `Bearer ${process.env.CRON_SECRET}`) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })\n"
+   }
+  ],
+  "testFile": "src/lib/security/sessions.test.ts",
+  "test": "compares in constant time, on every cron route"
+ },
+ {
+  "what": "M5: protective headers are sent",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "        headers: [...SECURITY_HEADERS, { key: \"Content-Security-Policy-Report-Only\", value: contentSecurityPolicy() }],",
+    "replace": "        headers: [{ key: \"Content-Security-Policy-Report-Only\", value: contentSecurityPolicy() }],"
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "sends the protective headers with every page and API response"
+ },
+ {
+  "what": "M5: content policy is sent, report-only",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "        headers: [...SECURITY_HEADERS, { key: \"Content-Security-Policy-Report-Only\", value: contentSecurityPolicy() }],",
+    "replace": "        headers: [...SECURITY_HEADERS],"
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "sends the content policy as report-only, naming only the hosts the pages use"
+ },
+ {
+  "what": "M5: no eval outside the dev server",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "${isProduction ? \"\" : \" 'unsafe-eval'\"}",
+    "replace": " 'unsafe-eval'"
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "allows eval only on the dev server, and reports to Sentry only in production"
+ },
+ {
+  "what": "Low: API responses are not cached",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "      { source: \"/api/:path*\", headers: [{ key: \"Cache-Control\", value: \"no-store\" }] },\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "tells browsers and proxies never to keep an API response"
+ },
+ {
+  "what": "M5: no X-Powered-By",
+  "edits": [
+   {
+    "file": "next.config.ts",
+    "find": "  poweredByHeader: false,\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/config.test.ts",
+  "test": "does not say what the site is built with, and never serves source maps to a browser"
+ },
+ {
+  "what": "M9: secret query parameters removed",
+  "edits": [
+   {
+    "file": "src/lib/sentryScrub.ts",
+    "find": "  return text.replace(PARAM, '$1[removed]').replace(EMAIL, '[email]').replace(PHONE, '[phone]')",
+    "replace": "  return text.replace(EMAIL, '[email]').replace(PHONE, '[phone]')"
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "takes out single-use links, payment references, emails and phone numbers"
+ },
+ {
+  "what": "M9: cookies and body removed from the request",
+  "edits": [
+   {
+    "file": "src/lib/sentryScrub.ts",
+    "find": "    delete request.cookies\n    delete request.data\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "loses its cookies, its body and the headers that identify a person"
+ },
+ {
+  "what": "M9: identifying headers removed",
+  "edits": [
+   {
+    "file": "src/lib/sentryScrub.ts",
+    "find": "        .filter(([name]) => !SECRET_HEADERS.includes(name.toLowerCase()))\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "loses its cookies, its body and the headers that identify a person"
+ },
+ {
+  "what": "M9: only the user's id is kept",
+  "edits": [
+   {
+    "file": "src/lib/sentryScrub.ts",
+    "find": "  if (user) e.user = user.id ? { id: user.id } : {}\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "keeps the user's id and nothing else about them"
+ },
+ {
+  "what": "M9: secret-named values removed",
+  "edits": [
+   {
+    "file": "src/lib/sentryScrub.ts",
+    "find": "    out[key] = SECRET_KEYS.test(key) && item != null && typeof item !== 'object' ? '[removed]' : scrubValue(item, depth + 1)",
+    "replace": "    out[key] = scrubValue(item, depth + 1)"
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "carries no token, email, phone number, password or session anywhere"
+ },
+ {
+  "what": "M9: breadcrumbs cleaned",
+  "edits": [
+   {
+    "file": "src/lib/sentryScrub.ts",
+    "find": "  if (b.data !== undefined) b.data = scrubValue(b.data)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "cleans a breadcrumb the same way"
+ },
+ {
+  "what": "M9: the browser set-up scrubs",
+  "edits": [
+   {
+    "file": "src/instrumentation-client.ts",
+    "find": "  ...SCRUBBING,\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "all scrub, and none sends personal data by default"
+ },
+ {
+  "what": "M9: the server set-up scrubs",
+  "edits": [
+   {
+    "file": "src/sentry.server.config.ts",
+    "find": "  ...SCRUBBING,\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/sentryScrub.test.ts",
+  "test": "all scrub, and none sends personal data by default"
+ },
+ {
+  "what": "M7: uploads are checked by their contents (all routes share this)",
+  "edits": [
+   {
+    "file": "src/lib/imageBytes.ts",
+    "find": "  if (!type || type !== file.type) return null\n",
+    "replace": "  if (!type) return { buffer, type: file.type as ImageType }\n"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "a profile photo: a file that only claims to be an image is refused"
+ },
+ {
+  "what": "M7: the contents must be the type claimed",
+  "edits": [
+   {
+    "file": "src/lib/imageBytes.ts",
+    "find": "  if (!type || type !== file.type) return null\n",
+    "replace": "  if (!type) return null\n"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "an ID document: a file that only claims to be an image is refused"
+ },
+ {
+  "what": "M7: profile photo route checks",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/photo/route.ts",
+    "find": "    if (!image) return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })\n    const buffer = image.buffer\n",
+    "replace": "    const buffer = image?.buffer ?? Buffer.from(await file.arrayBuffer())\n"
+   },
+   {
+    "file": "src/app/api/users/me/photo/route.ts",
+    "find": "{ contentType: image.type, upsert: true }",
+    "replace": "{ contentType: file.type, upsert: true }"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "a profile photo: a file that only claims to be an image is refused"
+ },
+ {
+  "what": "M7: listing photo route checks",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/photos/route.ts",
+    "find": "      if (!image) return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })\n      images.push(image)",
+    "replace": "      images.push(image ?? { buffer: Buffer.from(await file.arrayBuffer()), type: file.type })"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "a listing photo: a file that only claims to be an image is refused"
+ },
+ {
+  "what": "M7: ID document route checks",
+  "edits": [
+   {
+    "file": "src/app/api/verifications/route.ts",
+    "find": "    if (!idImage || (selfie instanceof File && !selfieImage)) {\n      return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })\n    }\n",
+    "replace": "    if (!idImage) return NextResponse.json({ error: 'x' }, { status: 500 })\n"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "a selfie with an ID: a file that only claims to be an image is refused"
+ },
+ {
+  "what": "M7: evidence route checks",
+  "edits": [
+   {
+    "file": "src/app/api/disputes/[id]/evidence/route.ts",
+    "find": "      if (!image) return NextResponse.json({ error: NOT_AN_IMAGE }, { status: 400 })\n      images.push({ file, ...image })",
+    "replace": "      images.push({ file, ...(image ?? { buffer: Buffer.from(await file.arrayBuffer()), type: file.type }) })"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "dispute evidence: a file that only claims to be an image is refused"
+ },
+ {
+  "what": "M4: exchange rate must be near the one in force",
+  "edits": [
+   {
+    "file": "src/lib/exchangeRate.ts",
+    "find": "  if (current && Math.abs(value - current) / current > MAX_MANUAL_RATE_STEP) {",
+    "replace": "  if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "refuses a slip of the finger, and anything that is not a rate"
+ },
+ {
+  "what": "M4: the admin route applies the check",
+  "edits": [
+   {
+    "file": "src/app/api/admin/route.ts",
+    "find": "      if (refusal) return NextResponse.json({ error: refusal }, { status: 400 })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "refuses a slip of the finger, and anything that is not a rate"
+ },
+ {
+  "what": "M4: the rate is recorded as the admin signed in",
+  "edits": [
+   {
+    "file": "src/app/api/admin/route.ts",
+    "find": "updatedBy: user.id } })",
+    "replace": "updatedBy: data.updatedBy ?? user.id } })"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "accepts a rate within 20% of the one in force, recorded as the admin signed in"
+ },
+ {
+  "what": "M12: listings page size capped",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    const limit = clampWhole(searchParams.get('limit'), 20, 1, MAX_PAGE_SIZE)",
+    "replace": "    const limit = parseInt(searchParams.get('limit') || '20') || 20"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "keeps a page of listings to 50 at most, whatever is asked for"
+ },
+ {
+  "what": "M12: reviews need a filter",
+  "edits": [
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "find": "    if (!listingId && !revieweeId && !reviewerId) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "gives reviews of a listing or a person, never the whole table"
+ },
+ {
+  "what": "M12: reviews capped at 100",
+  "edits": [
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "find": "      take: MAX_REVIEWS,\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "gives reviews of a listing or a person, never the whole table"
+ },
+ {
+  "what": "Low: duplicate review answered as already reviewed",
+  "edits": [
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "find": "      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {",
+    "replace": "      if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "answers \"already reviewed\" when two reviews of one booking arrive at the same moment"
+ },
+ {
+  "what": "Low: payment reference has a random part",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "        gatewayReference: `FIE-${bookingId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,",
+    "replace": "        gatewayReference: `FIE-${bookingId}-${Date.now()}`,"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "uses a reference that cannot be guessed from the booking"
+ },
+ {
+  "what": "Low: Paystack's wording kept from the browser",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "        { error: PAYMENT_NOT_STARTED },",
+    "replace": "        { error: paystackJson.message || 'The payment could not be started' },"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "keeps Paystack's own error wording out of the answer"
+ },
+ {
+  "what": "Housekeeping: .scratch ignored",
+  "edits": [
+   {
+    "file": ".gitignore",
+    "find": "\n.scratch/\n",
+    "replace": "\n"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "keeps local working files out of git"
+ },
+ {
+  "what": "Low: new payout method, the skip in runPayouts",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (!item.payoutMethodSettled) {\n      results.push({ ...base, action: 'waiting-for-new-payout-method' })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "is not paid into yet: nothing is sent and no payout is written, live or dry"
+ },
+ {
+  "what": "Low: new payout method, the check inside initiateHostPayout",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (!payoutMethodSettled(host)) {\n    throw new PayoutMethodTooNewError(hostId)\n  }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "initiateHostPayout refuses it before creating or claiming a row"
+ },
+ {
+  "what": "Low: new payout method, resume path",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (host?.paystackRecipientCode && host.payoutMethodVerifiedAt && !payoutMethodSettled(host, now)) {\n      resumed.push({ ...base, action: 'waiting-for-new-payout-method', status: payout.status })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "does not resume a PENDING payout to it, and leaves the row as it was"
+ },
+ {
+  "what": "Low: new payout method, retry path",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "    if (host?.paystackRecipientCode && host.payoutMethodVerifiedAt && !payoutMethodSettled(host)) {\n      results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_NEW_METHOD, waitingForNewMethod: true })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "a FAILED payout is not retried to a payout method saved less than 24 hours ago, and keeps its retry count"
+ },
+ {
+  "what": "Low: new payout method, both guards on the hourly path (money would be sent)",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (!item.payoutMethodSettled) {\n      results.push({ ...base, action: 'waiting-for-new-payout-method' })\n      continue\n    }\n",
+    "replace": ""
+   },
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (!payoutMethodSettled(host)) {\n    throw new PayoutMethodTooNewError(hostId)\n  }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "is paid on the first run after the 24 hours are up"
+ },
+ {
+  "what": "Low: one review per side per booking, in the schema",
+  "edits": [
+   {
+    "file": "prisma/schema.prisma",
+    "find": "  @@unique([bookingId, reviewerId, type])\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/database.test.ts",
+  "test": "allows one review per side per booking"
+ },
+ {
+  "what": "C1: the deposit constraints are recorded for a new database",
+  "edits": [
+   {
+    "file": "prisma/constraints.sql",
+    "find": "  CHECK (\"damageDeposit\" >= 0);",
+    "replace": "  CHECK (true);"
+   }
+  ],
+  "testFile": "src/lib/security/database.test.ts",
+  "test": "refuses a negative damage deposit on a listing and on a booking"
+ },
+ {
+  "what": "M10: every table is in enable_rls.sql",
+  "edits": [
+   {
+    "file": "prisma/enable_rls.sql",
+    "find": "ALTER TABLE public.\"Session\"            ENABLE ROW LEVEL SECURITY;\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/database.test.ts",
+  "test": "has row-level security switched on for every table in the schema"
+ },
+ {
+  "what": "Limits: requests are capped at 5",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "        else if (!listing.instantBook && openRequests >= LIMITS.openRequests) overLimit = { error: TOO_MANY_OPEN_REQUESTS, retryAfter: 60 }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "lets a guest have 5 requests waiting for an answer, and no more"
+ },
+ {
+  "what": "Limits: requests do not count towards the 2",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } })",
+    "replace": "tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: { in: ['PENDING', 'CONFIRMED'] } } })"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "does not count requests a host has not answered towards the 2"
+ },
+ {
+  "what": "Suspension: admins only",
+  "edits": [
+   {
+    "file": "src/app/api/admin/users/route.ts",
+    "find": "export async function POST(req: Request) {\n  const { user: admin, error } = await requireAdmin()\n  if (error) return error\n",
+    "replace": "export async function POST(req: Request) {\n  const admin = (await requireAdmin()).user ?? { id: 'anyone' }\n"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "is for admins only"
+ },
+ {
+  "what": "Suspension: a reason is required",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "  if (!why.value || why.value.length < REASON_MIN) return refuse(400, `Give a reason of at least ${REASON_MIN} characters`)\n  const text = why.value\n",
+    "replace": "  const text = why.value ?? ''\n"
+   },
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "required: true })\n  if (!why.ok) return refuse(400, why.error)",
+    "replace": "})\n  if (!why.ok) return refuse(400, why.error)"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "needs a reason, to suspend and to restore"
+ },
+ {
+  "what": "Suspension: not yourself",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "  if (userId === adminId) return refuse(400, 'You cannot suspend or restore your own account')\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "does not let an admin suspend or restore themselves"
+ },
+ {
+  "what": "Suspension: never the last admin",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "        if (others === 0) return refuse(409, 'This is the only admin account that can sign in. It cannot be suspended.')\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "never suspends the last admin who can sign in"
+ },
+ {
+  "what": "Suspension: one suspension, one record",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "      if (target.suspendedAt) return refuse(409, 'This account is already suspended')\n",
+    "replace": ""
+   },
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "      if (changed.count === 0) return refuse(409, 'This account is already suspended')\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "refuses an account that is not there, one already suspended, one not suspended, and anything but suspend or restore"
+ },
+ {
+  "what": "Suspension: every action is recorded for every admin",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "    const admins = await tx.user.findMany({ where: { role: 'ADMIN' }, select: { id: true } })",
+    "replace": "    const admins = [] as { id: string }[]"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "writes who, whom, when and why to every admin, and stores it on the account"
+ },
+ {
+  "what": "Suspension: a restoral is recorded too",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "        type: action === 'suspend' ? 'ACCOUNT_SUSPENDED' : 'ACCOUNT_RESTORED',",
+    "replace": "        type: 'ACCOUNT_SUSPENDED',"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "records a restoral the same way, and clears the account"
+ },
+ {
+  "what": "Suspension: the person is told",
+  "edits": [
+   {
+    "file": "src/app/api/admin/users/route.ts",
+    "find": "    notify(result.action === 'suspend' ? 'account.suspended' : 'account.restored', { userId: result.userId, at: now.getTime() })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "tells the person by email, once for each time"
+ },
+ {
+  "what": "Suspension: sessions end",
+  "edits": [
+   {
+    "file": "src/lib/suspension.ts",
+    "find": "    const ended = action === 'suspend' ? await tx.session.deleteMany({ where: { userId: target.id } }) : { count: 0 }",
+    "replace": "    const ended = { count: 0 }"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "is signed out everywhere at once"
+ },
+ {
+  "what": "Suspension: a leftover session is useless",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "  if (isSuspended({ suspendedAt })) return null\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "a session that somehow still exists does not sign a suspended person in"
+ },
+ {
+  "what": "Suspension: sign-in is refused",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "    if (isSuspended(user)) {\n      return NextResponse.json({ error: SUSPENDED_SIGN_IN, code: 'ACCOUNT_SUSPENDED' }, { status: 403 })\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "is refused at sign-in with a plain message, and no session is made"
+ },
+ {
+  "what": "Suspension: sign-in gives nothing away without the password",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signin/route.ts",
+    "find": "    const valid = await bcrypt.compare(password, user?.passwordHash ?? NO_ACCOUNT_HASH)\n",
+    "replace": "    if (isSuspended(user)) return NextResponse.json({ error: SUSPENDED_SIGN_IN, code: 'ACCOUNT_SUSPENDED' }, { status: 403 })\n    const valid = await bcrypt.compare(password, user?.passwordHash ?? NO_ACCOUNT_HASH)\n"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "says nothing about the suspension to someone with the wrong password"
+ },
+ {
+  "what": "Suspension: homes leave search",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    if (!ownerView) where.host = { ...HOST_NOT_SUSPENDED }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "leave search, and come back when the account is restored"
+ },
+ {
+  "what": "Suspension: the host filters keep the rule",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    if (hostIdChecked) where.host = { ...(where.host as object || {}), isVerified: true }",
+    "replace": "    if (hostIdChecked) where.host = { isVerified: true }"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "leave search, and come back when the account is restored"
+ },
+ {
+  "what": "Suspension: homes cannot be opened by the public",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    const hostSuspended = !!suspendedAt\n",
+    "replace": "    const hostSuspended = false && !!suspendedAt\n"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "cannot be opened by the public, only by an admin or a guest who booked there"
+ },
+ {
+  "what": "Suspension: nothing about it is sent with a listing",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "        host,\n",
+    "replace": "        host: listing.host,\n"
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "cannot be opened by the public, only by an admin or a guest who booked there"
+ },
+ {
+  "what": "Suspension: homes cannot be booked",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "    if (isSuspended(listing.host)) return NextResponse.json({ error: 'Listing is not available' }, { status: 400 })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "cannot be booked"
+ },
+ {
+  "what": "Suspension: the profile is hidden",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "  if (profile.suspended) return viewer?.role === 'ADMIN'\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/suspension.test.ts",
+  "test": "the host's profile is for admins only"
+ },
+ {
+  "what": "Suspension, payouts: the job skips a short stay",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (item.hostSuspended) {\n      results.push({ ...base, action: 'waiting-for-suspension' })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "is not paid for a short stay: nothing is sent and no payout is written, live or dry"
+ },
+ {
+  "what": "Suspension, payouts: initiateHostPayout refuses",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (isSuspended(host)) {\n    throw new HostSuspendedError(hostId)\n  }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "initiateHostPayout refuses a suspended host before creating or claiming a row"
+ },
+ {
+  "what": "Suspension, payouts: a first attempt writes no row",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (isSuspended(host)) {\n    throw new HostSuspendedError(hostId)\n  }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "a first attempt to a suspended host throws, and no payout row is made"
+ },
+ {
+  "what": "Suspension, payouts: a PENDING payout is not resumed",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (isSuspended(host)) {\n      resumed.push({ ...base, action: 'waiting-for-suspension', status: payout.status })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "does not resume a PENDING payout to a suspended host, and leaves the row as it was"
+ },
+ {
+  "what": "Suspension, payouts: a FAILED payout is not retried",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "    if (isSuspended(host)) {\n      results.push({ payoutId: payout.id, ok: false, status: payout.status, retryCount: payout.retryCount, error: WAITING_FOR_SUSPENSION, waitingForSuspension: true })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "a FAILED payout is not retried to a suspended host, and keeps its retry count"
+ },
+ {
+  "what": "Suspension, payouts: a rent instalment waits",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "      hostSuspended: isSuspended(i.booking.host),\n",
+    "replace": "      hostSuspended: false,\n"
+   }
+  ],
+  "testFile": "src/lib/rentInstalments.test.ts",
+  "test": "a rent instalment for a suspended host is not sent, and goes out once the account is restored"
+ },
+ {
+  "what": "Suspension, payouts: reported before the ID wait",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (item.hostSuspended) {\n      results.push({ ...base, action: 'waiting-for-suspension' })\n      continue\n    }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "reports the suspension first when the ID is not approved either"
+ },
+ {
+  "what": "F11: a cancel does not go through over a payment that just landed",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/[id]/route.ts",
+    "find": "          where: { id, status: booking.status, paymentStatus: booking.paymentStatus },",
+    "replace": "          where: { id, status: booking.status },"
+   }
+  ],
+  "testFile": "src/lib/unrefunded.test.ts",
+  "test": "a payment that arrives while the guest is cancelling stops the cancel: nothing is cancelled and they are told to look again"
+ },
+ {
+  "what": "F11: the safety net records the refund",
+  "edits": [
+   {
+    "file": "src/lib/refunds.ts",
+    "find": "  const unrefunded = await recordUnrefundedPayments({ live })",
+    "replace": "  const unrefunded = [] as UnrefundedItem[]; void recordUnrefundedPayments"
+   }
+  ],
+  "testFile": "src/lib/refunds.test.ts",
+  "test": "the hourly job runs the safety net for unrefunded payments, live only when refunds are on"
+ },
+ {
+  "what": "F11: the safety net never records a second refund",
+  "edits": [
+   {
+    "file": "src/lib/unrefunded.ts",
+    "find": "    where: { status: { in: ['CANCELLED', 'DECLINED'] }, refund: { is: null }, payments: { some: { status: 'SUCCESS' } } },",
+    "replace": "    where: { status: { in: ['CANCELLED', 'DECLINED'] }, payments: { some: { status: 'SUCCESS' } } },"
+   },
+   {
+    "file": "src/lib/unrefunded.ts",
+    "find": "        const still = await tx.booking.count({ where: { id: booking.id, status: { in: ['CANCELLED', 'DECLINED'] }, refund: { is: null } } })",
+    "replace": "        const still = 1"
+   }
+  ],
+  "testFile": "src/lib/unrefunded.test.ts",
+  "test": "never records a second refund, however many times it runs"
+ },
+ {
+  "what": "F11: the safety net obeys the switch and the dry run",
+  "edits": [
+   {
+    "file": "src/lib/unrefunded.ts",
+    "find": "    if (!live) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/unrefunded.test.ts",
+  "test": "writes nothing and alerts nobody when the run is not live (refunds switched off, or a dry run)"
+ },
+ {
+  "what": "F11: a late zero-refund cancellation is not refunded by the safety net",
+  "edits": [
+   {
+    "file": "src/lib/unrefunded.ts",
+    "find": "    if (booking.status === 'CANCELLED' && booking.cancelledBy === 'GUEST' && owedByPolicy(booking, payment.amount) === 0) continue\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/unrefunded.test.ts",
+  "test": "leaves a guest's own late cancellation under a policy that returns nothing: no refund is owed there"
+ },
+ {
+  "what": "F2: an open payment is handed back, not joined by a second one",
+  "edits": [
+   {
+    "file": "src/lib/openPayment.ts",
+    "find": "    if (open) return { kind: 'open', payment: open }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "pressing Pay again while a payment is open gives back the same Paystack page, not a second payment"
+ },
+ {
+  "what": "F2: an open payment that was paid is settled when Pay is pressed again",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "      if (lookup?.ok && lookup.charge.status === 'success') {",
+    "replace": "      if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "pressing Pay again after the open payment was paid settles it and starts nothing"
+ },
+ {
+  "what": "F2: another way of paying closes the open payment",
+  "edits": [
+   {
+    "file": "src/lib/openPayment.ts",
+    "find": "payment.method === method && ",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "choosing another way to pay closes the open payment and starts a new one"
+ },
+ {
+  "what": "F10: a dropped connection to Paystack closes the attempt",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "      await closeAttempt()\n      return NextResponse.json({ error: error instanceof OutboundTimeoutError ? PAYSTACK_NOT_ANSWERING : PAYMENT_NOT_STARTED }, { status: 502 })",
+    "replace": "      throw error"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "a dropped connection to Paystack closes the attempt and answers like any other failure to start"
+ },
+ {
+  "what": "F17: the transfer is a share of the cedis the guest paid, not today's rate",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  const [amountPesewas] = await payoutCedis([{ bookingId, instalmentId: instalment?.id ?? null, coveredFromDeposit: instalment?.coveredFromDeposit, amount }])",
+    "replace": "  const amountPesewas: number | null = Math.round(amount * ((await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } }))?.usdToGhs ?? 15.5) * 100)"
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "sends a share of the cedis the guest paid, whatever the exchange rate is on the day"
+ },
+ {
+  "what": "F17: a payment with no stored cedi amount is held, never paid",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (amountPesewas === null) {",
+    "replace": "  if (false) {"
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "holds a payout whose payment has no stored cedi amount, with one alert, and never uses today's rate"
+ },
+ {
+  "what": "F17: the host's cedis are rounded down, never up",
+  "edits": [
+   {
+    "file": "src/lib/cediShare.ts",
+    "find": "Math.floor((payment.amountPesewas * usd) / payment.amount + 1e-6)",
+    "replace": "Math.ceil((payment.amountPesewas * usd) / payment.amount)"
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "never sends a pesewa more than the host's share: an odd amount is rounded down"
+ },
+ {
+  "what": "F17: rent covered from the deposit is paid at the first payment's rate",
+  "edits": [
+   {
+    "file": "src/lib/payoutCedis.ts",
+    "find": "      first: ofBooking[0],",
+    "replace": "      first: ofBooking.find((p) => (p.instalmentId ?? null) === (target.instalmentId ?? null)),"
+   }
+  ],
+  "testFile": "src/lib/rentInstalments.test.ts",
+  "test": "a month covered from the deposit is paid out at the rate the deposit was paid at"
+ },
+ {
+  "what": "F17: each rent instalment uses its own payment",
+  "edits": [
+   {
+    "file": "src/lib/payoutCedis.ts",
+    "find": "      own: ofBooking.find((p) => (p.instalmentId ?? null) === (target.instalmentId ?? null)),",
+    "replace": "      own: ofBooking[0],"
+   }
+  ],
+  "testFile": "src/lib/rentInstalments.test.ts",
+  "test": "each month is paid out from its own payment, at the rate that payment was made at"
+ },
+ {
+  "what": "F17: a dry run does not say would-pay for a payout that would be held",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "item.amountPesewas === null ? { ...base, action: 'would-hold', error: NO_CEDI_AMOUNT } : { ...base, action: 'would-pay' }",
+    "replace": "{ ...base, action: 'would-pay' }"
+   }
+  ],
+  "testFile": "src/lib/cronRuns.test.ts",
+  "test": "a dry run says it would hold such a payout, not that it would pay it"
+ },
+ {
+  "what": "F9: a transfer that timed out is not recorded as failed",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "    if (error instanceof OutboundTimeoutError) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "is not recorded as failed: the payout stays PENDING, with no retry counted and no alert"
+ },
+ {
+  "what": "F9: Paystack is asked for the transfer before any re-send",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (mayHaveBeenSent && payout.paystackTransferReference) {",
+    "replace": "  if (false) {"
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "before sending again, Paystack is asked for the transfer: one it already holds is adopted, not sent twice"
+ },
+ {
+  "what": "F9: a retry after a dropped connection asks Paystack first",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  const mayHaveBeenSent = payout.initiatedAt !== null || payout.retryCount > 0",
+    "replace": "  const mayHaveBeenSent = payout.initiatedAt !== null"
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "a retry after a dropped connection also asks first, and adopts a transfer that did get through"
+ },
+ {
+  "what": "F9: nothing is sent while Paystack cannot be asked about a transfer",
+  "edits": [
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  } catch {\n    return 'unknown'\n  }",
+    "replace": "  } catch {\n    return null\n  }"
+   }
+  ],
+  "testFile": "src/lib/payouts.test.ts",
+  "test": "is not sent at all while Paystack cannot be asked: nothing is known, so nothing moves"
+ },
+ {
+  "what": "F9: an outbound call has a time limit",
+  "edits": [
+   {
+    "file": "src/lib/outbound.ts",
+    "find": "  return attempt(url, init, limitMs, stop ? AbortSignal.any([limit, stop]) : limit)",
+    "replace": "  return fetch(url, init)"
+   }
+  ],
+  "testFile": "src/lib/outbound.test.ts",
+  "test": "gives up when the limit passes, and says it was a timeout"
+ },
+ {
+  "what": "F9: a read is tried again after a server fault",
+  "edits": [
+   {
+    "file": "src/lib/outbound.ts",
+    "find": "      if (last || (res.status < 500 && res.status !== 429)) return res",
+    "replace": "      return res"
+   }
+  ],
+  "testFile": "src/lib/outbound.test.ts",
+  "test": "is tried again after a 5xx or a 429, up to the cap, then hands back the last answer"
+ },
+ {
+  "what": "F9: the guest is told when Paystack does not answer",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "error instanceof OutboundTimeoutError ? PAYSTACK_NOT_ANSWERING : PAYMENT_NOT_STARTED",
+    "replace": "PAYMENT_NOT_STARTED"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "tells the guest when Paystack does not answer in time, and closes the attempt so they can try again"
+ },
+ {
+  "what": "F9: no server code calls fetch without a time limit",
+  "edits": [
+   {
+    "file": "src/lib/paymentSettle.ts",
+    "find": "    const res = await readWithRetry(`${PAYSTACK_BASE}/transaction/verify/",
+    "replace": "    const res = await fetch(`${PAYSTACK_BASE}/transaction/verify/"
+   }
+  ],
+  "testFile": "src/lib/outbound.test.ts",
+  "test": "goes through lib/outbound.ts: no server code calls fetch by itself"
+ },
+ {
+  "what": "F9: the storage client has a time limit",
+  "edits": [
+   {
+    "file": "src/lib/supabase.ts",
+    "find": ", global: { fetch: fetchWithLimit(STORAGE_TIMEOUT_MS) }",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/outbound.test.ts",
+  "test": "gives the storage client a time limit too"
+ },
+ {
+  "what": "F9: a refund is not re-sent while Paystack cannot be asked what it holds",
+  "edits": [
+   {
+    "file": "src/lib/refunds.ts",
+    "find": "    // No answer, or no connection: nothing is known, so nothing is sent\n    return 'unknown'",
+    "replace": "    return null"
+   }
+  ],
+  "testFile": "src/lib/refunds.test.ts",
+  "test": "a refund Paystack never answered is tried again only after asking what Paystack already holds"
+ },
+ {
+  "what": "F3: a booking Postgres aborted is run again",
+  "edits": [
+   {
+    "file": "src/lib/serialRetry.ts",
+    "find": "      if (run >= SERIAL_RETRIES) throw new BusyError()",
+    "replace": "      throw new BusyError()"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "runs it again, and the guest gets their dates"
+ },
+ {
+  "what": "F3: an abort is never answered as \"dates no longer available\"",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "      if (code === 'DATE_CONFLICT') {",
+    "replace": "      if (code === 'DATE_CONFLICT' || txErr instanceof BusyError) {"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "says \"busy, try again\" when it is aborted every time, never that the dates are taken, and writes nothing"
+ },
+ {
+  "what": "F5: the guest's open bookings are counted inside the transaction",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "        const openUnpaid = await tx.booking.count(",
+    "replace": "        const openUnpaid = await db.booking.count("
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "counts the guest's open bookings inside the transaction, so two made at the same instant cannot both be under the limit"
+ },
+ {
+  "what": "F4: a sign-in attempt is counted before the password is checked",
+  "edits": [
+   {
+    "file": "src/lib/rateLimit.ts",
+    "find": "  const row = await db.authRequest.create({ data: { kind, userId: key, ipHash, createdAt: now } })\n  const release = async () => { await db.authRequest.deleteMany({ where: { id: row.id } }) }\n  const [forKey, fromIp] = await Promise.all([\n    key && limits.perKey ? countRecent(kind, { key }, limits.perKey.windowMs, now) : 0,\n    ipHash && limits.perIp ? countRecent(kind, { ipHash }, limits.perIp.windowMs, now) : 0,\n  ])",
+    "replace": "  const [forKey0, fromIp0] = await Promise.all([\n    key && limits.perKey ? countRecent(kind, { key }, limits.perKey.windowMs, now) : 0,\n    ipHash && limits.perIp ? countRecent(kind, { ipHash }, limits.perIp.windowMs, now) : 0,\n  ])\n  const [forKey, fromIp] = [forKey0 + 1, fromIp0 + 1]\n  const row = await db.authRequest.create({ data: { kind, userId: key, ipHash, createdAt: now } })\n  const release = async () => { await db.authRequest.deleteMany({ where: { id: row.id } }) }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "twenty wrong passwords sent at the same instant: no more than 5 are checked"
+ },
+ {
+  "what": "F4: a refused sign-in attempt takes its own count away",
+  "edits": [
+   {
+    "file": "src/lib/rateLimit.ts",
+    "find": "    await release()\n    return { ok: false }",
+    "replace": "    return { ok: false }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "a refused attempt leaves nothing on record, so being refused does not keep the lock going"
+ },
+ {
+  "what": "F7: a sign-up is counted before the account is made",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "    const place = ipHash ? await claim(SIGN_UP, { ipHash }, { perIp: LIMITS.signUpPerIp }) : null",
+    "replace": "    const place = null as null | { ok: boolean; release: () => Promise<void> }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "ten sign-ups from one address at the same instant: no more than 5 make an account, and the rest are never hashed"
+ },
+ {
+  "what": "F7: a sign-up that makes no account is not counted",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "      if (existing) { await notCounted(); return NextResponse.json({ error: 'Email already registered' }, { status: 409 }) }",
+    "replace": "      if (existing) { return NextResponse.json({ error: 'Email already registered' }, { status: 409 }) }"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "does not count a sign-up that was refused"
+ },
+ {
+  "what": "F6: a message is counted before it is stored",
+  "edits": [
+   {
+    "file": "src/app/api/messages/route.ts",
+    "find": "    const place = await claim(MESSAGE_SENT, { key: `message:${user.id}` }, { perKey: LIMITS.messagesPerSender })\n    if (!place.ok) return tooMany(TOO_MANY_MESSAGES, 60 * 60)",
+    "replace": "    const place = { ok: true, release: async () => {} }\n    if ((await db.message.count({ where: { senderId: user.id, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } })) >= LIMITS.messagesPerHour) return tooMany(TOO_MANY_MESSAGES, 60 * 60)"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "forty messages sent at the same instant: no more than 30 are stored"
+ },
+ {
+  "what": "F6: the message limit still holds",
+  "edits": [
+   {
+    "file": "src/app/api/messages/route.ts",
+    "find": "    if (!place.ok) return tooMany(TOO_MANY_MESSAGES, 60 * 60)",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "allows 30 messages an hour and no more"
+ },
+ {
+  "what": "F8: the loser of a simultaneous sign-up is told the address is taken",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {",
+    "replace": "      if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "two sign-ups with one email at the same instant: one account, and the other is told the address is taken"
+ },
+ {
+  "what": "F8: the loser of a simultaneous sign-up by phone is told the number is taken",
+  "edits": [
+   {
+    "file": "src/app/api/auth/signup/route.ts",
+    "find": "target.includes('phone') ? 'Phone number already registered' : 'Email already registered'",
+    "replace": "'Email already registered'"
+   }
+  ],
+  "testFile": "src/lib/security/limits.test.ts",
+  "test": "two sign-ups with one phone number at the same instant: the other is told the number is taken"
+ },
+ {
+  "what": "F1: the login form's own redirect wins over the already-logged-in one",
+  "edits": [
+   {
+    "file": "src/app/login/page.tsx",
+    "find": "    mountedWithUser.current = true\n    const result = await signIn(loginId, loginPw)",
+    "replace": "    const result = await signIn(loginId, loginPw)"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "the form says it will choose the destination before it signs in, so the \"already logged in\" redirect stands down"
+ },
+ {
+  "what": "F13: a host is not sent the booking's Paystack reference",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "    ...(isHost && !isGuest && 'paymentReference' in booking ? { paymentReference: null } : {}),\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a host never gets the guest's payment references or mobile money number"
+ },
+ {
+  "what": "F13: a host is not sent the address of the guest's Paystack page",
+  "edits": [
+   {
+    "file": "src/lib/privacy.ts",
+    "find": "omit(payment, ['gatewayReference', 'authorizationUrl', 'momoNumber'])",
+    "replace": "omit(payment, ['gatewayReference', 'momoNumber'])"
+   }
+  ],
+  "testFile": "src/lib/security/exposure.test.ts",
+  "test": "a host never gets the guest's payment references or mobile money number"
+ },
+ {
+  "what": "F3: the host calendar, listing checks and deposit cover also run an aborted transaction again",
+  "edits": [
+   {
+    "file": "src/lib/listingChecks.ts",
+    "find": "    const check = await withSerialRetry(() => db.$transaction(async (tx) => {",
+    "replace": "    const check = await (() => db.$transaction(async (tx) => {"
+   },
+   {
+    "file": "src/lib/listingChecks.ts",
+    "find": "    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))\n    console.info",
+    "replace": "    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))()\n    console.info"
+   }
+  ],
+  "testFile": "src/lib/serialRetry.test.ts",
+  "test": "is run again when Postgres aborts it: none answers an abort as if it were a real clash"
+ },
+ {
+  "what": "F16: the photo list is read inside the save, not before the upload",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/photos/route.ts",
+    "find": "      : { ok: true, photos: [...current, ...newUrls] }))",
+    "replace": "      : { ok: true, photos: [...existing, ...newUrls] }))"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "five uploads at the same moment are all kept"
+ },
+ {
+  "what": "F16: a removal keeps a photo added at the same moment",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/photos/route.ts",
+    "find": "({ ok: true, photos: current.filter((p) => p !== url) }))",
+    "replace": "({ ok: true, photos: existing.filter((p) => p !== url) }))"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "a photo added while another is being removed is kept, and the one removed is gone"
+ },
+ {
+  "what": "F16: the limit of 12 photos is checked inside the save",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/photos/route.ts",
+    "find": "(current) => (current.length + newUrls.length > MAX_PHOTOS_PER_LISTING",
+    "replace": "(current) => (false"
+   }
+  ],
+  "testFile": "src/lib/security/hardening.test.ts",
+  "test": "uploads that together would pass 12 photos: the ones over are refused and their files taken out of storage again"
+ },
+ {
+  "what": "F14: a body that is not JSON is 400, never a thrown error",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  try { body = await req.json() } catch { return null }",
+    "replace": "  body = await req.json()"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "bookings answers 400, not 500, to a body that is empty, not JSON, null, a number or a list"
+ },
+ {
+  "what": "F14: JSON that is not an object (null, a number, a list) is refused",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  if (body === null || typeof body !== 'object' || Array.isArray(body)) return null\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "gives the object, and null for anything that is not a JSON object"
+ },
+ {
+  "what": "F14: no route reads a body except through the helper",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "    const body = await jsonObject(req)\n    if (!body) return unreadableBody()",
+    "replace": "    const body = await req.json()"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "no route reads a body any other way"
+ },
+ {
+  "what": "F14: a null byte anywhere in a body is refused",
+  "edits": [
+   {
+    "file": "src/lib/validate.ts",
+    "find": "  return holdsNullByte(body) ? null : (body as JsonBody)",
+    "replace": "  return body as JsonBody"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "gives null for a body with a null byte in any text, at any depth, or one nested absurdly deep"
+ },
+ {
+  "what": "F14: payments refuses an id that is not text",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "    if (typeof bookingId !== 'string' || (instalmentId !== undefined && instalmentId !== null && typeof instalmentId !== 'string')) {",
+    "replace": "    if (false) {"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "payments: an id that is not text is refused before it reaches the database"
+ },
+ {
+  "what": "F14: wishlists refuses a listing id that is not text",
+  "edits": [
+   {
+    "file": "src/app/api/wishlists/route.ts",
+    "find": "    if (!listingId || typeof listingId !== 'string') {",
+    "replace": "    if (!listingId) {"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "wishlists: a listing id that is not text is refused"
+ },
+ {
+  "what": "F14: saving a home that does not exist is 404",
+  "edits": [
+   {
+    "file": "src/app/api/wishlists/route.ts",
+    "find": "    if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "wishlists: a listing id that is not text is refused"
+ },
+ {
+  "what": "F14: notifications refuses an id that is not text",
+  "edits": [
+   {
+    "file": "src/app/api/notifications/route.ts",
+    "find": "  if (!id || typeof id !== 'string') return",
+    "replace": "  if (!id) return"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "notifications: an id that is not text is refused"
+ },
+ {
+  "what": "F14: the payout method refuses a password that is not text",
+  "edits": [
+   {
+    "file": "src/app/api/users/me/payout-method/route.ts",
+    "find": "    if (!password || typeof password !== 'string') {",
+    "replace": "    if (!password) {"
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "payout method: a password, number or bank code that is not text is refused before any hashing or any call"
+ },
+ {
+  "what": "F15: search refuses a bedroom count that is not a whole number",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "      if (atLeast === null) return NextResponse.json({ error: 'bedrooms must be a whole number' }, { status: 400 })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "search answers 400 to a bedroom count that is not a whole number, and still works for one that is"
+ },
+ {
+  "what": "F15: search refuses a null byte in a filter",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    if (hasNullByte(searchParams)) return unreadableQuery()\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "search, reviews, bookings and messages answer 400 to a null byte in any filter"
+ },
+ {
+  "what": "F15: the reviews list refuses a null byte in a filter",
+  "edits": [
+   {
+    "file": "src/app/api/reviews/route.ts",
+    "find": "    if (hasNullByte(searchParams)) return unreadableQuery()\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/security/unreadable.test.ts",
+  "test": "search, reviews, bookings and messages answer 400 to a null byte in any filter"
+ },
+ {
+  "what": "F12: a field's label is tied to the field",
+  "edits": [
+   {
+    "file": "src/components/ui/Input.tsx",
+    "find": "          <label htmlFor={id} className=\"block text-sm font-medium mb-1.5\" style={{ color: 'var(--color-text-primary)' }}>\n            {label}\n          </label>\n        )}\n        <div className=\"relative\">",
+    "replace": "          <label className=\"block text-sm font-medium mb-1.5\" style={{ color: 'var(--color-text-primary)' }}>\n            {label}\n          </label>\n        )}\n        <div className=\"relative\">"
+   }
+  ],
+  "testFile": "src/components/ui/Input.test.ts",
+  "test": "each ties its label to its field, so a screen reader says what the field is for"
+ },
+ {
+  "what": "SMS: the key is cut out of Arkesel's error text",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "(key ? text.split(key).join('[key]') : text)",
+    "replace": "text"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "takes the key and any number out of an error, even when Arkesel repeats them back"
+ },
+ {
+  "what": "SMS: the key goes in the api-key header only",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "        recipients: [to],\n",
+    "replace": "        recipients: [to],\n        api_key: key,\n"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "puts the key in the api-key header only, never in the message"
+ },
+ {
+  "what": "SMS: MESSAGING_ENABLED must be exactly true",
+  "edits": [
+   {
+    "file": "src/lib/messaging/config.ts",
+    "find": "return process.env.MESSAGING_ENABLED === 'true'",
+    "replace": "return process.env.MESSAGING_ENABLED?.toLowerCase() === 'true'"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "is live only with MESSAGING_ENABLED exactly \"true\" and SMS_PROVIDER=arkesel"
+ },
+ {
+  "what": "SMS: the balance check calls Arkesel only while SMS is live (both layers removed: each alone is backed by the other)",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsBalance.ts",
+    "find": "  if (!gate.live) return { mode: 'off', reason: gate.reason, called: false }\n  if (gate.provider !== 'arkesel') return { mode: 'off', reason: `SMS_PROVIDER is ${gate.provider}, not arkesel`, called: false }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/smsBalance.test.ts",
+  "test": "never calls Arkesel unless MESSAGING_ENABLED=true and SMS_PROVIDER=arkesel are both set"
+ },
+ {
+  "what": "SMS: the balance check calls nothing on a dry run",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsBalance.ts",
+    "find": "  if (dryRun) return { mode: 'dry-run', reason: 'dryRun was requested: Arkesel was not called', called: false }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/smsBalance.test.ts",
+  "test": "calls nothing without a usable SMS_LOW_BALANCE_ALERT, or on a dry run"
+ },
+ {
+  "what": "SMS: the balance alert is once a day",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsBalance.ts",
+    "find": "    if (slot.ok) {",
+    "replace": "    if (slot.ok || true) {"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsBalance.test.ts",
+  "test": "alerts below the level, at most once a day"
+ },
+ {
+  "what": "SMS: only Ghana mobile ranges are accepted",
+  "edits": [
+   {
+    "file": "src/lib/messaging/ghanaPhone.ts",
+    "find": "const MOBILE = /^[25]\\d{8}$/",
+    "replace": "const MOBILE = /^\\d{9}$/"
+   }
+  ],
+  "testFile": "src/lib/messaging/ghanaPhone.test.ts",
+  "test": "refuses anything that is not a Ghana mobile number"
+ },
+ {
+  "what": "SMS: a number is masked, never whole",
+  "edits": [
+   {
+    "file": "src/lib/messaging/ghanaPhone.ts",
+    "find": "  return `+233 ${msisdn.slice(3, 5)} *** **${msisdn.slice(-2)}`",
+    "replace": "  return `+${msisdn}`"
+   }
+  ],
+  "testFile": "src/lib/messaging/ghanaPhone.test.ts",
+  "test": "masks a number for logs and errors, never showing it whole"
+ },
+ {
+  "what": "SMS: numbers go to Arkesel as 233XXXXXXXXX",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "        recipients: [to],\n",
+    "replace": "        recipients: [message.to],\n"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "sends every accepted form of a Ghana mobile number as 233XXXXXXXXX"
+ },
+ {
+  "what": "SMS: a number that is not a Ghana mobile is refused without a call",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "  if (!to) return refused(false, 'Not a valid Ghana mobile number', 'BAD_NUMBER')\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "refuses for good, without calling Arkesel, a number that is not a Ghana mobile number"
+ },
+ {
+  "what": "SMS: a text that is not one plain SMS is refused without a call",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "  if (length === null || length > SMS_MAX || length === 0) return refused(false, 'The message is not one plain 160-character SMS', 'CONTENT')\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "refuses for good, without calling Arkesel, a sender ID Arkesel would refuse and a text that is not one plain SMS"
+ },
+ {
+  "what": "SMS: smsSafe swaps out what a network counts twice",
+  "edits": [
+   {
+    "file": "src/lib/messaging/format.ts",
+    "find": "    .replace(/[[\\]{}\\\\|^~`]/g, (c) => GSM_SWAP[c])\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/messaging.test.ts",
+  "test": "keeps every SMS to one segment as a network counts it, in the plain SMS alphabet, at the longest realistic values"
+ },
+ {
+  "what": "SMS: gsmLength refuses the backtick",
+  "edits": [
+   {
+    "file": "src/lib/messaging/format.ts",
+    "find": " && c !== '`') length += 1",
+    "replace": ") length += 1"
+   }
+  ],
+  "testFile": "src/lib/messaging/messaging.test.ts",
+  "test": "keeps out what a network counts twice or cannot carry plainly"
+ },
+ {
+  "what": "SMS: the payout-method SMS stays one segment",
+  "edits": [
+   {
+    "file": "src/lib/messaging/templates.ts",
+    "find": "  return full.length <= SMS_MAX ? full :",
+    "replace": "  return full || "
+   }
+  ],
+  "testFile": "src/lib/messaging/messaging.test.ts",
+  "test": "keeps the payout-method SMS whole with a long support address"
+ },
+ {
+  "what": "SMS: rent not yet paid is in cedis marked about",
+  "edits": [
+   {
+    "file": "src/lib/messaging/templates.ts",
+    "find": "const smsRent = (f: Facts) => (f.usdToGhs ? aboutSmsGhs(f.rentUsd ?? 0, f.usdToGhs) : usd(f.rentUsd ?? 0))",
+    "replace": "const smsRent = (f: Facts) => usd(f.rentUsd ?? 0)"
+   }
+  ],
+  "testFile": "src/lib/messaging/messaging.test.ts",
+  "test": "writes rent not yet paid in cedis, marked \"about\", at the rate in force"
+ },
+ {
+  "what": "SMS: a 500 is never retried",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "  if (response.status >= 500) throw new Error(error)",
+    "replace": "  if (response.status >= 500) return refused(true, error)"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "throws on a 500 or any other 5xx it is not sure about, so it is never retried"
+ },
+ {
+  "what": "SMS: a 500 in the job is UNKNOWN",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "  if (response.status >= 500) throw new Error(error)",
+    "replace": "  if (response.status >= 500) return refused(true, error)"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "records a 500 as unknown and never retries it"
+ },
+ {
+  "what": "SMS: a 402 is retried",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "  if (response.status === 402) return refused(true, error, 'LOW_BALANCE')",
+    "replace": "  if (response.status === 402) return refused(false, error, 'LOW_BALANCE')"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "retries a low balance on the usual schedule, with one SMS_LOW_BALANCE alert a run, then gives up"
+ },
+ {
+  "what": "SMS: a 402 raises the SMS_LOW_BALANCE alert",
+  "edits": [
+   {
+    "file": "src/lib/messaging/deliver.ts",
+    "find": "  if (lowBalance) alertLowBalance(gates.SMS.provider, lowBalance)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "retries a low balance on the usual schedule, with one SMS_LOW_BALANCE alert a run, then gives up"
+ },
+ {
+  "what": "SMS: 429 is retried",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "const RETRY_STATUSES = new Set([429, 502, 503, 504])",
+    "replace": "const RETRY_STATUSES = new Set([502, 503, 504])"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "retries 429, 502, 503 and 504 with the same message"
+ },
+ {
+  "what": "SMS: a 200 with no id is not taken as sent",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "    throw new Error('Arkesel answered 200 without an id for the message')",
+    "replace": "    return { ok: true }"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "throws on a 200 it cannot read, since the message may have gone"
+ },
+ {
+  "what": "SMS: a bad key is given up, not retried",
+  "edits": [
+   {
+    "file": "src/lib/messaging/providers/arkesel.ts",
+    "find": "  if (response.status === 401) return refused(false, error, 'AUTH')",
+    "replace": "  if (response.status === 401) return refused(true, error, 'AUTH')"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "gives up at once, with an alert, on a bad key, an inactive account or a refused sender ID"
+ },
+ {
+  "what": "SMS: sendOnce stops at the caller's signal",
+  "edits": [
+   {
+    "file": "src/lib/outbound.ts",
+    "find": "stop ? AbortSignal.any([limit, stop]) : limit",
+    "replace": "limit"
+   }
+  ],
+  "testFile": "src/lib/outbound.test.ts",
+  "test": "also stops at the caller's own signal, whichever comes first, and calls that a timeout too"
+ },
+ {
+  "what": "SMS reports: the signature is checked",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(reportSignature(logId, secret), 'hex'))",
+    "replace": "  return true"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "accepts only the signature for that row, compared in constant time"
+ },
+ {
+  "what": "SMS reports: the route refuses a bad signature",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  return crypto.timingSafeEqual(Buffer.from(signature, 'hex'), Buffer.from(reportSignature(logId, secret), 'hex'))",
+    "replace": "  return true"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "is 404, whatever was wrong, and changes nothing"
+ },
+ {
+  "what": "SMS reports: sms_id must match the row",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  if (!row.providerMessageId || !smsId || !sameText(row.providerMessageId, smsId.trim())) return 'mismatch'\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "is 404, whatever was wrong, and changes nothing"
+ },
+ {
+  "what": "SMS reports: only a 32+ character secret counts",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "export const MIN_SECRET_LENGTH = 32",
+    "replace": "export const MIN_SECRET_LENGTH = 1"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "is signed for one row, and only with a secret of at least 32 characters"
+ },
+ {
+  "what": "SMS reports: a final report is never undone (both layers removed: each alone is backed by the other)",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  if (row.status === 'DELIVERED' || row.status === 'UNDELIVERED') return 'already-final'\n  if (row.status !== 'SENT') return 'not-sent'\n",
+    "replace": ""
+   },
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "    where: { id: row.id, status: 'SENT' },",
+    "replace": "    where: { id: row.id },"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "is idempotent: the same report again, or a late one, changes nothing after the final one"
+ },
+ {
+  "what": "SMS reports: only a SENT row changes (both layers removed: each alone is backed by the other)",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  if (row.status === 'DELIVERED' || row.status === 'UNDELIVERED') return 'already-final'\n  if (row.status !== 'SENT') return 'not-sent'\n",
+    "replace": ""
+   },
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "    where: { id: row.id, status: 'SENT' },",
+    "replace": "    where: { id: row.id },"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "changes only a SENT row: never one that was not sent, gave up, or whose outcome is unknown"
+ },
+ {
+  "what": "SMS reports: never FAILED",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  NOT_DELIVERED: 'UNDELIVERED',",
+    "replace": "  NOT_DELIVERED: 'FAILED' as 'UNDELIVERED',"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "marks it UNDELIVERED for every final failure, and never FAILED, which would send it again"
+ },
+ {
+  "what": "SMS reports: refused reports are limited per address",
+  "edits": [
+   {
+    "file": "src/app/api/webhooks/sms/arkesel/[logId]/[sig]/route.ts",
+    "find": "  if (ipHash && (await countRecent(SMS_REPORT_REFUSED, { ipHash }, limit.windowMs)) >= limit.max) {",
+    "replace": "  if (ipHash && limit.max < 0 && (await countRecent(SMS_REPORT_REFUSED, { ipHash }, limit.windowMs)) >= limit.max) {"
+   }
+  ],
+  "testFile": "src/lib/messaging/smsReports.test.ts",
+  "test": "is counted against the caller's address, which is refused outright after 20 in an hour"
+ },
+ {
+  "what": "SMS reports: the link is asked for only with a secret",
+  "edits": [
+   {
+    "file": "src/lib/messaging/smsReports.ts",
+    "find": "  if (!secret) return null\n  return `${appUrl}",
+    "replace": "  return `${appUrl}"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "asks for a delivery report on a link signed for that one row, only when the secret is set"
+ },
+ {
+  "what": "SMS test script: --confirm is required",
+  "edits": [
+   {
+    "file": "src/lib/messaging/testSms.ts",
+    "find": "  if (!flags.includes('--confirm')) {",
+    "replace": "  if (false) {"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "refuses without --confirm, saying what it would send and to whom (masked)"
+ },
+ {
+  "what": "SMS test script: --sandbox reaches Arkesel",
+  "edits": [
+   {
+    "file": "src/lib/messaging/testSms.ts",
+    "find": "    }, { sandbox: plan.sandbox })",
+    "replace": "    }, { sandbox: false })"
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "sends one fixed message in Arkesel's sandbox with --sandbox, whatever the switches say, and prints the id"
+ },
+ {
+  "what": "SMS test script: the key is required",
+  "edits": [
+   {
+    "file": "src/lib/messaging/testSms.ts",
+    "find": "  if (!arkeselKey()) return { ok: false, why: 'ARKESEL_API_KEY is not set.' }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/messaging/providers/arkesel.test.ts",
+  "test": "refuses without ARKESEL_API_KEY or with a sender ID Arkesel would refuse"
+ }
+]
