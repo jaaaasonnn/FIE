@@ -16,6 +16,7 @@ import { monthEarnings, monthEarningsPesewas } from '@/lib/hostEarnings'
 import { COMMISSION_PERCENT } from '@/lib/fees'
 import { readJson } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
+import Image from 'next/image'
 
 type ApiListing = {
   id: string
@@ -364,7 +365,9 @@ function HostDashboardContent() {
                     <div key={l.id} className="soft-panel overflow-hidden">
                       <div className="flex">
                         {photo ? (
-                          <img src={photo} alt={l.title} className="w-28 h-full min-h-[120px] object-cover flex-shrink-0" />
+                          <div className="relative w-28 min-h-[120px] flex-shrink-0">
+                            <Image src={photo} alt={l.title} fill sizes="112px" className="object-cover" />
+                          </div>
                         ) : (
                           <div className="w-28 min-h-[120px] flex-shrink-0 bg-stone-100" />
                         )}

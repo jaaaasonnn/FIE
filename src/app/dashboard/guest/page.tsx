@@ -24,6 +24,7 @@ import { rentStatus } from '@/lib/rentRules'
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 import { readJson } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
+import Image from 'next/image'
 
 type ApiBooking = {
   id: string
@@ -345,8 +346,9 @@ export default function GuestDashboardPage() {
                   <div key={b.id} className="soft-panel overflow-hidden">
                     <div className="flex gap-4 p-4">
                       {photo ? (
-                        <img src={photo} alt={b.listing?.title}
-                          className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl object-cover flex-shrink-0" />
+                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0">
+                          <Image src={photo} alt={b.listing?.title ?? ''} fill sizes="96px" className="object-cover" />
+                        </div>
                       ) : (
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-stone-100 flex-shrink-0" />
                       )}

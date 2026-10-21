@@ -19,6 +19,7 @@ import { isSettled, laterInstalmentRefusal, outstanding, rentPlan, tenancyMonths
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
+import Image from 'next/image'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -593,7 +594,10 @@ function CheckoutPageInner() {
                 <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>{rent ? 'Rent Payment' : 'Booking Summary'}</h3>
 
                 <div className="flex gap-3 mb-5">
-                  <img src={photo} alt="" className="w-20 h-16 rounded-xl object-cover flex-shrink-0" />
+                  {/* Through the image optimiser at thumbnail size, not the 1200-px original (G4) */}
+                  <div className="relative w-20 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-stone-100">
+                    {photo && <Image src={photo} alt="" fill sizes="80px" className="object-cover" />}
+                  </div>
                   <div>
                     <p className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{booking.listing.title}</p>
                     <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>Host: {booking.host.name}</p>
