@@ -71,7 +71,7 @@ export class Actor {
   }
 }
 
-export type ListingInput = Partial<{ title: string; instantBook: boolean; priceNightly: number; priceMonthly: number; priceAnnual: number; rentalModes: string[]; damageDeposit: number; cancellationPolicy: string; city: string; region: string; minStayNights: number; advanceMonthsRequired: number; lat: number; lng: number }>
+export type ListingInput = Partial<{ title: string; instantBook: boolean; priceNightly: number; priceMonthly: number; priceAnnual: number; rentalModes: string[]; damageDeposit: number; cancellationPolicy: string; city: string; region: string; minStayNights: number; advanceMonthsRequired: number; lat: number; lng: number; digitalAddress: string }>
 export const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10)
 
 export class World {

@@ -415,13 +415,12 @@ export default function GuestDashboardPage() {
                           Pay rent
                         </Link>
                       )}
-                      {rent && (
-                        <Link href={`/bookings/${b.id}`}
-                          className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
-                          style={{ borderColor: '#E5E7EB', color: '#374151' }}>
-                          Rent payments
-                        </Link>
-                      )}
+                      {/* Every booking has its page: the stay, the address once paid, and the rent schedule (G11) */}
+                      <Link href={`/bookings/${b.id}`}
+                        className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
+                        style={{ borderColor: '#E5E7EB', color: '#374151' }}>
+                        {rent ? 'Rent payments' : 'View booking'}
+                      </Link>
                       <Link href={`/listings/${b.listing?.id}`}
                         className="text-xs px-4 py-2 rounded-full border font-medium transition-all hover:bg-stone-50"
                         style={{ borderColor: '#E5E7EB', color: '#374151' }}>

@@ -138,3 +138,17 @@ test('the answer to Book is lost: pressing Book again says the dates are the gue
   await expect(cardButton(page)).toBeVisible()
   expect(await db.booking.count({ where: { guestId: guest.id } })).toBe(1)
 })
+
+// G11 (fixed): a short stay's booking page, where a paid guest sees the digital address, was linked from
+// nowhere in the app. Every booking on the guest dashboard now has "View booking".
+test('a paid short stay is reached from the guest dashboard, and shows the digital address @core', async ({ page, world, signIn }) => {
+  const host = await world.host()
+  const guest = await world.guest()
+  const home = await world.listing(host, { digitalAddress: 'GA-183-8164' })
+  const paid = await world.paidBooking(guest, home.id)
+  await signIn(guest)
+  await page.goto('/dashboard/guest')
+  await page.getByRole('link', { name: 'View booking' }).first().click()
+  await expect(page).toHaveURL(new RegExp(`/bookings/${paid.id}$`))
+  await expect(page.getByText('GA-183-8164')).toBeVisible()
+})
