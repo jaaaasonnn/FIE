@@ -43,8 +43,10 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${manrope.variable} ${unbounded.variable}`}>
       <head>
-        {/* Before any of the app's scripts: notices one that did not arrive (lib/chunkGuard.ts) */}
-        <script dangerouslySetInnerHTML={{ __html: CHUNK_GUARD_SCRIPT }} />
+        {/* Notices an app script that did not arrive (lib/chunkGuard.ts). A module, so the page is not held
+            at it until the stylesheets above it have loaded, as a plain inline script would be: files that
+            fail before it runs are found by its check when the page has loaded. */}
+        <script type="module" dangerouslySetInnerHTML={{ __html: CHUNK_GUARD_SCRIPT }} />
       </head>
       <body className={manrope.className}>
         <AuthProvider>

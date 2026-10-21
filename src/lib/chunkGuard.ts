@@ -1,8 +1,9 @@
 // G6: a page whose JavaScript did not arrive (a dropped connection on mobile
 // data) never becomes usable. Nothing in the app can notice, because the app
-// is that JavaScript. This small script goes in the page's <head>, before
-// any of it, and watches for one of the app's own script files failing to
-// load. It asks for that file again, at most twice, a little later each time,
+// is that JavaScript. This small script goes in the page's <head> as a module
+// (an inline plain script there would hold the page until the stylesheets had
+// loaded: 0.4-0.5 s on slow 4G), and watches for one of the app's own script
+// files failing to load. It asks for that file again, at most twice, a little later each time,
 // and adds it to the page once it has arrived; if it still does not arrive it
 // shows a plain message with a Try again button instead of a page that spins
 // for ever.
@@ -12,7 +13,7 @@
 // for the file with `cache: 'reload'` replaces what the browser kept, and the
 // file is then added under its own address, which the app's loader needs.
 //
-// Plain JavaScript in a string: it must run before anything else is loaded.
+// Plain JavaScript in a string: it must not depend on the app's own code.
 
 import { LOAD_FAILED } from '@/lib/clientFetch'
 

@@ -1,3 +1,5 @@
+import fs from 'fs'
+import path from 'path'
 import { describe, expect, it } from 'vitest'
 import { CHUNK_GUARD_SCRIPT, CHUNK_RETRY_DELAYS_MS, chunkGuard } from '@/lib/chunkGuard'
 import { LOAD_FAILED } from '@/lib/clientFetch'
@@ -142,6 +144,12 @@ describe('a script file that does not arrive', () => {
     await w.settle()
     expect(w.fetched).toHaveLength(0)
     expect(w.retried()).toHaveLength(0)
+  })
+
+  it('is put in the page as a module, so the page is not held at it until the stylesheets have loaded', () => {
+    // A plain inline script after the stylesheets made search, a listing and checkout 0.4-0.5 s slower on slow 4G
+    const layout = fs.readFileSync(path.resolve(__dirname, '../app/layout.tsx'), 'utf8')
+    expect(layout).toContain('<script type="module" dangerouslySetInnerHTML={{ __html: CHUNK_GUARD_SCRIPT }} />')
   })
 
   it('is sent to the page as runnable text with the message in it', () => {

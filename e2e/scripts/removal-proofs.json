@@ -2964,5 +2964,17 @@
   ],
   "testFile": "src/lib/clientFetch.test.ts",
   "test": "reads every answer to the end, so none is left open in the browser"
+ },
+ {
+  "what": "G6: the guard does not hold the page until the stylesheets have loaded",
+  "edits": [
+   {
+    "file": "src/app/layout.tsx",
+    "find": "<script type=\"module\" dangerouslySetInnerHTML",
+    "replace": "<script dangerouslySetInnerHTML"
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "is put in the page as a module, so the page is not held at it until the stylesheets have loaded"
  }
 ]
