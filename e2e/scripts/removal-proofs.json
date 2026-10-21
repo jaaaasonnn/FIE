@@ -2712,5 +2712,113 @@
   ],
   "testFile": "src/lib/openPayment.test.ts",
   "test": "starts no payment for a rent instalment paid in the meantime"
+ },
+ {
+  "what": "G6: a read is tried again after a dropped connection",
+  "edits": [
+   {
+    "file": "src/lib/clientFetch.ts",
+    "find": "    const last = attempt >= delays.length\n",
+    "replace": "    const last = true\n"
+   }
+  ],
+  "testFile": "src/lib/clientFetch.test.ts",
+  "test": "is tried again after a dropped connection, and the answer is used"
+ },
+ {
+  "what": "G6: a read is not tried for ever",
+  "edits": [
+   {
+    "file": "src/lib/clientFetch.ts",
+    "find": "      if (last) throw error\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/clientFetch.test.ts",
+  "test": "stops after three tries, waiting a little longer each time"
+ },
+ {
+  "what": "G6: a write is never repeated",
+  "edits": [
+   {
+    "file": "src/lib/clientFetch.ts",
+    "find": "  if (init?.method && init.method.toUpperCase() !== 'GET') throw new Error('fetchRetry is for reads only')\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/clientFetch.test.ts",
+  "test": "never repeats a write"
+ },
+ {
+  "what": "G1: a 5xx or a page that is not JSON is not signed out",
+  "edits": [
+   {
+    "file": "src/lib/clientFetch.ts",
+    "find": "    if (!res.ok) return { kind: 'unknown' }\n",
+    "replace": "    if (!res.ok) return { kind: 'signed-out' }\n"
+   }
+  ],
+  "testFile": "src/lib/clientFetch.test.ts",
+  "test": "does not take a lost answer, a 5xx or a page that is not JSON as signed out"
+ },
+ {
+  "what": "G1: a lost answer is not signed out",
+  "edits": [
+   {
+    "file": "src/lib/clientFetch.ts",
+    "find": "  } catch {\n    return { kind: 'unknown' }\n  }\n}",
+    "replace": "  } catch {\n    return { kind: 'signed-out' }\n  }\n}"
+   }
+  ],
+  "testFile": "src/lib/clientFetch.test.ts",
+  "test": "does not take a lost answer, a 5xx or a page that is not JSON as signed out"
+ },
+ {
+  "what": "G6: a script file that failed is asked for again",
+  "edits": [
+   {
+    "file": "src/lib/chunkGuard.ts",
+    "find": "    if (src) retry(src)\n  }, true)",
+    "replace": "  }, true)"
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "is asked for again, afresh, and added to the page under its own address"
+ },
+ {
+  "what": "G6: a script file is asked for afresh, not from what the browser kept",
+  "edits": [
+   {
+    "file": "src/lib/chunkGuard.ts",
+    "find": "w.fetch(src, { cache: 'reload'",
+    "replace": "w.fetch(src, { cache: 'default'"
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "is asked for again, afresh, and added to the page under its own address"
+ },
+ {
+  "what": "G6: a script file that never arrives ends in a message, not a spinner",
+  "edits": [
+   {
+    "file": "src/lib/chunkGuard.ts",
+    "find": "      gaveUp.push(src)\n      show()\n",
+    "replace": "      gaveUp.push(src)\n"
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "is tried twice at most, a little later each time, then the page says so with a Try again button"
+ },
+ {
+  "what": "G6: a script file that failed before the guard started is noticed",
+  "edits": [
+   {
+    "file": "src/lib/chunkGuard.ts",
+    "find": "      if (!got) retry(src)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "a file that failed before the guard started is noticed when the page has loaded, and asked for again"
  }
 ]

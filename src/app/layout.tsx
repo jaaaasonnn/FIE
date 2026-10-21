@@ -6,6 +6,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Toaster } from '@/components/ui/Toaster'
 import { AuthProvider } from '@/context/AuthContext'
 import { ExchangeRateProvider } from '@/context/ExchangeRateContext'
+import { CHUNK_GUARD_SCRIPT } from '@/lib/chunkGuard'
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -41,6 +42,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${manrope.variable} ${unbounded.variable}`}>
+      <head>
+        {/* Before any of the app's scripts: notices one that did not arrive (lib/chunkGuard.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: CHUNK_GUARD_SCRIPT }} />
+      </head>
       <body className={manrope.className}>
         <AuthProvider>
           <ExchangeRateProvider>

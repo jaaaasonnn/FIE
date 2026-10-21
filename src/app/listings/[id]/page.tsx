@@ -1,5 +1,7 @@
 'use client'
 
+import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
+import { LoadFailed } from '@/components/ui/LoadFailed'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import DatePicker from 'react-datepicker'
@@ -106,7 +108,7 @@ const dpInputStyle: React.CSSProperties = {
 // ── Page component ────────────────────────────────────────────────────────────
 // Booked ranges and blocked days arrive as calendar days ("2027-03-09")
 async function getAvailability(listingId: string): Promise<{ bookedRanges: BookedRange[]; blockedDates: string[] }> {
-  const res  = await fetch(`/api/listings/${listingId}/availability`)
+  const res  = await fetchRetry(`/api/listings/${listingId}/availability`)
   const data = await res.json()
   return {
     bookedRanges: data.bookedRanges ?? [],
@@ -126,6 +128,9 @@ export default function ListingDetailPage() {
   const [loadedId,    setLoadedId]    = useState<string | null>(null)
   const listLoading = loadedId !== listingId
   const [notFound,    setNotFound]   = useState(false)
+  // Not loaded even after its tries: the listing may well exist (G6)
+  const [loadFailed,  setLoadFailed] = useState(false)
+  const [loadTry,     setLoadTry]    = useState(0)
 
   // UI state
   const [photoIdx,     setPhotoIdx]     = useState(0)
@@ -151,9 +156,10 @@ export default function ListingDetailPage() {
   // ── Fetch listing data ────────────────────────────────────────────────
   useEffect(() => {
     let active = true
-    fetch(`/api/listings/${listingId}`)
+    fetchRetry(`/api/listings/${listingId}`)
       .then((r) => {
         if (r.status === 404) { if (active) setNotFound(true); return null }
+        if (isLoadFailure(r)) { if (active) setLoadFailed(true); return null }
         return r.json()
       })
       .then((d) => {
@@ -176,10 +182,10 @@ export default function ListingDetailPage() {
           if (m >= 1 && m <= 11) setMonths(m)
         }
       })
-      .catch(() => { if (active) setNotFound(true) })
+      .catch(() => { if (active) setLoadFailed(true) })
       .finally(() => { if (active) setLoadedId(listingId) })
     return () => { active = false }
-  }, [listingId])
+  }, [listingId, loadTry])
 
   // ── Fetch availability ────────────────────────────────────────────────
   // availLoading starts true, so the initial load sets nothing synchronously
@@ -278,6 +284,10 @@ export default function ListingDetailPage() {
         </div>
       </div>
     )
+  }
+
+  if (loadFailed && !notFound) {
+    return <LoadFailed onRetry={() => { setLoadFailed(false); setLoadedId(null); setLoadTry((n) => n + 1) }} />
   }
 
   if (notFound || !listing) {

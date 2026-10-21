@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { GHS_RATE } from '@/lib/utils'
+import { fetchRetry } from '@/lib/clientFetch'
 
 type ExchangeRateContextType = {
   rate:    number
@@ -18,7 +19,7 @@ export function ExchangeRateProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/exchange-rate')
+    fetchRetry('/api/exchange-rate')
       .then((r) => r.json())
       .then((data) => { if (typeof data.rate === 'number' && data.rate > 0) setRate(data.rate) })
       .catch(() => { /* keep the GHS_RATE fallback */ })

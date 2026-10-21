@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { fetchRetry } from '@/lib/clientFetch'
 
 // Unsplash photo ids, each geotagged to the region it stands for
 const regions = [
@@ -68,7 +69,7 @@ export function RegionsSection() {
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
 
   useEffect(() => {
-    fetch('/api/listings/region-counts')
+    fetchRetry('/api/listings/region-counts')
       .then((r) => r.json())
       .then((data) => setCounts(data.counts ?? {}))
       .catch(() => setCounts({}))

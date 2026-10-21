@@ -17,6 +17,8 @@ import {
 } from '@/lib/payDeadline'
 import { isSettled, laterInstalmentRefusal, outstanding, rentPlan, tenancyMonths } from '@/lib/rentRules'
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
+import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
+import { LoadFailed } from '@/components/ui/LoadFailed'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -90,6 +92,9 @@ function CheckoutPageInner() {
   // A booking that cannot be paid for right now, for a reason that is not an error
   const [notice,       setNotice]       = useState<{ title: string; body: string; retry?: boolean } | null>(null)
   const [dataLoading,  setDataLoading]  = useState(true)
+  // The booking could not be loaded, even after its tries: nothing is known to be wrong with it
+  const [loadFailed,   setLoadFailed]   = useState(false)
+  const [loadTry,      setLoadTry]      = useState(0)
 
   // Payment form
   const [payMethod,   setPayMethod]   = useState<'MOMO' | 'CARD'>('MOMO')
@@ -112,8 +117,13 @@ function CheckoutPageInner() {
   useEffect(() => {
     async function load() {
       setDataLoading(true)
+      setLoadFailed(false)
       try {
-        const res  = await fetch(`/api/bookings?id=${bookingId}`)
+        const res  = await fetchRetry(`/api/bookings?id=${bookingId}`)
+        if (isLoadFailure(res)) {
+          setLoadFailed(true)
+          return
+        }
         const data = await res.json()
 
         if (!res.ok) {
@@ -201,13 +211,14 @@ function CheckoutPageInner() {
 
         setBooking(data.booking)
       } catch {
-        setBookingError('Failed to load booking details. Please try again.')
+        // No answer at all, or one that was not the booking: say so, not that the booking is unavailable
+        setLoadFailed(true)
       } finally {
         setDataLoading(false)
       }
     }
     load()
-  }, [bookingId, instalmentId])
+  }, [bookingId, instalmentId, loadTry])
 
   // What this page pays: a later rent instalment, the first payment of a
   // booking paid in instalments, or the whole booking
@@ -316,6 +327,10 @@ function CheckoutPageInner() {
   }
 
   // ── Booking error (not found / cancelled) ────────────────────────────
+  if (loadFailed) {
+    return <LoadFailed onRetry={() => setLoadTry((n) => n + 1)} />
+  }
+
   if (bookingError || !booking) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>

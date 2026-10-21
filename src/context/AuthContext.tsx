@@ -8,6 +8,8 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
+import { checkSession } from '@/lib/clientFetch'
+import { LoadFailedBar } from '@/components/ui/LoadFailed'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,14 +59,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,    setUser]    = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Rehydrate from the HttpOnly cookie on every page load
+  // True when the session check got no answer to go on, even after its tries
+  // (lib/clientFetch.ts). The person is then neither signed in nor out:
+  // `loading` stays true so no page sends them to log in, and a bar offers
+  // to try again.
+  const [sessionUnknown, setSessionUnknown] = useState(false)
+  const [check, setCheck] = useState(0)
+  const retrySession = useCallback(() => { setSessionUnknown(false); setCheck((n) => n + 1) }, [])
+
+  // Rehydrate from the HttpOnly cookie on every page load. Only a clear 401
+  // means signed out (G1): a dropped connection, a 5xx or a page that is not
+  // JSON is tried again, and never taken as signed out.
   useEffect(() => {
-    fetch('/api/auth/session')
-      .then((r) => r.json())
-      .then((data) => setUser(data.user ?? null))
-      .catch(() => setUser(null))
-      .finally(() => setLoading(false))
-  }, [])
+    let current = true
+    checkSession().then((found) => {
+      if (!current) return
+      if (found.kind === 'unknown') { setSessionUnknown(true); return }
+      setUser(found.kind === 'user' ? (found.user as AuthUser) : null)
+      setLoading(false)
+    })
+    return () => { current = false }
+  }, [check])
+
+  // Back online: try the check again by itself
+  useEffect(() => {
+    if (!sessionUnknown) return
+    window.addEventListener('online', retrySession)
+    return () => window.removeEventListener('online', retrySession)
+  }, [sessionUnknown, retrySession])
 
   const signIn = useCallback(async (identifier: string, password: string): Promise<SignInResult> => {
     const res  = await fetch('/api/auth/signin', {
@@ -107,6 +129,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, updateUser }}>
       {children}
+      {sessionUnknown && <LoadFailedBar onRetry={retrySession} />}
     </AuthContext.Provider>
   )
 }

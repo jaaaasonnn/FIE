@@ -1,5 +1,7 @@
 'use client'
 
+import { NotAnswered, fetchRetry, isLoadFailure } from '@/lib/clientFetch'
+import { LoadFailed } from '@/components/ui/LoadFailed'
 import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
@@ -160,6 +162,9 @@ function SearchContent() {
   // Loading until results arrive for the current filters (derived, not toggled in the effect)
   const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(null)
   const loading = loadedFilters !== filters
+  // The search got no answer for these filters, even after its tries (G6)
+  const [failedFilters, setFailedFilters] = useState<typeof filters | null>(null)
+  const loadFailed = !loading && failedFilters === filters
 
   // ── Fetch from /api/listings whenever filters change ──────────────────
   useEffect(() => {
@@ -176,7 +181,8 @@ function SearchContent() {
       if (dateQuery(filters)) for (const [k, v] of Object.entries(dateQuery(filters)!)) q.set(k, v)
       q.set('limit', '50')
 
-      const res  = await fetch(`/api/listings?${q}`)
+      const res  = await fetchRetry(`/api/listings?${q}`)
+      if (isLoadFailure(res)) throw new NotAnswered()
       const data = await res.json()
       // A refused date range comes back as an error, with nothing to show
       if (!res.ok) throw new Error(data.error ?? 'Search failed')
@@ -230,6 +236,8 @@ function SearchContent() {
       })
       .catch((err: Error) => {
         if (!active) return
+        // No answer (a dropped connection, a 5xx, a page that is not JSON): say so and offer to try again
+        if (err instanceof NotAnswered || err instanceof TypeError || err instanceof SyntaxError) { setFailedFilters(filters); return }
         // Only a date problem empties the list; other failures keep the last results
         if (dateQuery(filters)) { setListings([]); setTotal(0); setDateError(err.message) }
       })
@@ -489,7 +497,9 @@ function SearchContent() {
           )}
 
           {/* Listing cards */}
-          {!loading && listings.length === 0 ? (
+          {loadFailed ? (
+            <LoadFailed className="py-10" onRetry={() => setFilters((f) => ({ ...f }))} />
+          ) : !loading && listings.length === 0 ? (
             <div className="text-center py-20">
 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
                 <Home size={26} strokeWidth={1.75} aria-hidden />
@@ -650,6 +660,7 @@ function SearchContent() {
     </div>
   )
 }
+
 
 export default function SearchPage() {
   return <Suspense><SearchContent /></Suspense>

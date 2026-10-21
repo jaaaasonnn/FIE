@@ -14,6 +14,8 @@ import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
 import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { monthEarnings, monthEarningsPesewas } from '@/lib/hostEarnings'
 import { COMMISSION_PERCENT } from '@/lib/fees'
+import { readJson } from '@/lib/clientFetch'
+import { LoadFailed } from '@/components/ui/LoadFailed'
 
 type ApiListing = {
   id: string
@@ -84,14 +86,18 @@ function HostDashboardContent() {
   const current  = user && dashboard?.userId === user.id ? dashboard : null
   const listings = current?.listings ?? []
   const bookings = current?.bookings ?? []
-  const loading  = !!user && !current
+  // Not loaded even after its tries (G6): for this user and this try
+  const [failed, setFailed] = useState<{ userId: string; loadTry: number } | null>(null)
+  const [loadTry, setLoadTry] = useState(0)
+  const loadFailed = !!user && failed?.userId === user.id && failed.loadTry === loadTry
+  const loading  = !!user && !current && !loadFailed
 
   useEffect(() => {
     if (authLoading || !user) return
     const userId = user.id
     Promise.all([
-      fetch(`/api/listings?hostId=${userId}&limit=50`).then((r) => r.json()),
-      fetch(`/api/bookings?hostId=${userId}`).then((r) => r.json()),
+      readJson(`/api/listings?hostId=${userId}&limit=50`),
+      readJson(`/api/bookings?hostId=${userId}`),
     ])
       .then(([lData, bData]) => {
         setDashboard({
@@ -100,8 +106,9 @@ function HostDashboardContent() {
           bookings: Array.isArray(bData.bookings) ? bData.bookings : [],
         })
       })
-      .catch(() => setDashboard({ userId, listings: [], bookings: [] }))
-  }, [user, authLoading])
+      // Say so, rather than show no listings and no bookings
+      .catch(() => setFailed({ userId, loadTry }))
+  }, [user, authLoading, loadTry])
 
   const activeListings = listings.filter((l) => l.isActive)
   const activeBookings = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'PENDING')
@@ -212,7 +219,9 @@ function HostDashboardContent() {
           </div>
         )}
 
-        {loading || authLoading ? (
+        {loadFailed && !authLoading ? (
+          <LoadFailed className="py-24" onRetry={() => setLoadTry((n) => n + 1)} />
+        ) : loading || authLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading dashboard…</p>

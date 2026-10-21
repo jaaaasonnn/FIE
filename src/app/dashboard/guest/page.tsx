@@ -22,6 +22,8 @@ import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
 import { problemLinkLabel } from '@/lib/disputes'
 import { rentStatus } from '@/lib/rentRules'
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
+import { readJson } from '@/lib/clientFetch'
+import { LoadFailed } from '@/components/ui/LoadFailed'
 
 type ApiBooking = {
   id: string
@@ -134,6 +136,9 @@ export default function GuestDashboardPage() {
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
   // Derived from which user the data was loaded for, not toggled in the effect
   const dataLoading = !!user && loadedFor !== user.id
+  // Not loaded even after its tries: the bookings may well be there (G6)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadTry, setLoadTry] = useState(0)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [reviewModalBookingId, setReviewModalBookingId] = useState<string | null>(null)
   const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set())
@@ -143,11 +148,11 @@ export default function GuestDashboardPage() {
     const userId = user.id
     let active = true
     Promise.all([
-      fetch(`/api/bookings?guestId=${user.id}`).then((r) => r.json()),
-      fetch(`/api/wishlists?userId=${user.id}`).then((r) => r.json()),
-      fetch(`/api/reviews?reviewerId=${user.id}`).then((r) => r.json()),
-      fetch('/api/messages').then((r) => r.json()),
-      fetch('/api/reviews?mine=true').then((r) => r.json()),
+      readJson(`/api/bookings?guestId=${user.id}`),
+      readJson(`/api/wishlists?userId=${user.id}`),
+      readJson(`/api/reviews?reviewerId=${user.id}`),
+      readJson('/api/messages'),
+      readJson('/api/reviews?mine=true'),
     ])
       .then(([bData, wData, rData, mData, mineData]) => {
         if (!active) return
@@ -162,14 +167,12 @@ export default function GuestDashboardPage() {
       })
       .catch(() => {
         if (!active) return
-        setBookings([])
-        setWishlistCount(0)
-        setReviewsGivenCount(0)
-        setActivity([])
+        // Say so, rather than show "No bookings yet"
+        setLoadFailed(true)
       })
       .finally(() => { if (active) setLoadedFor(userId) })
     return () => { active = false }
-  }, [user])
+  }, [user, loadTry])
 
   if (authLoading || !user) {
     return (
@@ -304,7 +307,9 @@ export default function GuestDashboardPage() {
         <div className="mb-8">
           <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Your Bookings</h2>
 
-          {dataLoading ? (
+          {loadFailed && !dataLoading ? (
+            <LoadFailed className="py-6" onRetry={() => { setLoadFailed(false); setLoadedFor(null); setLoadTry((n) => n + 1) }} />
+          ) : dataLoading ? (
             <div className="space-y-4">
               {[1, 2].map((n) => (
                 <div key={n} className="soft-panel p-4 animate-pulse flex gap-4">

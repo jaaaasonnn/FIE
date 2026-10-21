@@ -14,6 +14,8 @@ import { problemLinkLabel } from '@/lib/disputes'
 import { EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, PAY_WINDOW_PASSED, formatPayBy, payState } from '@/lib/payDeadline'
 import { RentSchedule, type ScheduleInstalment } from '@/components/booking/RentSchedule'
 import { rentPlan, tenancyMonths } from '@/lib/rentRules'
+import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
+import { LoadFailed } from '@/components/ui/LoadFailed'
 
 type BookingData = {
   id: string
@@ -73,15 +75,21 @@ function BookingPageInner() {
   const [booking, setBooking] = useState<BookingData | null>(null)
   const [loading, setLoading] = useState(true)
   const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
+  // Not loaded even after its tries: the booking may well be there (G6)
+  const [loadFailed, setLoadFailed] = useState(false)
+  const [loadTry, setLoadTry] = useState(0)
 
   useEffect(() => {
     if (!id) return
-    fetch(`/api/bookings?id=${id}`)
-      .then((r) => r.json())
-      .then((data) => setBooking(data.booking ?? null))
-      .catch(() => setBooking(null))
+    fetchRetry(`/api/bookings?id=${id}`)
+      .then(async (r) => {
+        if (isLoadFailure(r)) { setLoadFailed(true); return }
+        const data = await r.json()
+        setBooking(data.booking ?? null)
+      })
+      .catch(() => setLoadFailed(true))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, loadTry])
 
   if (loading) {
     return (
@@ -93,6 +101,10 @@ function BookingPageInner() {
         </div>
       </div>
     )
+  }
+
+  if (loadFailed) {
+    return <LoadFailed onRetry={() => { setLoadFailed(false); setLoading(true); setLoadTry((n) => n + 1) }} />
   }
 
   if (!booking) {

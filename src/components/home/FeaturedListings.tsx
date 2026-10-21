@@ -11,6 +11,7 @@ import { RENTAL_MODES } from '@/lib/rentalModes'
 import { formatUsdCompact } from '@/lib/utils'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import type { PublicCheck } from '@/lib/listingCheckRules'
+import { fetchRetry } from '@/lib/clientFetch'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -79,7 +80,7 @@ export function FeaturedListings() {
 
   // ── Fetch featured listings from the real DB ─────────────────────────
   useEffect(() => {
-    fetch('/api/listings?featured=true&limit=6')
+    fetchRetry('/api/listings?featured=true&limit=6')
       .then((r) => r.json())
       .then((d) => setListings(d.listings ?? []))
       .catch(() => {})
