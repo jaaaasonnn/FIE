@@ -191,7 +191,7 @@ export function FeaturedListings() {
                 </Link>
               </div>
             )
-            : listings.map((l) => {
+            : listings.map((l, idx) => {
                 // Long-term-only homes show the yearly price with its monthly equivalent
                 const yearly   = l.rentalModes?.length === 1 && l.rentalModes[0] === 'PERMANENT' && l.priceAnnual ? l.priceAnnual : null
                 const price    = yearly ?? l.priceNightly ?? l.priceMonthly ?? 0
@@ -217,6 +217,8 @@ export function FeaturedListings() {
                           <Image src={photo} alt={l.title}
                             fill
                             sizes="(min-width: 1024px) 400px, (min-width: 640px) 50vw, 100vw"
+                            // The first card is the one most likely to be in view: not left lazy (G9)
+                            loading={idx === 0 ? 'eager' : 'lazy'}
                             className="photo-zoom object-cover" />
                         )}
                       </div>

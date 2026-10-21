@@ -553,6 +553,9 @@ function SearchContent() {
                         <Image src={l.photos[0]} alt={l.title}
                           fill
                           sizes="110px"
+                          // The first cards are on screen at once: loaded at once, the first one first (G9)
+                          loading={idx < EAGER_CARDS ? 'eager' : 'lazy'}
+                          fetchPriority={idx === 0 ? 'high' : undefined}
                           className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
                       )}
                       {l.rentalModes?.[0] && (
@@ -655,6 +658,9 @@ function SearchContent() {
   )
 }
 
+
+/** Search cards whose photo is loaded at once: the ones on screen before any scrolling. */
+const EAGER_CARDS = 4
 
 export default function SearchPage() {
   return <Suspense><SearchContent /></Suspense>

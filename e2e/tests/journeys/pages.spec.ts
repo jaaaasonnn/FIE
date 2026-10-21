@@ -40,3 +40,34 @@ test('thumbnails on checkout and both dashboards come through the image optimise
     page.removeAllListeners('request')
   }
 })
+
+// G9: the first search cards are on screen at once but their photos were loading="lazy", and none was marked
+// as the first to fetch, although the first card's photo is the page's largest paint. On the home page the first
+// featured card was lazy too.
+test('the first search photos load at once, the first one first; later ones wait', async ({ page, world }) => {
+  const host = await world.host()
+  for (let i = 0; i < 6; i++) {
+    const home = await world.listing(host)
+    await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS) } })
+  }
+  await page.goto('/search')
+  const photos = page.locator('.listing-card img')
+  await expect(photos.nth(5)).toBeAttached()
+  const seen = await photos.evaluateAll((els) => els.slice(0, 6).map((e) => ({ loading: e.getAttribute('loading'), priority: e.getAttribute('fetchpriority') })))
+  expect(seen[0]).toEqual({ loading: 'eager', priority: 'high' })
+  for (const i of [1, 2, 3]) expect(seen[i], `card ${i + 1}`).toEqual({ loading: 'eager', priority: null })
+  for (const i of [4, 5]) expect(seen[i].loading, `card ${i + 1}`).toBe('lazy')
+})
+
+test('the first featured home on the home page is not left lazy', async ({ page, world }) => {
+  const host = await world.host()
+  for (let i = 0; i < 2; i++) {
+    const home = await world.listing(host)
+    await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS), isFeatured: true } })
+  }
+  await page.goto('/')
+  const photos = page.locator('article img')
+  await expect(photos.nth(1)).toBeAttached()
+  await expect(photos.first()).toHaveAttribute('loading', 'eager')
+  await expect(photos.nth(1)).toHaveAttribute('loading', 'lazy')
+})
