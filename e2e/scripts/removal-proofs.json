@@ -592,8 +592,8 @@
   "edits": [
    {
     "file": "src/lib/session.ts",
-    "find": "  await db.session.create({ data: { userId, token: hashSessionToken(token), expiresAt } })",
-    "replace": "  await db.session.create({ data: { userId, token, expiresAt } })"
+    "find": "    db.session.create({ data: { userId, token: hashSessionToken(token), expiresAt } }),",
+    "replace": "    db.session.create({ data: { userId, token, expiresAt } }),"
    },
    {
     "file": "src/lib/session.ts",
@@ -1397,7 +1397,7 @@
   "edits": [
    {
     "file": "src/app/api/auth/signin/route.ts",
-    "find": "    if (isSuspended(user)) {\n      return NextResponse.json({ error: SUSPENDED_SIGN_IN, code: 'ACCOUNT_SUSPENDED' }, { status: 403 })\n    }\n",
+    "find": "    if (isSuspended(user)) {\n      await forgiven\n      return NextResponse.json({ error: SUSPENDED_SIGN_IN, code: 'ACCOUNT_SUSPENDED' }, { status: 403 })\n    }\n",
     "replace": ""
    }
   ],
