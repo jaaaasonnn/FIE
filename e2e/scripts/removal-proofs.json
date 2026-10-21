@@ -2726,12 +2726,12 @@
   "test": "is tried again after a dropped connection, and the answer is used"
  },
  {
-  "what": "G6: a read is not tried for ever",
+  "what": "G6: a read is tried three times at most",
   "edits": [
    {
     "file": "src/lib/clientFetch.ts",
-    "find": "      if (last) throw error\n",
-    "replace": ""
+    "find": "    const last = attempt >= delays.length\n",
+    "replace": "    const last = attempt >= delays.length + 1\n"
    }
   ],
   "testFile": "src/lib/clientFetch.test.ts",
