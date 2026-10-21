@@ -13,7 +13,8 @@ import pg from 'pg'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const [scenario = 'adhoc', every = '5', appsArg = '3200,3201'] = process.argv.slice(2)
 const apps = appsArg.split(',').map(Number)
-const out = path.join(here, '..', '.reports', 'stageC')
+// STAGE_C_OUT (from stage-c.sh, relative to the repository): where a later run's samples go
+const out = process.env.STAGE_C_OUT ? path.resolve(here, '..', '..', process.env.STAGE_C_OUT) : path.join(here, '..', '.reports', 'stageC')
 fs.mkdirSync(out, { recursive: true })
 const file = path.join(out, `${scenario}-samples.jsonl`)
 // Straight to the real Postgres port when the latency proxy is in front, so sampling adds no proxy traffic

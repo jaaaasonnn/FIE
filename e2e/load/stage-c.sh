@@ -9,7 +9,10 @@
 # A scenario that fails is NOT retried here: rerun it by hand once at most, and say so.
 set -u
 cd "$(dirname "$0")/../.."
-R=e2e/.reports/stageC
+# STAGE_C_OUT: where this run's results go (default Stage C's own folder); RUN_TAG: put in front of the
+# invariant checks' labels, so a later run does not write over Stage C's
+R=${STAGE_C_OUT:-e2e/.reports/stageC}
+TAG=${RUN_TAG:-}
 mkdir -p $R
 K6=e2e/.state/k6/k6-v2.3.0-macos-arm64/k6
 APPS=${APPS:-3200,3201,3202,3203}
@@ -30,15 +33,15 @@ for s in $SCENARIOS; do
   if [ -f $R/$s.done ]; then note "skip $s (done)"; continue; fi
   df=$(df -g / | tail -1 | awk '{print $4}'); [ "$df" -lt 5 ] && { note "STOP: free disk ${df} GB"; exit 3 }
   note "=== $s: invariants before"
-  E2E_PERF=1 E2E_INVARIANTS_LABEL=$s-before node e2e/run.mjs test --project=perf load/invariants.spec.ts --reporter=line > $R/$s-invariants-before.log 2>&1 || note "INVARIANTS BROKEN before $s (see invariants/$s-before.json)"
+  E2E_PERF=1 E2E_INVARIANTS_LABEL=$TAG$s-before node e2e/run.mjs test --project=perf load/invariants.spec.ts --reporter=line > $R/$s-invariants-before.log 2>&1 || note "INVARIANTS BROKEN before $s (see invariants/$TAG$s-before.json)"
   pgq "select pg_stat_statements_reset()" > /dev/null
   for p in ${(s:,:)APPS}; do wc -c < e2e/.state/app-$p.log | tr -d ' ' > $R/$s-applog-$p.offset; done
   every=5; [ $s = soak ] && every=60
   E2E_SAMPLER_PG_PORT=${E2E_SAMPLER_PG_PORT:-54331} node e2e/load/sampler.mjs $s $every $APPS > $R/$s-sampler.log 2>&1 &  # directly: run.mjs exec would not pass the stop signal on
   sampler=$!
   note "=== $s: k6"
-  ( cd e2e/load/k6 && ../../../$K6 run -q -e SCENARIO=$s -e APPS=$APPS -e AVG_VUS=${AVG_VUS:-50} -e IDS=../../.reports/stageC/ids.json \
-      --out csv=../../.reports/stageC/$s-k6.csv.gz mix.js ) > $R/$s-k6.log 2>&1
+  ( cd e2e/load/k6 && ../../../$K6 run -q -e SCENARIO=$s -e APPS=$APPS -e AVG_VUS=${AVG_VUS:-50} -e IDS=../../../$R/ids.json -e SUMMARY=../../../$R/$s-k6.json \
+      --out csv=../../../$R/$s-k6.csv.gz mix.js ) > $R/$s-k6.log 2>&1
   rc=$?
   kill $sampler 2>/dev/null; wait $sampler 2>/dev/null
   note "=== $s: k6 exit $rc ($( [ $rc -eq 99 ] && echo 'a threshold failed' || echo ok ))"
@@ -46,7 +49,7 @@ for s in $SCENARIOS; do
   for p in ${(s:,:)APPS}; do off=$(cat $R/$s-applog-$p.offset); tail -c +$((off+1)) e2e/.state/app-$p.log > $R/$s-app-$p.log; done
   grep -hoE "P20[0-9]{2}|Timed out fetching a new connection|too many clients|ECONNRESET|ECONNREFUSED|FATAL|Error: [A-Za-z ]{0,60}" $R/$s-app-*.log 2>/dev/null | sort | uniq -c | sort -rn > $R/$s-app-errors.txt
   note "=== $s: invariants after"
-  E2E_PERF=1 E2E_INVARIANTS_LABEL=$s-after node e2e/run.mjs test --project=perf load/invariants.spec.ts --reporter=line > $R/$s-invariants-after.log 2>&1 && touch $R/$s.done || note "INVARIANTS BROKEN after $s: CRITICAL (see invariants/$s-after.json)"
+  E2E_PERF=1 E2E_INVARIANTS_LABEL=$TAG$s-after node e2e/run.mjs test --project=perf load/invariants.spec.ts --reporter=line > $R/$s-invariants-after.log 2>&1 && touch $R/$s.done || note "INVARIANTS BROKEN after $s: CRITICAL (see invariants/$TAG$s-after.json)"
   [ -f $R/$s.done ] || { note "stopping: $s did not finish cleanly"; exit 1 }
 done
 note "all scenarios done"
