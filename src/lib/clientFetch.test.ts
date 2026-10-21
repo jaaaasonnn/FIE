@@ -55,9 +55,11 @@ describe('a read on a weak connection', () => {
 
 describe('the session check', () => {
   it('reads every answer to the end, so none is left open in the browser', async () => {
-    for (const res of [answer(401, { user: null }), answer(502, '<html>Bad gateway</html>'), answer(200, { user: { id: 'u1' } })]) {
-      await checkSession({ ...noWait, fetcher: vi.fn().mockResolvedValue(res) })
-      expect(res.bodyUsed, String(res.status)).toBe(true)
+    for (const make of [() => answer(401, { user: null }), () => answer(502, '<html>Bad gateway</html>'), () => answer(200, { user: { id: 'u1' } })]) {
+      const given: Response[] = []
+      await checkSession({ ...noWait, fetcher: vi.fn(async () => { const res = make(); given.push(res); return res }) })
+      // Each one read, or let go of before asking again
+      for (const res of given) expect(res.bodyUsed || res.body?.locked, String(res.status)).toBe(true)
     }
   })
 
@@ -68,8 +70,9 @@ describe('the session check', () => {
 
   it('does not take a lost answer, a 5xx or a page that is not JSON as signed out', async () => {
     expect(await checkSession({ ...noWait, fetcher: vi.fn().mockImplementation(dropped) })).toEqual({ kind: 'unknown' })
-    expect(await checkSession({ ...noWait, fetcher: vi.fn().mockResolvedValue(answer(502, '<html>Bad gateway</html>')) })).toEqual({ kind: 'unknown' })
-    expect(await checkSession({ ...noWait, fetcher: vi.fn().mockResolvedValue(answer(200, '<html>captive portal</html>')) })).toEqual({ kind: 'unknown' })
+    // A fresh answer each try, as a real server gives
+    expect(await checkSession({ ...noWait, fetcher: vi.fn(async () => answer(502, '<html>Bad gateway</html>')) })).toEqual({ kind: 'unknown' })
+    expect(await checkSession({ ...noWait, fetcher: vi.fn(async () => answer(200, '<html>captive portal</html>')) })).toEqual({ kind: 'unknown' })
   })
 
   it('a session check that fails once and then answers finds the person', async () => {
