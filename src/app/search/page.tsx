@@ -169,7 +169,7 @@ function SearchContent() {
   // ── Fetch from /api/listings whenever filters change ──────────────────
   useEffect(() => {
     let active = true
-    async function runSearch(): Promise<ApiListing[]> {
+    async function runSearch(): Promise<{ results: ApiListing[]; total: number }> {
       const q = new URLSearchParams()
       if (filters.mode)         q.set('mode',         filters.mode)
       if (filters.region)       q.set('region',       filters.region)
@@ -179,6 +179,8 @@ function SearchContent() {
       if (filters.checked)      q.set('checked',      'true')
       if (filters.superhost)    q.set('superhost',    'true')
       if (dateQuery(filters)) for (const [k, v] of Object.entries(dateQuery(filters)!)) q.set(k, v)
+      // The typed words are matched on the server, over every home (G2)
+      if (filters.query.trim()) q.set('q', filters.query.trim())
       q.set('limit', '50')
 
       const res  = await fetchRetry(`/api/listings?${q}`)
@@ -187,17 +189,6 @@ function SearchContent() {
       // A refused date range comes back as an error, with nothing to show
       if (!res.ok) throw new Error(data.error ?? 'Search failed')
       let results: ApiListing[] = data.listings ?? []
-
-      // Client-side free-text search (title, city, neighbourhood, region) — not in API yet
-      if (filters.query.trim()) {
-        const needle = filters.query.trim().toLowerCase()
-        results = results.filter((l) =>
-          l.title.toLowerCase().includes(needle) ||
-          l.city.toLowerCase().includes(needle) ||
-          l.region.toLowerCase().includes(needle) ||
-          (l.neighbourhood?.toLowerCase().includes(needle) ?? false),
-        )
-      }
 
       // Party size from the homepage search (guests or occupants)
       const guests = parseInt(filters.guests, 10)
@@ -225,13 +216,16 @@ function SearchContent() {
       if (filters.sort === 'top_rated')    results.sort((a, b) => b.avgRating  - a.avgRating)
       if (filters.sort === 'most_reviewed') results.sort((a, b) => b.reviewCount - a.reviewCount)
 
-      return results
+      // Every home that matches, not just this page of them, unless a filter
+      // only the browser applies (party size, price) has narrowed the page
+      const narrowedHere = parseInt(filters.guests, 10) > 0 || !!filters.minPrice || !!filters.maxPrice
+      return { results, total: narrowedHere || typeof data.total !== 'number' ? results.length : data.total }
     }
     runSearch()
-      .then((results) => {
+      .then(({ results, total }) => {
         if (!active) return
         setListings(results)
-        setTotal(results.length)
+        setTotal(total)
         setDateError('')
       })
       .catch((err: Error) => {

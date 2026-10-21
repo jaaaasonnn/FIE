@@ -13,6 +13,7 @@ import { parseDigitalAddress } from '@/lib/digitalAddress'
 import { liveCheckWhere } from '@/lib/listingCheckRules'
 import { liveChecksInclude, publicListing } from '@/lib/listingChecks'
 import { HOST_NOT_SUSPENDED } from '@/lib/suspension'
+import { MAX_SEARCH_TEXT } from '@/lib/searchDates'
 
 export async function GET(req: Request) {
   try {
@@ -21,6 +22,9 @@ export async function GET(req: Request) {
     const mode = searchParams.get('mode')
     const region = searchParams.get('region')
     const city = searchParams.get('city')
+    // The search box's words (G2): matched here against every live home, not
+    // in the browser against the first page of results
+    const text = (searchParams.get('q') ?? '').trim().slice(0, MAX_SEARCH_TEXT)
     const minPrice = searchParams.get('minPrice')
     const maxPrice = searchParams.get('maxPrice')
     const bedrooms = searchParams.get('bedrooms')
@@ -51,7 +55,10 @@ export async function GET(req: Request) {
     }
 
     if (region) where.region = region
-    if (city) where.city = { contains: city }
+    if (city) where.city = { contains: city, mode: 'insensitive' }
+    if (text) {
+      where.OR = (['city', 'neighbourhood', 'region', 'title'] as const).map((field) => ({ [field]: { contains: text, mode: 'insensitive' } }))
+    }
     if (propertyType) where.propertyType = propertyType
     if (bedrooms) {
       // A whole number of rooms, or the filter is refused: "abc" would reach the database as not-a-number

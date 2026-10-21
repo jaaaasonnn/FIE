@@ -2844,5 +2844,41 @@
   ],
   "testFile": "src/lib/ownBooking.test.ts",
   "test": "another guest's booking is only \"no longer available\": nothing of it is given away"
+ },
+ {
+  "what": "G2: the search box's words are matched on the server",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "    if (text) {\n      where.OR",
+    "replace": "    if (text && false) {\n      where.OR"
+   }
+  ],
+  "testFile": "src/lib/listingSearch.test.ts",
+  "test": "finds a home in the typed city however many homes there are, in any case"
+ },
+ {
+  "what": "G2: the search box ignores case",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "({ [field]: { contains: text, mode: 'insensitive' } })",
+    "replace": "({ [field]: { contains: text } })"
+   }
+  ],
+  "testFile": "src/lib/listingSearch.test.ts",
+  "test": "finds a home in the typed city however many homes there are, in any case"
+ },
+ {
+  "what": "G2: the city filter ignores case",
+  "edits": [
+   {
+    "file": "src/app/api/listings/route.ts",
+    "find": "where.city = { contains: city, mode: 'insensitive' }",
+    "replace": "where.city = { contains: city }"
+   }
+  ],
+  "testFile": "src/lib/listingSearch.test.ts",
+  "test": "the city filter is no longer case-sensitive"
  }
 ]

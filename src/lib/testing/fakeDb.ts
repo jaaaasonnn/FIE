@@ -105,7 +105,7 @@ export function fakeDb(tables: Tables) {
       }
       const value = row[key]
       if (isObject(cond)) {
-        const c = cond as { in?: unknown[]; notIn?: unknown[]; not?: unknown; lt?: unknown; lte?: unknown; gt?: unknown; gte?: unknown; contains?: string; startsWith?: string; equals?: unknown }
+        const c = cond as { in?: unknown[]; notIn?: unknown[]; not?: unknown; lt?: unknown; lte?: unknown; gt?: unknown; gte?: unknown; contains?: string; startsWith?: string; equals?: unknown; mode?: string }
         if ('equals' in c && !same(value, c.equals)) return false
         if ('in' in c && !c.in!.some((v) => same(value, v))) return false
         if ('notIn' in c && c.notIn!.some((v) => same(value, v))) return false
@@ -114,7 +114,9 @@ export function fakeDb(tables: Tables) {
         if ('lte' in c && !(value != null && (less(value, c.lte) || same(value, c.lte)))) return false
         if ('gt' in c && !(value != null && less(c.gt, value))) return false
         if ('gte' in c && !(value != null && (less(c.gte, value) || same(value, c.gte)))) return false
-        if ('contains' in c && !String(value ?? '').includes(c.contains!)) return false
+        // Postgres ILIKE, as Prisma's mode: 'insensitive' asks for
+        const fold = (v: unknown) => (c.mode === 'insensitive' ? String(v ?? '').toLowerCase() : String(v ?? ''))
+        if ('contains' in c && !fold(value).includes(fold(c.contains))) return false
         if ('startsWith' in c && !String(value ?? '').startsWith(c.startsWith!)) return false
         return true
       }

@@ -92,3 +92,6 @@ export function availabilityWhere(range: { firstNight: Date; lastNight: Date }) 
     },
   ]
 }
+
+/** The longest search-box text the listing search reads; anything after it is ignored. */
+export const MAX_SEARCH_TEXT = 100
