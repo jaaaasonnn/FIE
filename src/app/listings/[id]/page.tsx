@@ -152,6 +152,8 @@ export default function ListingDetailPage() {
   // Booking submit state
   const [bookLoading, setBookLoading] = useState(false)
   const [bookError,   setBookError]   = useState('')
+  // The dates are held by the guest's own booking (G7): said, with the way to it
+  const [ownHold,     setOwnHold]     = useState<{ message: string; href: string; action: string } | null>(null)
 
   // ── Fetch listing data ────────────────────────────────────────────────
   useEffect(() => {
@@ -340,6 +342,7 @@ export default function ListingDetailPage() {
   // ── Book handler ──────────────────────────────────────────────────────
   async function handleBook() {
     setBookError('')
+    setOwnHold(null)
     if (!listing) return   // type guard (listing is always set by this point in the UI)
 
     if (selectedMode === 'SHORT_STAY') {
@@ -376,6 +379,11 @@ export default function ListingDetailPage() {
       })
       const data = await res.json()
 
+      if (res.status === 409 && data.code === 'OWN_BOOKING') {
+        await fetchAvailability()
+        setOwnHold({ message: data.message, href: data.href, action: data.action })
+        return
+      }
       if (res.status === 409) {
         await fetchAvailability()
         setBookError('Those dates just became unavailable. The calendar has been updated. Please pick new dates.')
@@ -866,6 +874,15 @@ export default function ListingDetailPage() {
                 <div className="mb-4 p-3 rounded-xl flex items-start gap-2 text-xs"
                   style={{ backgroundColor: '#FEE2E2', color: '#991B1B' }}>
                   <AlertCircle size={14} className="flex-shrink-0 mt-0.5" />{bookError}
+                </div>
+              )}
+              {ownHold && (
+                <div role="status" className="mb-4 p-3 rounded-xl text-xs"
+                  style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-text-primary)' }}>
+                  <p>{ownHold.message}</p>
+                  <Link href={ownHold.href} className="inline-block mt-2 font-semibold underline" style={{ color: 'var(--color-accent-deep)' }}>
+                    {ownHold.action}
+                  </Link>
                 </div>
               )}
 

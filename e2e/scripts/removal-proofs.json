@@ -2820,5 +2820,29 @@
   ],
   "testFile": "src/lib/chunkGuard.test.ts",
   "test": "a file that failed before the guard started is noticed when the page has loaded, and asked for again"
+ },
+ {
+  "what": "G7: dates held by the guest's own booking are said to be theirs",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/route.ts",
+    "find": "          own = ownBooking(conflict, guestId)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/ownBooking.test.ts",
+  "test": "pressing Book again says so, with the way to pay, instead of \"no longer available\""
+ },
+ {
+  "what": "G7: another guest's booking is never named",
+  "edits": [
+   {
+    "file": "src/lib/ownBooking.ts",
+    "find": "  if (clash.guestId !== guestId) return null\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/ownBooking.test.ts",
+  "test": "another guest's booking is only \"no longer available\": nothing of it is given away"
  }
 ]

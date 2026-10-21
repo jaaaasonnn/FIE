@@ -18,6 +18,7 @@ import { payDeadline } from '@/lib/payDeadline'
 import { notify } from '@/lib/messaging/notify'
 import { buildSchedule, tenancyStands } from '@/lib/rentRules'
 import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
+import { OWN_BOOKING, ownBooking, type OwnBooking } from '@/lib/ownBooking'
 
 /** What a guest or host is shown of a rent instalment: no admin's id. */
 const instalmentSelect = {
@@ -104,6 +105,8 @@ export async function POST(req: Request) {
     // the transaction itself finds is "these dates are taken".
     let booking
     let overLimit: { error: string; retryAfter: number } | null = null
+    // The dates are held by this guest's own booking (G7): they are told so, and where it is
+    let own: OwnBooking | null = null
     try {
       booking = await withSerialRetry(() => db.$transaction(async (tx) => {
         // A booking holds a home's dates before anything is paid. One guest
@@ -114,6 +117,7 @@ export async function POST(req: Request) {
         // Confirmed bookings waiting for payment, and requests waiting for a
         // host's answer, are counted apart: each has its own limit.
         overLimit = null
+        own = null
         const openUnpaid = await tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } })
         const openRequests = await tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'PENDING' } })
         const lastHour = await tx.booking.count({ where: { guestId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } })
@@ -134,6 +138,7 @@ export async function POST(req: Request) {
         })
 
         if (conflict) {
+          own = ownBooking(conflict, guestId)
           const err = new Error('DATE_CONFLICT')
           ;(err as NodeJS.ErrnoException).code = 'DATE_CONFLICT'
           throw err
@@ -209,8 +214,12 @@ export async function POST(req: Request) {
     } catch (txErr) {
       const code = (txErr as NodeJS.ErrnoException).code ?? (txErr as Error).message
       if (code === 'DATE_CONFLICT') {
+        const mine = own as OwnBooking | null
+        if (mine) {
+          return NextResponse.json({ error: mine.message, code: OWN_BOOKING, ...mine }, { status: 409 })
+        }
         return NextResponse.json(
-          { error: 'These dates are no longer available. Please choose different dates.' },
+          { error: 'These dates are no longer available. Please choose different dates.', code: 'DATE_CONFLICT' },
           { status: 409 },
         )
       }

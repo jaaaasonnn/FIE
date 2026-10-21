@@ -1,5 +1,7 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
+import { db } from '../../lib/db'
+import { ListingPage } from '../../pages'
 
 // G6 (fixed): one failed request could leave a page stuck for good: a script file that did not arrive left
 // checkout on "Loading booking details…" with no way on, and a failed read of the booking said "Booking
@@ -107,4 +109,32 @@ test('the guest dashboard whose bookings do not load says "try again", not "No b
   down = false
   await tryAgain(page).click()
   await expect(page.getByText(home.title).first()).toBeVisible()
+})
+
+// G7 (fixed): the answer to Book lost on the way back. The booking was made; pressing Book again said "Those
+// dates just became unavailable… pick new dates". Now it says the dates are the guest's own, with the way to pay.
+test('the answer to Book is lost: pressing Book again says the dates are the guest\'s own, and leads to paying @core', async ({ page, world, signIn, context }) => {
+  const host = await world.host()
+  const guest = await world.guest()
+  const home = await world.listing(host)
+  await signIn(guest)
+  const { checkIn, checkOut } = world.dates(2)
+  await page.goto(`/listings/${home.id}`)
+  const listing = new ListingPage(page)
+  await listing.chooseDates(checkIn, checkOut)
+  let presses = 0
+  await context.route('**/api/bookings', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback()
+    const answer = await route.fetch()
+    if (presses++ === 0) return route.abort('connectionreset')
+    return route.fulfill({ response: answer })
+  })
+  await listing.bookButton().click()
+  await expect.poll(() => presses).toBe(1)
+  await listing.bookButton().click()
+  await expect(page.getByText('You already hold these dates in a booking that is waiting for payment.')).toBeVisible()
+  await expect(page.getByText(/just became unavailable/)).toHaveCount(0)
+  await page.getByRole('link', { name: 'Pay for it now' }).click()
+  await expect(cardButton(page)).toBeVisible()
+  expect(await db.booking.count({ where: { guestId: guest.id } })).toBe(1)
 })
