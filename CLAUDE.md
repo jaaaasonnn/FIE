@@ -37,7 +37,9 @@ _(none currently — Paystack and Supabase migration below are resolved)_
 5. Hosting setup and environment configuration — in progress:
    - Vercel confirmed as host (Pro plan required — Hobby's ToS bars commercial/payment use, and its once-daily cron cadence can't fit `update-exchange-rate`'s 6h cycle)
    - Cron auth fixed to Vercel's native `Authorization: Bearer <CRON_SECRET>` scheme, `vercel.json` crons wired for all 3 routes — hourly for `process-payouts`/`complete-bookings`, every 6h for `update-exchange-rate` (`31a5a2d`, `1609cca`, `767c6eb`)
-   - Still open: connect GitHub repo to Vercel project, set the 17 env vars from `.env` in production, point `NEXTAUTH_URL` + Paystack dashboard webhook at the real domain, confirm Supabase plan (free tier pauses after 7 days idle — not viable for prod)
+   - Function region is Dublin, `"regions": ["dub1"]` in `vercel.json`, next to the Supabase database (`eu-west-1`): every API call makes several round trips to the database one after another. Move both together.
+   - Production database settings (`.env.example`, README "Production database"): `DATABASE_URL` is Supabase's pooler in transaction mode, port 6543, `?pgbouncer=true&connection_limit=1` (one connection per server instance). `DIRECT_URL` is for migrations and the Prisma CLI only; the app never reads it. The direct host is IPv6 only: from a network without IPv6 use the pooler in session mode (port 5432).
+   - Still open: connect GitHub repo to Vercel project, set the 17 env vars from `.env` in production, point `NEXTAUTH_URL` + Paystack dashboard webhook at the real domain, confirm Supabase plan (free tier pauses after 7 days idle — not viable for prod; the project was found paused on 2026-10-21)
 6. Security hardening
 7. Error monitoring
 8. End-to-end testing

@@ -106,7 +106,8 @@ Open [http://localhost:3000](http://localhost:3000)
 ### Environment Variables
 
 ```env
-DATABASE_URL="file:./dev.db"
+DATABASE_URL="postgresql://…"   # see "Production database" below and .env.example
+DIRECT_URL="postgresql://…"     # migrations and the Prisma CLI only
 NEXTAUTH_SECRET="your-secret"
 NEXTAUTH_URL="http://localhost:3000"
 PAYSTACK_SECRET_KEY="sk_test_..."
@@ -227,11 +228,28 @@ It sends a real email through Resend to that address, so it refuses without `--c
 
 ## Production Deployment
 
-1. Switch `DATABASE_URL` to a Postgres connection string (Neon, Supabase, or Render)
-2. Run `npx prisma migrate deploy`
-3. Set all environment variables on your hosting platform
-4. Add Paystack webhook URL: `https://yourdomain.com/api/payments`
-5. Deploy to Vercel, Railway, or Render
+Vercel (Pro) in front of Supabase Postgres.
+
+### Region
+
+The database is in Supabase's `eu-west-1` (Ireland). The functions run next to it, in Vercel's Dublin region: `"regions": ["dub1"]` in `vercel.json`. Every API call makes several database round trips one after another, so the distance between the two is multiplied into every response (second go, Stage C). Change both together if either moves.
+
+### Production database
+
+| Variable | Used by | Value |
+|---|---|---|
+| `DATABASE_URL` | the app | Supabase's pooler in transaction mode, port 6543, with `pgbouncer=true&connection_limit=1`: `postgresql://postgres.<ref>:<password>@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1` |
+| `DIRECT_URL` | migrations and the Prisma CLI only, never the app | the direct host, `postgresql://postgres:<password>@db.<ref>.supabase.co:5432/postgres` (IPv6 only), or from a network without IPv6 the pooler in session mode (same pooler host, port 5432, no `pgbouncer=true`) |
+
+`connection_limit=1`: each server instance holds one connection to the pooler, so capacity is set by the pooler's size for the Supabase plan, and many instances cannot use up its client limit. Watch connection counts in the Supabase dashboard in the first weeks.
+
+Schema changes are not run from a deploy: they are written as exact SQL, reviewed, and run by hand (see `CLAUDE.md`).
+
+### Before the first deploy
+
+1. Set every variable from `.env.example` on Vercel (Production), with `NEXTAUTH_URL` the real https address.
+2. Point the Paystack webhook at `https://<domain>/api/webhooks/paystack` (test and live each have their own).
+3. Supabase on a paid plan: the free tier pauses after 7 days without use.
 
 ---
 
