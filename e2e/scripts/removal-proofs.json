@@ -2880,5 +2880,65 @@
   ],
   "testFile": "src/lib/listingSearch.test.ts",
   "test": "the city filter is no longer case-sensitive"
+ },
+ {
+  "what": "G10: a home switched off has the home page drawn again",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    await db.listing.update({ where: { id }, data: { isActive: false } })\n    refreshHomePage()\n",
+    "replace": "    await db.listing.update({ where: { id }, data: { isActive: false } })\n"
+   }
+  ],
+  "testFile": "src/lib/homePage.test.ts",
+  "test": "a host switching a home off"
+ },
+ {
+  "what": "G10: an edit to a home has the home page drawn again",
+  "edits": [
+   {
+    "file": "src/app/api/listings/[id]/route.ts",
+    "find": "    tellCleared(cleared)\n    refreshHomePage()\n",
+    "replace": "    tellCleared(cleared)\n"
+   }
+  ],
+  "testFile": "src/lib/homePage.test.ts",
+  "test": "a host editing a home"
+ },
+ {
+  "what": "G10: a hold has the home page drawn again",
+  "edits": [
+   {
+    "file": "src/app/api/admin/route.ts",
+    "find": "      tellCleared(cleared)\n      refreshHomePage()\n",
+    "replace": "      tellCleared(cleared)\n"
+   }
+  ],
+  "testFile": "src/lib/homePage.test.ts",
+  "test": "an admin holding a home, and clearing the hold"
+ },
+ {
+  "what": "G10: a suspension has the home page drawn again",
+  "edits": [
+   {
+    "file": "src/app/api/admin/users/route.ts",
+    "find": "    refreshHomePage()\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/homePage.test.ts",
+  "test": "an admin suspending the host"
+ },
+ {
+  "what": "G10: refreshing the home page never fails the change",
+  "edits": [
+   {
+    "file": "src/lib/homePage.ts",
+    "find": "  try {\n    revalidatePath('/')\n  } catch (error) {\n    console.error('[Home] could not mark the home page for refreshing:', error instanceof Error ? error.message : 'unknown')\n  }\n",
+    "replace": "  revalidatePath('/')\n"
+   }
+  ],
+  "testFile": "src/lib/homePage.test.ts",
+  "test": "never fails the change it follows"
  }
 ]

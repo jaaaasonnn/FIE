@@ -6,15 +6,15 @@ import { db } from '../../lib/db'
 
 const PHOTOS = ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&q=80', 'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=1200&q=80']
 
-/** Every image the page asked for, with the width the optimiser was asked for (null: not through it). */
-function imageRequests(page: Page) {
-  const seen: { url: string; width: number | null }[] = []
-  page.on('request', (r) => {
-    if (r.resourceType() !== 'image') return
-    const u = new URL(r.url())
-    seen.push({ url: r.url(), width: u.pathname === '/_next/image' ? Number(u.searchParams.get('w')) : null })
-  })
-  return seen
+/** The photo each listing thumbnail on the page is showing, once loaded, and the width the optimiser was asked for (null: not through it). */
+async function shownPhotos(page: Page) {
+  const imgs = page.locator('img[src*="photo-1502672260266"], img[srcset*="photo-1502672260266"]')
+  await expect(imgs.first()).toBeVisible()
+  await expect.poll(() => imgs.first().evaluate((i: HTMLImageElement) => i.complete && i.naturalWidth > 0)).toBe(true)
+  return imgs.evaluateAll((els) => els.map((e) => {
+    const u = new URL((e as HTMLImageElement).currentSrc || (e as HTMLImageElement).src)
+    return { url: u.href, width: u.pathname === '/_next/image' ? Number(u.searchParams.get('w')) : null }
+  }))
 }
 
 // G4: checkout and both dashboards downloaded each listing photo at full size (1200 px, about 120 KB) for an
@@ -28,16 +28,11 @@ test('thumbnails on checkout and both dashboards come through the image optimise
   for (const [who, url] of [[guest, `/checkout/${bookingId}`], [guest, '/dashboard/guest'], [host, '/dashboard/host']] as const) {
     await page.context().clearCookies()
     await signIn(who)
-    const seen = imageRequests(page)
     await page.goto(url)
-    await expect(page.locator('img[src*="photo-1502672260266"]').first()).toBeVisible()
-    const photo = seen.filter((s) => s.url.includes('photo-1502672260266'))
-    expect(photo.length, `${url}: the listing photo was asked for`).toBeGreaterThan(0)
-    for (const p of photo) {
+    for (const p of await shownPhotos(page)) {
       expect(p.width, `${url}: through the optimiser, not the original`).not.toBeNull()
       expect(p.width!, `${url}: at thumbnail size`).toBeLessThanOrEqual(384)
     }
-    page.removeAllListeners('request')
   }
 })
 
@@ -46,17 +41,24 @@ test('thumbnails on checkout and both dashboards come through the image optimise
 // featured card was lazy too.
 test('the first search photos load at once, the first one first; later ones wait', async ({ page, world }) => {
   const host = await world.host()
+  // In a region of their own: other tests add homes without photos alongside, newest first
   for (let i = 0; i < 6; i++) {
-    const home = await world.listing(host)
+    const home = await world.listing(host, { region: 'Upper East', city: 'Bolgatanga' })
     await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS) } })
   }
-  await page.goto('/search')
-  const photos = page.locator('.listing-card img')
-  await expect(photos.nth(5)).toBeAttached()
-  const seen = await photos.evaluateAll((els) => els.slice(0, 6).map((e) => ({ loading: e.getAttribute('loading'), priority: e.getAttribute('fetchpriority') })))
-  expect(seen[0]).toEqual({ loading: 'eager', priority: 'high' })
-  for (const i of [1, 2, 3]) expect(seen[i], `card ${i + 1}`).toEqual({ loading: 'eager', priority: null })
-  for (const i of [4, 5]) expect(seen[i].loading, `card ${i + 1}`).toBe('lazy')
+  await page.goto('/search?region=Upper%20East')
+  await expect(page.locator('a.listing-card img').nth(5)).toBeAttached()
+  // By the card's place in the list: homes made alongside by other tests may have no photo
+  const seen = await page.locator('a.listing-card').evaluateAll((cards) => cards.slice(0, 8).map((card, place) => {
+    const img = card.querySelector('img')
+    return img ? { place, loading: img.getAttribute('loading'), priority: img.getAttribute('fetchpriority') } : null
+  }))
+  const withPhoto = seen.filter((x): x is NonNullable<typeof x> => x !== null)
+  expect(withPhoto.length).toBeGreaterThanOrEqual(4)
+  for (const { place, loading, priority } of withPhoto) {
+    expect(loading, `card ${place + 1}`).toBe(place < 4 ? 'eager' : 'lazy')
+    expect(priority, `card ${place + 1}`).toBe(place === 0 ? 'high' : null)
+  }
 })
 
 test('the first featured home on the home page is not left lazy', async ({ page, world }) => {
@@ -100,4 +102,21 @@ test('back from a listing returns to the same place in the search results @core'
   // there is not checked: tests running alongside add homes, which move the newest-first list down.
   await expect.poll(position, { message: `the ${where} is back where it was` }).toBeGreaterThan(before - 150)
   expect(await position()).toBeLessThan(before + 150)
+})
+
+// G10: the home page was kept for an hour (revalidate 3600). A home switched off, put on hold or whose host was
+// suspended stayed in its hero, linking to a page that is gone, for up to an hour.
+test('a home switched off leaves the home page at once, not up to an hour later', async ({ page, world }) => {
+  const host = await world.host()
+  const home = await world.listing(host)
+  // Made the hero's first choice for short stays: featured and rated highest
+  await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS), isFeatured: true, avgRating: 5 } })
+  // Any edit through the app has the page drawn again
+  expect((await host.call('PATCH', `/api/listings/${home.id}`, { title: home.title })).status).toBe(200)
+  await page.goto('/')
+  await expect(page.locator(`a[href="/listings/${home.id}"]`).first()).toBeAttached()
+  expect((await host.call('DELETE', `/api/listings/${home.id}`)).status).toBe(200)
+  await page.goto('/')
+  await expect(page.locator('main')).toBeVisible()
+  await expect(page.locator(`a[href="/listings/${home.id}"]`)).toHaveCount(0)
 })

@@ -12,6 +12,7 @@ import { getSessionUser } from '@/lib/session'
 import { parseDigitalAddress } from '@/lib/digitalAddress'
 import { editRevokes } from '@/lib/listingCheckRules'
 import { clearChecks, liveChecksInclude, publicListing, tellCleared } from '@/lib/listingChecks'
+import { refreshHomePage } from '@/lib/homePage'
 
 // Fields a host (or admin) may change via this route. Anything else in the
 // request body — hostId, id, avgRating, reviewCount, isFeatured, etc. — is
@@ -170,6 +171,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       revokes ? await clearChecks(tx, id, revokes) : [],
     ] as const)
     tellCleared(cleared)
+    refreshHomePage()
     // Only when this edit is what put it on hold, not on every edit of a held listing
     if (flagged && !listing.moderationHold) notify('listing.auto_held', { listingId: id })
 
@@ -187,6 +189,7 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
     if (error) return error
 
     await db.listing.update({ where: { id }, data: { isActive: false } })
+    refreshHomePage()
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Listing DELETE error:', error)

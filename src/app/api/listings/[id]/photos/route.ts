@@ -5,6 +5,7 @@ import { requireHost } from '@/lib/roles'
 import { supabaseAdmin, LISTING_PHOTOS_BUCKET } from '@/lib/supabase'
 import { clearChecks, tellCleared } from '@/lib/listingChecks'
 import { NOT_AN_IMAGE, readImage } from '@/lib/imageBytes'
+import { refreshHomePage } from '@/lib/homePage'
 
 type PhotoChange = { ok: true; photos: string[] } | { ok: false; error: string }
 
@@ -31,6 +32,7 @@ async function changePhotos(id: string, change: (current: string[]) => PhotoChan
     return next
   })
   if (cleared) tellCleared(cleared)
+  if (result.ok) refreshHomePage()
   return result
 }
 

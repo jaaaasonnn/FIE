@@ -9,6 +9,7 @@ import { rentReceived } from '@/lib/rentRules'
 import { clearChecks, tellCleared } from '@/lib/listingChecks'
 import { duePayouts } from '@/lib/cronRuns'
 import { payoutGate } from '@/lib/payoutSwitches'
+import { refreshHomePage } from '@/lib/homePage'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -119,6 +120,7 @@ export async function POST(req: Request) {
       ] as const)
       notify('listing.held', { listingId })
       tellCleared(cleared)
+      refreshHomePage()
       return NextResponse.json({ success: true, listing })
     }
 
@@ -132,6 +134,7 @@ export async function POST(req: Request) {
         select: { id: true, isActive: true, moderationHold: true },
       })
       notify('listing.reactivated', { listingId })
+      refreshHomePage()
       return NextResponse.json({ success: true, listing })
     }
 

@@ -5,9 +5,10 @@ import { FeaturedListings } from '@/components/home/FeaturedListings'
 import { RegionsSection } from '@/components/home/RegionsSection'
 import { HostCTASection } from '@/components/home/HostCTASection'
 
-// The hero photos come from live listings, so refresh them hourly rather
-// than baking one set in at build time.
-export const revalidate = 3600
+// The hero photos come from live listings. The page is drawn again after
+// any change that could add or take away one of them (lib/homePage.ts), and
+// every five minutes whatever happens, for anything that is not (G10).
+export const revalidate = 300
 
 // next/image resizes the hero photos per device, so Unsplash is asked for one
 // generous source size and local files are used as they are.
@@ -62,7 +63,8 @@ async function getModePhotos(): Promise<Record<RentalMode, ModePhoto>> {
     RENTAL_MODES.map(async ({ value }) => {
       try {
         const listings = await db.listing.findMany({
-          where: { isActive: true, host: { suspendedAt: null }, rentalModes: { contains: value }, NOT: { photos: '[]' } },
+          // Never a home on hold, which is not public (it was left out here before)
+          where: { isActive: true, moderationHold: false, host: { suspendedAt: null }, rentalModes: { contains: value }, NOT: { photos: '[]' } },
           orderBy: [{ isFeatured: 'desc' }, { avgRating: 'desc' }],
           select: { id: true, title: true, city: true, neighbourhood: true, photos: true },
           take: 8,

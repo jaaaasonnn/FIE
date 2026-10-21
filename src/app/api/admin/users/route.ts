@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
 import { notify } from '@/lib/messaging/notify'
 import { setSuspension } from '@/lib/suspension'
+import { refreshHomePage } from '@/lib/homePage'
 
 /**
  * GET /api/admin/users — ADMIN only
@@ -57,6 +58,8 @@ export async function POST(req: Request) {
     // IDs only in the log. The person is told by email (logged only while messaging is off).
     console.log(`[Admin] account ${result.userId} ${result.action === 'suspend' ? 'suspended' : 'restored'} by ${admin.id}`)
     notify(result.action === 'suspend' ? 'account.suspended' : 'account.restored', { userId: result.userId, at: now.getTime() })
+    // A suspended host's homes leave the home page, and come back on restore
+    refreshHomePage()
 
     return NextResponse.json({ ok: true, action: result.action, sessionsEnded: result.sessionsEnded })
   } catch (error) {

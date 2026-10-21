@@ -14,6 +14,7 @@ import { liveCheckWhere } from '@/lib/listingCheckRules'
 import { liveChecksInclude, publicListing } from '@/lib/listingChecks'
 import { HOST_NOT_SUSPENDED } from '@/lib/suspension'
 import { MAX_SEARCH_TEXT } from '@/lib/searchDates'
+import { refreshHomePage } from '@/lib/homePage'
 
 export async function GET(req: Request) {
   try {
@@ -223,6 +224,7 @@ export async function POST(req: Request) {
 
     console.log('[POST /api/listings] created', listing.id, isFlagged ? '(flagged inactive)' : '')
     if (isFlagged) notify('listing.auto_held', { listingId: listing.id })
+    refreshHomePage()
     return NextResponse.json({ listing, flagged: isFlagged }, { status: 201 })
   } catch (error) {
     console.error('[POST /api/listings] error:', error)
