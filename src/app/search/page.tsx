@@ -262,6 +262,33 @@ function SearchContent() {
   const [selectedId,    setSelectedId]    = useState<string | null>(null)
   const cardRefs = useRef(new Map<string, HTMLAnchorElement>())
 
+  // ── Back from a listing to the same place in the results (G8) ────────
+  // The list scrolls inside its own panel on wider screens, which the
+  // browser does not restore, and on any screen the results arrive after
+  // the page is drawn. So the place is kept when a card is opened and put
+  // back once the same search has its results again.
+  const listPanel = useRef<HTMLDivElement>(null)
+  const rememberPlace = useCallback(() => {
+    try {
+      sessionStorage.setItem(SCROLL_KEY, JSON.stringify({ search: window.location.search, panel: listPanel.current?.scrollTop ?? 0, page: window.scrollY, at: Date.now() }))
+    } catch { /* no storage: the list starts at the top, as before */ }
+  }, [])
+  useEffect(() => {
+    if (loading || listings.length === 0) return
+    let saved: { search: string; panel: number; page: number; at: number } | null = null
+    try {
+      saved = JSON.parse(sessionStorage.getItem(SCROLL_KEY) ?? 'null')
+      sessionStorage.removeItem(SCROLL_KEY)
+    } catch { return }
+    if (!saved || saved.search !== window.location.search || Date.now() - saved.at > SCROLL_KEEP_MS) return
+    const place = saved
+    // At once, not with the page's smooth scrolling: it should look as if it never left
+    requestAnimationFrame(() => {
+      listPanel.current?.scrollTo({ top: place.panel, behavior: 'instant' })
+      window.scrollTo({ top: place.page, behavior: 'instant' })
+    })
+  }, [loading, listings])
+
   const handleMapSelect = useCallback((id: string | null) => {
     setSelectedId(id)
     if (!id) return
@@ -444,7 +471,7 @@ function SearchContent() {
       <div className="max-w-[1600px] mx-auto flex md:h-[calc(100vh_-_4.25rem_-_121px)]">
 
         {/* LEFT: scrollable listings */}
-        <div className="flex-[58] md:overflow-y-auto px-4 sm:px-6 py-6">
+        <div ref={listPanel} className="flex-[58] md:overflow-y-auto px-4 sm:px-6 py-6">
 
           {/* Result count + chips */}
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
@@ -535,6 +562,7 @@ function SearchContent() {
                       else cardRefs.current.delete(l.id)
                     }}
                     data-selected={selectedId === l.id}
+                    onClick={rememberPlace}
                     // Real pointers only: a tap fires no mouse pointer events
                     onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoveredCardId(l.id) }}
                     onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHoveredCardId(null) }}
@@ -658,6 +686,10 @@ function SearchContent() {
   )
 }
 
+
+/** Where the result list was when a card was opened, and for how long it is worth going back to. */
+const SCROLL_KEY = 'fiegh-search-place'
+const SCROLL_KEEP_MS = 30 * 60 * 1000
 
 /** Search cards whose photo is loaded at once: the ones on screen before any scrolling. */
 const EAGER_CARDS = 4

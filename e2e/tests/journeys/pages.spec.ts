@@ -71,3 +71,33 @@ test('the first featured home on the home page is not left lazy', async ({ page,
   await expect(photos.first()).toHaveAttribute('loading', 'eager')
   await expect(photos.nth(1)).toHaveAttribute('loading', 'lazy')
 })
+
+// G8: back from a listing to search came back to the top of the results: on wider screens the list scrolls
+// inside its own panel, which the browser does not restore, and the results arrive after the page is drawn.
+test('back from a listing returns to the same place in the search results @core', async ({ page, world }) => {
+  const host = await world.host()
+  for (let i = 0; i < 14; i++) await world.listing(host)
+  await page.goto('/search')
+  const cards = page.locator('a.listing-card')
+  await expect(cards.nth(13)).toBeAttached()
+  // The list's own panel on a wide screen, the page itself on a phone
+  const scroller = async () => page.evaluate(() => {
+    const panel = document.querySelector('a.listing-card')?.closest('.md\\:overflow-y-auto') as HTMLElement | null
+    return panel && panel.scrollHeight > panel.clientHeight && getComputedStyle(panel).overflowY === 'auto' ? 'panel' : 'page'
+  })
+  const where = await scroller()
+  const position = () => page.evaluate((w) => (w === 'panel' ? (document.querySelector('a.listing-card')!.closest('.md\\:overflow-y-auto') as HTMLElement).scrollTop : window.scrollY), where)
+  const target = cards.nth(10)
+  await target.scrollIntoViewIfNeeded()
+  const before = await position()
+  expect(before, 'scrolled down the list').toBeGreaterThan(300)
+  const href = await target.getAttribute('href')
+  await target.click()
+  await expect(page).toHaveURL(new RegExp(href!.split('?')[0]))
+  await page.goBack()
+  await expect(cards.nth(10)).toBeVisible()
+  // Where it was, give or take the header (it changes height as the page scrolls on a phone). Which card is
+  // there is not checked: tests running alongside add homes, which move the newest-first list down.
+  await expect.poll(position, { message: `the ${where} is back where it was` }).toBeGreaterThan(before - 150)
+  expect(await position()).toBeLessThan(before + 150)
+})
