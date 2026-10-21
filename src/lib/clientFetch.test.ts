@@ -27,6 +27,13 @@ describe('a read on a weak connection', () => {
     }
   })
 
+  it('lets an answer it will not use go before asking again', async () => {
+    const first = answer(503, 'unavailable')
+    const fetcher = vi.fn().mockResolvedValueOnce(first).mockResolvedValueOnce(answer(200))
+    await fetchRetry('/api/x', undefined, { ...noWait, fetcher })
+    await expect(first.text()).rejects.toThrow()
+  })
+
   it('stops after three tries, waiting a little longer each time', async () => {
     const waits: number[] = []
     const fetcher = vi.fn().mockImplementation(dropped)
@@ -47,6 +54,13 @@ describe('a read on a weak connection', () => {
 })
 
 describe('the session check', () => {
+  it('reads every answer to the end, so none is left open in the browser', async () => {
+    for (const res of [answer(401, { user: null }), answer(502, '<html>Bad gateway</html>'), answer(200, { user: { id: 'u1' } })]) {
+      await checkSession({ ...noWait, fetcher: vi.fn().mockResolvedValue(res) })
+      expect(res.bodyUsed, String(res.status)).toBe(true)
+    }
+  })
+
   it('says signed out only on a 401', async () => {
     expect(await checkSession({ ...noWait, fetcher: vi.fn().mockResolvedValue(answer(401, { user: null })) })).toEqual({ kind: 'signed-out' })
     expect(await checkSession({ ...noWait, fetcher: vi.fn().mockResolvedValue(answer(200, { user: { id: 'u1' } })) })).toEqual({ kind: 'user', user: { id: 'u1' } })

@@ -102,15 +102,17 @@ export function chunkGuard(w: Window, message: string, delays: number[]) {
   }, true)
 
   // A file can fail before this script runs: the page's own script tags come above it, and Firefox holds an
-  // inline script until the stylesheets above it have loaded. Once the page has loaded, any of the app's files
-  // not seen to arrive is looked up in the browser's record of what it downloaded; one with nothing in it
-  // never arrived. Without that record nothing is assumed.
+  // inline script until the stylesheets above it have loaded. Only those files, the ones already on the page
+  // now, can have failed unseen; a file the app adds later is watched by the listeners above, and may still be
+  // on its way when the page's load event comes. Once the page has loaded, each of those early files not seen
+  // to arrive is looked up in the browser's record of what it downloaded; one with nothing in it never
+  // arrived. Without that record nothing is assumed.
+  const early = Array.prototype.slice.call(d.querySelectorAll('script[src]')) as HTMLScriptElement[]
   w.addEventListener('load', () => {
     const perf = w.performance
     if (!perf || typeof perf.getEntriesByName !== 'function') return
-    const scripts = d.querySelectorAll('script[src]')
-    for (let i = 0; i < scripts.length; i++) {
-      const script = scripts[i] as HTMLScriptElement
+    for (let i = 0; i < early.length; i++) {
+      const script = early[i]
       const src = appFile(script)
       if (!src || arrived[src] || tried[src]) continue
       const got = perf.getEntriesByName(script.src).some((e) => {

@@ -39,6 +39,8 @@ export async function fetchRetry(input: string, init?: RequestInit, options: Opt
     try {
       const res = await fetcher(input, init)
       if (last || !isLoadFailure(res)) return res
+      // Not used: let it go before asking again
+      await res.body?.cancel().catch(() => {})
     } catch (error) {
       // Aborted on purpose by the page (it moved on): not a failure to retry
       if (init?.signal?.aborted) throw error
@@ -73,9 +75,11 @@ export type SessionCheck = { kind: 'user'; user: unknown } | { kind: 'signed-out
 export async function checkSession(options: Options = {}): Promise<SessionCheck> {
   try {
     const res = await fetchRetry('/api/auth/session', undefined, options)
+    // Always read to the end, even when only the status matters: an answer left unread stays open in the browser
+    const text = await res.text()
     if (res.status === 401) return { kind: 'signed-out' }
     if (!res.ok) return { kind: 'unknown' }
-    const data = await res.json()
+    const data = JSON.parse(text)
     return data && typeof data === 'object' && data.user ? { kind: 'user', user: data.user } : { kind: 'unknown' }
   } catch {
     return { kind: 'unknown' }

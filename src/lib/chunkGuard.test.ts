@@ -133,6 +133,17 @@ describe('a script file that does not arrive', () => {
     expect(w.retried().map((s) => s.src)).toEqual(['/_next/static/chunks/early.js'])
   })
 
+  it('a file the app adds later, still on its way when the page has loaded, is left alone', async () => {
+    const pageScripts: { tagName: string; src: string; getAttribute(k: string): string | null }[] = []
+    const w = start([true], pageScripts, {})
+    // Added by the app after the guard started; the browser has no record of it yet
+    pageScripts.push({ tagName: 'SCRIPT', src: 'https://fiegh.com/_next/static/chunks/late.js', getAttribute: (k: string) => (k === 'src' ? '/_next/static/chunks/late.js' : null) })
+    w.fire('load', null)
+    await w.settle()
+    expect(w.fetched).toHaveLength(0)
+    expect(w.retried()).toHaveLength(0)
+  })
+
   it('is sent to the page as runnable text with the message in it', () => {
     expect(() => new Function(CHUNK_GUARD_SCRIPT)).not.toThrow()
     expect(CHUNK_GUARD_SCRIPT).toContain(JSON.stringify(LOAD_FAILED))

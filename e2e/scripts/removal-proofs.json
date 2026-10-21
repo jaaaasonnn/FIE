@@ -2940,5 +2940,29 @@
   ],
   "testFile": "src/lib/homePage.test.ts",
   "test": "never fails the change it follows"
+ },
+ {
+  "what": "G6: a file the app adds later is not fetched a second time at page load",
+  "edits": [
+   {
+    "file": "src/lib/chunkGuard.ts",
+    "find": "    for (let i = 0; i < early.length; i++) {\n      const script = early[i]\n",
+    "replace": "    const now = d.querySelectorAll('script[src]')\n    for (let i = 0; i < now.length; i++) {\n      const script = now[i] as HTMLScriptElement\n"
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "a file the app adds later, still on its way when the page has loaded, is left alone"
+ },
+ {
+  "what": "G6: the session check reads every answer to the end",
+  "edits": [
+   {
+    "file": "src/lib/clientFetch.ts",
+    "find": "    const text = await res.text()\n",
+    "replace": "    const text = res.status === 200 ? await res.text() : ''\n"
+   }
+  ],
+  "testFile": "src/lib/clientFetch.test.ts",
+  "test": "reads every answer to the end, so none is left open in the browser"
  }
 ]
