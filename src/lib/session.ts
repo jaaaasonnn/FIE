@@ -21,8 +21,11 @@ export async function createSession(userId: string, now: Date = new Date()): Pro
   const token = crypto.randomBytes(32).toString('hex')
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS)
   // Their own sessions that have run out are cleared as they sign in
-  await db.session.deleteMany({ where: { userId, expiresAt: { lt: now } } }).catch(() => {})
-  await db.session.create({ data: { userId, token: hashSessionToken(token), expiresAt } })
+  // Together: the person's run-out sessions go, and the new one is made (it has not run out)
+  await Promise.all([
+    db.session.deleteMany({ where: { userId, expiresAt: { lt: now } } }).catch(() => {}),
+    db.session.create({ data: { userId, token: hashSessionToken(token), expiresAt } }),
+  ])
   return { token, expiresAt }
 }
 

@@ -111,12 +111,13 @@ vi.mock('@/lib/db', async () => {
       },
     },
     booking: {
-      findUnique: async ({ where }: { where: Row }) => {
+      findUnique: async ({ where, include }: { where: Row; include?: { listing?: { select?: Row } } }) => {
         const row = state.bookings.find((b) => b.id === where.id)
         if (!row) return null
         const l = state.listings.find((x) => x.id === row.listingId)!
-        // The route's own select: no digital address in it
-        return { ...row, listing: { id: l.id, title: l.title, photos: l.photos, city: l.city, neighbourhood: l.neighbourhood, hostId: l.hostId }, payments: [], disputes: [], instalments: [], refund: null }
+        // Like the real thing: the listing's fields the route selects, and no others
+        const wanted = Object.keys(include?.listing?.select ?? {})
+        return { ...row, listing: Object.fromEntries(wanted.map((k) => [k, l[k] ?? null])), payments: [], disputes: [], instalments: [], refund: null }
       },
     },
     wishlist: { findMany: async ({ where }: { where: Row }) => state.wishlists.filter((w) => matches(w, where)).map((w) => ({ ...w, listing: listingView(state.listings.find((l) => l.id === w.listingId)!, { host: true, checks: {} }) })) },

@@ -125,10 +125,14 @@ export async function POST(req: Request) {
       )
     }
 
-    const booking = await db.booking.findUnique({
-      where: { id: bookingId },
-      include: { guest: true, listing: true, instalments: { orderBy: { sequence: 'asc' } } },
-    })
+    // The rate is read alongside the booking: the two do not depend on each other
+    const [booking, rateRow] = await Promise.all([
+      db.booking.findUnique({
+        where: { id: bookingId },
+        include: { guest: true, listing: true, instalments: { orderBy: { sequence: 'asc' } } },
+      }),
+      db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } }),
+    ])
 
     if (!booking) {
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
@@ -210,7 +214,6 @@ export async function POST(req: Request) {
     }
 
     // Convert USD → GHS (Paystack Ghana settles in GHS / pesewas)
-    const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
     const usdToGhs = rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
     const amountGhs = amountUsd * usdToGhs
     const amountPesewas = Math.round(amountGhs * 100)

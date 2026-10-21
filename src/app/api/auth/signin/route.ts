@@ -38,19 +38,23 @@ export async function POST(req: Request) {
     // The attempt is written down before the password is looked at
     // (lib/rateLimit.ts), so guesses sent at the same instant cannot all slip
     // past the count. It stays on record only if the password is wrong.
-    const attempt = await claim(SIGN_IN_FAILED, { key, ipHash }, { perKey: LIMITS.signInPerAccount, perIp: LIMITS.signInPerIp })
-    if (!attempt.ok) {
-      return tooMany(TOO_MANY_SIGN_INS, LIMITS.signInPerAccount.windowMs / 1000)
-    }
-
     const isPhone = /^[0-9+]/.test(identifier)
     const normalizedId = isPhone ? normalizePhone(identifier) : String(identifier).trim()
 
+    // The account is looked up while the attempt is being written down: a
+    // read, used only if the attempt is within the limit (fewer round trips
+    // one after another, second go, Stage C).
     // Emails are stored lower-cased. An account made before that rule may
     // still have capitals in it, so the address as typed is tried as well.
-    const user = await db.user.findFirst({
-      where: isPhone ? { phone: normalizedId } : { email: { in: [normalizedId.toLowerCase(), normalizedId] } }
-    })
+    const [attempt, user] = await Promise.all([
+      claim(SIGN_IN_FAILED, { key, ipHash }, { perKey: LIMITS.signInPerAccount, perIp: LIMITS.signInPerIp }),
+      db.user.findFirst({
+        where: isPhone ? { phone: normalizedId } : { email: { in: [normalizedId.toLowerCase(), normalizedId] } }
+      }),
+    ])
+    if (!attempt.ok) {
+      return tooMany(TOO_MANY_SIGN_INS, LIMITS.signInPerAccount.windowMs / 1000)
+    }
 
     // The password is always checked against something, so an address with no
     // account takes as long to refuse as one with the wrong password
@@ -60,16 +64,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
     // Signed in: this attempt and earlier wrong guesses for this account no longer count
-    await db.authRequest.deleteMany({ where: { kind: SIGN_IN_FAILED, userId: key } })
+    const forgiven = db.authRequest.deleteMany({ where: { kind: SIGN_IN_FAILED, userId: key } })
 
     // A suspended account cannot be signed in to. Said only to someone who
     // has the right password, so it tells nobody else anything.
     if (isSuspended(user)) {
+      await forgiven
       return NextResponse.json({ error: SUSPENDED_SIGN_IN, code: 'ACCOUNT_SUSPENDED' }, { status: 403 })
     }
 
     // A new session. Only the hash of its token is stored (lib/session.ts).
-    const { token, expiresAt } = await createSession(user.id)
+    // Together: clearing the failed attempts and starting the session do not depend on each other
+    const [, { token, expiresAt }] = await Promise.all([forgiven, createSession(user.id)])
 
     const { passwordHash: _, ...account } = user
     // The suspension columns are for admins: left out of what is sent (undefined is dropped)

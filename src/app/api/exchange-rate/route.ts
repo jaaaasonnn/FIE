@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { cached } from '@/lib/shortCache'
 
 /**
  * GET /api/exchange-rate — public, unauthenticated read of the current
@@ -9,7 +10,11 @@ import { db } from '@/lib/db'
  * the admin panel last set.
  */
 export async function GET() {
-  const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } })
-  const rate = rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
+  // What guests are shown, kept for a few seconds (lib/shortCache.ts). A
+  // charge never reads it from here: /api/payments reads the database.
+  const rate = await cached('exchange-rate', async () => {
+    const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' }, select: { usdToGhs: true } })
+    return rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
+  })
   return NextResponse.json({ rate })
 }

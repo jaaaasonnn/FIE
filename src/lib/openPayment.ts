@@ -36,14 +36,14 @@ export async function claimPaymentSlot(fresh: NewPayment, { stampBooking }: { st
     // The write that makes a second request for the same booking wait its turn
     const held = await tx.booking.update({ where: { id: fresh.bookingId }, data: { updatedAt: new Date() }, select: { paymentStatus: true } })
     if (stampBooking && held.paymentStatus !== 'UNPAID') return { kind: 'paid' }
-    const paid = await tx.payment.findFirst({
-      where: { bookingId: fresh.bookingId, instalmentId: fresh.instalmentId, status: 'SUCCESS' }, select: { id: true },
-    })
-    if (paid) return { kind: 'paid' }
-    const open = await tx.payment.findFirst({
-      where: { bookingId: fresh.bookingId, instalmentId: fresh.instalmentId, status: 'PENDING' },
+    // Paid, or open: one read for both (each statement is a round trip while the booking is held)
+    const standing = await tx.payment.findMany({
+      where: { bookingId: fresh.bookingId, instalmentId: fresh.instalmentId, status: { in: ['SUCCESS', 'PENDING'] } },
       orderBy: { createdAt: 'desc' },
     })
+    const paid = standing.some((p) => p.status === 'SUCCESS')
+    if (paid) return { kind: 'paid' }
+    const open = standing.find((p) => p.status === 'PENDING')
     if (open) return { kind: 'open', payment: open }
     const payment = await tx.payment.create({
       data: {

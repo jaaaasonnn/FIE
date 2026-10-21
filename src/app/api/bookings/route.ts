@@ -118,9 +118,16 @@ export async function POST(req: Request) {
         // host's answer, are counted apart: each has its own limit.
         overLimit = null
         own = null
-        const openUnpaid = await tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } })
-        const openRequests = await tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'PENDING' } })
-        const lastHour = await tx.booking.count({ where: { guestId, createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } } })
+        // One read for all three counts: each statement here is a round trip
+        // while this transaction holds its connection (second go, Stage C)
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000)
+        const mine = await tx.booking.findMany({
+          where: { guestId, OR: [{ paymentStatus: 'UNPAID', status: { in: ['CONFIRMED', 'PENDING'] } }, { createdAt: { gte: hourAgo } }] },
+          select: { status: true, paymentStatus: true, createdAt: true },
+        })
+        const openUnpaid = mine.filter((b) => b.paymentStatus === 'UNPAID' && b.status === 'CONFIRMED').length
+        const openRequests = mine.filter((b) => b.paymentStatus === 'UNPAID' && b.status === 'PENDING').length
+        const lastHour = mine.filter((b) => b.createdAt >= hourAgo).length
         // An instant booking is confirmed at once and waits to be paid for; anything else is a request
         if (listing.instantBook && openUnpaid >= LIMITS.openUnpaidBookings) overLimit = { error: TOO_MANY_OPEN_BOOKINGS, retryAfter: 60 }
         else if (!listing.instantBook && openRequests >= LIMITS.openRequests) overLimit = { error: TOO_MANY_OPEN_REQUESTS, retryAfter: 60 }
@@ -273,6 +280,8 @@ export async function GET(req: Request) {
               neighbourhood: true, hostId: true,
               cancellationPolicy: true, instantBook: true,
               welcomeMessage: true,
+              // Read with the booking (one round trip less) and sent only as decided below
+              digitalAddress: true,
             },
           },
           guest:    { select: { id: true, name: true, email: true, phone: true, profilePhoto: true } },
@@ -293,9 +302,7 @@ export async function GET(req: Request) {
       // metres, so it is given to the host and admins, and to the guest only
       // once the booking is confirmed and paid for.
       const mayHaveAddress = user.id !== booking.guestId || tenancyStands(booking)
-      const address = mayHaveAddress
-        ? (await db.listing.findUnique({ where: { id: booking.listingId }, select: { digitalAddress: true } }))?.digitalAddress ?? null
-        : null
+      const address = mayHaveAddress ? booking.listing.digitalAddress ?? null : null
 
       // The other person's phone and email stay out until the booking is
       // confirmed and paid (lib/privacy.ts)

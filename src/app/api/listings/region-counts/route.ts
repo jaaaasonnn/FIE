@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import { cached } from '@/lib/shortCache'
 
 /**
  * GET /api/listings/region-counts — public, unauthenticated. Real active
@@ -10,11 +11,14 @@ import { db } from '@/lib/db'
  * that (e.g. "Coming soon"), not this endpoint.
  */
 export async function GET() {
-  const rows = await db.listing.groupBy({
-    by: ['region'],
-    where: { isActive: true },
-    _count: true,
+  // Kept for a few seconds: every visit to the home page asks (lib/shortCache.ts)
+  const counts = await cached('region-counts', async () => {
+    const rows = await db.listing.groupBy({
+      by: ['region'],
+      where: { isActive: true },
+      _count: true,
+    })
+    return Object.fromEntries(rows.map((r) => [r.region, r._count]))
   })
-  const counts = Object.fromEntries(rows.map((r) => [r.region, r._count]))
   return NextResponse.json({ counts })
 }

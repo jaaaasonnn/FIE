@@ -10,6 +10,7 @@ import { clearChecks, tellCleared } from '@/lib/listingChecks'
 import { duePayouts } from '@/lib/cronRuns'
 import { payoutGate } from '@/lib/payoutSwitches'
 import { refreshHomePage } from '@/lib/homePage'
+import { forgetCached } from '@/lib/shortCache'
 
 export async function GET(req: Request) {
   const { error } = await requireAdmin()
@@ -101,6 +102,7 @@ export async function POST(req: Request) {
 
       // Recorded as the admin who is signed in, never a name from the request
       const rate = await db.exchangeRate.create({ data: { usdToGhs: data.usdToGhs, updatedBy: user.id } })
+      forgetCached('exchange-rate')
       return NextResponse.json({ rate })
     }
 

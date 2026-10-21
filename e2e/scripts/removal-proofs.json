@@ -1255,8 +1255,8 @@
   "edits": [
    {
     "file": "src/app/api/bookings/route.ts",
-    "find": "tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: 'CONFIRMED' } })",
-    "replace": "tx.booking.count({ where: { guestId, paymentStatus: 'UNPAID', status: { in: ['PENDING', 'CONFIRMED'] } } })"
+    "find": "const openUnpaid = mine.filter((b) => b.paymentStatus === 'UNPAID' && b.status === 'CONFIRMED').length",
+    "replace": "const openUnpaid = mine.filter((b) => b.paymentStatus === 'UNPAID' && (b.status === 'CONFIRMED' || b.status === 'PENDING')).length"
    }
   ],
   "testFile": "src/lib/security/limits.test.ts",
@@ -1906,8 +1906,8 @@
   "edits": [
    {
     "file": "src/app/api/bookings/route.ts",
-    "find": "        const openUnpaid = await tx.booking.count(",
-    "replace": "        const openUnpaid = await db.booking.count("
+    "find": "        const mine = await tx.booking.findMany({",
+    "replace": "        const mine = await db.booking.findMany({"
    }
   ],
   "testFile": "src/lib/security/limits.test.ts",

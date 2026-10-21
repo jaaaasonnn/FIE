@@ -62,6 +62,8 @@ vi.mock('@/lib/db', async () => {
         const row = state.payments.filter((p) => matches(p, where)).at(-1)
         return row ? { ...row } : null
       },
+      // Paid or open, newest first (lib/openPayment.ts)
+      findMany: async ({ where }: { where: Row }) => state.payments.filter((p) => matches(p, where)).reverse().map((p) => ({ ...p })),
       findUnique: async ({ where }: { where: Row }) => {
         await tick()
         const row = state.payments.find((p) => matches(p, where))

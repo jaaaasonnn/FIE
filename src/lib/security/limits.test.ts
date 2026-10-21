@@ -245,8 +245,9 @@ describe('booking', () => {
     it('counts the guest\'s open bookings inside the transaction, so two made at the same instant cannot both be under the limit', () => {
       const source = fs.readFileSync(path.resolve(__dirname, '../../app/api/bookings/route.ts'), 'utf8')
       const transaction = source.slice(source.indexOf('withSerialRetry(() => db.$transaction('), source.indexOf('TransactionIsolationLevel.Serializable'))
-      expect(transaction.match(/tx\.booking\.count\(\{ where: \{ guestId/g)).toHaveLength(3)
-      expect(source).not.toMatch(/db\.booking\.count\(\{ where: \{ guestId, (paymentStatus|createdAt)/)
+      // One read of the guest's bookings gives all three counts (fix-perf-1); it must be the transaction's
+      expect(transaction).toMatch(/const mine = await tx\.booking\.findMany\(\{\s*where: \{ guestId, OR/)
+      expect(source).not.toMatch(/db\.booking\.(count|findMany)\(\{\s*where: \{ guestId, (paymentStatus|createdAt|OR)/)
     })
   })
 

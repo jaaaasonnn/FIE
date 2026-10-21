@@ -1,6 +1,7 @@
 import { readWithRetry } from '@/lib/outbound'
 import { db } from '@/lib/db'
 import { EXCHANGE_RATE_BUFFER } from '@/lib/utils'
+import { forgetCached } from '@/lib/shortCache'
 
 const API_BASE = 'https://v6.exchangerate-api.com/v6'
 const AUTO_FETCH_STATUS_KEY = 'exchange_rate_auto_fetch_status'
@@ -99,6 +100,8 @@ export async function updateExchangeRateFromApi(): Promise<UpdateExchangeRateRes
   await db.exchangeRate.create({
     data: { usdToGhs: storedRate, updatedBy: AUTO_UPDATED_BY },
   })
+  // What guests are shown follows at once in this process (lib/shortCache.ts)
+  forgetCached('exchange-rate')
   await recordAutoFetchStatus({ ok: true, at, rate: result.rate })
 
   return { ok: true, rawRate: result.rate, storedRate }

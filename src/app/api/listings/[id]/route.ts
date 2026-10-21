@@ -40,7 +40,9 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   try {
     const { id } = await params
     const now = new Date()
-    const listing = await db.listing.findUnique({
+    // Who is asking is looked up at the same time: this route is public, and
+    // the answer only decides what else may be shown (one round trip less)
+    const [listing, viewer] = await Promise.all([db.listing.findUnique({
       where: { id },
       include: {
         host: {
@@ -64,13 +66,12 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
         blockedDates: { select: { date: true } },
         checks: liveChecksInclude(now),
       }
-    })
+    }), getSessionUser()])
 
     if (!listing) return NextResponse.json({ error: 'Listing not found' }, { status: 404 })
 
     // Only the fields the public may see (lib/listingChecks.ts). The host of
     // the listing, and an admin, also get the digital address, to edit it.
-    const viewer = await getSessionUser()
     const ownerView = !!viewer && (viewer.id === listing.hostId || viewer.role === 'ADMIN')
 
     // A listing that is switched off or on hold is not public: only its host,

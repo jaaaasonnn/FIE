@@ -104,6 +104,8 @@ vi.mock('@/lib/db', async () => {
       // A month marked PAID by hand in a test, with no payment row, was paid at 15 cedis to the dollar.
       findMany: async ({ where }: { where: Row }) => {
         const real = state.payments.filter((p) => matches(p, where))
+        // One booking's paid or open payments, newest first (lib/openPayment.ts)
+        if (typeof where.bookingId === 'string') return real.reverse().map((p) => ({ ...p }))
         const assumed = state.instalments
           .filter((i) => i.status === 'PAID' && (where.bookingId as { in: unknown[] }).in.includes(i.bookingId) && !real.some((p) => p.instalmentId === i.id))
           .map((i) => {
