@@ -21,17 +21,25 @@ export type NewPayment = {
   bookingId: string; instalmentId: string | null; amount: number; method: string
   gatewayReference: string; amountPesewas: number; usdToGhs: number
 }
-export type PaymentSlot = { kind: 'new'; payment: Payment } | { kind: 'open'; payment: Payment }
+export type PaymentSlot = { kind: 'new'; payment: Payment } | { kind: 'open'; payment: Payment } | { kind: 'paid' }
 
 /**
  * Gives back the payment already open for this booking or instalment, or
- * makes the new one. `stampBooking` puts the reference on the booking (the
+ * makes the new one. Or says it is paid: the booking was read as unpaid before
+ * this, and a payment settled in the meantime must not lead to a second one
+ * (G15). That is looked at here, after the booking's row is held, so a
+ * settlement either finished before it (and is seen) or waits until after. `stampBooking` puts the reference on the booking (the
  * booking's own payment, not a later month's rent).
  */
 export async function claimPaymentSlot(fresh: NewPayment, { stampBooking }: { stampBooking: boolean }): Promise<PaymentSlot> {
   return db.$transaction(async (tx): Promise<PaymentSlot> => {
     // The write that makes a second request for the same booking wait its turn
-    await tx.booking.update({ where: { id: fresh.bookingId }, data: { updatedAt: new Date() } })
+    const held = await tx.booking.update({ where: { id: fresh.bookingId }, data: { updatedAt: new Date() }, select: { paymentStatus: true } })
+    if (stampBooking && held.paymentStatus !== 'UNPAID') return { kind: 'paid' }
+    const paid = await tx.payment.findFirst({
+      where: { bookingId: fresh.bookingId, instalmentId: fresh.instalmentId, status: 'SUCCESS' }, select: { id: true },
+    })
+    if (paid) return { kind: 'paid' }
     const open = await tx.payment.findFirst({
       where: { bookingId: fresh.bookingId, instalmentId: fresh.instalmentId, status: 'PENDING' },
       orderBy: { createdAt: 'desc' },

@@ -121,7 +121,7 @@ for (const p of PROFILES) {
       ['checkout', `/checkout/${bookingId}`, 'button:has-text("Debit / Credit Card") >> visible=true', true],
     ]
     for (const [name, url, ready, signedIn] of pages) {
-      const runs = []
+      const runs: Awaited<ReturnType<typeof measure>>[] = []
       for (let i = 0; i < RUNS; i++) {
         const context = await browser.newContext({ baseURL: 'http://localhost:3200', viewport: p.viewport ?? { width: 1280, height: 800 }, isMobile: p.mobile, hasTouch: p.mobile, userAgent: p.userAgent, extraHTTPHeaders: { 'x-vercel-forwarded-for': guest.ip } })
         // the same fence every test has: no third party, map and photos answered locally

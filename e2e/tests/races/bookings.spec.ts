@@ -227,7 +227,6 @@ test.describe('races: paying', () => {
 // found nothing open, so it started a NEW payment at Paystack for a booking that is already paid.
 test.describe('races: paying from two tabs (G15)', () => {
   test('the first tab is paid while the second tab presses Pay: no second payment is started at Paystack', async ({ world }) => {
-    test.fail(true, 'G15: a second payment is started at Paystack for a booking paid a moment earlier (about 1 round in 9)')
     test.setTimeout(240_000)
     const host = await world.host()
     const home = await world.listing(host)

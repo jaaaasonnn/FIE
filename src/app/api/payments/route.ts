@@ -232,6 +232,9 @@ export async function POST(req: Request) {
         gatewayReference: `FIE-${bookingId}-${Date.now()}-${crypto.randomBytes(8).toString('hex')}`,
         amountPesewas, usdToGhs,
       }, { stampBooking: !laterInstalment })
+      if (slot.kind === 'paid') {
+        return NextResponse.json({ error: laterInstalment ? RENT_ALREADY_SETTLED : 'Booking already paid', code: 'ALREADY_PAID' }, { status: 400 })
+      }
       if (slot.kind === 'new') { payment = slot.payment; break }
 
       // A payment is already open. Another request may be asking Paystack for its page right now.

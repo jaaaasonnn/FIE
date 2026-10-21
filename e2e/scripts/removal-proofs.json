@@ -2683,5 +2683,34 @@
   ],
   "testFile": "src/lib/messaging/providers/arkesel.test.ts",
   "test": "refuses without ARKESEL_API_KEY or with a sender ID Arkesel would refuse"
+ },
+ {
+  "what": "G15: no second payment once the booking is paid (both checks)",
+  "edits": [
+   {
+    "file": "src/lib/openPayment.ts",
+    "find": "    if (stampBooking && held.paymentStatus !== 'UNPAID') return { kind: 'paid' }\n",
+    "replace": ""
+   },
+   {
+    "file": "src/lib/openPayment.ts",
+    "find": "    if (paid) return { kind: 'paid' }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/openPayment.test.ts",
+  "test": "starts no payment for a booking paid in the meantime"
+ },
+ {
+  "what": "G15: no second payment for a rent instalment already paid",
+  "edits": [
+   {
+    "file": "src/lib/openPayment.ts",
+    "find": "    if (paid) return { kind: 'paid' }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/openPayment.test.ts",
+  "test": "starts no payment for a rent instalment paid in the meantime"
  }
 ]
