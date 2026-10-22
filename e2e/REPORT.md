@@ -1,5 +1,145 @@
 # End-to-end test report
 
+## fix-perf-1: fixes and capacity (2026-10-21, branch `fix-perf-1`)
+
+Branch `fix-perf-1`, from `e2e-performance`, not merged. Everything ran on this MacBook Air on the local test
+stack; nothing real was called; no switch was set in `.env`; no email or SMS was sent; no Paystack call was made.
+**The live database was not changed:** the Supabase project could not be reached (see G13 below).
+
+### What was fixed
+
+G15, G6, G1, G7, G2, G11, G4, G9, G8 and G10, one commit each; the capacity work; the Vercel region and the
+production database settings. Each, with its tests, is in `FINDINGS.md` ("Second go: where things stand").
+Deferred by the owner and not touched: G12, G14, G3, G16 and the JavaScript reduction (G5).
+
+### Capacity: before and after
+
+Production-like set-up as in Stage C: 4 app processes, a pool of 5 each, Postgres at 60 connections, 30-80 ms
+added to every database round trip, the same k6 mix and the same 5,000-home load set. "Before" was run again
+today on the commit before the capacity work (`abf97c2`), so both sides share the machine and the day; it
+matched Stage C closely. Results: `e2e/.reports/fixperf/{before,after,before-errors,after-errors}`, summarised by
+`node e2e/load/summarise.mjs <folders>`. Browse and write: p50 / p95 / p99 in ms.
+
+| Scenario | Req/s | Browse | Write | Failed | 5xx / no answer | Bookings / payments |
+|---|---|---|---|---|---|---|
+| average, before | 25.7 | 376 / 1,064 / 1,591 | 2,308 / 3,574 / 4,837 | 0.00% | 0 / 0 | 184 / 53 |
+| average, after | 29.5 | 285 / **613** / 820 | 1,406 / **2,457** / 3,408 | 0.00% | 0 / 0 | 240 / 64 |
+| ramp-up, before | 31.4 | 1,278 / 4,618 / 8,247 | 7,987 / 24,177 / 25,186 | 0.61% | 187 / 0 | 188 / 55 |
+| ramp-up, after | 43.8 | 325 / **3,568** / 5,998 | 4,815 / **10,354** / 11,151 | 0.50% | 211 / 0 | 300 / 82 |
+| spike, before | 36.9 | 775 / 10,417 / 10,674 | 10,004 / 30,002 / 30,002 | 10.38% | 1,853 / 208 | 88 / 14 |
+| spike, after | 44.7 | 324 / 10,142 / 17,760 | 14,797 / 28,976 / 29,879 | **4.30%** | 1,039 / 5 | 109 / 29 |
+| breakpoint (stops on latency), before | **38.4 at the stop** | 544 / 2,371 / 2,922 | 2,865 / 8,308 / 10,958 | 0.06% | 1 / 0 | 17 / 2 |
+| breakpoint (stops on latency), after | **56.2 at the stop** | 269 / 1,665 / 2,318 | 1,687 / 5,224 / 7,931 | 0.00% | 0 / 0 | 20 / 10 |
+| breakpoint (stops on errors), before | **48.4 at the stop** | 1,603 / 9,884 / 10,459 | 13,591 / 30,001 / 30,001 | 2.23% | 61 / 44 | 23 / 2 |
+| breakpoint (stops on errors), after | **86.9 at the stop** | 297 / 10,003 / 10,296 | 8,971 / 28,603 / 29,548 | 2.70% | 256 / 0 | 30 / 11 |
+
+"At the stop": requests served per second in the 30 s before k6 stopped the run (latency: browse p95 over 2 s or
+write p95 over 5 s; errors: more than 2% failed). Req/s in the other rows is the whole run's average.
+
+- **The breaking point moved from about 38 to about 56 requests a second on latency (+46%), and from about 48 to
+  about 87 on errors (+80%).** Average-load p95 fell 42% for browsing and 31% for writes; the spike's failures
+  fell from 10.4% to 4.3%, and requests with no answer at all from 208 to 5.
+- **What still breaks first: the connection pool.** The errors left are Prisma P2024 (no connection within 10 s)
+  and P2028 (a transaction could not start in time), most of them booking creation, which holds a serializable
+  transaction. At the top of the ramp-up (200 visitors, above the breaking point) 41% of booking attempts failed
+  (before: 50%), while 300 bookings succeeded (before: 188).
+- **Money and date rules: clean before and after every run, 20 checks** (`e2e/.reports/invariants/fixperf-*`).
+- No safety check, rate limit or money rule was changed for speed. One 429 in the average run and one in the
+  ramp-up are the rate limits doing their job.
+- App memory peaked at 268 MB a process (before: 229 MB), CPU at 176% of one core over the four (before: 128%):
+  the servers do more work because they wait less. Database connections peaked at 33 in both.
+
+One request at a time, through the 30-80 ms proxy (`e2e/.reports/stageB/server-timing-fixperf-{before,after}.json`),
+p50 in ms; each round trip to the database costs about 300 ms on this proxy:
+
+| Route | Before | After |
+|---|---|---|
+| a listing (`GET /api/listings/:id`) | 937 | 305 |
+| one booking, as checkout reads it | 1,895 | 602 |
+| a guest's bookings (dashboard) | 1,625 | 641 |
+| a guest's messages | 1,358 | 621 |
+| search (`limit=50`) | 581 | 348 |
+| search with dates | 594 | 381 |
+| a listing's reviews | 555 | 314 |
+| the session check | 425 | 293 |
+| exchange rate, homes per region | 298, 315 | 1, 1 (kept 30 s) |
+| sign-in (bcrypt) | 2,067 | 1,174 |
+| booking a home | 1,990 | 1,459 |
+| starting a payment | 2,515 | 1,589 |
+
+What changed (commit `974c70e`): Prisma's `relationJoins`, so a read with relations is one query; the public
+exchange rate and homes per region kept 30 s per process (charges, refunds and payouts still read the rate from
+the database); the booking transaction's three limit counts made one read; "already paid" and "already open" one
+read inside the payment claim; sign-in's lookup alongside the attempt being written, and the session made
+alongside the counter being cleared; a booking's digital address read with the booking; a listing's viewer looked
+up alongside it.
+
+Not done, and worth the next step: serving the last kept answer when a refresh of a kept read fails (in the
+spike, some exchange-rate and region-count requests failed together when one refresh timed out); keeping the
+booking transaction's connection for less time again (the conflict and blocked-date checks are still two reads);
+and the payouts-due queries (G12, deferred).
+
+### Bad networks after G6 (Stage B profiles, Chromium, median of 3)
+
+| Profile | Home | Search | Listing | Checkout |
+|---|---|---|---|---|
+| stalls (5%) and resets (2%), Stage B | never | never | never | never |
+| stalls and resets, after G6 | 8.6 s | 0.9 s | 0.9 s | 0.9 s |
+| slow 4G, Stage B → after G6 | 3.8 → 4.0 s | 3.5 → 3.9 s | 4.5 → 5.0 s | 4.0 → 4.4 s |
+| 3G, Stage B → after G6 | 5.3 → 5.5 s | 4.7 → 4.7 s | 5.7 → 6.2 s | 5.2 → 5.2 s |
+| low-end Android, 3G, CPU 6x, Stage B → after G6 | 5.3 → 5.5 s | 4.8 → 5.3 s | 5.9 → 6.3 s | 5.3 → 5.3 s |
+
+The first measurement after G6 was 0.3-0.5 s slower than Stage B on slow 4G (first paint the same, JavaScript
+only 1-7 KB more): the guard was a plain inline script after the stylesheets, which held the page until they had
+loaded. As a module script (`907df9a`) it does not. Final build, slow 4G: home 3.77 s, search 3.44 s, listing
+4.45 s, checkout 3.95 s (Stage B: 3.77, 3.47, 4.46, 3.99). Stalls and resets, final build: home 0.7 s, search 0.9 s,
+listing 0.9 s, checkout 0.9 s, no page stuck. Lighthouse on the final build (mobile, empty database, 3 runs): search
+LCP 6.2 → 4.4 s (G9), other pages within 0.15 s of Stage B; JavaScript 1-7 KB more per page (G5 deferred).
+
+The full suite also found two faults in the first G6 code, fixed in `d9861a7`: the session check returned on a 401
+without reading the answer (the browser kept the request open, so pages never went quiet), and the guard's
+page-load check fetched and ran a second time a chunk the app had added late. Both have unit tests and proofs.
+
+### G13: the indexes were not applied
+
+The live Supabase project could not be reached on 2026-10-21: the direct host and the project's own address have
+no DNS record, and the pooler answers "tenant/user not found" on both ports. That is how a paused free-tier
+project looks (the last work on it was 2026-10-14, seven days before). Nothing was run on it, and the schema was
+not changed, so nothing that depends on the indexes was shipped. Ready in `.scratch/idx/`:
+
+- `statements.sql`: the 16 approved statements (the 17 less `Booking_paid_checkIn_idx`).
+- `apply.cjs`: dry run by default; with `--confirm` it runs one statement at a time, skips an index that is
+  already there and valid, takes row counts and hashes of the nine tables before and after each, checks the
+  index is valid and ready, and stops at the first surprise. Log in `apply-log.json`.
+- `undo.sql`: one `DROP INDEX CONCURRENTLY IF EXISTS` per index.
+- `schema-indexes.md`: the 15 `@@index` lines for `prisma/schema.prisma`, and the `migrate diff` to run.
+
+One needs a decision: `Booking_live_checkOut_idx` is a partial index, which Prisma 6.19 cannot state in the
+schema (`prisma validate` refuses `where:`), so `migrate diff` will always show it and `prisma db push` would drop
+it. Keep it partial and record it in `prisma/constraints.sql` with that warning, or use the full index
+`@@index([checkOut, checkIn, listingId])`, which the schema can hold.
+
+### Final checks
+
+| Check | Result |
+|---|---|
+| Lint | 0 errors (39 warnings, as before: unused names and `<img>` elsewhere) |
+| Type check | passes |
+| Unit tests in six time zones (`npm run test:tz`) | 1,468 passed in each, on the code after the capacity commit. Four tests were added after (1,472); their files passed alone. **A clean full run on the final code was not obtained:** the Mac was asleep on battery, and three runs each lost a different 2-13 timing tests to 5-second timeouts (one file took 736 s that normally takes seconds). Rerun `npm run test:tz` on mains power |
+| Full suite, Chromium, final code | 186 passed, 4 skipped (the opt-in contrast measurement), none flaky; crash tests alone: 10 passed |
+| Core set in Firefox, WebKit, tablet, iPhone, Android | 199 passed, 1 skipped (the map in Firefox), on `bb59a8e`'s code less the last change (the guard as a module); the resilience and session tests were then run twice in all six set-ups on the final code: 156 passed. **The full core-set rerun on the final code was not completed**: the Mac went to sleep on battery twice during it (tests taking 8-17 minutes each); its partial logs are `fixperf/browsers-final*.log` and do not count |
+| Races at 50 rounds, twice | 31 passed, 31 passed (G15 included: 0 second payments) |
+| Removal proofs, one pass under caffeinate | **244 of 244 hold**, tree clean after. (The first pass found 2 proofs, 50 and 115, whose text the capacity commit had rewritten; fixed in `bb59a8e`, then the whole pass was run again) |
+| Full production build | passes, built through the harness (`node e2e/run.mjs build`) with the fake environment: `npm run build` with `.env` would upload source maps to Sentry, because `SENTRY_AUTH_TOKEN` is set there |
+| Money and date rules | clean after every test and before and after every load run |
+
+Also: during the final checks a command meant to compare lint counts restored the old branch's files over the
+working tree (`git checkout e2e-performance -- .`) and stashed the uncommitted FINDINGS draft. Everything was
+committed, so the tree was restored from `HEAD` at once and the draft taken back from the stash; `git status`
+and the diff against `HEAD` were checked clean. Nothing was lost.
+
+---
+
 ## Second go: final report (2026-10-16)
 
 Branch `e2e-performance`, not merged. Everything ran on this MacBook Air against the local test stack (production build, local Postgres, the fakes and the guards); nothing real was touched; no switch was set in `.env`; no real email or SMS was sent. Nothing under `src/` was changed. Before Stage A the post-merge run on `main` was repeated in full and passed (build, smoke 7/7, 220/220 removal proofs, build, smoke 7/7, tree clean).
