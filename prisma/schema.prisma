@@ -124,6 +124,9 @@ model Notification {
   createdAt DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A person's notices, newest first (G13)
+  @@index([userId, createdAt], map: "Notification_userId_idx")
 }
 
 // One row per message to one person on one channel: what was (or would have
@@ -178,6 +181,9 @@ model Session {
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Every session of one account, to end them all (G13)
+  @@index([userId], map: "Session_userId_idx")
 }
 
 model Listing {
@@ -230,6 +236,9 @@ model Listing {
   blockedDates BlockedDate[]
   messages  Message[]
   checks    ListingCheck[]
+
+  // A host's listings (G13)
+  @@index([hostId], map: "Listing_hostId_idx")
 }
 
 // One row each time an admin checks a listing's address and photos
@@ -331,6 +340,9 @@ model Booking {
 
   // Search by dates looks for a listing's stays that overlap a range
   @@index([listingId, checkIn, checkOut])
+  // A guest's and a host's bookings, for the dashboards (G13)
+  @@index([guestId], map: "Booking_guestId_idx")
+  @@index([hostId], map: "Booking_hostId_idx")
 }
 
 // One rent payment of a monthly or long-term booking. Written when the booking
@@ -406,6 +418,8 @@ model Payment {
   refunds    Refund[]
 
   @@index([instalmentId])
+  // A booking's payments (G13)
+  @@index([bookingId], map: "Payment_bookingId_idx")
 }
 
 // Money owed back to a guest for one booking. Written when the booking is
@@ -485,6 +499,8 @@ model Payout {
   instalment Instalment? @relation(fields: [instalmentId], references: [id])
 
   @@unique([bookingId, instalmentSeq])
+  // A host's payout history, newest first (G13)
+  @@index([hostId, createdAt], map: "Payout_hostId_idx")
 }
 
 model Review {
@@ -507,6 +523,10 @@ model Review {
 
   // One review per side per booking: two requests at the same moment cannot both be stored
   @@unique([bookingId, reviewerId, type])
+  // A listing's reviews, and those a person gave or received (G13)
+  @@index([listingId], map: "Review_listingId_idx")
+  @@index([revieweeId], map: "Review_revieweeId_idx")
+  @@index([reviewerId], map: "Review_reviewerId_idx")
 }
 
 model Message {
@@ -523,6 +543,12 @@ model Message {
   receiver User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
   booking  Booking? @relation(fields: [bookingId], references: [id])
   listing  Listing? @relation(fields: [listingId], references: [id])
+
+  // A person's sent and received messages, newest first, and a booking's or listing's thread (G13)
+  @@index([senderId, createdAt], map: "Message_senderId_idx")
+  @@index([receiverId, createdAt], map: "Message_receiverId_idx")
+  @@index([bookingId], map: "Message_bookingId_idx")
+  @@index([listingId], map: "Message_listingId_idx")
 }
 
 // A problem reported on a booking. One per side per booking: the guest can
@@ -608,6 +634,8 @@ model Wishlist {
   listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@unique([userId, listingId])
+  // Removing a listing finds its wishlist rows (G13)
+  @@index([listingId], map: "Wishlist_listingId_idx")
 }
 
 model ExchangeRate {
