@@ -23,11 +23,11 @@ test.describe('search', () => {
     await expect(page.getByText('$95').first()).toBeVisible()
     // The map is there and shows the homes (a pin each, or one cluster for both). On a phone it is behind the Map button.
     test.skip(browserName === 'firefox', 'headless Firefox has no WebGL here, so the map does not draw: the map is not tested in Firefox')
-    await expect(page.locator('canvas.maplibregl-canvas').first()).toBeAttached()
+    // (on a phone the map is not even loaded until the button is pressed: G5)
     const map = page.locator('canvas.maplibregl-canvas:visible')
     const toggle = page.getByRole('button', { name: 'Map', exact: true })
-    if ((await map.count()) === 0 && await toggle.isVisible()) await toggle.click()
-    await expect(map.first()).toBeVisible()
+    if (await toggle.isVisible()) await toggle.click()
+    await expect(map.first()).toBeVisible({ timeout: 20_000 })
     await expect.poll(async () => page.locator('.maplibregl-marker').count()).toBeGreaterThanOrEqual(1)
   })
 

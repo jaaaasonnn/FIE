@@ -2988,5 +2988,18 @@
   ],
   "testFile": "src/lib/security/clientImports.test.ts",
   "test": "never imports the database client, password hashing, the service key or Node modules, directly or through another file"
+ },
+ {
+  "what": "G5: the map is not loaded on a phone until \"Map\" is pressed",
+  "edits": [
+   {
+    "file": "src/app/search/page.tsx",
+    "find": "{wide && <ListingsMap wanted={mapWanted} ",
+    "replace": "{<ListingsMap wanted "
+   }
+  ],
+  "testFile": "e2e/tests/perf/bundle.spec.ts",
+  "test": "every main page is within 350 KB, with no map or date-picker code it does not need",
+  "e2e": true
  }
 ]

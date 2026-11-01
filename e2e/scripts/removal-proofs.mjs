@@ -18,6 +18,11 @@
 // PROOFS_OUT (results folder, default e2e/.reports/proofs), PROOFS_TEST_CMD (a command run in place
 // of vitest; it gets the test file and name as $PROOF_TEST_FILE and $PROOF_TEST, and fails the proof
 // by exiting non-zero).
+//
+// A proof marked "e2e": true names an end-to-end test (e2e/tests/...). It needs the test stack up: the app
+// is rebuilt from the changed source and the test run in Chromium (e2e/scripts/e2e-proof.mjs), and once the
+// run is over the app is rebuilt from the source as committed. If the run is stopped part way, the stack
+// is left on a build of changed source with its E2E_BUILD mark removed: run `node e2e/run.mjs up --build`.
 import fs from 'fs'
 import path from 'path'
 import { spawn, spawnSync } from 'child_process'
@@ -28,6 +33,8 @@ const outDir = path.resolve(root, process.env.PROOFS_OUT || 'e2e/.reports/proofs
 const journalFile = path.join(outDir, 'journal.json')
 const resultsFile = path.join(outDir, 'results.jsonl')
 const testCmd = process.env.PROOFS_TEST_CMD || ''
+const e2eCmd = `node ${JSON.stringify(path.join(root, 'e2e/scripts/e2e-proof.mjs'))}`
+let e2eRan = false
 
 const args = process.argv.slice(2)
 const resume = args.includes('--resume')
@@ -68,6 +75,7 @@ function stop(signal) {
   try { restore() } catch (e) { console.error('RESTORE FAILED', e) }
   const left = dirty()
   log(left ? `git status is NOT clean after stopping:\n${left}` : 'git status clean after stopping')
+  if (e2eRan) log('the test stack was built from changed source: run `node e2e/run.mjs up --build` before testing')
   process.exit(signal === 'SIGINT' ? 130 : 143)
 }
 for (const s of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(s, () => stop(s))
@@ -119,12 +127,12 @@ if (resume && fs.existsSync(resultsFile)) {
 }
 
 // --- one proof ----------------------------------------------------------------------------------
-function runTest(testFile, test) {
+function runTest(testFile, test, e2e) {
   return new Promise((resolve) => {
     const env = { ...process.env, PROOF_TEST_FILE: testFile, PROOF_TEST: test }
     const escaped = test.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    child = testCmd
-      ? spawn('sh', ['-c', testCmd], { cwd: root, env })
+    child = testCmd || e2e
+      ? spawn('sh', ['-c', testCmd || e2eCmd], { cwd: root, env })
       : spawn('npx', ['vitest', 'run', testFile, '-t', escaped, '--reporter=json'], { cwd: root, env })
     let stdout = ''
     child.stdout.on('data', (d) => { stdout += d })
@@ -133,7 +141,7 @@ function runTest(testFile, test) {
   })
 }
 
-async function proof(i, { what, edits, testFile, test }) {
+async function proof(i, { what, edits, testFile, test, e2e }) {
   let problem = ''
   let failed = false
   let ran = 0
@@ -150,10 +158,16 @@ async function proof(i, { what, edits, testFile, test }) {
       fs.writeFileSync(f, now.replace(find, () => replace))
     }
     if (!problem) {
-      const r = await runTest(testFile, test)
+      const r = await runTest(testFile, test, e2e && !testCmd)
       if (testCmd) {
         ran = 1
         failed = r.code !== 0
+      } else if (e2e) {
+        // e2e-proof.mjs: 1 the test failed, 0 it passed, 2 it did not run
+        e2eRan = true
+        ran = r.code === 2 ? 0 : 1
+        failed = r.code === 1
+        if (r.code === 2) problem = 'the end-to-end test did not run (is the stack up?)'
       } else {
         const json = JSON.parse(r.stdout.slice(r.stdout.indexOf('{')))
         const tests = json.testResults.flatMap((f) => f.assertionResults).filter((t) => t.title === test)
@@ -187,6 +201,12 @@ for (const [i, p] of P.entries()) {
     console.error(`STOPPING: git status is not clean after proof ${n}:\n${after}`)
     process.exit(3)
   }
+}
+
+if (e2eRan) {
+  log('rebuilding the test app from the source as committed')
+  const r = spawnSync('sh', ['-c', `${e2eCmd} --restore`], { cwd: root, encoding: 'utf8' })
+  log(r.status === 0 ? 'the test app is back on the committed source' : `REBUILD FAILED: run \`node e2e/run.mjs up --build\`\n${r.stderr}`)
 }
 
 const all = fs.existsSync(resultsFile) ? fs.readFileSync(resultsFile, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)) : []

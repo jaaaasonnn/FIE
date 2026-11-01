@@ -142,6 +142,23 @@ test.describe('loaded when asked for', () => {
     expect((await after()).mapKB).toBeGreaterThan(0)
   })
 
+  test('on a phone, a map file that does not arrive gives "Try again", and trying again draws the map', async ({ page }) => {
+    let down = true
+    await page.route('**/_next/static/chunks/**/*.js', async (route) => {
+      const answer = await route.fetch()
+      if (down && MAP_CODE.test(await answer.text())) return route.abort('connectionreset')
+      return route.fulfill({ response: answer })
+    })
+    await page.goto('/search')
+    await page.waitForLoadState('networkidle')
+    await page.getByRole('button', { name: /^map$/i }).click()
+    const tryAgain = page.getByRole('alert').getByRole('button', { name: 'Try again' })
+    await expect(tryAgain).toBeVisible({ timeout: 20_000 })
+    down = false
+    await tryAgain.click()
+    await expect(page.locator('.maplibregl-canvas')).toBeVisible({ timeout: 20_000 })
+  })
+
   test('on the listing page the date picker is fetched when a date field is opened, and then it opens', async ({ page, world }) => {
     const host = await world.host()
     const home = await world.listing(host)

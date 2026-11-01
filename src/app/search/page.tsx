@@ -11,26 +11,33 @@ import {
 import { MODE_ICONS } from '@/lib/rentalModes'
 import Link from 'next/link'
 import Image from 'next/image'
-import dynamic from 'next/dynamic'
 import { GHANA_REGIONS, PROPERTY_TYPES, formatUsdCompact } from '@/lib/utils'
 import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import type { MapListing } from '@/components/map/ListingsMap'
+import { useMediaQuery } from '@/lib/useMediaQuery'
+import { useOnDemand } from '@/lib/useOnDemand'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { CHECK_FILTER_LABEL, HOST_ID_BADGE, type PublicCheck } from '@/lib/listingCheckRules'
 
-// ── Dynamic map import (SSR-off) ─────────────────────────────────────────────
-const ListingsMap = dynamic(
-  () => import('@/components/map/ListingsMap').then((m) => m.ListingsMap),
-  { ssr: false, loading: () => <MapSkeleton /> },
-)
+// ── The map, loaded only when it is shown (G5) ───────────────────────────────
+// MapLibre is over 250 KB. A phone fetches it only when "Map" is pressed; a wider screen once the list has
+// drawn, with the same-size skeleton in its place until then.
+const loadMap = () => import('@/components/map/ListingsMap')
 
 function MapSkeleton() {
   return (
     <div className="w-full h-full rounded-2xl animate-pulse"
       style={{ backgroundColor: '#F4F2EE' }} />
   )
+}
+
+function ListingsMap({ wanted, ...props }: { wanted: boolean } & React.ComponentProps<typeof import('@/components/map/ListingsMap').ListingsMap>) {
+  const { mod, failed, retry } = useOnDemand(loadMap, wanted)
+  if (failed) return <LoadFailed onRetry={retry} className="h-full" />
+  if (!mod) return <MapSkeleton />
+  return <mod.ListingsMap {...props} />
 }
 
 // ── API listing type ─────────────────────────────────────────────────────────
@@ -288,6 +295,18 @@ function SearchContent() {
       window.scrollTo({ top: place.page, behavior: 'instant' })
     })
   }, [loading, listings])
+
+  // The desktop map is asked for once the first results have drawn and the browser has a moment free
+  const wide = useMediaQuery('(min-width: 768px)')
+  const listDrawn = loadedFilters !== null
+  const [mapWanted, setMapWanted] = useState(false)
+  useEffect(() => {
+    if (!wide || !listDrawn || mapWanted) return
+    const idle = window.requestIdleCallback ?? ((fn: () => void) => window.setTimeout(fn, 200))
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout
+    const handle = idle(() => setMapWanted(true), { timeout: 1500 })
+    return () => cancel(handle)
+  }, [wide, listDrawn, mapWanted])
 
   const handleMapSelect = useCallback((id: string | null) => {
     setSelectedId(id)
@@ -657,8 +676,8 @@ function SearchContent() {
         {/* RIGHT: sticky map — desktop only */}
         <div className="hidden md:block flex-[42] sticky"
           style={{ top: 'calc(4.25rem + 121px)', height: 'calc(100vh - 4.25rem - 121px)', padding: '12px 12px 12px 0' }}>
-          <ListingsMap listings={mapListings} initialRegion={filters.region || undefined}
-            listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />
+          {wide && <ListingsMap wanted={mapWanted} listings={mapListings} initialRegion={filters.region || undefined}
+            listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />}
         </div>
       </div>
 
@@ -677,7 +696,7 @@ function SearchContent() {
             </button>
           </div>
           <div className="flex-1">
-            <ListingsMap listings={mapListings} initialRegion={filters.region || undefined}
+            <ListingsMap wanted listings={mapListings} initialRegion={filters.region || undefined}
             listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />
           </div>
         </div>
