@@ -108,6 +108,8 @@ export function chunkGuard(w: Window, message: string, delays: number[]) {
   // on its way when the page's load event comes. Once the page has loaded, each of those early files not seen
   // to arrive is looked up in the browser's record of what it downloaded; one with nothing in it never
   // arrived. Without that record nothing is assumed.
+  // A `nomodule` script (Next's polyfills, about 40 KB) is never downloaded by a browser that runs modules, and
+  // this guard is a module, so it only ever runs in such a browser: that file is not missing, and is left alone.
   const early = Array.prototype.slice.call(d.querySelectorAll('script[src]')) as HTMLScriptElement[]
   w.addEventListener('load', () => {
     const perf = w.performance
@@ -115,7 +117,7 @@ export function chunkGuard(w: Window, message: string, delays: number[]) {
     for (let i = 0; i < early.length; i++) {
       const script = early[i]
       const src = appFile(script)
-      if (!src || arrived[src] || tried[src]) continue
+      if (!src || script.noModule || arrived[src] || tried[src]) continue
       const got = perf.getEntriesByName(script.src).some((e) => {
         const r = e as PerformanceResourceTiming
         return r.responseEnd > 0 && (r.decodedBodySize > 0 || r.transferSize > 0)

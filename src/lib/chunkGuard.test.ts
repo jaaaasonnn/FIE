@@ -15,7 +15,7 @@ type El = {
 }
 
 /** Just enough of a browser for the guard: events, fetch, timers, a head and a body. */
-function browser(answers: boolean[], pageScripts: { tagName: string; src: string; getAttribute(k: string): string | null }[] = [], downloaded: Record<string, { responseEnd: number; decodedBodySize: number; transferSize: number }[]> = {}) {
+function browser(answers: boolean[], pageScripts: { tagName: string; src: string; noModule?: boolean; getAttribute(k: string): string | null }[] = [], downloaded: Record<string, { responseEnd: number; decodedBodySize: number; transferSize: number }[]> = {}) {
   const listeners: Record<string, Listener[]> = {}
   const timers: { fn: () => void; ms: number }[] = []
   const fetched: { src: string; cache?: string }[] = []
@@ -133,6 +133,15 @@ describe('a script file that does not arrive', () => {
     await w.settle()
     expect(w.fetched).toEqual([{ src: '/_next/static/chunks/early.js', cache: 'reload' }])
     expect(w.retried().map((s) => s.src)).toEqual(['/_next/static/chunks/early.js'])
+  })
+
+  it('leaves alone the polyfills marked nomodule, which a browser that runs the guard never downloads', async () => {
+    const polyfills = { tagName: 'SCRIPT', noModule: true, src: 'https://fiegh.com/_next/static/chunks/polyfills.js', getAttribute: (k: string) => (k === 'src' ? '/_next/static/chunks/polyfills.js' : null) }
+    const w = start([true], [polyfills], {})
+    w.fire('load', null)
+    await w.settle()
+    expect(w.fetched).toHaveLength(0)
+    expect(w.retried()).toHaveLength(0)
   })
 
   it('a file the app adds later, still on its way when the page has loaded, is left alone', async () => {

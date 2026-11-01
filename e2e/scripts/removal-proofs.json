@@ -3027,5 +3027,17 @@
   "testFile": "e2e/tests/resilience/browser-errors.spec.ts",
   "test": "an error thrown in the page reaches Sentry, without the email address or phone number in it",
   "e2e": true
+ },
+ {
+  "what": "G5: the chunk guard leaves the nomodule polyfills alone",
+  "edits": [
+   {
+    "file": "src/lib/chunkGuard.ts",
+    "find": "      if (!src || script.noModule || arrived[src] || tried[src]) continue\n",
+    "replace": "      if (!src || arrived[src] || tried[src]) continue\n"
+   }
+  ],
+  "testFile": "src/lib/chunkGuard.test.ts",
+  "test": "leaves alone the polyfills marked nomodule, which a browser that runs the guard never downloads"
  }
 ]

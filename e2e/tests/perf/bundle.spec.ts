@@ -28,7 +28,9 @@ type Loaded = { totalKB: number; mapKB: number; pickerKB: number; files: { url: 
 function collect(page: Page) {
   const pending: Promise<Loaded['files'][number] | null>[] = []
   page.on('response', (r) => {
-    if (r.request().resourceType() !== 'script' || !r.url().includes('/_next/')) return
+    // (a script file fetched by code counts too: the chunk guard once fetched the polyfills on every page)
+    const type = r.request().resourceType()
+    if (!r.url().includes('/_next/') || !(type === 'script' || (type === 'fetch' && /\.js(\?|$)/.test(r.url())))) return
     pending.push((async () => {
       try {
         const [sizes, body] = await Promise.all([r.request().sizes(), r.text()])
@@ -37,7 +39,10 @@ function collect(page: Page) {
     })())
   })
   return async (): Promise<Loaded> => {
-    const files = (await Promise.all(pending)).filter((f): f is NonNullable<typeof f> => !!f)
+    // Each file once: a file fetched and then added as a script is downloaded once in a real browser
+    const byUrl = new Map<string, Loaded['files'][number]>()
+    for (const f of await Promise.all(pending)) if (f && f.kb >= (byUrl.get(f.url)?.kb ?? 0)) byUrl.set(f.url, f)
+    const files = [...byUrl.values()]
     const sum = (fs: typeof files) => Math.round(fs.reduce((s, f) => s + f.kb, 0))
     return { totalKB: sum(files), mapKB: sum(files.filter((f) => f.map)), pickerKB: sum(files.filter((f) => f.picker)), files }
   }
