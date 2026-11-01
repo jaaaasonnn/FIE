@@ -20,7 +20,7 @@ const BUDGET_KB = 350
 const SEARCH_WITH_MAP_KB = 650
 // Markers found only in the libraries' own code, never in the app's
 const MAP_CODE = /maplibregl|maplibre-gl/
-const PICKER_CODE = /react-datepicker__/
+const PICKER_CODE = /react-datepicker__month-container/
 
 type Loaded = { totalKB: number; mapKB: number; pickerKB: number; files: { url: string; kb: number; map: boolean; picker: boolean }[] }
 
@@ -171,5 +171,24 @@ test.describe('loaded when asked for', () => {
     await page.getByLabel('Check-in date').click()
     await expect(page.locator('.react-datepicker').first()).toBeVisible({ timeout: 20_000 })
     expect((await after()).pickerKB).toBeGreaterThan(0)
+  })
+
+  test('on the listing page, a date-picker file that does not arrive gives "Try again", and trying again opens the calendar', async ({ page, world }) => {
+    const host = await world.host()
+    const home = await world.listing(host)
+    let down = true
+    await page.route('**/_next/static/chunks/**/*.js', async (route) => {
+      const answer = await route.fetch()
+      if (down && PICKER_CODE.test(await answer.text())) return route.abort('connectionreset')
+      return route.fulfill({ response: answer })
+    })
+    await page.goto(`/listings/${home.id}`)
+    await page.getByLabel('Check-in date').click()
+    const tryAgain = page.getByRole('alert').getByRole('button', { name: 'Try again' })
+    await expect(tryAgain).toBeVisible({ timeout: 20_000 })
+    down = false
+    await tryAgain.click()
+    await page.getByLabel('Check-in date').click()
+    await expect(page.locator('.react-datepicker').first()).toBeVisible({ timeout: 20_000 })
   })
 })

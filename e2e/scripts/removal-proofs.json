@@ -3001,5 +3001,18 @@
   "testFile": "e2e/tests/perf/bundle.spec.ts",
   "test": "every main page is within 350 KB, with no map or date-picker code it does not need",
   "e2e": true
+ },
+ {
+  "what": "G5: the listing page fetches the date picker only when a date field is opened",
+  "edits": [
+   {
+    "file": "src/components/ui/LazyDatePicker.tsx",
+    "find": "const loadPicker = () => import('@/components/ui/DatePickerLoaded')\n",
+    "replace": "import * as eagerPicker from '@/components/ui/DatePickerLoaded'\nconst loadPicker = () => Promise.resolve(eagerPicker)\n"
+   }
+  ],
+  "testFile": "e2e/tests/perf/bundle.spec.ts",
+  "test": "every main page is within 350 KB, with no map or date-picker code it does not need",
+  "e2e": true
  }
 ]

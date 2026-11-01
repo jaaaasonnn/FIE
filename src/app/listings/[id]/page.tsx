@@ -4,8 +4,6 @@ import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import DatePicker from 'react-datepicker'
-import 'react-datepicker/dist/react-datepicker.css'
 import {
   Star, MapPin, Bed, Bath, Users, Wifi, Shield, Zap, Wind, Car, Camera,
   Share2, Heart, Flag, ChevronLeft, ChevronRight, CheckCircle, Loader2,
@@ -27,6 +25,7 @@ import Image from 'next/image'
 import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
+import { LazyDatePicker } from '@/components/ui/LazyDatePicker'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
@@ -792,7 +791,7 @@ export default function ListingDetailPage() {
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Check-in</label>
-                    <DatePicker
+                    <LazyDatePicker label="Check-in date" inputStyle={dpInputStyle}
                       selected={checkIn}
                       onChange={(d: Date | null) => {
                         setCheckIn(d)
@@ -802,22 +801,18 @@ export default function ListingDetailPage() {
                       }}
                       selectsStart startDate={checkIn ?? undefined} endDate={checkOut ?? undefined}
                       minDate={today} excludeDates={takenDays}
-                      placeholderText="Add date" dateFormat="dd MMM yyyy"
-                      customInput={<input aria-label="Check-in date" style={dpInputStyle} readOnly />}
-                      wrapperClassName="w-full" popperPlacement="bottom-start" />
+                      placeholderText="Add date" popperPlacement="bottom-start" />
                   </div>
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Check-out</label>
-                    <DatePicker
+                    <LazyDatePicker label="Check-out date" inputStyle={dpInputStyle}
                       selected={checkOut}
                       onChange={(d: Date | null) => setCheckOut(d)}
                       selectsEnd startDate={checkIn ?? undefined} endDate={checkOut ?? undefined}
                       minDate={fromDayKey(addDays(checkInKey ?? todayKey, Math.max(1, listing.minStayNights)))!}
                       maxDate={fromDayKey(lastCheckOutKey) ?? undefined}
                       excludeDates={noCheckOutDays}
-                      placeholderText="Add date" dateFormat="dd MMM yyyy"
-                      customInput={<input aria-label="Check-out date" style={dpInputStyle} readOnly />}
-                      wrapperClassName="w-full" popperPlacement="bottom-end" />
+                      placeholderText="Add date" popperPlacement="bottom-end" />
                   </div>
                 </div>
               )}
@@ -827,10 +822,9 @@ export default function ListingDetailPage() {
                 <div className="space-y-3 mb-4">
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Move-in date</label>
-                    <DatePicker selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
-                      minDate={today} excludeDates={takenDays}
-                      placeholderText="Select date" dateFormat="dd MMM yyyy"
-                      customInput={<input aria-label="Move-in date" style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
+                    <LazyDatePicker label="Move-in date" inputStyle={dpInputStyle}
+                      selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
+                      minDate={today} excludeDates={takenDays} placeholderText="Select date" />
                   </div>
                   <div>
                     <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Number of months (1 to 11)</label>
@@ -846,10 +840,9 @@ export default function ListingDetailPage() {
               {selectedMode === 'PERMANENT' && (
                 <div className="mb-4">
                   <label className="text-xs block mb-1" style={{ color: 'var(--color-text-secondary)' }}>Preferred move-in date</label>
-                  <DatePicker selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
-                    minDate={today} excludeDates={takenDays}
-                    placeholderText="Select date" dateFormat="dd MMM yyyy"
-                    customInput={<input aria-label="Preferred move-in date" style={dpInputStyle} readOnly />} wrapperClassName="w-full" />
+                  <LazyDatePicker label="Preferred move-in date" inputStyle={dpInputStyle}
+                    selected={checkIn} onChange={(d: Date | null) => setCheckIn(d)}
+                    minDate={today} excludeDates={takenDays} placeholderText="Select date" />
                 </div>
               )}
 
