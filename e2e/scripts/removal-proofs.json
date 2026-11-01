@@ -2976,5 +2976,17 @@
   ],
   "testFile": "src/lib/chunkGuard.test.ts",
   "test": "is put in the page as a module, so the page is not held at it until the stylesheets have loaded"
+ },
+ {
+  "what": "G5: the admin page reads the exchange-rate constants from the client-safe file",
+  "edits": [
+   {
+    "file": "src/app/admin/page.tsx",
+    "find": "from '@/lib/exchangeRateShared'\n",
+    "replace": "from '@/lib/exchangeRate'\n"
+   }
+  ],
+  "testFile": "src/lib/security/clientImports.test.ts",
+  "test": "never imports the database client, password hashing, the service key or Node modules, directly or through another file"
  }
 ]

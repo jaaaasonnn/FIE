@@ -2,17 +2,11 @@ import { readWithRetry } from '@/lib/outbound'
 import { db } from '@/lib/db'
 import { EXCHANGE_RATE_BUFFER } from '@/lib/utils'
 import { forgetCached } from '@/lib/shortCache'
+import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRateShared'
 
 const API_BASE = 'https://v6.exchangerate-api.com/v6'
 const AUTO_FETCH_STATUS_KEY = 'exchange_rate_auto_fetch_status'
-export const AUTO_UPDATED_BY = 'auto:exchangerate-api'
-
-export type AutoFetchStatus = {
-  ok:    boolean
-  at:    string   // ISO timestamp of this attempt
-  rate?: number   // raw rate returned by the API, before buffer (only set when ok)
-  error?: string  // only set when !ok
-}
+export { AUTO_UPDATED_BY, type AutoFetchStatus }
 
 function getApiKey(): string {
   const key = process.env.EXCHANGE_RATE_API_KEY

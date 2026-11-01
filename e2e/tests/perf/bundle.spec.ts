@@ -96,8 +96,9 @@ async function pages(world: import('../../lib/world').World) {
 }
 
 // The device settings without the browser choice, which a describe block may not set
-const { defaultBrowserType: _phoneBrowser, ...PHONE } = devices['Pixel 7']
-const { defaultBrowserType: _desktopBrowser, ...DESKTOP } = devices['Desktop Chrome']
+const device = (name: string) => Object.fromEntries(Object.entries(devices[name]).filter(([key]) => key !== 'defaultBrowserType'))
+const PHONE = device('Pixel 7')
+const DESKTOP = device('Desktop Chrome')
 
 for (const [size, device] of [['phone', PHONE], ['desktop', DESKTOP]] as const) {
   test.describe(`script sent on first load, ${size}`, () => {

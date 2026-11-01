@@ -9,7 +9,7 @@ import {
 import { StatCard } from '@/components/ui/Card'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
 import { useAuth } from '@/context/AuthContext'
-import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRate'
+import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRateShared'
 import { AdminDisputes } from '@/components/admin/AdminDisputes'
 import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
