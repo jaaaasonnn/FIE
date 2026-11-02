@@ -19,7 +19,8 @@ import { useMediaQuery } from '@/lib/useMediaQuery'
 import { useOnDemand } from '@/lib/useOnDemand'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
-import { CHECK_FILTER_LABEL, HOST_ID_BADGE, type PublicCheck } from '@/lib/listingCheckRules'
+import { CHECK_FILTER_LABEL, HOST_ID_BADGE } from '@/lib/listingCheckRules'
+import { dateQuery, getDisplayPrice, searchQuery, shapeResults, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
 
 // ── The map, loaded only when it is shown (G5) ───────────────────────────────
 // MapLibre is over 250 KB. A phone fetches it only when "Map" is pressed; a wider screen once the list has
@@ -38,34 +39,6 @@ function ListingsMap({ wanted, ...props }: { wanted: boolean } & React.Component
   if (failed) return <LoadFailed onRetry={retry} className="h-full" />
   if (!mod) return <MapSkeleton />
   return <mod.ListingsMap {...props} />
-}
-
-// ── API listing type ─────────────────────────────────────────────────────────
-type ApiListing = {
-  id:            string
-  title:         string
-  propertyType:  string
-  region:        string
-  city:          string
-  neighbourhood: string | null
-  bedrooms:      number
-  bathrooms:     number
-  maxGuests:     number
-  priceNightly:  number | null
-  priceMonthly:  number | null
-  priceAnnual:   number | null
-  avgRating:     number
-  reviewCount:   number
-  photos:        string[]
-  rentalModes:   string[]
-  lat:           number | null
-  lng:           number | null
-  /** Set while FieGH's check of the address and photos stands */
-  check?:        PublicCheck | null
-  host: {
-    isVerified:  boolean
-    isSuperhost: boolean
-  }
 }
 
 /** Rental type with its icon, for the filter pills. */
@@ -88,36 +61,10 @@ const SORT_OPTIONS = [
   { value: 'most_reviewed', label: 'Most Reviewed' },
 ]
 
-// ── Display price helper ─────────────────────────────────────────────────────
-function getDisplayPrice(l: ApiListing, mode: string) {
-  // A long-term-only home has no monthly rate to book at: show the yearly
-  // price (the card adds the monthly equivalent underneath).
-  const longTermOnly = l.rentalModes?.length === 1 && l.rentalModes[0] === 'PERMANENT'
-  if (longTermOnly && l.priceAnnual) return { price: l.priceAnnual, unit: '/year' }
-  if (mode === 'SHORT_STAY' && l.priceNightly)  return { price: l.priceNightly,  unit: '/night' }
-  if (mode === 'PERMANENT'  && l.priceAnnual)   return { price: l.priceAnnual,   unit: '/year'  }
-  if (l.priceMonthly) return { price: l.priceMonthly, unit: '/mo' }
-  if (l.priceNightly) return { price: l.priceNightly, unit: '/night' }
-  if (l.priceAnnual)  return { price: l.priceAnnual,  unit: '/year' }
-  return { price: 0, unit: '' }
-}
-
 const dateInputStyle = {
   border: '1px solid var(--color-border)',
   backgroundColor: 'var(--color-bg)',
   color: 'var(--color-text-primary)',
-}
-
-// ── Dates ────────────────────────────────────────────────────────────────────
-type DateFilters = { mode: string; checkIn: string; checkOut: string; months: string }
-
-/** The date parameters to send, or null when there is not enough to search by dates yet. */
-function dateQuery(f: DateFilters): Record<string, string> | null {
-  if (!f.checkIn) return null
-  if (f.mode === 'TEMP_STAY') return { checkIn: f.checkIn, months: f.months || '1' }
-  if (f.mode === 'PERMANENT') return { checkIn: f.checkIn }
-  // Short stays and "all types" wait for a check-out before filtering
-  return f.checkOut ? { checkIn: f.checkIn, checkOut: f.checkOut } : null
 }
 
 const dayLabel = (key: string, withYear = false) =>
@@ -137,37 +84,30 @@ function dateSummary(f: DateFilters): string {
 const todayKey = () => new Date().toISOString().slice(0, 10)
 
 // ── Search UI ────────────────────────────────────────────────────────────────
-function SearchContent() {
+/**
+ * The first search, run on the server with the page (page.tsx): GET /api/listings's answer for the
+ * address's filters. Null when the server had no answer (or the dates were refused): the page then
+ * searches from the browser as before.
+ */
+export type SearchInitial = { listings?: ApiListing[]; total?: unknown } | null
+
+function SearchContent({ initial }: { initial: SearchInitial }) {
   const params = useSearchParams()
   const { rate: ghsRate } = useExchangeRate()
+  // The filters the page starts with, and the list the server found for them
+  const [startFilters] = useState(() => startingFilters((key) => params.get(key)))
+  const [first] = useState(() => (initial ? shapeResults(initial, startFilters) : null))
 
   const [showFilters,   setShowFilters]   = useState(false)
   const [showMapMobile, setShowMapMobile] = useState(false)
-  const [listings,      setListings]      = useState<ApiListing[]>([])
-  const [total,         setTotal]         = useState(0)
+  const [listings,      setListings]      = useState<ApiListing[]>(first?.results ?? [])
+  const [total,         setTotal]         = useState(first?.total ?? 0)
   // Set when the server refuses the chosen dates (for example a past check-in)
   const [dateError,     setDateError]     = useState('')
 
-  const [filters, setFilters] = useState({
-    query:        '',
-    mode:         params.get('mode')   || '',
-    region:       params.get('region') || '',
-    guests:       params.get('guests') || '',
-    checkIn:      params.get('checkIn')  || '',
-    checkOut:     params.get('checkOut') || '',
-    months:       params.get('months')   || '1',
-    minPrice:     '',
-    maxPrice:     '',
-    bedrooms:     '',
-    propertyType: '',
-    hostIdChecked: false,
-    checked:      false,
-    superhost:    false,
-    sort:         'newest',
-    amenities:    [] as string[],
-  })
+  const [filters, setFilters] = useState<SearchFilters>(startFilters)
   // Loading until results arrive for the current filters (derived, not toggled in the effect)
-  const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(null)
+  const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(first ? startFilters : null)
   const loading = loadedFilters !== filters
   // The search got no answer for these filters, even after its tries (G6)
   const [failedFilters, setFailedFilters] = useState<typeof filters | null>(null)
@@ -175,58 +115,16 @@ function SearchContent() {
 
   // ── Fetch from /api/listings whenever filters change ──────────────────
   useEffect(() => {
+    // The server ran the first search with the page: nothing to fetch for the filters it ran it for
+    if (first && filters === startFilters) return
     let active = true
     async function runSearch(): Promise<{ results: ApiListing[]; total: number }> {
-      const q = new URLSearchParams()
-      if (filters.mode)         q.set('mode',         filters.mode)
-      if (filters.region)       q.set('region',       filters.region)
-      if (filters.bedrooms)     q.set('bedrooms',     filters.bedrooms)
-      if (filters.propertyType) q.set('propertyType', filters.propertyType)
-      if (filters.hostIdChecked) q.set('hostIdChecked', 'true')
-      if (filters.checked)      q.set('checked',      'true')
-      if (filters.superhost)    q.set('superhost',    'true')
-      if (dateQuery(filters)) for (const [k, v] of Object.entries(dateQuery(filters)!)) q.set(k, v)
-      // The typed words are matched on the server, over every home (G2)
-      if (filters.query.trim()) q.set('q', filters.query.trim())
-      q.set('limit', '50')
-
-      const res  = await fetchRetry(`/api/listings?${q}`)
+      const res  = await fetchRetry(`/api/listings?${searchQuery(filters)}`)
       if (isLoadFailure(res)) throw new NotAnswered()
       const data = await res.json()
       // A refused date range comes back as an error, with nothing to show
       if (!res.ok) throw new Error(data.error ?? 'Search failed')
-      let results: ApiListing[] = data.listings ?? []
-
-      // Party size from the homepage search (guests or occupants)
-      const guests = parseInt(filters.guests, 10)
-      if (guests > 0) results = results.filter((l) => l.maxGuests >= guests)
-
-      // Client-side price filter (min/max) — not in API yet
-      if (filters.minPrice) {
-        const min = parseFloat(filters.minPrice)
-        results = results.filter((l) => {
-          const { price } = getDisplayPrice(l, filters.mode)
-          return price >= min
-        })
-      }
-      if (filters.maxPrice) {
-        const max = parseFloat(filters.maxPrice)
-        results = results.filter((l) => {
-          const { price } = getDisplayPrice(l, filters.mode)
-          return price <= max
-        })
-      }
-
-      // Client-side sort
-      if (filters.sort === 'price_asc')    results.sort((a, b) => (getDisplayPrice(a, filters.mode).price) - (getDisplayPrice(b, filters.mode).price))
-      if (filters.sort === 'price_desc')   results.sort((a, b) => (getDisplayPrice(b, filters.mode).price) - (getDisplayPrice(a, filters.mode).price))
-      if (filters.sort === 'top_rated')    results.sort((a, b) => b.avgRating  - a.avgRating)
-      if (filters.sort === 'most_reviewed') results.sort((a, b) => b.reviewCount - a.reviewCount)
-
-      // Every home that matches, not just this page of them, unless a filter
-      // only the browser applies (party size, price) has narrowed the page
-      const narrowedHere = parseInt(filters.guests, 10) > 0 || !!filters.minPrice || !!filters.maxPrice
-      return { results, total: narrowedHere || typeof data.total !== 'number' ? results.length : data.total }
+      return shapeResults(data, filters)
     }
     runSearch()
       .then(({ results, total }) => {
@@ -244,7 +142,7 @@ function SearchContent() {
       })
       .finally(() => { if (active) setLoadedFilters(filters) })
     return () => { active = false }
-  }, [filters])
+  }, [filters, first, startFilters])
 
   // ── Map listings (only those with coordinates) ─────────────────────────
   const mapListings: MapListing[] = listings
@@ -713,6 +611,6 @@ const SCROLL_KEEP_MS = 30 * 60 * 1000
 /** Search cards whose photo is loaded at once: the ones on screen before any scrolling. */
 const EAGER_CARDS = 4
 
-export default function SearchPage() {
-  return <Suspense><SearchContent /></Suspense>
+export function SearchClient({ initial = null }: { initial?: SearchInitial }) {
+  return <Suspense><SearchContent initial={initial} /></Suspense>
 }

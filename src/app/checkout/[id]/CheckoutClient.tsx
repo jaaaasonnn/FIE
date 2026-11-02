@@ -19,6 +19,7 @@ import { isSettled, laterInstalmentRefusal, outstanding, rentPlan, tenancyMonths
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
+import { useHydrated } from '@/lib/useHydrated'
 import Image from 'next/image'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -59,26 +60,107 @@ const MOMO_NETWORKS = [
   { id: 'AIRTELTIGO', label: 'AirtelTigo Money' },
 ]
 
+type Notice = { title: string; body: string; retry?: boolean }
+type Shown = { booking?: BookingData; bookingError?: string; notice?: Notice; success?: boolean }
+
+/**
+ * What the page shows for a booking as GET /api/bookings?id= returned it: the booking to pay (or paid),
+ * a notice that it cannot be paid right now, or why it is unavailable. `returned` is ?payment=… from
+ * Paystack's return. The same for the answer the server sent with the page and for one fetched here.
+ */
+function readBooking(data: { booking: BookingData }, instalmentId: string | null, returned: string | null): Shown {
+  const state = payState(data.booking)
+
+  // A rent payment after the first. The server decides whether it can
+  // be paid; this only says why not before the tenant tries.
+  const rent = (data.booking.instalments ?? []).find((i) => i.id === instalmentId && i.sequence > 1)
+  if (instalmentId && !rent) return { bookingError: 'That rent payment could not be found on this booking.' }
+  if (rent) {
+    if (isSettled(rent)) return { booking: data.booking, success: true }
+    if (returned === 'refunded') return { bookingError: 'This tenancy has ended, so that rent is no longer owed and your payment is being refunded in full. Refunds can take up to 10 working days to arrive.' }
+    if (returned === 'pending') return { notice: { title: 'Payment still processing', body: PAYMENT_STILL_PROCESSING, retry: true } }
+    const refusal = laterInstalmentRefusal({ instalment: rent, instalments: data.booking.instalments ?? [], booking: data.booking })
+    if (refusal) return { notice: { title: 'This rent cannot be paid right now', body: refusal } }
+    return { booking: data.booking }
+  }
+
+  // Not paid, or not answered, in time: the dates have been released
+  if (state === 'EXPIRED_UNPAID') return { notice: { title: 'This booking has expired', body: returned === 'refunded' ? EXPIRED_UNPAID_REFUNDED : EXPIRED_UNPAID } }
+  if (state === 'EXPIRED_UNANSWERED') return { notice: { title: 'This request has expired', body: EXPIRED_UNANSWERED } }
+
+  // A cancelled or declined booking cannot be paid for
+  if (data.booking.status === 'CANCELLED') {
+    return {
+      bookingError: returned === 'refunded'
+        ? 'This booking was cancelled before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
+        : 'This booking has been cancelled, so it cannot be paid for. Please go back and pick new dates.',
+    }
+  }
+  if (data.booking.status === 'DECLINED') {
+    return {
+      bookingError: returned === 'refunded'
+        ? 'The host declined this request before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
+        : 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.',
+    }
+  }
+
+  // Paid already (the guest came back to this page, or Paystack's
+  // confirmation reached us before their browser did)
+  if (data.booking.paymentStatus === 'PAID') return { booking: data.booking, success: true }
+  if (state === 'AWAITING_HOST') {
+    // A request is paid for only after the host accepts it
+    return {
+      notice: {
+        title: 'Waiting for the host',
+        body: returned === 'refunded'
+          ? 'The host has not accepted this request yet, so your payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
+          : `${HOST_MUST_ACCEPT} Once they do, you will find a Pay now button on your bookings page.`,
+      },
+    }
+  }
+  if (returned === 'pending') return { notice: { title: 'Payment still processing', body: PAYMENT_STILL_PROCESSING, retry: true } }
+  if (state === 'PAY_WINDOW_PASSED') return { notice: { title: 'The time to pay has passed', body: PAY_WINDOW_PASSED } }
+  return { booking: data.booking }
+}
+
 function paymentReturnError(paymentResult: string | null): string {
   if (paymentResult === 'failed') return 'Payment was not completed. Please try again.'
   if (paymentResult === 'error')  return 'We could not confirm your payment. If you were charged, contact support.'
   return ''
 }
 
-export default function CheckoutPage() {
+/** While the booking is on its way, from the server or fetched here. */
+export function CheckoutLoading() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading booking details…</p>
+      </div>
+    </div>
+  )
+}
+
+/** The page's answer from GET /api/bookings?id=, read on the server (page.tsx); null when it had none. */
+export type CheckoutInitial = { booking: BookingData } | null
+
+export function CheckoutClient({ initial = null }: { initial?: CheckoutInitial }) {
   return (
     <Suspense fallback={null}>
-      <CheckoutPageInner />
+      <CheckoutPageInner initial={initial} />
     </Suspense>
   )
 }
 
-function CheckoutPageInner() {
+function CheckoutPageInner({ initial }: { initial: CheckoutInitial }) {
   const { id: bookingId } = useParams<{ id: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
   const { rate: ghsRate } = useExchangeRate()
+  // The pay-by time is written in the guest's own time zone, which the server cannot know: until the page
+  // is running it is written in Ghana's (UTC all year), which is what nearly every guest sees anyway
+  const hydrated = useHydrated()
 
   // Client-side auth guard (belt-and-suspenders — middleware also redirects)
   useEffect(() => {
@@ -87,12 +169,18 @@ function CheckoutPageInner() {
     }
   }, [authLoading, user, bookingId, router])
 
+  // ?instalment=… is a rent payment after the first: the page then pays that
+  // one instalment instead of the booking's first payment
+  const instalmentId = searchParams.get('instalment')
+  // What the server sent with the page, read the same way as a fetched answer
+  const [first] = useState(() => (initial ? readBooking(initial, instalmentId, searchParams.get('payment')) : null))
+
   // Booking data
-  const [booking,      setBooking]      = useState<BookingData | null>(null)
-  const [bookingError, setBookingError] = useState('')
+  const [booking,      setBooking]      = useState<BookingData | null>(first?.booking ?? null)
+  const [bookingError, setBookingError] = useState(first?.bookingError ?? '')
   // A booking that cannot be paid for right now, for a reason that is not an error
-  const [notice,       setNotice]       = useState<{ title: string; body: string; retry?: boolean } | null>(null)
-  const [dataLoading,  setDataLoading]  = useState(true)
+  const [notice,       setNotice]       = useState<Notice | null>(first?.notice ?? null)
+  const [dataLoading,  setDataLoading]  = useState(!first)
   // The booking could not be loaded, even after its tries: nothing is known to be wrong with it
   const [loadFailed,   setLoadFailed]   = useState(false)
   const [loadTry,      setLoadTry]      = useState(0)
@@ -109,13 +197,13 @@ function CheckoutPageInner() {
   // Paystack's verify step redirects back here with ?payment=…, a full page
   // load, so the result is read once when the state is created.
   const [error,       setError]       = useState(() => paymentReturnError(searchParams.get('payment')))
-  const [success,     setSuccess]     = useState(() => searchParams.get('payment') === 'success')
-  // ?instalment=… is a rent payment after the first: the page then pays that
-  // one instalment instead of the booking's first payment
-  const instalmentId = searchParams.get('instalment')
+  const [success,     setSuccess]     = useState(() => searchParams.get('payment') === 'success' || !!first?.success)
 
-  // ── Fetch booking from API ────────────────────────────────────────────
+  // ── The booking: sent with the page by the server, or fetched here ──
+  // The first time, the server's answer is already in the state above. A
+  // later load (Try again), or no answer from the server, fetches it as before.
   useEffect(() => {
+    if (initial && loadTry === 0) return
     async function load() {
       setDataLoading(true)
       setLoadFailed(false)
@@ -132,85 +220,11 @@ function CheckoutPageInner() {
           return
         }
 
-        const state = payState(data.booking)
-        const returned = new URLSearchParams(window.location.search).get('payment')
-
-        // A rent payment after the first. The server decides whether it can
-        // be paid; this only says why not before the tenant tries.
-        const rent = ((data.booking.instalments ?? []) as ScheduleInstalment[]).find((i) => i.id === instalmentId && i.sequence > 1)
-        if (instalmentId && !rent) {
-          setBookingError('That rent payment could not be found on this booking.')
-          return
-        }
-        if (rent) {
-          if (isSettled(rent)) {
-            setSuccess(true)
-          } else if (returned === 'refunded') {
-            setBookingError('This tenancy has ended, so that rent is no longer owed and your payment is being refunded in full. Refunds can take up to 10 working days to arrive.')
-            return
-          } else if (returned === 'pending') {
-            setNotice({ title: 'Payment still processing', body: PAYMENT_STILL_PROCESSING, retry: true })
-            return
-          } else {
-            const refusal = laterInstalmentRefusal({ instalment: rent, instalments: data.booking.instalments, booking: data.booking })
-            if (refusal) {
-              setNotice({ title: 'This rent cannot be paid right now', body: refusal })
-              return
-            }
-          }
-          setBooking(data.booking)
-          return
-        }
-
-        // Not paid, or not answered, in time: the dates have been released
-        if (state === 'EXPIRED_UNPAID') {
-          setNotice({ title: 'This booking has expired', body: returned === 'refunded' ? EXPIRED_UNPAID_REFUNDED : EXPIRED_UNPAID })
-          return
-        }
-        if (state === 'EXPIRED_UNANSWERED') {
-          setNotice({ title: 'This request has expired', body: EXPIRED_UNANSWERED })
-          return
-        }
-
-        // A cancelled or declined booking cannot be paid for
-        if (data.booking.status === 'CANCELLED') {
-          setBookingError(
-            new URLSearchParams(window.location.search).get('payment') === 'refunded'
-              ? 'This booking was cancelled before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
-              : 'This booking has been cancelled, so it cannot be paid for. Please go back and pick new dates.',
-          )
-          return
-        }
-        if (data.booking.status === 'DECLINED') {
-          setBookingError(
-            new URLSearchParams(window.location.search).get('payment') === 'refunded'
-              ? 'The host declined this request before your payment arrived, so the payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
-              : 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.',
-          )
-          return
-        }
-
-        // Paid already (the guest came back to this page, or Paystack's
-        // confirmation reached us before their browser did)
-        if (data.booking.paymentStatus === 'PAID') setSuccess(true)
-        else if (state === 'AWAITING_HOST') {
-          // A request is paid for only after the host accepts it
-          setNotice({
-            title: 'Waiting for the host',
-            body: returned === 'refunded'
-              ? 'The host has not accepted this request yet, so your payment is being refunded in full. Refunds can take up to 10 working days to arrive.'
-              : `${HOST_MUST_ACCEPT} Once they do, you will find a Pay now button on your bookings page.`,
-          })
-          return
-        } else if (returned === 'pending') {
-          setNotice({ title: 'Payment still processing', body: PAYMENT_STILL_PROCESSING, retry: true })
-          return
-        } else if (state === 'PAY_WINDOW_PASSED') {
-          setNotice({ title: 'The time to pay has passed', body: PAY_WINDOW_PASSED })
-          return
-        }
-
-        setBooking(data.booking)
+        const shown = readBooking(data, instalmentId, new URLSearchParams(window.location.search).get('payment'))
+        if (shown.bookingError) setBookingError(shown.bookingError)
+        if (shown.notice) setNotice(shown.notice)
+        if (shown.success) setSuccess(true)
+        if (shown.booking) setBooking(shown.booking)
       } catch {
         // No answer at all, or one that was not the booking: say so, not that the booking is unavailable
         setLoadFailed(true)
@@ -219,7 +233,7 @@ function CheckoutPageInner() {
       }
     }
     load()
-  }, [bookingId, instalmentId, loadTry])
+  }, [bookingId, instalmentId, loadTry, initial])
 
   // What this page pays: a later rent instalment, the first payment of a
   // booking paid in instalments, or the whole booking
@@ -291,16 +305,7 @@ function CheckoutPageInner() {
   }
 
   // ── Loading skeleton ──────────────────────────────────────────────────
-  if (dataLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading booking details…</p>
-        </div>
-      </div>
-    )
-  }
+  if (dataLoading) return <CheckoutLoading />
 
   // ── Not payable right now: waiting for the host, still processing, expired ──
   if (notice) {
@@ -453,7 +458,7 @@ function CheckoutPageInner() {
                   style={{ backgroundColor: 'var(--color-accent-subtle)', border: '1px solid var(--color-border-strong)' }}>
                   <Clock size={17} aria-hidden className="flex-shrink-0 mt-0.5" style={{ color: 'var(--color-accent-deep)' }} />
                   <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                    <strong>Pay by {formatPayBy(booking.payBy)}</strong> to keep these dates. After that they are released for other guests.
+                    <strong>Pay by {formatPayBy(booking.payBy, new Date(), hydrated ? undefined : 'UTC')}</strong> to keep these dates. After that they are released for other guests.
                   </p>
                 </div>
               )}

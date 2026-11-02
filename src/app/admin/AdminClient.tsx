@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Home, Calendar, DollarSign, Shield, AlertTriangle,
@@ -8,10 +8,10 @@ import {
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth, type AuthUser } from '@/context/AuthContext'
 import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRateShared'
 import { AdminDisputes } from '@/components/admin/AdminDisputes'
-import { NotificationsList } from '@/components/NotificationsList'
+import { NotificationsList, type Notification } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
 import { AdminRent } from '@/components/admin/AdminRent'
 import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
@@ -59,16 +59,30 @@ type AdminStats = {
   payoutsWaitingForId?: number
 }
 
-export default function AdminPage() {
-  const router = useRouter()
-  const { user, loading: authLoading } = useAuth()
-  const [activeTab, setActiveTab] = useState('Overview')
-  const [exchangeRate, setExchangeRate] = useState('15.5')
-  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(null)
-  const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(null)
-  const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(null)
+type RateAnswer = { rate?: number; updatedAt?: string | null; updatedBy?: string | null; autoFetchStatus?: AutoFetchStatus | null }
 
-  const [stats, setStats] = useState<AdminStats | null>(null)
+/**
+ * Read on the server with the page (page.tsx): the admin from GET /api/auth/session and the Overview's
+ * two answers (GET /api/admin?type=stats and ?type=exchange-rate). Null when the server had no answer:
+ * the page then waits for the browser's session check and fetches them itself, as before.
+ */
+export type AdminInitial = { user: AuthUser; stats: AdminStats; rate: RateAnswer; notifications: Notification[] | null } | null
+
+export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
+  const router = useRouter()
+  const { user: authUser, loading: authLoading } = useAuth()
+  // Until the browser's own session check has answered, the admin the server found draws the page
+  const user = authUser ?? (authLoading ? initial?.user ?? null : null)
+  const adminId = user?.role === 'ADMIN' ? user.id : null
+  const [activeTab, setActiveTab] = useState('Overview')
+  const [exchangeRate, setExchangeRate] = useState(initial?.rate.rate != null ? String(initial.rate.rate) : '15.5')
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(initial?.rate.updatedAt ?? null)
+  const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(initial?.rate.updatedBy ?? null)
+  const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(initial?.rate.autoFetchStatus ?? null)
+  // The Overview the server sent is shown as it is the first time; coming back to the tab loads it again
+  const overviewServed = useRef(!!initial)
+
+  const [stats, setStats] = useState<AdminStats | null>(initial?.stats ?? null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const reloadUsers = async () => {
     const res = await fetch('/api/admin/users')
@@ -88,12 +102,7 @@ export default function AdminPage() {
     if (!user) router.replace('/login?redirect=/admin')
   }, [user, authLoading, router])
 
-  function applyRateResponse(r: {
-    rate?: number
-    updatedAt?: string | null
-    updatedBy?: string | null
-    autoFetchStatus?: AutoFetchStatus | null
-  }) {
+  function applyRateResponse(r: RateAnswer) {
     if (r.rate != null) setExchangeRate(String(r.rate))
     setRateUpdatedAt(r.updatedAt ?? null)
     setRateUpdatedBy(r.updatedBy ?? null)
@@ -102,7 +111,8 @@ export default function AdminPage() {
 
   // Load data per tab
   useEffect(() => {
-    if (!user || user.role !== 'ADMIN') return
+    if (!adminId) return
+    if (activeTab === 'Overview' && overviewServed.current) { overviewServed.current = false; return }
 
     async function load() {
       setTabLoading(true)
@@ -141,7 +151,7 @@ export default function AdminPage() {
     }
 
     load()
-  }, [activeTab, user])
+  }, [activeTab, adminId])
 
   // Put a listing on hold (switches it off; its host cannot switch it back
   // on) or clear the hold and reactivate it.
@@ -178,7 +188,7 @@ export default function AdminPage() {
     alert('Exchange rate updated')
   }
 
-  if (authLoading) {
+  if (authLoading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
         <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
@@ -272,7 +282,7 @@ export default function AdminPage() {
               {activeTab === 'Listing checks' && <AdminListingChecks />}
               {activeTab === 'Messages' && <AdminMessages />}
 
-              {activeTab === 'Overview' && <NotificationsList className="mb-6" />}
+              {activeTab === 'Overview' && <NotificationsList className="mb-6" initial={initial?.notifications} />}
 
               {activeTab === 'Overview' && (
                 <div>
@@ -280,8 +290,8 @@ export default function AdminPage() {
                     <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value={stats?.totalUsers ?? '-'} />
                     <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value={stats?.totalListings ?? '-'} />
                     <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value={stats?.totalBookings ?? '-'}
-                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString()} paid for stays` : undefined} />
-                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString()}` : '-'}
+                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString('en-US')} paid for stays` : undefined} />
+                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString('en-US')}` : '-'}
                       sub={`${COMMISSION_PERCENT} commission on stay prices`} />
                   </div>
 

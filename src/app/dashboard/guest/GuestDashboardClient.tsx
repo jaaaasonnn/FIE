@@ -17,13 +17,15 @@ import { formatStayDate } from '@/lib/stayDates'
 import { CancelDialog } from '@/components/booking/CancelDialog'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 import { HOST_MUST_ACCEPT, formatPayBy, payState } from '@/lib/payDeadline'
-import { NotificationsList } from '@/components/NotificationsList'
+import { NotificationsList, type Notification } from '@/components/NotificationsList'
 import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
 import { problemLinkLabel } from '@/lib/disputes'
 import { rentStatus } from '@/lib/rentRules'
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 import { readJson } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
+import { useHydrated } from '@/lib/useHydrated'
+import type { AuthUser } from '@/context/AuthContext'
 import Image from 'next/image'
 
 type ApiBooking = {
@@ -120,21 +122,51 @@ function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userI
   return items.sort((a, b) => b.at - a.at).slice(0, 5)
 }
 
-export default function GuestDashboardPage() {
-  const { user, loading: authLoading } = useAuth()
+/** The answers of the five reads the dashboard makes, in this order. */
+type Answers = [Record<string, unknown>, Record<string, unknown>, Record<string, unknown>, Record<string, unknown>, Record<string, unknown>]
+
+/** What the dashboard shows, from its five answers: the same for the server's and for the browser's. */
+function readDashboard([bData, wData, rData, mData, mineData]: Answers, userId: string) {
+  const bookingRows: ApiBooking[] = Array.isArray(bData.bookings) ? bData.bookings : []
+  const messageRows: ApiMessage[] = Array.isArray(mData.messages) ? mData.messages : []
+  const myReviews: Array<{ bookingId: string }> = Array.isArray(mineData.reviews) ? mineData.reviews : []
+  return {
+    bookings: bookingRows,
+    wishlistCount: Array.isArray(wData.wishlists) ? wData.wishlists.length : 0,
+    reviewsGivenCount: typeof rData.total === 'number' ? rData.total : 0,
+    activity: buildActivityFeed(bookingRows, messageRows, userId),
+    reviewedBookingIds: new Set(myReviews.map((r) => r.bookingId)),
+  }
+}
+
+/**
+ * Read on the server with the page (page.tsx): the signed-in person from GET /api/auth/session and the
+ * dashboard's five answers. Null when the server had no answer for any of them: the page then waits for
+ * the browser's session check and fetches everything itself, as before.
+ */
+export type GuestDashboardInitial = { user: AuthUser; answers: Answers; notifications: Notification[] | null } | null
+
+export function GuestDashboardClient({ initial = null }: { initial?: GuestDashboardInitial }) {
+  const { user: authUser, loading: authLoading } = useAuth()
+  // Until the browser's own session check has answered, the person the server found draws the page
+  const user = authUser ?? (authLoading ? initial?.user ?? null : null)
+  const userId = user?.id ?? null
   const { rate: ghsRate } = useExchangeRate()
   const router = useRouter()
+  // Relative times ("5m ago") and pay-by times depend on the clock and time zone: written once the page is running
+  const hydrated = useHydrated()
+  const [first] = useState(() => (initial ? readDashboard(initial.answers, initial.user.id) : null))
 
   useEffect(() => {
     if (!authLoading && !user) router.replace('/login?redirect=/dashboard/guest')
   }, [authLoading, user, router])
 
   const [lightboxOpen, setLightboxOpen] = useState(false)
-  const [bookings, setBookings] = useState<ApiBooking[]>([])
-  const [wishlistCount, setWishlistCount] = useState(0)
-  const [reviewsGivenCount, setReviewsGivenCount] = useState(0)
-  const [activity, setActivity] = useState<ActivityItem[]>([])
-  const [loadedFor, setLoadedFor] = useState<string | null>(null)
+  const [bookings, setBookings] = useState<ApiBooking[]>(first?.bookings ?? [])
+  const [wishlistCount, setWishlistCount] = useState(first?.wishlistCount ?? 0)
+  const [reviewsGivenCount, setReviewsGivenCount] = useState(first?.reviewsGivenCount ?? 0)
+  const [activity, setActivity] = useState<ActivityItem[]>(first?.activity ?? [])
+  const [loadedFor, setLoadedFor] = useState<string | null>(initial ? initial.user.id : null)
   // Derived from which user the data was loaded for, not toggled in the effect
   const dataLoading = !!user && loadedFor !== user.id
   // Not loaded even after its tries: the bookings may well be there (G6)
@@ -142,29 +174,28 @@ export default function GuestDashboardPage() {
   const [loadTry, setLoadTry] = useState(0)
   const [cancellingId, setCancellingId] = useState<string | null>(null)
   const [reviewModalBookingId, setReviewModalBookingId] = useState<string | null>(null)
-  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(new Set())
+  const [reviewedBookingIds, setReviewedBookingIds] = useState<Set<string>>(first?.reviewedBookingIds ?? new Set())
 
   useEffect(() => {
-    if (!user) return
-    const userId = user.id
+    if (!userId) return
+    // The server sent this person's dashboard with the page: nothing to fetch the first time
+    if (initial?.user.id === userId && loadTry === 0) return
     let active = true
     Promise.all([
-      readJson(`/api/bookings?guestId=${user.id}`),
-      readJson(`/api/wishlists?userId=${user.id}`),
-      readJson(`/api/reviews?reviewerId=${user.id}`),
+      readJson(`/api/bookings?guestId=${userId}`),
+      readJson(`/api/wishlists?userId=${userId}`),
+      readJson(`/api/reviews?reviewerId=${userId}`),
       readJson('/api/messages'),
       readJson('/api/reviews?mine=true'),
     ])
-      .then(([bData, wData, rData, mData, mineData]) => {
+      .then((answers) => {
         if (!active) return
-        const bookingRows: ApiBooking[] = Array.isArray(bData.bookings) ? bData.bookings : []
-        const messageRows: ApiMessage[] = Array.isArray(mData.messages) ? mData.messages : []
-        const myReviews: Array<{ bookingId: string }> = Array.isArray(mineData.reviews) ? mineData.reviews : []
-        setBookings(bookingRows)
-        setWishlistCount(Array.isArray(wData.wishlists) ? wData.wishlists.length : 0)
-        setReviewsGivenCount(typeof rData.total === 'number' ? rData.total : 0)
-        setActivity(buildActivityFeed(bookingRows, messageRows, user.id))
-        setReviewedBookingIds(new Set(myReviews.map((r) => r.bookingId)))
+        const shown = readDashboard(answers as Answers, userId)
+        setBookings(shown.bookings)
+        setWishlistCount(shown.wishlistCount)
+        setReviewsGivenCount(shown.reviewsGivenCount)
+        setActivity(shown.activity)
+        setReviewedBookingIds(shown.reviewedBookingIds)
       })
       .catch(() => {
         if (!active) return
@@ -173,9 +204,9 @@ export default function GuestDashboardPage() {
       })
       .finally(() => { if (active) setLoadedFor(userId) })
     return () => { active = false }
-  }, [user, loadTry])
+  }, [userId, loadTry, initial])
 
-  if (authLoading || !user) {
+  if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
         <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
@@ -245,8 +276,8 @@ export default function GuestDashboardPage() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <VerifyEmailNotice className="mb-6" />
-        <NotificationsList className="mb-6" />
+        <VerifyEmailNotice className="mb-6" serverUser={initial?.user} />
+        <NotificationsList className="mb-6" initial={initial?.notifications} />
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />}
@@ -392,7 +423,7 @@ export default function GuestDashboardPage() {
                           <p className="text-xs text-[#6B645C] mt-0.5">{depositIncludedNote(b.damageDeposit)}</p>
                         )}
                         {pay === 'AWAITING_PAYMENT' && b.payBy && (
-                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>Pay by {formatPayBy(b.payBy)} to keep these dates.</p>
+                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>Pay by {formatPayBy(b.payBy, new Date(), hydrated ? undefined : 'UTC')} to keep these dates.</p>
                         )}
                         {pay === 'AWAITING_HOST' && (
                           <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{HOST_MUST_ACCEPT} Nothing has been charged.</p>
@@ -481,7 +512,7 @@ export default function GuestDashboardPage() {
                   {read && <div className="w-2 h-2 flex-shrink-0" />}
                   <div>
                     <p className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{message}</p>
-                    <p className="text-xs text-[#736D62] mt-0.5">{time}</p>
+                    <p className="text-xs text-[#736D62] mt-0.5">{hydrated ? time : '\u00a0'}</p>
                   </div>
                 </div>
               ))}

@@ -3,24 +3,28 @@
 import { useEffect, useState } from 'react'
 import { Bell, X } from 'lucide-react'
 
-type Notification = { id: string; type: string; title: string; body: string; createdAt: string }
+export type Notification = { id: string; type: string; title: string; body: string; createdAt: string }
 
 /**
  * The signed-in person's unread notifications, each with a dismiss button.
  * Shows nothing when there are none. Emails and SMS for the same events are
  * handled separately (lib/messaging), and only once messaging is switched on.
+ *
+ * `initial` is GET /api/notifications's list as the server read it with the page (lib/serverRead.ts), so
+ * the list is there from the start and nothing below it moves when it arrives; without it, it is fetched.
  */
-export function NotificationsList({ className = '' }: { className?: string }) {
-  const [items, setItems] = useState<Notification[]>([])
+export function NotificationsList({ className = '', initial = null }: { className?: string; initial?: Notification[] | null }) {
+  const [items, setItems] = useState<Notification[]>(initial ?? [])
 
   useEffect(() => {
+    if (initial) return
     let active = true
     fetch('/api/notifications')
       .then((r) => (r.ok ? r.json() : { notifications: [] }))
       .then((data) => { if (active) setItems(Array.isArray(data.notifications) ? data.notifications : []) })
       .catch(() => {})
     return () => { active = false }
-  }, [])
+  }, [initial])
 
   async function dismiss(id: string) {
     setItems((prev) => prev.filter((n) => n.id !== id))
