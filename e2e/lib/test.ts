@@ -118,6 +118,8 @@ export const test = base.extend<Fixtures>({
       })
     })
     await use(context)
+    // SU8: a route handler still fetching when the test ends would throw outside any test and stop the worker
+    await context.unrouteAll({ behavior: 'ignoreErrors' })
     // Whatever the test was about, the browser must not have tried to reach a third party
     expect(problems.external, 'requests to anything but this machine').toEqual([])
   },

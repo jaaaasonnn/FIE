@@ -130,6 +130,8 @@ test('the answer to Book is lost: pressing Book again says the dates are the gue
   await page.getByRole('link', { name: 'Pay for it now' }).click()
   await expect(cardButton(page)).toBeVisible()
   expect(await db.booking.count({ where: { guestId: guest.id } })).toBe(1)
+  // SU8: no handler may still be fetching once the test has ended
+  await context.unrouteAll({ behavior: 'ignoreErrors' })
 })
 
 // G11 (fixed): a short stay's booking page, where a paid guest sees the digital address, was linked from

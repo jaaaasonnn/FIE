@@ -185,6 +185,8 @@ test.describe('loaded when asked for', () => {
     down = false
     await tryAgain.click()
     await expect(page.locator('.maplibregl-canvas')).toBeVisible({ timeout: 20_000 })
+    // SU8: a chunk the handler is still fetching must not outlive the test (it threw outside any test)
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
   })
 
   test('on the listing page the date picker is fetched when a date field is opened, and then it opens', async ({ page, world }) => {
@@ -218,5 +220,7 @@ test.describe('loaded when asked for', () => {
     await tryAgain.click()
     // (the field was already opened: the calendar opens by itself once it has arrived)
     await expect(page.locator('.react-datepicker').first()).toBeVisible({ timeout: 20_000 })
+    // SU8: a chunk the handler is still fetching must not outlive the test (it threw outside any test)
+    await page.unrouteAll({ behavior: 'ignoreErrors' })
   })
 })
