@@ -1,0 +1,553 @@
+'use client'
+
+import { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
+import {
+  Users, Home, Calendar, DollarSign, Shield, AlertTriangle,
+  CheckCircle, XCircle, Globe, Star, Loader2, Ban,
+} from 'lucide-react'
+import { StatCard } from '@/components/ui/Card'
+import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
+import { useAuth, type AuthUser } from '@/context/AuthContext'
+import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRateShared'
+import { AdminDisputes } from '@/components/admin/AdminDisputes'
+import { NotificationsList, type Notification } from '@/components/NotificationsList'
+import { AdminMessages } from '@/components/admin/AdminMessages'
+import { AdminRent } from '@/components/admin/AdminRent'
+import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
+import { AdminUserSuspension } from '@/components/admin/AdminUserSuspension'
+import { AdminVerifications } from '@/components/admin/AdminVerifications'
+import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
+
+const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Listing checks', 'Disputes', 'Rent', 'Messages', 'Reviews', 'Settings']
+
+type AdminUser = {
+  id: string
+  name: string | null
+  email: string | null
+  phone: string | null
+  role: string
+  isVerified: boolean
+  trustScore: number
+  createdAt: string
+  suspendedAt: string | null
+  suspendedReason: string | null
+}
+
+type AdminListing = {
+  id: string
+  title: string
+  host: string
+  status: string
+  flagged: boolean
+  onHold: boolean
+  price: string
+  region: string
+}
+
+type AdminStats = {
+  totalUsers: number
+  totalListings: number
+  totalBookings: number
+  totalRevenue: number
+  platformRevenue: number
+  pendingVerifications: number
+  openDisputes: number
+  hostCancellations?: number
+  refundsOwed?: number
+  /** Payouts that have fallen due and wait only for the host's ID to be approved */
+  payoutsWaitingForId?: number
+}
+
+type RateAnswer = { rate?: number; updatedAt?: string | null; updatedBy?: string | null; autoFetchStatus?: AutoFetchStatus | null }
+
+/**
+ * Read on the server with the page (page.tsx): the admin from GET /api/auth/session and the Overview's
+ * two answers (GET /api/admin?type=stats and ?type=exchange-rate). Null when the server had no answer:
+ * the page then waits for the browser's session check and fetches them itself, as before.
+ */
+export type AdminInitial = { user: AuthUser; stats: AdminStats; rate: RateAnswer; notifications: Notification[] | null } | null
+
+export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
+  const router = useRouter()
+  const { user: authUser, loading: authLoading } = useAuth()
+  // Until the browser's own session check has answered, the admin the server found draws the page
+  const user = authUser ?? (authLoading ? initial?.user ?? null : null)
+  const adminId = user?.role === 'ADMIN' ? user.id : null
+  const [activeTab, setActiveTab] = useState('Overview')
+  const [exchangeRate, setExchangeRate] = useState(initial?.rate.rate != null ? String(initial.rate.rate) : '15.5')
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(initial?.rate.updatedAt ?? null)
+  const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(initial?.rate.updatedBy ?? null)
+  const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(initial?.rate.autoFetchStatus ?? null)
+  // The Overview the server sent is shown as it is the first time; coming back to the tab loads it again
+  const overviewServed = useRef(!!initial)
+
+  const [stats, setStats] = useState<AdminStats | null>(initial?.stats ?? null)
+  const [users, setUsers] = useState<AdminUser[]>([])
+  const reloadUsers = async () => {
+    const res = await fetch('/api/admin/users')
+    const data = await res.json().catch(() => ({}))
+    if (res.ok) setUsers(Array.isArray(data.users) ? data.users : [])
+  }
+  const [listings, setListings] = useState<AdminListing[]>([])
+  const [holdBusy, setHoldBusy] = useState<string | null>(null)
+  const [tabLoading, setTabLoading] = useState(false)
+  // 403s from the admin API set this; a non-admin user is derived below
+  const [apiForbidden, setForbidden] = useState(false)
+  const forbidden = apiForbidden || (!authLoading && !!user && user.role !== 'ADMIN')
+
+  // Role gate
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) router.replace('/login?redirect=/admin')
+  }, [user, authLoading, router])
+
+  function applyRateResponse(r: RateAnswer) {
+    if (r.rate != null) setExchangeRate(String(r.rate))
+    setRateUpdatedAt(r.updatedAt ?? null)
+    setRateUpdatedBy(r.updatedBy ?? null)
+    setRateAutoFetchStatus(r.autoFetchStatus ?? null)
+  }
+
+  // Load data per tab
+  useEffect(() => {
+    if (!adminId) return
+    if (activeTab === 'Overview' && overviewServed.current) { overviewServed.current = false; return }
+
+    async function load() {
+      setTabLoading(true)
+      try {
+        if (activeTab === 'Overview') {
+          const [statsRes, rateRes] = await Promise.all([
+            fetch('/api/admin?type=stats'),
+            fetch('/api/admin?type=exchange-rate'),
+          ])
+          if (statsRes.status === 403 || rateRes.status === 403) { setForbidden(true); return }
+          const s = await statsRes.json()
+          const r = await rateRes.json()
+          setStats(s)
+          applyRateResponse(r)
+        } else if (activeTab === 'Users') {
+          const res = await fetch('/api/admin/users')
+          if (res.status === 403) { setForbidden(true); return }
+          const data = await res.json()
+          setUsers(Array.isArray(data.users) ? data.users : [])
+        } else if (activeTab === 'Listings') {
+          const res = await fetch('/api/admin/listings')
+          if (res.status === 403) { setForbidden(true); return }
+          const data = await res.json()
+          setListings(Array.isArray(data.listings) ? data.listings : [])
+        } else if (activeTab === 'Settings') {
+          const res = await fetch('/api/admin?type=exchange-rate')
+          if (res.status === 403) { setForbidden(true); return }
+          const r = await res.json()
+          applyRateResponse(r)
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setTabLoading(false)
+      }
+    }
+
+    load()
+  }, [activeTab, adminId])
+
+  // Put a listing on hold (switches it off; its host cannot switch it back
+  // on) or clear the hold and reactivate it.
+  async function setListingHold(listingId: string, hold: boolean) {
+    setHoldBusy(listingId)
+    try {
+      const res = await fetch('/api/admin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ type: hold ? 'hold-listing' : 'clear-hold', listingId }),
+      })
+      if (!res.ok) return
+      setListings((prev) => prev.map((l) => l.id === listingId
+        ? { ...l, onHold: hold, flagged: hold, status: hold ? 'ON HOLD' : 'ACTIVE' }
+        : l))
+    } finally {
+      setHoldBusy(null)
+    }
+  }
+
+  async function updateRate() {
+    const res = await fetch('/api/admin', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        type:      'update-exchange-rate',
+        usdToGhs:  parseFloat(exchangeRate),
+        updatedBy: user?.id,
+      }),
+    })
+    if (!res.ok) return
+    setRateUpdatedAt(new Date().toISOString())
+    setRateUpdatedBy(user?.id ?? null)
+    alert('Exchange rate updated')
+  }
+
+  if (authLoading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+      </div>
+    )
+  }
+
+  if (forbidden) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4 px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <Ban size={40} strokeWidth={1.5} aria-hidden style={{ color: 'var(--color-text-muted)' }} />
+        <h1 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Access denied</h1>
+        <p className="text-sm text-center" style={{ color: 'var(--color-text-secondary)' }}>
+          This panel is only available to users with the ADMIN role.
+        </p>
+        <button onClick={() => router.push('/')}
+          className="px-6 py-3 rounded-full text-sm font-semibold"
+          style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+          Go home
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--color-bg)' }}>
+      {/* Sidebar */}
+      <div className="hidden lg:flex flex-col w-56 flex-shrink-0 py-6 px-3"
+        style={{ backgroundColor: 'var(--brown-dark)', minHeight: '100vh' }}>
+        <div className="px-3 mb-8">
+          <h2 className="font-bold text-lg" style={{ color: 'var(--color-accent)' }}>
+            FieGH Admin
+          </h2>
+          <p className="text-xs mt-1" style={{ color: 'rgba(250,247,242,0.5)' }}>
+            {user?.name ?? 'Admin'} · Super Admin
+          </p>
+        </div>
+        <nav className="space-y-1">
+          {TABS.map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className="w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all"
+              style={{
+                backgroundColor: activeTab === tab ? 'rgba(245,192,106,0.2)' : 'transparent',
+                color: activeTab === tab ? 'var(--gold)' : 'rgba(250,247,242,0.6)',
+                fontWeight: activeTab === tab ? 600 : 400,
+              }}>
+              {tab}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Mobile tabs */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 border-t"
+        style={{ backgroundColor: 'var(--brown-dark)', borderColor: 'rgba(245,192,106,0.2)' }}>
+        <ScrollHintRow fadeColor="var(--brown-dark)">
+          {TABS.map((tab) => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className="flex-shrink-0 px-4 py-3 text-xs transition-all"
+              style={{ color: activeTab === tab ? 'var(--gold)' : 'rgba(250,247,242,0.5)' }}>
+              {tab}
+            </button>
+          ))}
+        </ScrollHintRow>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 overflow-auto pb-20 lg:pb-0">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                {activeTab}
+              </h1>
+              <p className="text-sm text-[#6B645C] mt-0.5">FieGH Platform Administration</p>
+            </div>
+            <div className="text-xs px-3 py-1.5 rounded-full"
+              style={{ backgroundColor: 'var(--brown-dark)', color: 'var(--color-accent)' }}>
+              Admin Access
+            </div>
+          </div>
+
+          {tabLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+            </div>
+          ) : (
+            <>
+              {activeTab === 'Disputes' && <AdminDisputes />}
+              {activeTab === 'Rent' && <AdminRent />}
+              {activeTab === 'Listing checks' && <AdminListingChecks />}
+              {activeTab === 'Messages' && <AdminMessages />}
+
+              {activeTab === 'Overview' && <NotificationsList className="mb-6" initial={initial?.notifications} />}
+
+              {activeTab === 'Overview' && (
+                <div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value={stats?.totalUsers ?? '-'} />
+                    <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value={stats?.totalListings ?? '-'} />
+                    <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value={stats?.totalBookings ?? '-'}
+                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString('en-US')} paid for stays` : undefined} />
+                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString('en-US')}` : '-'}
+                      sub={`${COMMISSION_PERCENT} commission on stay prices`} />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shield size={16} style={{ color: '#2563EB' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Pending Verifications</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.pendingVerifications ?? 0}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Awaiting ID review</p>
+                      {!!stats?.payoutsWaitingForId && (
+                        <p className="text-xs mt-1" style={{ color: '#92400E' }}>
+                          {stats.payoutsWaitingForId} {stats.payoutsWaitingForId === 1 ? 'payout is' : 'payouts are'} waiting on a host&apos;s ID
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={16} style={{ color: '#DC2626' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Open Disputes</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.openDisputes ?? 0}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Require resolution</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={16} style={{ color: '#DC2626' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Host cancellations</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.hostCancellations ?? 0}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Confirmed bookings cancelled by a host</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertTriangle size={16} style={{ color: '#DC2626' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Refunds owed</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{stats?.refundsOwed ?? 0}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Recorded and not yet landed with the guest</p>
+                    </div>
+                    <div className="bg-white p-5 rounded-2xl border border-stone-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Star size={16} style={{ color: '#F59E0B' }} />
+                        <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Exchange Rate</h3>
+                      </div>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>GH₵ {exchangeRate}</p>
+                      <p className="text-xs text-[#6B645C] mt-1">Per 1 USD</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'Users' && (
+                <div>
+                  {users.length === 0 ? (
+                    <p className="text-sm text-center py-16" style={{ color: 'var(--color-text-secondary)' }}>No users found.</p>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-stone-200">
+                            {['Name', 'Role', 'Phone', 'ID checked', 'Trust Score', 'Joined', 'Actions'].map((h) => (
+                              <th key={h} className="text-left py-3 px-3 text-xs font-semibold text-[#6B645C]">{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {users.map((u) => (
+                            <tr key={u.id} className="border-b border-stone-100 hover:bg-stone-50">
+                              <td className="py-3 px-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold"
+                                    style={{ backgroundColor: 'var(--gold-light)', color: 'var(--color-text-primary)' }}>
+                                    {(u.name ?? '?')[0]}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium block" style={{ color: 'var(--color-text-primary)' }}>{u.name ?? '-'}</span>
+                                    <span className="text-xs text-[#736D62]">{u.email ?? ''}</span>
+                                    {u.suspendedAt && (
+                                      <span className="block text-xs mt-0.5" style={{ color: '#991B1B' }} title={u.suspendedReason ?? undefined}>
+                                        Suspended {new Date(u.suspendedAt).toLocaleDateString('en-GH')}{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="px-2 py-0.5 rounded-full text-xs"
+                                  style={{
+                                    backgroundColor: u.role === 'ADMIN' ? '#FEF3C7' : u.role === 'HOST' ? '#EFF6FF' : '#F0FDF4',
+                                    color: u.role === 'ADMIN' ? '#92400E' : u.role === 'HOST' ? '#2563EB' : '#047857',
+                                  }}>
+                                  {u.role}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-[#6B645C]">{u.phone ?? '-'}</td>
+                              <td className="py-3 px-3">
+                                {u.isVerified
+                                  ? <CheckCircle size={16} style={{ color: '#059669' }} />
+                                  : <XCircle size={16} style={{ color: '#9CA3AF' }} />}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className="font-medium" style={{ color: u.trustScore >= 80 ? '#059669' : u.trustScore >= 60 ? 'var(--amber)' : '#DC2626' }}>
+                                  {u.trustScore}/100
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-xs text-[#736D62]">
+                                {new Date(u.createdAt).toLocaleDateString('en-GH')}
+                              </td>
+                              <td className="py-3 px-3">
+                                <div className="flex gap-1 items-start">
+                                  <a href={`/profile/${u.id}`} className="px-2 py-1 rounded text-xs" style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>View</a>
+                                  <AdminUserSuspension userId={u.id} suspended={!!u.suspendedAt} isSelf={u.id === user?.id} onDone={reloadUsers} />
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === 'Verifications' && <AdminVerifications />}
+
+              {activeTab === 'Listings' && (
+                <div>
+                  {listings.length === 0 ? (
+                    <p className="text-sm text-center py-16" style={{ color: 'var(--color-text-secondary)' }}>No listings found.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {listings.map((l) => (
+                        <div key={l.id} className="bg-white p-4 rounded-2xl border shadow-sm"
+                          style={{ borderColor: l.flagged ? '#FCA5A5' : '#F3F4F6' }}>
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>{l.title}</h4>
+                                {l.flagged && (
+                                  <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full"
+                                    style={{ backgroundColor: '#FEE2E2', color: '#DC2626' }}>
+                                    <AlertTriangle size={10} /> {l.onHold ? 'On hold' : 'Inactive'}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-[#6B645C]">Host: {l.host} · {l.region} · {l.price}</p>
+                            </div>
+                            <div className="flex gap-2 flex-wrap">
+                              <a href={`/listings/${l.id}`} className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                                style={{ backgroundColor: '#DBEAFE', color: '#1E40AF' }}>View</a>
+                              <span className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                                style={{
+                                  backgroundColor: l.status === 'ACTIVE' ? '#D1FAE5' : l.onHold ? '#FEE2E2' : '#F3F4F6',
+                                  color: l.status === 'ACTIVE' ? '#065F46' : l.onHold ? '#DC2626' : '#6B7280',
+                                }}>
+                                {l.status}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setListingHold(l.id, !l.onHold)}
+                                disabled={holdBusy === l.id}
+                                className="px-3 py-1.5 rounded-full text-xs font-semibold border disabled:opacity-50"
+                                style={{ borderColor: 'var(--color-border-strong)', color: 'var(--color-text-primary)', backgroundColor: '#fff' }}>
+                                {l.onHold ? 'Clear hold and reactivate' : 'Put on hold'}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(activeTab === 'Bookings' || activeTab === 'Payments' || activeTab === 'Reviews') && (
+                <p className="text-sm text-center py-16" style={{ color: 'var(--color-text-secondary)' }}>
+                  This tab will be wired to real data in a follow-up.
+                </p>
+              )}
+
+              {activeTab === 'Settings' && (
+                <div className="space-y-6">
+                  <div className="bg-white p-6 rounded-2xl border border-stone-100">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Globe size={18} style={{ color: 'var(--color-accent)' }} />
+                      <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Exchange Rate</h3>
+                    </div>
+                    <p className="text-sm text-[#6B645C] mb-4">
+                      Auto-fetched from ExchangeRate-API every 6 hours (1% buffer applied). Set a
+                      value here to override it manually. The next automatic fetch will replace it.
+                    </p>
+
+                    {rateAutoFetchStatus && !rateAutoFetchStatus.ok && (
+                      <div className="mb-4 p-3 rounded-xl flex items-start gap-2"
+                        style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5' }}>
+                        <AlertTriangle size={16} style={{ color: '#991B1B', flexShrink: 0, marginTop: 2 }} />
+                        <p className="text-xs" style={{ color: '#991B1B' }}>
+                          Last automatic fetch failed at {new Date(rateAutoFetchStatus.at).toLocaleString()}:{' '}
+                          {rateAutoFetchStatus.error}. Still using the rate below. Nothing is broken,
+                          but the automation needs a look if this keeps happening.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 items-end">
+                      <div className="flex-1">
+                        <label htmlFor="exchange-rate" className="text-xs text-[#6B645C] block mb-1">1 USD = ? GHS</label>
+                        <input
+                          id="exchange-rate"
+                          type="number"
+                          value={exchangeRate}
+                          onChange={(e) => setExchangeRate(e.target.value)}
+                          step="0.1"
+                          className="w-full text-sm p-3 rounded-xl border border-stone-200 focus:outline-none focus:border-amber-400"
+                        />
+                      </div>
+                      <button onClick={updateRate} className="px-5 py-3 rounded-xl text-sm font-semibold"
+                        style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+                        Update Rate
+                      </button>
+                    </div>
+                    <p className="text-xs text-[#736D62] mt-2">
+                      Current: $1 = GH₵ {exchangeRate}
+                      {rateUpdatedAt && (
+                        <>
+                          {' · '}
+                          {rateUpdatedBy === AUTO_UPDATED_BY ? 'auto-fetched' : 'manually set'}
+                          {' '}{new Date(rateUpdatedAt).toLocaleString()}
+                        </>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="bg-white p-6 rounded-2xl border border-stone-100">
+                    <h3 className="font-bold mb-4" style={{ color: 'var(--color-text-primary)' }}>Platform Fees</h3>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="p-4 rounded-xl" style={{ backgroundColor: '#FFF8EE' }}>
+                        <p className="text-[#6B645C] text-xs mb-1">Guest Service Fee</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{GUEST_FEE_CHARGED ? GUEST_FEE_PERCENT : 'None'}</p>
+                        <p className="text-xs text-[#736D62]">{GUEST_FEE_CHARGED ? 'Added to listing price' : 'Guests pay the listing price'}</p>
+                      </div>
+                      <div className="p-4 rounded-xl" style={{ backgroundColor: '#F0FDF4' }}>
+                        <p className="text-[#6B645C] text-xs mb-1">Host Commission</p>
+                        <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{COMMISSION_PERCENT}</p>
+                        <p className="text-xs text-[#736D62]">Deducted from payout</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

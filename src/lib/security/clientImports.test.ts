@@ -71,7 +71,7 @@ describe('code sent to the browser', () => {
 
   it('finds the client files (a sanity check on the search itself)', () => {
     expect(entries.length).toBeGreaterThan(50)
-    expect(entries.map((f) => path.relative(SRC, f))).toContain('app/admin/page.tsx')
+    expect(entries.map((f) => path.relative(SRC, f))).toContain('app/admin/AdminClient.tsx')
   })
 
   it('never imports the database client, password hashing, the service key or Node modules, directly or through another file', () => {

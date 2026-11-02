@@ -83,3 +83,14 @@ test('search comes with its first results', async ({ page, world }) => {
   await expect(page.getByText(home.title).first()).toBeVisible()
   expect(asked).toEqual([])
 })
+
+test('the admin overview comes with its figures', async ({ page, world, signIn }) => {
+  const admin = await world.admin()
+  await signIn(admin)
+  expect(await html(page, '/admin')).toMatch(/\\?"totalUsers\\?":\d+/)
+  const asked = await blockApi(page, '**/api/admin?type=*')
+  await page.goto('/admin')
+  await expect(page.getByText('Total Users')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Access denied' })).toHaveCount(0)
+  expect(asked).toEqual([])
+})
