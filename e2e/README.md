@@ -18,7 +18,7 @@ npm run e2e:down      # stop everything
 - `node e2e/run.mjs up --fresh-db` drops and re-creates the test database. The tables are made once, so do this after any change to `prisma/schema.prisma`.
 - `node e2e/run.mjs test <playwright args>` passes arguments through, for example `tests/races -g "same dates" --repeat-each=20`.
 - `node e2e/run.mjs exec <command>` runs any command with the test environment.
-- Reports: `e2e/.reports/html` (open `index.html`), traces for failed tests in `e2e/.reports/artifacts`. Logs: `e2e/.state/*.log`.
+- Reports: `e2e/.reports/html` (open `index.html`), traces for failed tests in `e2e/.reports/artifacts`, every test's result in `e2e/.reports/results.json`. `E2E_REPORT_DIR=<folder>` puts all three in a folder of the run's own, so one suite's results are never overwritten by the next. Logs: `e2e/.state/*.log`.
 - Stop `next dev` first: the tests build into the same `.next` folder.
 
 ## Page speed (G5)

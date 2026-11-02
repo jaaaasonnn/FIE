@@ -3,7 +3,9 @@ import { defineConfig, devices } from '@playwright/test'
 
 // Run through the launcher only: `node e2e/run.mjs test`. It supplies the fake
 // environment; lib/db.ts refuses to load without it.
-const reports = path.join(__dirname, '.reports')
+// Where the results, the HTML report and failure artifacts go. E2E_REPORT_DIR gives one run its own folder, so
+// that a later run (the chaos set, another browser set-up) does not overwrite its results.
+const reports = process.env.E2E_REPORT_DIR ? path.resolve(process.env.E2E_REPORT_DIR) : path.join(__dirname, '.reports')
 const core = /@core/
 // WebKit keeps the app's Secure session cookie only over https, as on the real site: the WebKit-engine
 // projects go through the https front (run.mjs), whose throwaway certificate only these browsers accept
