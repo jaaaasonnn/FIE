@@ -1,5 +1,46 @@
 # End-to-end test report
 
+## app-shell, stage 1: the phone's bottom bar (2026-11-02, branch `app-shell`, not merged)
+
+From `main` at `c294542`. Phone widths only; desktop untouched. Money, sign-in, messaging and payout code untouched;
+no schema change; no live database, switch or environment variable touched. Commits: `048805c` (the shell),
+`630d398` (its end-to-end tests and what they found), `3a6f3a8` (layout-shift guard, phone accessibility scan,
+bundle guard, removal proofs 270-275).
+
+**What it is.** A bottom bar on phones (Explore, Wishlists, Trips, Messages, Profile) drawn on the server with each
+page's tab marked, so it adds no script; FieGH's mark as the Trips icon; the page keeps room for it from the first
+paint, the browser never brings a control to rest under it (`scroll-padding-bottom`), the iPhone home-bar area is
+respected (`viewport-fit=cover`), and it steps aside while a text field has focus. Signed out, the tabs lead to log
+in and back. `/account` (Profile) and `/messages` (to the right inbox) are new. The unread badge is the only script:
+`public/bar.js`, 1.2 KB, loaded at phone widths only, asking the new `GET /api/messages/unread`.
+
+**Found by its own tests and fixed before the full run:** the bar's border made it 1 px taller than the room kept
+for it; in WebKit the visible height can be shorter than the page's, so pages keep 16 px more; "Pay now" on a
+booking could come to rest under the bar on an iPhone SE (fixed with scroll padding); the badge read before the
+tab's name to a screen reader (moved after the label).
+
+Pictures (`e2e/.reports/app-shell/`): the mark at 24, 48 and 192 px (`logo-mark.png`); on the iPhone and Android
+set-ups, signed out (`*-signed-out.png`), signed in with an unread badge (`*-unread-badge.png`), Trips active
+(`*-trips-active.png`), and with a field focused, the bar gone (`*-keyboard-open.png`; the emulators draw no
+keyboard).
+
+| Check (each suite in its own folder, `e2e/.reports/shell/full/`) | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass (39 warnings, none new); 1,675 tests in each of the six zones |
+| Money rules | clean before and after |
+| Chromium suite, races at 50 rounds | **231 passed, 7 skipped, 2 flaky, 0 failed, 0 did not run** |
+| Chaos | 17 passed |
+| Other five set-ups (the bar's phone tests run in iPhone and Android) | 260 passed, 10 skipped, 0 flaky |
+| Removal proofs | **all 275 hold** (270-275 new) |
+| Bundle guard | desktop search **648 KB** (unchanged), no desktop page downloads the bar's script; phone pages 202-244 KB of 350 |
+| Layout shift at phone width (new guard) | 0 on all 11 page loads |
+| Accessibility at phone width (new, no baseline) | nothing found |
+
+**Not clean: two flaky tests, not re-run, neither touched by stage 1** (FINDINGS AS1, AS2): the send-job test
+started its runs before the sign-up emails were in the log; the payout-retry race ended one round with the payout
+safely `PENDING` (most likely a slow answer from the fake Paystack under load; not proved). Nothing paid twice; the
+money rules held.
+
 ## su10-harness: test processes and fake rules cannot break each other (2026-11-02, branch `su10-harness`)
 
 From `main` at `e457dd1`; test harness only, no app code; no live database, switch or environment variable.
