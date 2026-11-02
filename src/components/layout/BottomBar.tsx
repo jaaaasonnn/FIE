@@ -39,10 +39,11 @@ export function BottomBar({ active }: { active?: Tab }) {
               <Link href={href} className="bottom-bar-tab" aria-current={on ? 'page' : undefined} data-tab={tab}>
                 <span className="bottom-bar-icon">
                   <Icon tab={tab} active={on} />
-                  {/* Filled in by public/bar.js on a phone once the page is running; empty and hidden until then */}
-                  {tab === 'messages' && <span className="bottom-bar-badge" data-unread-slot hidden />}
                 </span>
                 <span className="bottom-bar-label">{label}</span>
+                {/* After the label, so a screen reader says "Messages, 3 unread messages"; drawn over the icon.
+                    Filled in by public/bar.js on a phone once the page is running; empty and hidden until then. */}
+                {tab === 'messages' && <span className="bottom-bar-badge" data-unread-slot hidden />}
               </Link>
             </li>
           )

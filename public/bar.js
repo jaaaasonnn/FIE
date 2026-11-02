@@ -28,7 +28,7 @@
       number.textContent = shown
       var words = document.createElement('span')
       words.className = 'bottom-bar-sr'
-      words.textContent = ', ' + count + (count === 1 ? ' unread message' : ' unread messages')
+      words.textContent = count + (count === 1 ? ' unread message' : ' unread messages')
       slot.appendChild(number)
       slot.appendChild(words)
       slot.hidden = false

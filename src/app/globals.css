@@ -609,9 +609,16 @@ input, select, textarea, button {
 :root { --bottom-bar-height: 64px; --bottom-bar-offset: 0px; }
 .bottom-bar { display: none; }
 @media (max-width: 767px) {
-  body:has(.bottom-bar) {
+  :root:has(.bottom-bar) {
     --bottom-bar-offset: calc(var(--bottom-bar-height) + env(safe-area-inset-bottom, 0px));
-    padding-bottom: var(--bottom-bar-offset);
+    /* When the browser brings something into view (a link reached with the keyboard, a field that is
+       focused, scrollIntoView), it stops above the bar, not under it */
+    scroll-padding-bottom: calc(var(--bottom-bar-offset) + 16px);
+  }
+  body:has(.bottom-bar) {
+    /* and some room to breathe, so the end of the page never sits flush against the bar (in WebKit the
+       visible height can be a little shorter than the page's own) */
+    padding-bottom: calc(var(--bottom-bar-offset) + 16px);
   }
   .bottom-bar {
     display: block;
@@ -635,7 +642,8 @@ input, select, textarea, button {
 .bottom-bar ul {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  height: var(--bottom-bar-height);
+  /* The border is part of the bar's height, so the page's room for it is exactly --bottom-bar-height */
+  height: calc(var(--bottom-bar-height) - 1px);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -671,8 +679,8 @@ input, select, textarea, button {
 .bottom-bar-icon { position: relative; display: inline-flex; width: 24px; height: 24px; }
 .bottom-bar-badge {
   position: absolute;
-  top: -5px;
-  left: 15px;
+  top: 6px;
+  left: calc(50% + 4px);
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
