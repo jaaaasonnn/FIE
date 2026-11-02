@@ -135,7 +135,12 @@ async function paystack(req, res, url, body) {
     : path === '/bank/resolve' ? 'resolve'
     : path === '/transferrecipient' ? 'recipient'
     : path === '/bank' ? 'banks' : 'unknown'
-  state.calls.push({ service: 'paystack', endpoint, method: req.method, text, at: Date.now() })
+  // AS2: when each request arrived and when it was answered (or given up on by the caller), so a slow round can
+  // be told apart from a problem in the app
+  const call = { service: 'paystack', endpoint, method: req.method, text, at: Date.now() }
+  state.calls.push(call)
+  res.on('finish', () => { call.answeredAt = Date.now(); call.ms = call.answeredAt - call.at; call.status = res.statusCode })
+  res.on('close', () => { if (call.answeredAt === undefined) { call.abandonedAt = Date.now(); call.ms = call.abandonedAt - call.at } })
   if (await misbehave(endpoint, text, res)) return
   if (!authorised) return send(res, 401, { status: false, message: 'Invalid key' })
 

@@ -38,7 +38,8 @@ export const fakes = {
   setSmsBalance: (balance: number) => post<{ balance: number }>('/sms-balance', { balance }),
   /** Arkesel reporting delivery of one SMS to the link it carried. `forged` spoils the signature; `smsId` sends another id. */
   smsReport: (id: string, status: string, o: { forged?: boolean; smsId?: string; times?: number; method?: 'GET' | 'POST' } = {}) => post<{ statuses: number[] }>('/sms-report', { id, status, ...o }),
-  calls: (o: { endpoint?: Endpoint; service?: string; match?: string } = {}) => get<{ endpoint: string; text: string; at: number }[]>('/calls', o),
+  /** Requests the fakes took. For Paystack also when each was answered (or given up on by the caller), its status and how long it took */
+  calls: (o: { endpoint?: Endpoint; service?: string; match?: string } = {}) => get<{ endpoint: string; text: string; at: number; answeredAt?: number; abandonedAt?: number; ms?: number; status?: number }[]>('/calls', o),
   files: (match?: string) => get<string[]>('/files', { match }),
   /**
    * Makes one endpoint misbehave for requests containing `match`. Returns a function that removes the rule.

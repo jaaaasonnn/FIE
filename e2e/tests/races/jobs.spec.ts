@@ -2,7 +2,7 @@ import { test, expect } from '../../lib/test'
 import { db, ageBooking } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
-import { allowForRounds, ROUNDS, cancel, serverErrors, together } from '../../lib/race'
+import { allowForRounds, ROUNDS, cancel, measured, serverErrors, together } from '../../lib/race'
 import { APP, cron, type Actor, type World } from '../../lib/world'
 
 test.beforeEach(allowForRounds)
@@ -57,12 +57,23 @@ test.describe('races: payouts', () => {
       await undo()
       // More than the retry delay passes
       await db.payout.update({ where: { id: failed.id }, data: { lastFailedAt: new Date(Date.now() - 2 * 3_600_000) } })
-      const runs = await together(() => cron('process-payouts', { server: 0 }), () => cron('process-payouts', { server: 1 }), () => cron('process-payouts', { server: 1 }))
-      expect(serverErrors(runs), `round ${round}`).toEqual([])
+      // AS2: each run timed, and what Paystack (the fake) was asked and how long it took to answer
+      const timed = (server: 0 | 1) => async () => { const start = Date.now(); const reply = await cron('process-payouts', { server }); return { ...reply, ms: Date.now() - start } }
+      const started = Date.now()
+      const runs = await together(timed(0), timed(1), timed(1))
+      const reference = (await db.payout.findFirstOrThrow({ where: { bookingId: id } })).paystackTransferReference
+      const asked = (await fakes.calls({ service: 'paystack' })).filter((c) => c.at >= started - 1_000 && (c.text.includes(`booking ${id}`) || (!!reference && c.text.includes(reference))))
+      // What each run said about this payout: new and resumed payouts are listed by booking, retries by payout
+      type Said = { bookingId?: string; payoutId?: string; action?: string; ok?: boolean; status?: string; unanswered?: boolean; error?: string }
+      const said = runs.map((r) => Object.values(r.json ?? {}).flatMap((v) => Array.isArray(v) ? (v as Said[]).filter((x) => x?.bookingId === id || x?.payoutId === failed.id).map((x) =>
+        x.action ? `${x.action}${x.error ? ` (${x.error})` : ''}` : `retry ${x.ok ? 'sent' : x.unanswered ? 'unanswered' : 'not sent'}, ${x.status}${x.error ? ` (${x.error})` : ''}`) : []))
+      const timing = `runs ${runs.map((r) => `${r.status} in ${r.ms} ms: ${said[runs.indexOf(r)].join(', ') || 'nothing for this payout'}`).join(' | ')}; Paystack ${asked.map((c) => `${c.endpoint} +${c.at - started} ms, ${c.abandonedAt ? `given up on after ${c.ms} ms` : `answered ${c.status} in ${c.ms} ms`}`).join(' | ') || 'not asked'}`
+      measured(`round ${round + 1}: ${timing}`)
+      expect(serverErrors(runs), `round ${round}: ${timing}`).toEqual([])
       const payouts = await db.payout.findMany({ where: { bookingId: id } })
       expect(payouts).toHaveLength(1)
-      expect(payouts[0], `round ${round}: ${payouts[0].failureReason}`).toMatchObject({ status: 'PROCESSING', retryCount: 1 })
-      expect(await transfersFor(id), `round ${round}`).toHaveLength(1)
+      expect(payouts[0], `round ${round}: ${payouts[0].failureReason}; ${timing}`).toMatchObject({ status: 'PROCESSING', retryCount: 1 })
+      expect(await transfersFor(id), `round ${round}: ${timing}`).toHaveLength(1)
     }
     await expectInvariants()
   })
