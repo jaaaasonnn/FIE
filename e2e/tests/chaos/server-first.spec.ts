@@ -127,3 +127,21 @@ test.describe('host dashboard', () => {
     await expect(page.getByText(home.title).first()).toBeVisible()
   })
 })
+
+test.describe('listing', () => {
+  test('the server cannot read the listing and the browser\'s request fails: "try again", not "not found", and trying again works', async ({ page, world }) => {
+    const host = await world.host()
+    const home = await world.listing(host)
+    let down = true
+    await page.route(`**/api/listings/${home.id}`, (route) => (down ? route.abort('connectionreset') : route.continue()))
+    await withTableLocked('Listing', async (release) => {
+      await page.goto(`/listings/${home.id}`)
+      await expect(tryAgain(page)).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText(/not found/i)).toHaveCount(0)
+      await release()
+    })
+    down = false
+    await tryAgain(page).click()
+    await expect(page.getByRole('heading', { name: home.title })).toBeVisible()
+  })
+})

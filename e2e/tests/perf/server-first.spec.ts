@@ -62,3 +62,13 @@ test('the host dashboard comes with its listings and bookings', async ({ page, w
   await expect(page.getByText(home.title).first()).toBeVisible()
   expect(asked).toEqual([])
 })
+
+test('a listing comes with the listing and its photos', async ({ page, world }) => {
+  const host = await world.host()
+  const home = await world.listing(host)
+  expect(await html(page, `/listings/${home.id}`)).toContain(home.title)
+  const asked = await blockApi(page, `**/api/listings/${home.id}`)
+  await page.goto(`/listings/${home.id}`)
+  await expect(page.getByRole('heading', { level: 1, name: home.title })).toBeVisible()
+  expect(asked).toEqual([])
+})

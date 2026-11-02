@@ -3078,5 +3078,18 @@
   "testFile": "e2e/tests/perf/server-first.spec.ts",
   "test": "the host dashboard comes with its listings and bookings",
   "e2e": true
+ },
+ {
+  "what": "G5: a listing comes with the listing from the server",
+  "edits": [
+   {
+    "file": "src/app/listings/[id]/page.tsx",
+    "find": "<ListingClient key={id} initial={initial} />",
+    "replace": "<ListingClient key={id} initial={null} />"
+   }
+  ],
+  "testFile": "e2e/tests/perf/server-first.spec.ts",
+  "test": "a listing comes with the listing and its photos",
+  "e2e": true
  }
 ]

@@ -90,19 +90,6 @@ test('checkout: the app\'s script files never arrive: a plain message and Try ag
   await expect(cardButton(page)).toBeVisible({ timeout: 15_000 })
 })
 
-test('a listing whose request fails says "try again", not "not found" @core', async ({ page, world }) => {
-  const host = await world.host()
-  const home = await world.listing(host)
-  let down = true
-  await page.route(`**/api/listings/${home.id}`, (route) => (down ? route.abort('connectionreset') : route.continue()))
-  await page.goto(`/listings/${home.id}`)
-  await expect(tryAgain(page)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText(/not found/i)).toHaveCount(0)
-  down = false
-  await tryAgain(page).click()
-  await expect(page.getByRole('heading', { name: home.title })).toBeVisible()
-})
-
 test('a search that is not answered says "try again", not "No properties found" @core', async ({ page }) => {
   let down = true
   await page.route('**/api/listings?*', (route) => (down ? route.fulfill({ status: 503, body: 'unavailable' }) : route.continue()))

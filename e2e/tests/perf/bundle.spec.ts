@@ -193,7 +193,7 @@ test.describe('loaded when asked for', () => {
     await expect(tryAgain).toBeVisible({ timeout: 20_000 })
     down = false
     await tryAgain.click()
-    await page.getByLabel('Check-in date').click()
+    // (the field was already opened: the calendar opens by itself once it has arrived)
     await expect(page.locator('.react-datepicker').first()).toBeVisible({ timeout: 20_000 })
   })
 })
