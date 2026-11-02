@@ -107,3 +107,23 @@ test.describe('guest dashboard', () => {
     await expect(page.getByText(home.title).first()).toBeVisible()
   })
 })
+
+test.describe('host dashboard', () => {
+  test('the server cannot read the bookings and the browser\'s request fails: "try again", and trying again works', async ({ page, world, signIn }) => {
+    const host = await world.host()
+    const guest = await world.guest()
+    const home = await world.listing(host)
+    await world.mustBook(guest, home.id)
+    await signIn(host)
+    let down = true
+    await page.route('**/api/bookings?hostId=*', (route) => (down ? route.abort('connectionreset') : route.continue()))
+    await withTableLocked('Booking', async (release) => {
+      await page.goto('/dashboard/host')
+      await expect(tryAgain(page)).toBeVisible({ timeout: 30_000 })
+      await release()
+    })
+    down = false
+    await tryAgain(page).click()
+    await expect(page.getByText(home.title).first()).toBeVisible()
+  })
+})

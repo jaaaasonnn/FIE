@@ -3065,5 +3065,18 @@
   "testFile": "e2e/tests/perf/server-first.spec.ts",
   "test": "the guest dashboard comes with its bookings",
   "e2e": true
+ },
+ {
+  "what": "G5: the host dashboard comes with its listings and bookings from the server",
+  "edits": [
+   {
+    "file": "src/app/dashboard/host/page.tsx",
+    "find": "<HostDashboardClient initial={initial} />",
+    "replace": "<HostDashboardClient initial={null} />"
+   }
+  ],
+  "testFile": "e2e/tests/perf/server-first.spec.ts",
+  "test": "the host dashboard comes with its listings and bookings",
+  "e2e": true
  }
 ]
