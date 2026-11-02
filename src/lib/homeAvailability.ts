@@ -27,13 +27,13 @@ export const HOME_NO_LONGER_AVAILABLE = 'This home is no longer available. You h
 export const SWITCH_ON_BEFORE_ACCEPTING = 'Switch this home back on before accepting requests for it.'
 
 export type HomeState = {
-  listing: { isActive?: boolean | null; moderationHold?: boolean | null }
+  listing?: { isActive?: boolean | null; moderationHold?: boolean | null } | null
   host?: { suspendedAt?: Date | string | null } | null
 }
 
 /** True when the home is switched off by its host (not on hold) or its host is suspended. Only a stored false is "off". */
 export function homeUnavailable({ listing, host }: HomeState): boolean {
-  return (listing.isActive === false && !listing.moderationHold) || !!host?.suspendedAt
+  return (listing?.isActive === false && !listing.moderationHold) || !!host?.suspendedAt
 }
 
 /** The same rule as a Prisma filter on Booking, for the expiry job's query */

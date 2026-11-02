@@ -5,6 +5,11 @@
 //   - the expiry job, which asks Paystack before it releases unpaid dates.
 // They can arrive in any order, or twice, and the result is the same.
 //
+// SU7: money that lands on an unpaid booking whose home is no longer available (switched off by its host,
+// or the host suspended: lib/homeAvailability.ts) is refunded in full, and the booking ends
+// (HOME_UNAVAILABLE) with its dates released. The home is read again inside the transaction that claims
+// the payment. A booking paid before that is never touched.
+//
 // A rent instalment (lib/rentRules.ts) is settled here too, and nowhere else.
 // The first instalment of a booking is the payment that confirms it, so it
 // follows the booking's rules and marks the instalment paid in the same step.
@@ -18,6 +23,8 @@ import { paymentWebhookEnabled } from '@/lib/payoutSwitches'
 import { sendRefund } from '@/lib/refunds'
 import { notify } from '@/lib/messaging/notify'
 import { OPEN_INSTALMENT_STATUSES, isSettled, tenancyStands } from '@/lib/rentRules'
+import { HOME_UNAVAILABLE, homeUnavailable } from '@/lib/homeAvailability'
+import { CANCELLED_BY_SYSTEM } from '@/lib/payDeadline'
 
 const PAYSTACK_BASE = 'https://api.paystack.co'
 
@@ -43,7 +50,7 @@ export type SettleResult = {
   refundId?: string
 }
 
-type Action = 'none' | 'fail' | 'mismatch' | 'duplicate' | 'confirm' | 'instalment' | 'refund'
+type Action = 'none' | 'fail' | 'mismatch' | 'duplicate' | 'confirm' | 'instalment' | 'refund' | 'home-refund'
 
 /** Statuses a payment can still move on from. Success always wins over failed. */
 const OPEN = ['PENDING', 'FAILED']
@@ -52,7 +59,13 @@ async function load(reference: string) {
   return db.payment.findUnique({
     where: { gatewayReference: reference },
     include: {
-      booking: { include: { refund: { select: { paymentId: true, reason: true } } } },
+      booking: {
+        include: {
+          refund: { select: { paymentId: true, reason: true } },
+          listing: { select: { isActive: true, moderationHold: true } },
+          host: { select: { suspendedAt: true } },
+        },
+      },
       instalment: { select: { id: true, sequence: true, status: true } },
     },
   })
@@ -106,7 +119,11 @@ export function decideSettlement(payment: Loaded, charge: PaystackCharge): { act
   }
   // Another payment has already paid for this booking
   if (payment.booking.paymentStatus !== 'UNPAID') return { action: 'duplicate', outcome: 'duplicate' }
-  if (payment.booking.status === 'CONFIRMED') return { action: 'confirm', outcome: 'confirmed' }
+  if (payment.booking.status === 'CONFIRMED') {
+    // The home went while the guest was paying: the booking ends and the money goes back (SU7)
+    if (homeUnavailable(payment.booking)) return { action: 'home-refund', outcome: 'refunded' }
+    return { action: 'confirm', outcome: 'confirmed' }
+  }
   // Cancelled, declined, expired, or a request the host has not accepted:
   // the booking is not revived and the whole amount goes back
   return { action: 'refund', outcome: 'refunded' }
@@ -189,13 +206,37 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
             if (settled.count === 0) throw new Raced()
           }
         } else {
+          // Whether the home is still available decides between confirming and refunding, so it is read
+          // again here, after the payment is claimed. If it changed since the decision, decide again.
+          if (action === 'confirm' || action === 'home-refund') {
+            const home = await tx.booking.findUnique({
+              where: { id: payment.bookingId },
+              select: { listing: { select: { isActive: true, moderationHold: true } }, host: { select: { suspendedAt: true } } },
+            })
+            if (!home || homeUnavailable(home) !== (action === 'home-refund')) throw new Raced()
+          }
           // The booking must still be exactly as it was read: not cancelled,
           // accepted, expired or paid by another payment in the meantime
           const booking = await tx.booking.updateMany({
             where: { id: payment.bookingId, status: payment.booking.status, paymentStatus: 'UNPAID' },
-            data: { paymentStatus: 'PAID' },
+            data: action === 'home-refund'
+              ? { paymentStatus: 'PAID', status: 'CANCELLED', cancelledBy: CANCELLED_BY_SYSTEM, cancelledAt: paidAt, cancelReason: HOME_UNAVAILABLE }
+              : { paymentStatus: 'PAID' },
           })
           if (booking.count === 0) throw new Raced()
+
+          if (action === 'home-refund') {
+            // As the expiry job ends a booking: rent not yet owed is cancelled and the dates are free again
+            await tx.instalment.updateMany({ where: { bookingId: payment.bookingId, status: { in: OPEN_INSTALMENT_STATUSES } }, data: { status: 'CANCELLED' } })
+            await tx.blockedDate.deleteMany({
+              where: {
+                listingId: payment.booking.listingId,
+                // Only the rows the booking itself created, never a host's own blocks
+                reason: 'BOOKED',
+                date: { gte: payment.booking.checkIn, lt: payment.booking.checkOut },
+              },
+            })
+          }
 
           // The first instalment is paid by the payment that confirms the booking
           if (action === 'confirm' && instalment) {
@@ -207,7 +248,7 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
           }
         }
 
-        if (action === 'refund') {
+        if (action === 'refund' || action === 'home-refund') {
           const refund = await tx.refund.create({
             data: {
               bookingId: payment.bookingId,
@@ -238,6 +279,9 @@ export async function settlePayment(charge: PaystackCharge, { dryRun = false }: 
       throw error
     }
 
+    if (action === 'home-refund') {
+      console.info('[Payments] a payment arrived after the home became unavailable: booking ended, refund recorded', { paymentId: payment.id, bookingId: payment.bookingId })
+    }
     if (action === 'refund' && payment.booking.status === 'PENDING') {
       alert('PAID_PENDING_REQUEST', 'A payment arrived for a request the host has not accepted: it is being refunded in full', payment, charge)
     }

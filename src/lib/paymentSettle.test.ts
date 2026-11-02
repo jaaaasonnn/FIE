@@ -172,6 +172,7 @@ vi.mock('@/lib/db', async () => {
 })
 
 import { settlePayment } from '@/lib/paymentSettle'
+import { db } from '@/lib/db'
 import { runExpiry } from '@/lib/bookingExpiry'
 import {
   EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, PAY_WINDOW_PASSED,
@@ -996,5 +997,88 @@ describe('SU7: accepting a request on a home that is no longer available', () =>
     state.user = { id: 'host_1', role: 'HOST', email: null }
     expect((await patch({ action: 'accept' })).status).toBe(200)
     expect(booking().status).toBe('CONFIRMED')
+  })
+})
+
+describe('SU7: money that lands after the home became unavailable', () => {
+  /** The booking's own nights, as the booking route blocks them, and a night the host blocked themselves */
+  function nights() {
+    state.blockedDates.push(
+      { listingId: 'listing_1', date: new Date('2027-03-10T12:00:00Z'), reason: 'BOOKED' },
+      { listingId: 'listing_1', date: new Date('2027-03-11T12:00:00Z'), reason: 'BOOKED' },
+      { listingId: 'listing_1', date: new Date('2027-03-11T12:00:00Z'), reason: 'HOST' },
+    )
+  }
+  const ended = () => {
+    expect(booking()).toMatchObject({ status: 'CANCELLED', paymentStatus: 'PAID', cancelledBy: 'SYSTEM', cancelReason: HOME_UNAVAILABLE })
+    expect(payment().status).toBe('SUCCESS')
+    // The whole amount goes back, through the late-payment refund
+    expect(state.refunds).toEqual([expect.objectContaining({ bookingId: 'booking_1', paymentId: 'payment_1', reason: 'LATE_PAYMENT', amount: 498, amountPesewas: 771_900, stayRefund: 400, serviceFeeRefund: 48, depositRefund: 50 })])
+    expect(sendRefund).toHaveBeenCalledTimes(1)
+    // The dates are free again; the host's own block stays
+    expect(state.blockedDates).toEqual([expect.objectContaining({ reason: 'HOST' })])
+  }
+
+  for (const [what, make] of [['switched off by its host', switchedOff], ['whose host is suspended', suspended]] as const) {
+    it(`is refunded in full and the booking ends, on a home ${what}`, async () => {
+      unpaid()
+      nights()
+      make()
+      const res = await webhook(charge())
+      expect(res.status).toBe(200)
+      ended()
+    })
+  }
+
+  it('is refunded once when the webhook and the guest\'s return both arrive, twice, at the same moment', async () => {
+    unpaid()
+    nights()
+    switchedOff()
+    paystackSays('success')
+    const answers = await Promise.all([webhook(charge()), verify(), webhook(charge()), verify()])
+    expect(answers.map((r) => r.status)).toEqual([200, 307, 200, 307])
+    expect(answers.filter((r) => r.status === 307).map(landedOn)).toEqual(['refunded', 'refunded'])
+    ended()
+    expect(alerts()).toEqual([])
+  })
+
+  it('is confirmed as usual on a home on hold: holds are outside the rule', async () => {
+    unpaid()
+    held()
+    await webhook(charge())
+    expect(booking()).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID', cancelReason: null })
+    expect(state.refunds).toHaveLength(0)
+  })
+
+  it('never touches a booking paid before the home went: switching off afterwards changes nothing', async () => {
+    unpaid()
+    nights()
+    await webhook(charge())
+    expect(booking()).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID' })
+    switchedOff()
+    suspended()
+    paystackSays('success')
+    await webhook(charge())
+    await verify()
+    expect(booking()).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID', cancelReason: null })
+    expect(state.refunds).toHaveLength(0)
+    expect(state.blockedDates).toHaveLength(3)
+  })
+
+  it('reads the home again inside the transaction: switched off between the decision and the write, it is refunded', async () => {
+    unpaid()
+    nights()
+    // The payment is read with the home still on; the host switches it off just after
+    const fake = db as unknown as { payment: { findUnique: (args: unknown) => Promise<unknown> } }
+    const read = fake.payment.findUnique
+    const spy = vi.spyOn(fake.payment, 'findUnique').mockImplementationOnce(async (args: unknown) => {
+      const row = await read(args)
+      switchedOff()
+      return row
+    })
+    const result = await settlePayment(charge())
+    spy.mockRestore()
+    expect(result.outcome).toBe('refunded')
+    ended()
   })
 })

@@ -3234,5 +3234,29 @@
   ],
   "testFile": "src/lib/paymentSettle.test.ts",
   "test": "is refused on a switched-off home, and the request stays as it was"
+ },
+ {
+  "what": "SU7: money that lands on an unpaid booking whose home was switched off is refunded in full and the booking ends",
+  "edits": [
+   {
+    "file": "src/lib/paymentSettle.ts",
+    "find": "    if (homeUnavailable(payment.booking)) return { action: 'home-refund', outcome: 'refunded' }",
+    "replace": "    if (homeUnavailable(payment.booking) && false) return { action: 'home-refund', outcome: 'refunded' }"
+   }
+  ],
+  "testFile": "src/lib/paymentSettle.test.ts",
+  "test": "is refunded in full and the booking ends, on a home switched off by its host"
+ },
+ {
+  "what": "SU7: settlement reads the home again inside the transaction that claims the payment",
+  "edits": [
+   {
+    "file": "src/lib/paymentSettle.ts",
+    "find": "            if (!home || homeUnavailable(home) !== (action === 'home-refund')) throw new Raced()",
+    "replace": "            if (!home) throw new Raced()"
+   }
+  ],
+  "testFile": "src/lib/paymentSettle.test.ts",
+  "test": "reads the home again inside the transaction: switched off between the decision and the write, it is refunded"
  }
 ]
