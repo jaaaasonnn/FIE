@@ -6,6 +6,49 @@ Branch `security-upgrades`, from `main` at `2c51a84`, pushed, **not merged**. Ev
 mains power under `caffeinate -dims`, on the local test stack, built only through the harness; nothing real was
 called; no switch or environment variable was set; **the live database was not touched.**
 
+### SU5 fixed; SU6 cause found, fix waiting for a decision (2026-11-02, `ac0d7f3`)
+
+**SU5** (`ac0d7f3`): what each engine writes was checked in Node, Chromium, WebKit and Firefox for every date
+format the code uses. Only short month names differ ("Sept" in Node, Chromium and Firefox; "Sep" in WebKit);
+numbers in `en-GH` and `en-US` are the same everywhere. `src/lib/dateText.ts` now writes every date from a fixed
+table, with the same output as before except "Sep", and every date in `src/` goes through it:
+
+| Where | Drawn by the server too? | Was |
+|---|---|---|
+| `formatStayDate`: checkout, both dashboards, booking and problem pages, host bookings and calendar, rent schedule, price breakdown, cancel dialog, admin disputes, rent and listing checks | yes (checkout, dashboards) | `en-GH` short months: "Sept" vs "Sep" |
+| `formatPayBy`: checkout, guest dashboard, booking page | yes | `en-GB` short months |
+| Listing page: host joined, review months | yes | long months (same everywhere, moved for safety) |
+| Search: the date summary | yes | `en-GB` short months |
+| Admin: exchange rate updated / last fetch | yes (Settings tab from a link) | `toLocaleString()`: the runtime's language and zone. Now "6 Sep 2027, 3:45 pm", UTC from the server, the reader's zone once running |
+| Profile, guest payments, host payouts, admin users, verifications and messages, message dates, refund and listing-check wording, blocked-dates message | no (fetched in the browser) | short months or the runtime's zone; now the table (reader's zone kept where it was) |
+| Home page cedi prices, wishlist, host bookings total | home page yes | `toLocaleString()` with no locale; now pinned |
+
+Tests: `src/lib/dateText.test.ts` (every month, every format, the six zones of `test:tz` and the process's own,
+and a guard that fails on any locale date call in `src/`); `tests/journeys/dates.spec.ts` (@core, every browser
+set-up): a stay in September reads "Sep" from the server and in the browser on checkout and both dashboards, with
+no React 418. It failed on the old build ("Sept" in the server's copy). Removal proof 261; proof 257 (SU1)
+re-anchored on the new 12-hour clock. Both hold.
+
+**SU6: the cause.** In Next's cache (`next/dist/server/lib/incremental-cache`), a page that is kept is stamped
+with the moment it is stored (`set()`: `lastModified: Date.now()`), and `revalidatePath('/')` expires only copies
+stored before the mark (`areTagsExpired`: `expiredAt > timestamp`). A visit that read the listings just before a
+home was switched off, and stored the page just after the switch-off marked it, is therefore kept as fresh. Shown
+with a probe (every response for `/` recorded): one test at a time with only visits to `/`, 0 of 15 failed; with
+visits and another listing's edits (which keep drawings under way), 4 of 15, each time a cache HIT holding the
+switched-off home, put right only by the next mark.
+
+**On `main` (`2c51a84`, Next 16.3.8):** the same code in Next, and the same result: the probe 4 of 15, the suite's
+test 2 of 20 with four in parallel. Not caused by the upgrade.
+
+**Tried and dropped:** marking the page again 1 s and 5 s later from `after()`. Next applies every mark made in
+`after()` only when all of the request's `after()` work has finished, as one mark, so the 1 s mark landed at 5 s.
+A new race test (four lanes: three visitors drawing `/`, a host editing another listing; ten rounds) failed every
+time alone on the old code (19 bad rounds in 50) and still failed 3 of 5 runs with this change (3 in 50). Reverted;
+the test and the attempt are kept outside the repository for whichever fix is chosen.
+
+**Not run:** the full set. The suite's test for SU6 is still flaky under parallel load, so the run could not be
+clean; it waits for the SU6 decision.
+
 ### SU1-SU4 fixed, and the full set again (2026-11-02, `f023872`..`c741149`)
 
 On the owner's go-ahead, one commit each, still on this branch and not merged:
