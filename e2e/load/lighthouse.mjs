@@ -97,6 +97,8 @@ const chrome = await chromeLauncher.launch({
     '--host-resolver-rules=MAP api.maptiler.com 127.0.0.1:4443, MAP images.unsplash.com 127.0.0.1:4443, MAP e2e-storage.fiegh.test 127.0.0.1:4443, MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1'],
 })
 
+// E2E_LH_THROTTLING=devtools: the page is really slowed to the same line and CPU, instead of simulated from a fast
+// run (a check on the simulation, used for G5). Unset, every run is Lighthouse's default, as in every run before.
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); return s[Math.floor(s.length / 2)] }
 const results = []
 try {
@@ -105,7 +107,9 @@ try {
       const runs = []
       for (let i = 0; i < RUNS; i++) {
         const flags = { port: chrome.port, output: 'json', logLevel: 'error', extraHeaders: { 'x-vercel-forwarded-for': ip(), ...(cookie ? { Cookie: `fiegh_session=${cookie}` } : {}) } }
-        const r = await lighthouse(APP + url, flags, formFactor === 'desktop' ? desktopConfig : undefined)
+        const base = formFactor === 'desktop' ? desktopConfig : { extends: 'lighthouse:default' }
+        const config = process.env.E2E_LH_THROTTLING ? { ...base, settings: { ...(base.settings ?? {}), throttlingMethod: process.env.E2E_LH_THROTTLING } } : formFactor === 'desktop' ? desktopConfig : undefined
+        const r = await lighthouse(APP + url, flags, config)
         const lhr = r.lhr
         const items = lhr.audits['network-requests']?.details?.items ?? []
         const scripts = items.filter((x) => x.resourceType === 'Script')
