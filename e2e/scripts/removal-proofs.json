@@ -568,24 +568,24 @@
   "edits": [
    {
     "file": "package.json",
-    "find": "    \"next\": \"16.3.8\",",
-    "replace": "    \"next\": \"16.3.8\",\n    \"next-auth\": \"^4.24.14\","
+    "find": "    \"next\": \"16.4.3\",",
+    "replace": "    \"next\": \"16.4.3\",\n    \"next-auth\": \"^4.24.14\","
    }
   ],
   "testFile": "src/lib/security/config.test.ts",
   "test": "no longer carries the Auth.js packages, which no code used"
  },
  {
-  "what": "H4: Next stays on a patched 16.3",
+  "what": "H4: Next stays on a patched 16.4",
   "edits": [
    {
     "file": "package.json",
-    "find": "    \"next\": \"16.3.8\",",
-    "replace": "    \"next\": \"16.3.7\","
+    "find": "    \"next\": \"16.4.3\",",
+    "replace": "    \"next\": \"16.4.0\","
    }
   ],
   "testFile": "src/lib/security/config.test.ts",
-  "test": "is on a patched Next 16.3 and a patched sharp"
+  "test": "is on a patched Next 16.4 and a patched sharp"
  },
  {
   "what": "M2: only the hash of a session token is stored",

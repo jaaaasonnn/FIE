@@ -111,11 +111,12 @@ describe('packages', () => {
     }
   })
 
-  it('is on a patched Next 16.3 and a patched sharp', () => {
-    // 16.3.8 is the first release with every advisory open on 16.2 fixed
+  it('is on a patched Next 16.4 and a patched sharp', () => {
+    // 16.4.1 is the first release with the October 2026 advisories fixed (the image optimiser with SVG files,
+    // `use cache` returning typed arrays, Server Actions); 16.3.8 had fixed every one open on 16.2
     const [major, minor, patch] = lock.packages['node_modules/next'].version.split('.').map(Number)
-    expect([major, minor]).toEqual([16, 3])
-    expect(patch).toBeGreaterThanOrEqual(8)
+    expect([major, minor]).toEqual([16, 4])
+    expect(patch).toBeGreaterThanOrEqual(1)
     expect(pkg.dependencies.next).toBe(lock.packages['node_modules/next'].version)
     // Next no longer carries its own, older copy of sharp or an unpatched postcss
     expect(lock.packages['node_modules/next/node_modules/sharp']).toBeUndefined()
