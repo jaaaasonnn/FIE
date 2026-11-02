@@ -84,6 +84,12 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
 
+  // The stylesheets go into each page's HTML instead of being fetched before it can be drawn: on a slow
+  // phone line that is a round trip saved before the first paint (G5). The CSP already allows inline styles.
+  experimental: {
+    inlineCss: true,
+  },
+
   // Does not say what the site is built with
   poweredByHeader: false,
   // The browser is never given the source maps; Sentry gets its own copy at build time
