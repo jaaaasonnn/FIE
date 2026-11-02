@@ -3135,5 +3135,17 @@
   "testFile": "e2e/tests/perf/server-first.spec.ts",
   "test": "each page keeps the copy the server sent",
   "e2e": true
+ },
+ {
+  "what": "SU1: the pay-by time uses hourCycle h12, so the 12 o clock hour is 12, not 0",
+  "edits": [
+   {
+    "file": "src/lib/payDeadline.ts",
+    "find": "minute: '2-digit', hourCycle: 'h12',",
+    "replace": "minute: '2-digit', hour12: true,"
+   }
+  ],
+  "testFile": "src/lib/payDeadline.test.ts",
+  "test": "in UTC: 12:34 is \"12:34 pm\""
  }
 ]

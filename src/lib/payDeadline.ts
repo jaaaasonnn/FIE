@@ -91,11 +91,14 @@ export function payState(booking: PayStateBooking, now: Date = new Date()): PayS
  * "3:45 pm today" or "Fri 9 Oct, 3:45 pm".
  */
 export function formatPayBy(payBy: string | Date, now: Date = new Date(), timeZone?: string): string {
-  // Put together from the parts, so every browser writes it the same way
+  // Put together from the parts, so every browser writes it the same way. hourCycle 'h12', not hour12:
+  // en-GB's 12-hour clock with hour12 is 0-11 in Node, so the 12 o'clock hour came out "0:34 pm" on the
+  // server and "12:34 pm" in the browser, and React threw the server's page away (hour12 also overrides
+  // hourCycle, so it must not be set beside it).
   const parts = (date: Date) => {
     const found = new Intl.DateTimeFormat('en-GB', {
       weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true, ...(timeZone ? { timeZone } : {}),
+      hour: 'numeric', minute: '2-digit', hourCycle: 'h12', ...(timeZone ? { timeZone } : {}),
     }).formatToParts(date)
     const part = (type: string) => found.find((p) => p.type === type)?.value ?? ''
     return {
