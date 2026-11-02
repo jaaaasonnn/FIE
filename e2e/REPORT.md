@@ -6,6 +6,65 @@ Branch `security-upgrades`, from `main` at `2c51a84`, pushed, **not merged**. Ev
 mains power under `caffeinate -dims`, on the local test stack, built only through the harness; nothing real was
 called; no switch or environment variable was set; **the live database was not touched.**
 
+### SU1-SU4 fixed, and the full set again (2026-11-02, `f023872`..`c741149`)
+
+On the owner's go-ahead, one commit each, still on this branch and not merged:
+
+1. **SU1** (`f023872`): `formatPayBy` uses `hourCycle: 'h12'` in place of `hour12: true` (which overrides
+   `hourCycle`, so it is gone, not kept beside it). New `src/lib/payDeadline.test.ts`: 12:00-12:59 am and pm and
+   the hours either side, in the six zones of `test:tz` and in the process's own zone. Proof 257.
+2. **SU2** (`0bc322a`): one Prisma client per process in production too. **Why `db.ts` was loaded twice:**
+   Turbopack bundles it once for the API routes and once for the pages. A server-first page imports its route's
+   `GET` (`lib/serverRead.ts`), so `db.ts` is also compiled into the page layer, under a second module id (843793
+   and 761469 in that build). Both copies live in one process and each ran its own top level; `db.ts` shared the
+   client through `globalThis` only outside production, so a production server made two clients, two pools. Now
+   it is shared in every environment. Tests: `src/lib/security/onePool.test.ts` loads `db.ts` three times as fresh
+   modules and fails if a second `PrismaClient` is made; `tests/resilience/one-pool.spec.ts` starts an app server
+   with a pool of one, asks it for API routes and server-first pages one after another and counts its
+   connections to Postgres (2 on the old build, 1 now). The harness gives each app a pool of 10 (`run.mjs`,
+   `--pool` or `E2E_APP_POOL` to change it). Proofs 258, 259.
+3. **SU3** (`23db71f`): without WebGL2 the map area says "The map isn't available on this device. The list shows
+   the same homes." (no canvas, pins or credits); tested with WebGL2 refused, on desktop and both phones. Proof 260.
+4. **SU4** (`c741149`): "1 property found", "Map view · 1 property".
+
+**Connections, full Chromium suite (races at 50 rounds), peak on the test Postgres (limit 60):**
+
+| | Peak | Largest single app server | "Too many clients" |
+|---|---|---|---|
+| Before the fixes (`84e6764`, second run) | 60 | 33 | yes: 1 failed, 2 flaky; first run 34 failed |
+| Before any upgrade (`292958f`) | 56 | 30 | none |
+| **After the fixes (`c741149`)** | **25** | **10** (its pool) | **none** |
+
+(The chaos set afterwards takes every free connection on purpose, "no connections left": with 53 taken, 35 of 40
+requests were answered 200 and 5 with a plain 500, and both servers mended. Those are the only "too many clients"
+lines in the app logs of this run.)
+
+**The full set, under `caffeinate -dims` on mains power:**
+
+| Check | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass; 1,549 tests in each of the six zones |
+| Harness build | pass |
+| Money and date rules (`load/invariants.spec.ts`) | clean before and after |
+| Chromium suite, races at 50 rounds (resilience, session, accessibility included) | **204 passed, 4 skipped, 1 flaky**: "a home switched off leaves the home page at once" failed once and passed on retry (SU6) |
+| Chaos set | 17 passed |
+| Core set in Firefox, WebKit, tablet, iPhone, Android | **199 passed, 4 skipped, 2 flaky**: the crawl as host on tablet and iPhone, React error 418 on the host dashboard, passed on retry (SU5) |
+| Removal proofs | **all 260 hold** (257-260 new) |
+| Bundle guard | pass. Desktop search with the map **648 KB of 650** (647 before; the WebGL2 check and message are 1 KB). Phone pages 200-243 KB |
+
+**So the run was not clean.** Nothing was re-run to make it pass. No failure was about connections. The three
+flaky tests are two older faults, both new findings:
+
+- **SU5**: a September stay date is "Sept" from the server (Node's ICU 75, `en-GH`) and "Sep" in Safari, so a
+  server-first page with a September date is drawn twice in Safari. A diagnostic (24 loads of the host dashboard
+  in the tablet and iPhone set-ups) reproduced 418 three times, each with a September booking; the crawl's dates
+  are random, which is why it passed on retry and in earlier runs.
+- **SU6**: the home-page test fails only alongside other home-page renders: 0 of 20 one at a time, 2 of 20 with
+  four in parallel. A render that read the listings before the switch-off appears to be kept after
+  `revalidatePath('/')`. In real use a switched-off home could stay in the hero until the 5-minute refresh.
+
+Neither is fixed: both need your go-ahead.
+
 ### What changed, in order (one commit each)
 
 1. **Map tests on maplibre 5** (`292958f`): `tests/journeys/map.spec.ts` (pins, popup and its link, clusters that
@@ -61,7 +120,7 @@ the suite on the commit before the upgrades did not quite do (56 of 60). The cau
 each app server holds more than one Prisma pool. Reverting upgrades one at a time would not separate a 4-connection
 difference from run-to-run noise; the fix that would is SU2's, which needs your go-ahead.
 
-### Found along the way (FINDINGS.md, SU1-SU4; none fixed here)
+### Found along the way (FINDINGS.md, SU1-SU4; fixed afterwards, see the top of this section)
 
 - **SU1**: "Pay by 0:34 pm": a deadline in the 12 o'clock hour is written with a 0-11 clock by the server. One line.
 - **SU2**: two Prisma pools per app server (production: two connections per instance, not one); the test database

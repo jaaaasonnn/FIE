@@ -32,7 +32,7 @@ E2E_LH_THROTTLING=devtools node e2e/run.mjs exec node e2e/load/lighthouse.mjs <l
 - `tests/perf/bundle.spec.ts`: the script budget (350 KB on first load, the router's prefetches left out; desktop
   search with its map 650 KB), and the map and date picker only when asked for. Each page's files: `.reports/bundle/`.
   The map's worker file (maplibre 6) is fetched by the worker, so the page sees the request but not its bytes: the
-  guard counts it from the file as the server sends it (gzip). Desktop search with the map is at 647 of 650 KB.
+  guard counts it from the file as the server sends it (gzip). Desktop search with the map is at 648 of 650 KB.
 - `tests/journeys/map.spec.ts`: pins, the popup and its link, clusters that zoom apart or list homes that share a
   spot, Enter and Escape, the map's credits, and no map or worker error. `E2E_MAP_SHOTS=<label>` saves screenshots
   to `.reports/map-shots/`. The harness's map style is a plain background: no streets, real pins and popups.
@@ -63,7 +63,7 @@ Two things do use the network, as they always have: `npm install`, and `next bui
 
 | Real thing | Here |
 |---|---|
-| Supabase Postgres 17.6 behind the Supavisor pooler | Postgres 17.10 from `embedded-postgres`, `max_connections=60`, tables from `prisma db push`, then `prisma/enable_rls.sql` and `prisma/constraints.sql` unchanged, with the roles `anon`, `authenticated` and `service_role` created first. **No pooler.** |
+| Supabase Postgres 17.6 behind the Supavisor pooler | Postgres 17.10 from `embedded-postgres`, `max_connections=60` (each app server's Prisma pool is 10: `run.mjs`, `--pool=N` or `E2E_APP_POOL`), tables from `prisma db push`, then `prisma/enable_rls.sql` and `prisma/constraints.sql` unchanged, with the roles `anon`, `authenticated` and `service_role` created first. **No pooler.** |
 | Vercel (many instances) | Two `next start` processes on ports 3200 and 3201 sharing the database. Race tests send their two requests to different processes. |
 | Paystack | `fakes/server.mjs`: initialize, a checkout page with Pay / Declined / Close, verify, refund, transfer, bank list, account resolve, signed webhooks. A duplicate transfer reference is refused with HTTP 400, as the app's own comments say Paystack does. |
 | Resend | An inbox the tests read. Honours `Idempotency-Key`. |
