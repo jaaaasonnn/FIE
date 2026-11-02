@@ -69,6 +69,23 @@ fails).
 | F16 | Low | Photo uploads sent at the same moment overwrite each other. Five single-photo uploads together: all five answered 200, the listing kept three. The lost files stay in storage with nothing pointing at them. `photos` is one JSON column that each request reads, changes and writes back. The page sends one request, so a host is unlikely to meet it. | 5 concurrent `POST /api/listings/[id]/photos` | same file, "five photos uploaded at the same moment" |
 | F17 | High (needs your decision) | A payout is converted to cedis at the exchange rate on the day it is sent (`src/lib/payouts.ts`, the latest `ExchangeRate` row), not at the rate the guest was charged at. Guests are charged in cedis at booking time; hosts are paid 48 hours after check-in, which can be months later. If the cedi has weakened in between, the host is sent more cedis than 90% of what was collected. In the test a 15% move means the host is sent 103.5% of everything the guest paid: FieGH pays the commission and more out of its own pocket. If the cedi strengthens, the host gets less than 90%. Refunds do use the rate stored on the payment. This may be intended (prices are in dollars), but then FieGH carries the currency risk on every advance booking and nothing limits or reports it. | Pay a booking, change the rate by 15%, run the payout job: compare the transfer with the payment's `amountPesewas`. | `tests/chaos/crash.spec.ts` "the host is never sent more cedis than 90%" |
 
+# security-upgrades: where things stand (2026-11-02, branch `security-upgrades`)
+
+Next 16.4.3, maplibre 6.16 and @sentry/nextjs 10.78, one commit each, and the map's credits. Nothing below was
+caused by the upgrades; each was found while testing them. None is fixed in this branch: each needs the owner's
+go-ahead. Details: REPORT.md, "security-upgrades".
+
+| # | Rank | Status | What | How it shows | Proposed fix |
+|---|---|---|---|---|---|
+| SU1 | Medium | Open | A pay-by time in the 12 o'clock hour is written "0:34 pm" by the server and "12:34 pm" by a browser. `formatPayBy` (`src/lib/payDeadline.ts`) asks for `en-GB` with `hour12: true`, which Node's ICU turns into a 0-11 clock. | Guests see "Pay by 0:34 pm" on `/bookings/[id]` (drawn on the server) for any deadline from 12:00 to 12:59 or 00:00 to 00:59. On checkout and the guest dashboard React finds the texts differ (error 418) and draws the page again, so `tests/perf/server-first.spec.ts` fails for bookings made from 11:00 to 11:59 or 23:00 to 23:59. | `hourCycle: 'h12'` in place of `hour12: true` (one line), with a unit test at 12:34 and 00:34. |
+| SU2 | Medium | Open | The test Postgres (60 connections) ran out during the full Chromium suite: 38 tests failed or were flaky on the first run, 3 on the second. Each app server holds more than one Prisma connection pool (33 connections in one server, more than one pool's 21): the server-first pages (G5) load `db.ts` a second time, and `db.ts` keeps its client on `globalThis` only outside production. The same suite on the commit before the upgrades peaked at 56 and passed; with them, 60. | "Too many clients" and Prisma P2024/P2037 in the app logs; 500s in the race tests. In production each server instance would hold two connections to the pooler, not one. | Keep the client on `globalThis` in production too (one pool per process), and give the harness an explicit `connection_limit` (it has `--pool`). |
+| SU3 | Low | Open | Without WebGL2 (iOS before 15, some old Android phones) maplibre 6 draws nothing: the map area is empty, with no message. maplibre 5 fell back to WebGL1. | Checked by making `getContext('webgl2')` return nothing; the list still works. | A short "The map needs a newer browser" note in place of the map, if wanted. |
+| SU4 | Low | Open | "1 properties found" (search) and "Map view · 1 properties". | Seen in the map screenshots. | Singular for one. |
+
+Noticed, not changed: a test in `tests/journeys/booking.spec.ts` ("searching with dates…") opens search with
+`?city=`, which the search page does not read; it still proves what it says, because the dates are the filter. The
+new map tests type the city into the search box instead.
+
 # mobile-speed: where things stand (2026-11-02, branch `mobile-speed`)
 
 G5 as the owner decided on 2026-10-28, one commit per change; the home page's code was left alone (redesign

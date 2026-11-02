@@ -1,5 +1,92 @@
 # End-to-end test report
 
+## security-upgrades: the audit items that ship (2026-11-02, branch `security-upgrades`)
+
+Branch `security-upgrades`, from `main` at `2c51a84`, pushed, **not merged**. Everything ran on this MacBook Air on
+mains power under `caffeinate -dims`, on the local test stack, built only through the harness; nothing real was
+called; no switch or environment variable was set; **the live database was not touched.**
+
+### What changed, in order (one commit each)
+
+1. **Map tests on maplibre 5** (`292958f`): `tests/journeys/map.spec.ts` (pins, popup and its link, clusters that
+   zoom apart or list, Enter and Escape, no map or worker error), written and passing before the upgrade. Before
+   screenshots in `e2e/.reports/map-shots/v5-*`.
+2. **Next 16.3.8 → 16.4.3**, pinned, with `eslint-config-next` (`2e3c7dd`). The three October advisories are fixed
+   from 16.4.1. None reached this app: `dangerouslyAllowSVG` is not set and sharp was already 0.35.5; there is no
+   `use cache`; there is no Server Action (`'use server'` appears nowhere: every write is an API route). 16.4.4 (out
+   on 2 November) was read first: bug fixes only, no advisory, so 16.4.3 is kept. The version test now requires 16.4
+   with patch 1 or later; proofs 48 and 49 are re-anchored on the new version line.
+3. **maplibre-gl 5.24 → 6.16, react-map-gl 8.1.1 → 8.1.3** (`8eea4f3`). The advisory was in `DOM.sanitize`, used
+   only by maplibre's attribution control, which was off. Two changes were needed: maplibre 6 runs its worker from
+   a file of its own, which `ListingsMap` now hands to the bundler and passes as `workerUrl`; and maplibre 6 removed
+   the internal `map.transform` that react-map-gl 8.1.1 read (the map never finished loading), which 8.1.3 no longer
+   uses. Popups, markers, clustering and the `.map-popup` CSS needed nothing. The bundle guard now counts the
+   worker's bytes. After screenshots: `e2e/.reports/map-shots/v6-*`.
+4. **@sentry/nextjs 10.72 → 10.78** (`c3a04a0`). The advisory needed a tunnel route and a webpack build; there is
+   neither here. The hand-built browser client is unchanged and still reports errors and unhandled rejections,
+   scrubbed (`tests/resilience/browser-errors.spec.ts`; proofs 77 and 248). Every page is 2 KB smaller.
+5. **The map's credits** (`84e6764`): "© MapTiler © OpenStreetMap contributors", as MapTiler's terms ask; our own
+   small line (not maplibre's control), bottom left, clear of the zoom buttons, both links to the copyright pages,
+   in a new tab; a test checks text, links, size and position. Screenshots: `e2e/.reports/map-shots/attr-*`.
+
+`npm audit`: 60 → **56**; nothing high or critical in anything that ships. Left in what ships: a moderate on
+@sentry/nextjs from the OpenTelemetry packages it uses on the server (no fixed release, not even 11.x; server
+tracing is off, so the database-user advisory never applies).
+
+### Speed
+
+Real throttling, before → after, mobile LCP: 1.58-1.74 → 1.61-1.76 s on all seven pages, TBT at most 33 ms, CLS 0:
+within the run-to-run spread. Script on first load: 2-6 KB less on every page. Desktop search with the map:
+484 → **647 KB of its 650 KB cap**, all of it maplibre 6 (its worker, 145 KB, used to be inside its script and is
+now a file of its own, counted since this branch). Full table: `e2e/load/results/security-upgrades.md`.
+
+### Verification (`84e6764`)
+
+Quick set after each commit (lint, type check, `test:tz`, harness build, smoke, bundle guard) plus each commit's
+own tests: all passed. (On the Next commit the server-first test first failed at 11:3x UTC and passed after 12:00:
+the pay-by formatter, unchanged by this branch, writes 12 o'clock times differently on the server; SU1 below.) The full set once at the end:
+
+| Check | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass; 1,476 tests in each time zone |
+| Harness build | pass, logged (`e2e/.reports/security-upgrades/full/build.log`) |
+| Money and date rules (`load/invariants.spec.ts`) | clean before and after |
+| Chromium suite, races at 50 rounds (resilience, session, accessibility included) | **first run: 165 passed, 34 failed, 4 flaky; every one "too many clients" on the test Postgres (SU2). Second run: 200 passed, 1 failed, 2 flaky** (two race tests with 500s from the same cause, and "a home switched off leaves the home page" timing out). The same suite on `292958f` (before any upgrade): 202 passed, peak 56 connections; with the upgrades the peak was 60, the limit. |
+| Chaos set | 17 passed, both runs |
+| Core set in Firefox, WebKit, tablet, iPhone, Android | 197 passed, 3 skipped (the map in Firefox), none flaky |
+| Removal proofs (restore-safe runner) | **all 256 hold**; 48 and 49 re-anchored on the Next version line |
+
+So the full set did not come back clean. The failures are the test database running out of connections, which
+the suite on the commit before the upgrades did not quite do (56 of 60). The cause is older than this branch (SU2):
+each app server holds more than one Prisma pool. Reverting upgrades one at a time would not separate a 4-connection
+difference from run-to-run noise; the fix that would is SU2's, which needs your go-ahead.
+
+### Found along the way (FINDINGS.md, SU1-SU4; none fixed here)
+
+- **SU1**: "Pay by 0:34 pm": a deadline in the 12 o'clock hour is written with a 0-11 clock by the server. One line.
+- **SU2**: two Prisma pools per app server (production: two connections per instance, not one); the test database
+  runs out. Proposed: keep the client on `globalThis` in production too, and an explicit pool size in the harness.
+- **SU3**: without WebGL2 the map area is empty, with no message (maplibre 5 fell back to WebGL1). Screenshots:
+  `e2e/.reports/map-shots/v5-nowebgl2.png` (map and pins) and `v6-nowebgl2.png` (empty).
+- **SU4**: "1 properties found".
+- A pointer press on a pin does not move the focus (the map stops the default on its markers), so Escape closes a
+  popup only when it was opened from the keyboard; the close button and a tap on the map close it otherwise.
+
+### Dev-only items, not upgraded (owner's decision)
+
+| Package | Fix | Major | Clears | Why not now |
+|---|---|---|---|---|
+| vitest 3.2.7 | 4.1.12 | yes | vitest, vite, tinypool, @vitest/mocker (2 critical, 1 high, 1 moderate) | test runner only; may need config changes across 1,476 tests |
+| prisma CLI 6.19 | 7.10 | yes | prisma, @prisma/config, deepmerge-ts (3 high) | the CLI and `@prisma/client` move together: a server change for every query. Its own project after launch |
+| lighthouse 12.8.2 | 13.6 | yes | 9 high and most moderates (it carries Sentry 9) | the G5 speed figures would need a new baseline |
+| eslint 9 | 10.14 | yes | 1 | the rest follow `eslint-config-next` |
+
+### Not checked
+
+- Real MapTiler tiles (the harness's style is a plain background), real phones, a real Vercel build.
+- A real phone without WebGL2: simulated by making the browser refuse it.
+- Real Sentry: a report from the browser after the upgrade, with its source maps.
+
 ## mobile-speed: G5, pages that come with their data (2026-11-01/02, branch `mobile-speed`)
 
 Branch `mobile-speed`, from `main` at `38a9975`, not merged. Everything ran on this MacBook Air on mains power on
