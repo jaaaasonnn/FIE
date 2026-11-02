@@ -6,6 +6,63 @@ Branch `security-upgrades`, from `main` at `2c51a84`, pushed, **not merged**. Ev
 mains power under `caffeinate -dims`, on the local test stack, built only through the harness; nothing real was
 called; no switch or environment variable was set; **the live database was not touched.**
 
+### SU6 bounded, a switched-off home checked, and a clean full run (2026-11-02, `296e810`, `972894d`)
+
+**SU6, option 1 tried first** (wait 1 s inside the change's own request, then mark the home page again, awaited
+at the seven call sites). The race test passed 20 of 20, but the original "leaves the home page at once" test
+failed 9 of 20 with four in parallel (each time the page right after the answer was a cache HIT with the home in
+it), so it did not meet the bar and was reverted. How much slower each action answered with it (median of 8, local
+stack, against the same code without the wait):
+
+| Action | Before | With option 1 |
+|---|---|---|
+| Create a listing (`POST /api/listings`) | 3 ms | 1,012 ms |
+| Edit a listing (`PATCH /api/listings/[id]`) | 4 ms | 1,016 ms |
+| Add a photo (`POST /api/listings/[id]/photos`) | 6 ms | 1,023 ms |
+| Admin holds a listing (`POST /api/admin`) | 3 ms | 1,014 ms |
+| Admin clears a hold (`POST /api/admin`) | 3 ms | 1,012 ms |
+| Switch a listing off (`DELETE /api/listings/[id]`) | 3 ms | 1,014 ms |
+| Admin suspends an account (`POST /api/admin/users`) | 5 ms | 1,009 ms |
+
+**SU6, option 4 landed** (`296e810`): the home page is redrawn every 60 s instead of every 300 s
+(`s-maxage=60`). The guarantee is now "usually at once, at most a minute". The original test polls for up to 75 s
+and records the time: 20 of 20 passed with four in parallel, 19 at once (0.5-1.4 s, the page load) and one after
+62.5 s; the race test left a copy behind in round 8, gone after 64 s. (The first visit after the minute still gets
+the old copy while the page is drawn again, so "a minute" is about 60-65 s.) A test that the page is kept at most
+60 s is removal proof 262. Money and sign-in code are untouched.
+
+**Extra database reads:** a redraw of the home page runs 3 small listing queries (one per rental type, up to 8 rows
+each); nothing else on the page reads on the server. Timed redraws happen only when the page is visited after its
+minute: at most 1,440 a day (4,320 queries) instead of 288 (864), so **at most about 3,456 more queries a day,
+about 2.4 a minute**, and only if the home page is visited every minute. Redraws after a change are unchanged.
+
+**A switched-off home from an old page** (`972894d`, `tests/journeys/switched-off.spec.ts`, @core, every browser
+set-up). What the guest sees:
+- pressing a card on a home page drawn before the switch-off: "Listing not found. This listing may have been removed
+  or is no longer active." with "Browse all listings"; no dates, no Book button
+  (`e2e/.reports/switched-off/*-stale-card.png`). The server refuses a booking: 400 "Listing is not available";
+  no booking, no payment;
+- a listing page left open: dates chosen, then Instant Book after the switch-off shows "Listing is not available"
+  under the price; nothing booked or charged (`*-open-listing-page.png`);
+- **SU7 (new, open):** a booking confirmed *before* the switch-off can still be paid for after it: `POST
+  /api/payments` answered 200 with a Paystack link. The payment route does not look at the listing. Payment code
+  was not changed; the test expects a refusal and is marked `test.fail()` until you decide.
+
+**The full set, once, under `caffeinate -dims` on mains power (`972894d`):**
+
+| Check | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass (lint: 39 warnings, none new, 0 errors); 1,646 tests in each of the six zones |
+| Harness build | pass |
+| Money and date rules (`load/invariants.spec.ts`) | clean before and after |
+| Chromium suite, races at 50 rounds (resilience, session, accessibility included) | **211 passed, 4 skipped, 0 failed, 0 flaky** (SU7's test counted as the expected failure it is marked to be). Peak 26 connections |
+| Chaos set | **17 passed** |
+| Core set in Firefox, WebKit, tablet, iPhone, Android | **216 passed, 4 skipped, 0 failed, 0 flaky** |
+| Removal proofs | **all 262 hold** (261 SU5, 262 SU6) |
+| Bundle guard | pass. **Desktop search with the map 648 KB of 650.** Phone pages 200-243 KB |
+
+**Clean: no failure and no flaky test anywhere.**
+
 ### SU5 fixed; SU6 cause found, fix waiting for a decision (2026-11-02, `ac0d7f3`)
 
 **SU5** (`ac0d7f3`): what each engine writes was checked in Node, Chromium, WebKit and Firefox for every date
