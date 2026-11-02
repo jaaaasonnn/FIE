@@ -67,8 +67,15 @@ test.describe('email failing', () => {
     await expect.poll(() => db.messageLog.count({
       where: { userId: { in: people.map((p) => p.id) }, channel: 'EMAIL', event: { in: ['account.welcome', 'account.verify_email'] } },
     }), { timeout: 15_000, message: 'all eight sign-up emails queued' }).toBe(8)
-    const runs = await together(() => cron('send-messages', { server: 0 }), () => cron('send-messages', { server: 1 }), () => cron('send-messages', { server: 0 }), () => cron('send-messages', { server: 1 }))
-    expect(serverErrors(runs)).toEqual([])
+    // The job sends the 50 oldest messages due (lib/messaging/deliver.ts): with other tests' messages waiting
+    // ahead of these, one round of four may not reach them, as a real run each minute works through a backlog.
+    // So the four runs go again, at the same moment as before, until all eight have gone (AS1).
+    const sent = async () => (await Promise.all(people.map((p) => fakes.inbox(p.email)))).flat()
+    for (let round = 1; ; round++) {
+      const runs = await together(() => cron('send-messages', { server: 0 }), () => cron('send-messages', { server: 1 }), () => cron('send-messages', { server: 0 }), () => cron('send-messages', { server: 1 }))
+      expect(serverErrors(runs), `round ${round}`).toEqual([])
+      if ((await sent()).length >= 8 || round >= 20) break
+    }
     for (const person of people) {
       const inbox = await until(async () => { const m = await fakes.inbox(person.email); return m.length >= 2 ? m : null }, `the emails to ${person.email}`)
       expect(inbox.map((m) => m.subject).sort(), 'one welcome and one confirmation link, no copies').toEqual(['Confirm your email address for FieGH', 'Welcome to FieGH'])
