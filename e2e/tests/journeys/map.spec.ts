@@ -39,6 +39,16 @@ async function openMap(page: Page, city: string, count: number) {
   await expect(page.locator('canvas.maplibregl-canvas:visible').first()).toBeVisible({ timeout: 20_000 })
 }
 
+/** A browser without WebGL2 (iOS before 15, some older Android phones): asking for a webgl2 context gives null */
+async function withoutWebGL2(page: Page) {
+  await page.addInitScript(() => {
+    const real = HTMLCanvasElement.prototype.getContext
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+      return type === 'webgl2' ? null : (real as (...a: unknown[]) => unknown).call(this, type, ...rest)
+    } as typeof real
+  })
+}
+
 async function shot(page: Page, name: string) {
   const label = process.env.E2E_MAP_SHOTS
   if (!label) return
@@ -107,6 +117,31 @@ test.describe('the search map', () => {
     expect(box!.y + box!.height).toBeLessThanOrEqual(map!.y + map!.height)
     expect(box!.x + box!.width).toBeLessThan(zoom!.x)
     await shot(page, 'credits')
+  })
+
+  test('without WebGL2 the map area says so, and the list still shows the homes (SU3) @core', async ({ page, world }) => {
+    const host = await world.host()
+    const city = `Tesano${crypto.randomBytes(5).toString('hex')}`
+    const homes = [
+      await world.listing(host, { city, region: 'Greater Accra', lat: ACCRA.lat, lng: ACCRA.lng - 0.03 }),
+      await world.listing(host, { city, region: 'Greater Accra', lat: ACCRA.lat, lng: ACCRA.lng + 0.03 }),
+    ]
+    await withoutWebGL2(page)
+    await page.goto('/search')
+    await page.getByPlaceholder('Search by city, neighbourhood...').fill(city)
+    await page.keyboard.press('Enter')
+    await expect(page.getByText('2 propert')).toBeVisible()
+    for (const home of homes) await expect(page.locator(`a[href^="/listings/${home.id}"]:visible`).first()).toBeVisible()
+    const toggle = page.getByRole('button', { name: 'Map', exact: true })
+    if (await toggle.isVisible()) await toggle.click()
+
+    const message = page.locator('[data-map-unavailable]:visible')
+    await expect(message).toHaveText("The map isn't available on this device. The list shows the same homes.", { timeout: 20_000 })
+    // Not an empty box: no map canvas, no pins, no credits for a map that is not there
+    await expect(page.locator('.maplibregl-map')).toHaveCount(0)
+    await expect(page.locator('[data-map-pin]')).toHaveCount(0)
+    await expect(page.locator('.map-attribution')).toHaveCount(0)
+    await shot(page, 'no-webgl2')
   })
 
   test('two homes close together are one cluster that zooms apart when pressed', async ({ page, world }) => {

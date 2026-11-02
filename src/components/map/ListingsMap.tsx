@@ -97,6 +97,24 @@ const ACCRA_DEFAULT: ViewState = { longitude: -0.187, latitude: 5.55, zoom: 11.5
 const WORKER_URL = new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).href
 
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || ''
+
+/** Shown in place of the map on a browser without WebGL2 (iOS before 15, some older Android phones) */
+export const NO_WEBGL2_MESSAGE = "The map isn't available on this device. The list shows the same homes."
+
+/**
+ * maplibre 6 draws only with WebGL2: without it the map would stay an empty box (maplibre 5 fell back to
+ * WebGL1). Asked once, with a throwaway canvas whose context is released straight away.
+ */
+function hasWebGL2(): boolean {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2')
+    if (!gl) return false
+    gl.getExtension('WEBGL_lose_context')?.loseContext()
+    return true
+  } catch {
+    return false
+  }
+}
 const MAP_STYLE = `https://api.maptiler.com/maps/positron/style.json?key=${MAPTILER_KEY}`
 
 // The map stops zooming here and homes are clustered all the way up to it, so
@@ -365,6 +383,8 @@ export function ListingsMap({
 }: ListingsMapProps) {
   const mapRef = useRef<MapRef>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+  // (the map is only ever drawn in the browser: it is loaded on demand, never on the server)
+  const [canDraw] = useState(hasWebGL2)
 
   // Determine initial center from region or default to Accra
   const initialCenter = useMemo<ViewState>(() => {
@@ -541,6 +561,21 @@ export function ListingsMap({
           <p style={{ color: '#9C9589', fontSize: 12, marginTop: 4 }}>
             Add NEXT_PUBLIC_MAPTILER_KEY to .env to enable the map
           </p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!canDraw) {
+    return (
+      <div
+        className="w-full h-full flex items-center justify-center rounded-2xl"
+        style={{ backgroundColor: '#F4F2EE', border: '1px solid #E8E1D6' }}
+        data-map-unavailable
+      >
+        <div className="text-center px-6" style={{ maxWidth: 320 }}>
+          <MapIcon size={32} strokeWidth={1.5} aria-hidden style={{ color: '#736D62', margin: '0 auto 12px' }} />
+          <p style={{ color: '#6B645C', fontSize: 14, fontWeight: 600, lineHeight: '20px' }}>{NO_WEBGL2_MESSAGE}</p>
         </div>
       </div>
     )

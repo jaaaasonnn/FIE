@@ -3172,5 +3172,18 @@
   "testFile": "e2e/tests/resilience/one-pool.spec.ts",
   "test": "a server process holds one pool",
   "e2e": true
+ },
+ {
+  "what": "SU3: without WebGL2 the map area shows a message in place of an empty map",
+  "edits": [
+   {
+    "file": "src/components/map/ListingsMap.tsx",
+    "find": "const [canDraw] = useState(hasWebGL2)",
+    "replace": "const [canDraw] = useState(() => hasWebGL2() || true)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/map.spec.ts",
+  "test": "without WebGL2 the map area says so",
+  "e2e": true
  }
 ]
