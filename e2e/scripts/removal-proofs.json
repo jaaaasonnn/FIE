@@ -3147,5 +3147,30 @@
   ],
   "testFile": "src/lib/payDeadline.test.ts",
   "test": "in UTC: 12:34 is \"12:34 pm\""
+ },
+ {
+  "what": "SU2: db.ts keeps its client on globalThis in production too, so each copy of it in a process shares one client",
+  "edits": [
+   {
+    "file": "src/lib/db.ts",
+    "find": "export const db = globalForPrisma.prisma ?? (globalForPrisma.prisma = new PrismaClient())",
+    "replace": "export const db = globalForPrisma.prisma || new PrismaClient()\n\nif (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db"
+   }
+  ],
+  "testFile": "src/lib/security/onePool.test.ts",
+  "test": "with NODE_ENV=production, every copy of db.ts in the process shares one client"
+ },
+ {
+  "what": "SU2: on the production build a server process holds one connection pool, not one per copy of db.ts",
+  "edits": [
+   {
+    "file": "src/lib/db.ts",
+    "find": "export const db = globalForPrisma.prisma ?? (globalForPrisma.prisma = new PrismaClient())",
+    "replace": "export const db = globalForPrisma.prisma || new PrismaClient()\n\nif (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = db"
+   }
+  ],
+  "testFile": "e2e/tests/resilience/one-pool.spec.ts",
+  "test": "a server process holds one pool",
+  "e2e": true
  }
 ]

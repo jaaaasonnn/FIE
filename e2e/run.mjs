@@ -42,7 +42,11 @@ const log = (...a) => console.log('[e2e]', ...a)
 const opt = (name) => rest.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
 const APPS = [3200, 3201, 3202, 3203].slice(0, Math.min(4, Math.max(2, Number(opt('apps') ?? 2))))
 const ALL_APPS = [3200, 3201, 3202, 3203]
-const POOL = opt('pool')
+// Each app process's pool when `--pool` is not given (E2E_APP_POOL also sets it, for one app started with
+// `app:start`). Left to Prisma it would be physical CPUs x 2 + 1 (21 on a 10-core Mac) per app, and the test
+// Postgres has 60 connections for two or more apps, the test workers (3 each) and the checkers (SU2).
+const DEFAULT_POOL = 10
+const POOL = opt('pool') ?? process.env.E2E_APP_POOL ?? String(DEFAULT_POOL)
 const DB_LATENCY = opt('db-latency')
 const PG_REAL_PORT = 54331
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -111,7 +115,7 @@ function build() {
 }
 
 export function startApp(port, extraEnv = {}) {
-  const pooled = POOL ? { DATABASE_URL: `${e2eEnv().DATABASE_URL}&connection_limit=${Number(POOL)}` } : {}
+  const pooled = { DATABASE_URL: `${e2eEnv().DATABASE_URL}&connection_limit=${Number(POOL)}` }
   const env = e2eEnv({ appPort: port, extra: { ...pooled, NODE_OPTIONS: `--require ${path.join(E2E_DIR, 'preload/egress.cjs')}`, E2E_HOST_MAP: JSON.stringify(HOST_MAP), E2E_EGRESS_LOG: EGRESS_LOG, E2E_TLS_PORT: String(PORTS.tls), NODE_EXTRA_CA_CERTS: TLS.cert, PORT: String(port), ...extraEnv } })
   const out = fs.openSync(path.join(STATE, `app-${port}.log`), 'a')
   return spawn('npx', ['next', 'start', '-p', String(port)], { cwd: ROOT, env, stdio: ['ignore', out, out], detached: true })
@@ -139,7 +143,7 @@ async function up() {
   const apps = APPS.map((port) => startApp(port))
   fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, front: front.pid, latency: latency?.pid, apps: Object.fromEntries(APPS.map((p, i) => [p, apps[i].pid])) }))
   for (const port of APPS) await waitFor(`http://localhost:${port}/api/auth/session`, `the app on ${port}`)
-  log(`up: app on ${APPS.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}${DB_LATENCY ? ` through a ${DB_LATENCY} ms proxy (real port ${PG_REAL_PORT})` : ''}${POOL ? `, pool ${POOL} per app` : ''}, fakes on ${PORTS.fakes}/${PORTS.storage}`)
+  log(`up: app on ${APPS.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}${DB_LATENCY ? ` through a ${DB_LATENCY} ms proxy (real port ${PG_REAL_PORT})` : ''}, pool ${POOL} per app, fakes on ${PORTS.fakes}/${PORTS.storage}`)
   const stop = async () => { killGroup(fakes.pid); killGroup(front.pid); if (latency) killGroup(latency.pid); for (const port of [...ALL_APPS, PORTS.front]) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
   process.on('SIGINT', stop); process.on('SIGTERM', stop)
   setInterval(() => {}, 1 << 30) // stay up until told to stop
