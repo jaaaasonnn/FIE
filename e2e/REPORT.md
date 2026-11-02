@@ -1,5 +1,34 @@
 # End-to-end test report
 
+## app-shell: AS1 fixed, AS2 investigated (2026-11-02, test code only, not merged)
+
+**AS1** (`6b0a20c`, `c2f64af`): the send-job test had two timing causes, both in the test. It started its runs
+before the sign-up emails were in the log (it now waits for all eight); and the job sends the 50 oldest messages due,
+so when the races had queued more than that, one round of four runs never reached the test's emails (it now repeats
+the same four runs at once until all eight have gone, at most 20 rounds, still requiring each exactly once).
+Reproduced the second cause on purpose with 120 older queued messages: the old test fails, the new one passes in 3
+rounds. 50 of 50 four at a time; the whole resilience set with 50 copies in one process, 107 of 107. `deliver.ts`
+unchanged.
+
+**AS2** (`3553632`): the fake Paystack now times every request, and the payout-retry race prints each round's run
+times, what each run said about the payout, and every Paystack request with its timing (also in its failure
+message); the assertion is unchanged.
+
+| Run (own results folder, `e2e/.reports/as/`) | Rounds | Result | Fake Paystack answer | Payout runs |
+|---|---|---|---|---|
+| On its own, nothing else running (`E2E_ROUNDS=600`: this test runs a third) | 200 | 200 passed | within 1 ms, none given up on | 9 ms median, 138 ms at most |
+| Inside the full Chromium set, `E2E_ROUNDS=50` | 17 | 17 passed | within 1 ms, none given up on | 18 ms median, 1,050 ms at most |
+
+**So AS2 did not fail again**, in 217 rounds, and the fake was never slow; whether the one failure was a slow fake or
+something in the app is still not proved. Nothing was changed in the fake or the waiting, because nothing slow was
+found to make robust; the timings are now in place, so if it comes back its message will say which. Payout code was
+not touched.
+
+**That Chromium run was not clean** (231 passed, 2 flaky): the send-job test (AS1's second cause, found here and
+fixed above) and a new one, **AS3**: in "ten guests book ten different homes at the same instant" one booking got the
+app's designed `503 "We are busy right now"` (its serializable transaction aborted eight times under the races'
+load). App behaviour, not touched; a decision for the owner (FINDINGS).
+
 ## app-shell, stage 1: the phone's bottom bar (2026-11-02, branch `app-shell`, not merged)
 
 From `main` at `c294542`. Phone widths only; desktop untouched. Money, sign-in, messaging and payout code untouched;

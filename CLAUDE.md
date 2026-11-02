@@ -264,6 +264,7 @@ The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a t
 - A test that intercepts requests with `route.fetch()` ends with `page.unrouteAll({ behavior: 'ignoreErrors' })` (the context fixture does the same): a handler still fetching after its test has ended throws outside any test and stops the worker (SU8). `E2E_REPORT_DIR=<folder>` gives a run its own results, HTML report and artifacts.
 - The test clean-up (`purge`, `e2e/lib/db.ts`) never deletes a `MessageLog` row a send job is sending (SU9): it waits for it, since the job records the outcome by id. `deliver.ts` was not changed: the app never deletes those rows.
 - Test processes do not get in each other's way (SU10): each has an id (`E2E_RUN_ID`, `e2e/lib/runId.ts`) carried in every test person's email (`runEmail`), and the end-of-run clean-up removes only its own people. A fake-service failure rule needs a `match` (the fake refuses one without), and every rule is removed when the test that added it ends, however it ends (fixture `fakeRules`). A new test person's email must come from `runEmail`.
+- The fake Paystack records when every request arrived and was answered (`fakes.calls`: `at`, `answeredAt` or `abandonedAt`, `ms`, `status`): use it to tell a slow fake from a problem in the app. The send job sends the 50 oldest messages due per run, so a test that needs its own messages sent runs it until they have gone, not once (AS1).
 - The unit tests (`npm test`) are separate and unchanged: `src/**/*.test.ts`.
 
 ## Page speed (G5, branch `mobile-speed`)
