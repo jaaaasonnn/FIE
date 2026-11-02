@@ -3377,5 +3377,100 @@
   "test": "signed in: on every page it belongs to",
   "e2e": true,
   "project": "android"
+ },
+ {
+  "what": "App shell polish: the Trips icon is the header logo mark (the same asset and mask)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  -webkit-mask: url('/logo-mark.png') center / contain no-repeat;\n  mask: url('/logo-mark.png') center / contain no-repeat;\n}\n.bottom-bar-tab",
+    "replace": "}\n.bottom-bar-tab"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "the Trips icon is the header",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "App shell polish: the header is 56 px on a phone",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .site-header-bar { height: var(--site-header-height) !important; }",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "the header is 56 px tall on a phone",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "App shell polish: the search dates read Add date in FieGH style, never the browser pattern",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "    display: flex; position: absolute; inset: 0; align-items: center; gap: 8px; padding: 0 12px;",
+    "replace": "    display: none; position: absolute; inset: 0; align-items: center; gap: 8px; padding: 0 12px;"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "the search dates read",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "App shell polish: Trips on a phone shows the bookings before the notices",
+  "edits": [
+   {
+    "file": "src/app/dashboard/guest/GuestDashboardClient.tsx",
+    "find": "className=\"mb-8 max-md:order-2\"",
+    "replace": "className=\"mb-8 max-md:order-5\""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "Trips on a phone",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "App shell polish: buttons, fields and pill links are at least 44 px tall on a phone",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  [role=\"button\"] { min-height: 44px; }",
+    "replace": "  [role=\"button\"] { min-height: 0; }"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "signed out: no text outside its box",
+  "e2e": true
+ },
+ {
+  "what": "App shell polish: on a small phone the listing title has the width, its buttons on their own row",
+  "edits": [
+   {
+    "file": "src/app/listings/[id]/ListingClient.tsx",
+    "find": "max-sm:flex-col-reverse max-sm:gap-1",
+    "replace": "max-sm:gap-1"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "signed out: no text outside its box",
+  "e2e": true
+ },
+ {
+  "what": "App shell polish: the search field stays inside its box on a phone",
+  "edits": [
+   {
+    "file": "src/app/search/SearchClient.tsx",
+    "find": "flex-1 min-w-0 w-full text-sm bg-transparent",
+    "replace": "flex-1 text-sm bg-transparent"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "signed out: no text outside its box",
+  "e2e": true
  }
 ]
