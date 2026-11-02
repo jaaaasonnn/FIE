@@ -154,8 +154,8 @@ describe('what hosts are told', () => {
   it('is what the pages show: each takes its words from lib/hostId.ts', () => {
     expect(read('src/app/become-a-host/page.tsx')).toContain('BECOME_A_HOST_ID.title')
     expect(read('src/app/become-a-host/page.tsx')).not.toContain('It is not required to start hosting')
-    expect(read('src/app/dashboard/host/page.tsx')).toContain('<HostIdNotice')
-    expect(read('src/app/dashboard/host/page.tsx')).not.toContain('It is not required to host')
+    expect(read('src/app/dashboard/host/HostDashboardClient.tsx')).toContain('<HostIdNotice')
+    expect(read('src/app/dashboard/host/HostDashboardClient.tsx')).not.toContain('It is not required to host')
     expect(read('src/app/dashboard/host/payouts/page.tsx')).toContain('<HostIdNotice showWaiting')
     expect(read('src/app/dashboard/host/listings/new/page.tsx')).toContain('<HostIdNotice variant="listing"')
     for (const file of ['src/app/faq/page.tsx', 'src/app/how-it-works/page.tsx', 'src/app/terms/page.tsx']) expect(read(file), file).toContain('PAYOUTS_NEED_ID')

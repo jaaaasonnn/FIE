@@ -324,11 +324,11 @@ describe('site copy', () => {
   it('works out host earnings from the stay price through hostShare', () => {
     const read = (file: string) => fs.readFileSync(path.resolve(__dirname, '..', file), 'utf8')
     // The dashboard's month figure is summed in lib/hostEarnings.ts, through hostShare
-    expect(read('app/dashboard/host/page.tsx')).toContain('monthEarnings(bookings)')
+    expect(read('app/dashboard/host/HostDashboardClient.tsx')).toContain('monthEarnings(bookings)')
     expect(read('lib/hostEarnings.ts')).toContain('hostShare(b.subtotal, refunded)')
     expect(read('lib/hostEarnings.ts')).not.toMatch(/PLATFORM_COMMISSION|0\.\d/)
     expect(read('app/dashboard/host/bookings/page.tsx')).toContain('hostShare(b.subtotal)')
-    expect(read('app/listings/[id]/page.tsx')).toContain('calculateFees(basePrice).serviceFee')
+    expect(read('app/listings/[id]/ListingClient.tsx')).toContain('calculateFees(basePrice).serviceFee')
   })
 
   it('shows a service fee row only where a fee was charged', () => {
@@ -364,7 +364,7 @@ describe('payouts are in cedis', () => {
   })
 
   it('no page a host reads still says a payout is converted at the current rate', () => {
-    for (const file of ['app/faq/page.tsx', 'app/terms/page.tsx', 'app/become-a-host/page.tsx', 'app/dashboard/host/payouts/page.tsx', 'app/dashboard/host/page.tsx', 'lib/hostId.ts', 'lib/messaging/templates.ts']) {
+    for (const file of ['app/faq/page.tsx', 'app/terms/page.tsx', 'app/become-a-host/page.tsx', 'app/dashboard/host/payouts/page.tsx', 'app/dashboard/host/HostDashboardClient.tsx', 'lib/hostId.ts', 'lib/messaging/templates.ts']) {
       expect(read(file), file).not.toMatch(/payouts?[^.]*(converted|current rate|today's rate)/i)
     }
   })

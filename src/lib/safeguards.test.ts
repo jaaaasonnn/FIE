@@ -120,7 +120,7 @@ describe('the admin actions that went round the switches', () => {
   })
 
   it('send nothing made up with a payment from the checkout page', () => {
-    const page = read('app/checkout/[id]/page.tsx')
+    const page = read('app/checkout/[id]/CheckoutClient.tsx')
     expect(page).not.toMatch(/guest@fiegh\.com/)
     expect(page).not.toMatch(/amount:\s+payAmount/)
   })
@@ -210,7 +210,7 @@ describe('the word "verified"', () => {
     expect(read('app/faq/page.tsx')).toContain('questions: CHECK_FAQ')
     expect(read('app/terms/page.tsx')).toContain('body: CHECK_TERMS')
     expect(read('app/faq/page.tsx')).not.toMatch(/Every host goes through/)
-    for (const page of ['app/listings/[id]/page.tsx', 'app/search/page.tsx', 'components/home/FeaturedListings.tsx', 'components/map/ListingsMap.tsx']) {
+    for (const page of ['app/listings/[id]/ListingClient.tsx', 'app/search/SearchClient.tsx', 'components/home/FeaturedListings.tsx', 'components/map/ListingsMap.tsx']) {
       expect(read(page), page).toContain('<CheckedBadge check=')
     }
   })
