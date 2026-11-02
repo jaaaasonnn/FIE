@@ -3039,5 +3039,18 @@
   ],
   "testFile": "src/lib/chunkGuard.test.ts",
   "test": "leaves alone the polyfills marked nomodule, which a browser that runs the guard never downloads"
+ },
+ {
+  "what": "G5: checkout comes with its booking from the server",
+  "edits": [
+   {
+    "file": "src/app/checkout/[id]/page.tsx",
+    "find": "<CheckoutClient key={id} initial={initial} />",
+    "replace": "<CheckoutClient key={id} initial={null} />"
+   }
+  ],
+  "testFile": "e2e/tests/perf/server-first.spec.ts",
+  "test": "checkout comes with its booking",
+  "e2e": true
  }
 ]

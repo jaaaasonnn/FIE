@@ -25,27 +25,43 @@ async function checkoutFor(world: import('../../lib/world').World) {
   return { guest, home, bookingId }
 }
 
-test('checkout: the booking request is dropped once, and the page loads anyway @core', async ({ page, world, signIn }) => {
-  const { guest, bookingId } = await checkoutFor(world)
+// Checkout, both dashboards, a listing and search now come with their data from the server (G5), so on a
+// first load the browser asks for nothing that can be dropped. When the server cannot read the data they
+// fetch it in the browser as before: those fallbacks are tested in tests/chaos/server-first.spec.ts, where
+// a table is locked so the server's read gives up. A page that still loads its data in the browser, reached
+// by a link inside the app, keeps these two tests in every browser:
+
+async function bookingPageFromDashboard(world: import('../../lib/world').World) {
+  const host = await world.host()
+  const guest = await world.guest()
+  const home = await world.listing(host)
+  const paid = await world.paidBooking(guest, home.id)
+  return { guest, paid }
+}
+
+test('reached by a link: the booking request is dropped once, and the page loads anyway @core', async ({ page, world, signIn }) => {
+  const { guest, paid } = await bookingPageFromDashboard(world)
   await signIn(guest)
+  await page.goto('/dashboard/guest')
   let dropped = 0
-  await page.route('**/api/bookings?id=*', (route) => (dropped++ === 0 ? route.abort('connectionreset') : route.continue()))
-  await page.goto(`/checkout/${bookingId}`)
-  await expect(cardButton(page)).toBeVisible({ timeout: 15_000 })
+  await page.route(`**/api/bookings?id=${paid.id}`, (route) => (dropped++ === 0 ? route.abort('connectionreset') : route.continue()))
+  await page.getByRole('link', { name: 'View booking' }).first().click()
+  await expect(page).toHaveURL(new RegExp(`/bookings/${paid.id}$`))
+  await expect(page.getByRole('heading', { level: 1, name: 'Booking Confirmed!' })).toBeVisible({ timeout: 15_000 })
   expect(dropped).toBeGreaterThanOrEqual(2)
 })
 
-test('checkout: the booking request keeps failing: "try again", never "Booking unavailable", and trying again works @core', async ({ page, world, signIn }) => {
-  const { guest, bookingId } = await checkoutFor(world)
+test('reached by a link: the booking request keeps failing: "try again", and trying again works @core', async ({ page, world, signIn }) => {
+  const { guest, paid } = await bookingPageFromDashboard(world)
   await signIn(guest)
+  await page.goto('/dashboard/guest')
   let down = true
-  await page.route('**/api/bookings?id=*', (route) => (down ? route.fulfill({ status: 502, contentType: 'text/html', body: '<h1>Bad gateway</h1>' }) : route.continue()))
-  await page.goto(`/checkout/${bookingId}`)
+  await page.route(`**/api/bookings?id=${paid.id}`, (route) => (down ? route.fulfill({ status: 502, contentType: 'text/html', body: '<h1>Bad gateway</h1>' }) : route.continue()))
+  await page.getByRole('link', { name: 'View booking' }).first().click()
   await expect(tryAgain(page)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText('Booking unavailable')).toHaveCount(0)
   down = false
   await tryAgain(page).click()
-  await expect(cardButton(page)).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Booking Confirmed!' })).toBeVisible()
 })
 
 test('checkout: one of the app\'s script files does not arrive, and the page still becomes usable @core', async ({ page, world, signIn }) => {

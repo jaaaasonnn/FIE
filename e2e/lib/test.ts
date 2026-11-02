@@ -62,7 +62,30 @@ type Fixtures = {
   signIn: (person: Actor, page?: Page) => Promise<void>
 }
 
+// Next streams each page that reads data on the server: the page's HTML arrives in a hidden holder
+// (<div hidden id="S:0">) and React reveals it in place up to about 300 ms later, to line up with a paint.
+// In that moment a copy can be in both places. A person cannot see or reach the hidden one, but a test that
+// finds inputs by label or placeholder would find two. And the page is drawn before its JavaScript runs:
+// a click before React has attached to it is lost. So a test's page.goto returns once the page has settled
+// and React has taken it over (G5).
+async function settled(page: Page) {
+  await page.waitForFunction(() => {
+    if (document.querySelector('body > div[hidden][id^="S:"]')) return false
+    const first = document.querySelector('main > *')
+    return !first || Object.keys(first).some((key) => key.startsWith('__reactFiber'))
+  }, null, { timeout: 10_000 }).catch(() => {})
+}
+
 export const test = base.extend<Fixtures>({
+  page: async ({ page }, use) => {
+    const goto = page.goto.bind(page)
+    page.goto = async (url, options) => {
+      const answer = await goto(url, options)
+      if (options?.waitUntil !== 'commit') await settled(page)
+      return answer
+    }
+    await use(page)
+  },
   problems: async ({}, use) => { await use({ console: [], pageErrors: [], failedRequests: [], external: [], csp: [] }) },
   context: async ({ context, problems }, use) => {
     await context.setExtraHTTPHeaders({ 'x-vercel-forwarded-for': freshIp() })
