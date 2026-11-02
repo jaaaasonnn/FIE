@@ -114,21 +114,6 @@ test('a search that is not answered says "try again", not "No properties found" 
   await expect(tryAgain(page)).toBeHidden()
 })
 
-test('the guest dashboard whose bookings do not load says "try again", not "No bookings yet" @core', async ({ page, world, signIn }) => {
-  const { guest, home } = await checkoutFor(world)
-  await signIn(guest)
-  let down = true
-  await page.route('**/api/bookings?guestId=*', (route) => (down ? route.abort('connectionreset') : route.continue()))
-  await page.goto('/dashboard/guest')
-  await expect(tryAgain(page)).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByText('No bookings yet')).toHaveCount(0)
-  down = false
-  await tryAgain(page).click()
-  await expect(page.getByText(home.title).first()).toBeVisible()
-})
-
-// G7 (fixed): the answer to Book lost on the way back. The booking was made; pressing Book again said "Those
-// dates just became unavailable… pick new dates". Now it says the dates are the guest's own, with the way to pay.
 test('the answer to Book is lost: pressing Book again says the dates are the guest\'s own, and leads to paying @core', async ({ page, world, signIn, context }) => {
   const host = await world.host()
   const guest = await world.guest()

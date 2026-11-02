@@ -64,9 +64,12 @@ test.describe('accounts', () => {
     await page.goto('/dashboard/guest')
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Welcome back')
     // On a phone the account is inside the menu; on a wide screen it is its own button
+    // (the dashboard comes with the page and can be drawn before the menu knows who is signed in: G5)
     const account = page.getByRole('button', { name: /E2E/ }).first()
+    const menu = page.getByRole('button', { name: 'Open menu' })
+    await expect(account.or(menu).filter({ visible: true }).first()).toBeVisible()
     if (await account.isVisible()) await account.click()
-    else await page.getByRole('button', { name: 'Open menu' }).click()
+    else await menu.click()
     await page.getByRole('button', { name: /log ?out|sign ?out/i }).or(page.getByRole('menuitem', { name: /log ?out|sign ?out/i })).or(page.getByText(/^(Log ?out|Sign ?out)$/i)).first().click()
     await expect.poll(async () => db.session.count({ where: { userId: guest.id } })).toBe(0)
     // Signing out sends the page somewhere itself: to log in when the dashboard notices, then home. Asking for

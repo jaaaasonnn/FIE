@@ -89,3 +89,21 @@ test.describe('checkout', () => {
     expect(asked).toBeGreaterThanOrEqual(1)
   })
 })
+
+test.describe('guest dashboard', () => {
+  test('the server cannot read the bookings and the browser\'s request fails: "try again", not "No bookings yet", and trying again works', async ({ page, world, signIn }) => {
+    const { guest, home } = await checkoutFor(world)
+    await signIn(guest)
+    let down = true
+    await page.route('**/api/bookings?guestId=*', (route) => (down ? route.abort('connectionreset') : route.continue()))
+    await withTableLocked('Booking', async (release) => {
+      await page.goto('/dashboard/guest')
+      await expect(tryAgain(page)).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText('No bookings yet')).toHaveCount(0)
+      await release()
+    })
+    down = false
+    await tryAgain(page).click()
+    await expect(page.getByText(home.title).first()).toBeVisible()
+  })
+})

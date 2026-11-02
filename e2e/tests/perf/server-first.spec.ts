@@ -34,3 +34,17 @@ test('checkout comes with its booking', async ({ page, world, signIn }) => {
   await expect(page.getByText(home.title).first()).toBeVisible()
   expect(asked).toEqual([])
 })
+
+test('the guest dashboard comes with its bookings', async ({ page, world, signIn }) => {
+  const host = await world.host()
+  const guest = await world.guest()
+  const home = await world.listing(host)
+  await world.mustBook(guest, home.id)
+  await signIn(guest)
+  expect(await html(page, '/dashboard/guest')).toContain(home.title)
+  const asked = await blockApi(page, '**/api/bookings?guestId=*')
+  await page.goto('/dashboard/guest')
+  await expect(page.getByText(home.title).first()).toBeVisible()
+  await expect(page.getByText('No bookings yet')).toHaveCount(0)
+  expect(asked).toEqual([])
+})

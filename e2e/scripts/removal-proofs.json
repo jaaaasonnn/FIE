@@ -3052,5 +3052,18 @@
   "testFile": "e2e/tests/perf/server-first.spec.ts",
   "test": "checkout comes with its booking",
   "e2e": true
+ },
+ {
+  "what": "G5: the guest dashboard comes with its bookings from the server",
+  "edits": [
+   {
+    "file": "src/app/dashboard/guest/page.tsx",
+    "find": "<GuestDashboardClient initial={initial} />",
+    "replace": "<GuestDashboardClient initial={null} />"
+   }
+  ],
+  "testFile": "e2e/tests/perf/server-first.spec.ts",
+  "test": "the guest dashboard comes with its bookings",
+  "e2e": true
  }
 ]
