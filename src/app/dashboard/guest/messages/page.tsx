@@ -56,7 +56,7 @@ function GuestMessagesContent() {
             role="guest"
             seed={seed}
             nav={
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+              <div className="hidden md:flex gap-2 mb-6 overflow-x-auto pb-1">
                 {[
                   { href: '/dashboard/guest', label: 'Bookings' },
                   { href: '/dashboard/guest/wishlist', label: 'Wishlist' },

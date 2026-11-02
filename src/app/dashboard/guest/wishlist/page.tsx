@@ -140,7 +140,8 @@ export default function WishlistPage() {
 
       <div className="max-w-5xl mx-auto px-4 py-8">
         {/* Dashboard nav */}
-        <div className="flex gap-2 mb-8 overflow-x-auto pb-1">
+        {/* (phones: the bottom bar is the way between these pages) */}
+        <div className="hidden md:flex gap-2 mb-8 overflow-x-auto pb-1">
           {[
             { href: '/dashboard/guest', label: 'Bookings' },
             { href: '/dashboard/guest/wishlist', label: 'Wishlist', active: true },
