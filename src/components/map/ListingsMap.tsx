@@ -550,7 +550,7 @@ export function ListingsMap({
     <div
       ref={wrapRef}
       onKeyDown={handleKeyDown}
-      style={{ width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' }}
+      style={{ position: 'relative', width: '100%', height: '100%', borderRadius: 16, overflow: 'hidden' }}
     >
       <Map
         ref={mapRef}
@@ -666,6 +666,12 @@ export function ListingsMap({
           </Popup>
         )}
       </Map>
+
+      {/* The map's credits, as MapTiler's terms ask: always shown, links open in a new tab */}
+      <p className="map-attribution">
+        <a href="https://www.maptiler.com/copyright/" target="_blank" rel="noopener noreferrer">© MapTiler</a>{' '}
+        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">© OpenStreetMap contributors</a>
+      </p>
     </div>
   )
 }

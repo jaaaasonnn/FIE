@@ -85,6 +85,30 @@ test.describe('the search map', () => {
     expect(trouble).toEqual([])
   })
 
+  test('shows its credits, MapTiler and OpenStreetMap, each a link to their copyright page @core', async ({ page, world }) => {
+    const host = await world.host()
+    const city = `Dzorwulu${crypto.randomBytes(5).toString('hex')}`
+    await world.listing(host, { city, region: 'Greater Accra', lat: ACCRA.lat, lng: ACCRA.lng })
+    await openMap(page, city, 1)
+
+    const credits = page.locator('.map-attribution:visible')
+    await expect(credits).toHaveText('© MapTiler © OpenStreetMap contributors')
+    for (const [name, href] of [['© MapTiler', 'https://www.maptiler.com/copyright/'], ['© OpenStreetMap contributors', 'https://www.openstreetmap.org/copyright']]) {
+      const link = credits.getByRole('link', { name, exact: true })
+      await expect(link).toHaveAttribute('href', href)
+      await expect(link).toHaveAttribute('target', '_blank')
+      await expect(link).toHaveAttribute('rel', 'noopener noreferrer')
+    }
+    // Readable, and inside the map, clear of the zoom buttons
+    expect(Number((await credits.evaluate((el) => getComputedStyle(el).fontSize)).replace('px', ''))).toBeGreaterThanOrEqual(11)
+    const [box, map, zoom] = await Promise.all([credits.boundingBox(), page.locator('.maplibregl-map:visible').boundingBox(), page.locator('.maplibregl-ctrl-group:visible').boundingBox()])
+    expect(box && map && zoom).toBeTruthy()
+    expect(box!.x).toBeGreaterThanOrEqual(map!.x)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(map!.y + map!.height)
+    expect(box!.x + box!.width).toBeLessThan(zoom!.x)
+    await shot(page, 'credits')
+  })
+
   test('two homes close together are one cluster that zooms apart when pressed', async ({ page, world }) => {
     const trouble = watchForMapTrouble(page)
     const host = await world.host()
