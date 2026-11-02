@@ -6,6 +6,34 @@ Branch `payments-switched-off`, from `main` at `c27c0bd`, pushed after each comm
 tested on the local test stack only, under `caffeinate -dims` on mains power; no live database, switch or
 environment variable touched; no real Paystack, email or SMS.
 
+### SU9 fixed in the test harness (`e2e/lib/db.ts`), not merged yet
+
+As decided, test side only: `deliver.ts` is unchanged, because the app never deletes `MessageLog` rows (only the
+test clean-up does), so production cannot reach the 500. The clean-up (`purge`) now never deletes a message a send
+job has claimed (`SENDING`): it deletes the people's other messages at once and waits (up to 20 s) for one being
+sent to be recorded; inside its transaction it deletes only messages not being sent, and if a job claims one in that
+moment the person's foreign key stops the transaction, which waits and goes again.
+
+Proof, retries off, each run in its own results folder (`e2e/.reports/su9/`):
+
+| Run | Result |
+|---|---|
+| "the send job starts on two servers at once", 50 times, four at a time | 50 of 50 |
+| the same 50, while a second Playwright process ran the resilience set twice | 50 of 50 |
+| that second process (the resilience set twice) | **not clean: 78 passed, 26 failed**, see below |
+| the whole resilience set and 50 copies of the test, in one process (as the full suite runs) | **102 of 102** |
+| the whole resilience set once | **52 of 52** |
+| lint, type check | pass (39 warnings, none new) |
+
+**The run that was not clean was my test set-up, not the fix.** The 50-run process finished first, and the harness's
+global teardown deletes every remaining `e2e-…@fiegh.test` user, including the second process's people: its
+failures begin two seconds later (a booking gone mid-test, a user gone under a `Verification` row, a sign-in for a
+person deleted). One of those, "verify drops the connection", had added a fake-Paystack rule with
+`match: pay.reference` while the reference was undefined, so the rule matched every request and stayed: every
+later payment check failed ("CONFIRMED/UNPAID after paying"). The rule (`verify`/`reset`, 105 hits) was removed by
+hand. The full suite runs one process, so neither can happen there; both recorded as SU10 (test code, open). The
+check was then made the way the full suite runs: 102 of 102.
+
 ### SU8 fixed, and the full set again (`06734e5`, `183992d`)
 
 - **SU8** (`06734e5`, test code only): the map and date-picker "file does not arrive" tests end with

@@ -1,6 +1,6 @@
 // The test database, for arranging and checking. Refuses to open anything
 // that is not the local throwaway database (the marker row is the proof).
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 
 const url = new URL(process.env.DATABASE_URL ?? 'postgresql://invalid')
 if (url.hostname !== '127.0.0.1' || url.pathname !== '/fiegh_e2e' || process.env.E2E !== '1') {
@@ -19,6 +19,29 @@ export async function assertTestDatabase(): Promise<void> {
   checked = true
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+/** How long clean-up waits for a send job to finish with these people's messages (the job's own limit per message is 8 s) */
+const SENDING_WAIT_MS = 20_000
+
+/**
+ * SU9: the send job (src/lib/messaging/deliver.ts) works over the whole database. It claims a message (status
+ * SENDING), calls the provider, then records the outcome by the row's id; a row deleted in between made the
+ * whole run answer 500. Only this clean-up ever deletes MessageLog rows (the app never does), so it leaves a
+ * message alone while a job is sending it: everything else of these people's is deleted at once, and a message
+ * being sent is waited for until the job has recorded it. After SENDING_WAIT_MS a SENDING row is a run that
+ * died, and is deleted like any other.
+ */
+async function clearMessages(where: Prisma.MessageLogWhereInput): Promise<Prisma.MessageLogWhereInput> {
+  const notSending: Prisma.MessageLogWhereInput = { AND: [where, { status: { not: 'SENDING' } }] }
+  const until = Date.now() + SENDING_WAIT_MS
+  for (;;) {
+    await db.messageLog.deleteMany({ where: notSending })
+    if ((await db.messageLog.count({ where })) === 0) return notSending
+    if (Date.now() > until) return where
+    await sleep(100)
+  }
+}
+
 /** Deletes everything that hangs off these people, by id. */
 export async function purge(userIds: string[]): Promise<void> {
   if (userIds.length === 0) return
@@ -28,12 +51,28 @@ export async function purge(userIds: string[]): Promise<void> {
   const bookings = (await db.booking.findMany({ where: { OR: [{ guestId: u }, { hostId: u }, { listingId: { in: listings } }] }, select: { id: true } })).map((r) => r.id)
   const b = { in: bookings }
   const disputes = (await db.dispute.findMany({ where: { bookingId: b }, select: { id: true } })).map((r) => r.id)
-  // In one transaction: nobody reading beside this (another test's check of the money rules) sees a booking without its payment
+  const messages: Prisma.MessageLogWhereInput = { OR: [{ userId: u }, { bookingId: b }] }
+  // In one transaction: nobody reading beside this (another test's check of the money rules) sees a booking
+  // without its payment. If a send job claims one of these messages in the moment before it, deleting the
+  // person fails on the message's foreign key and nothing is deleted: wait for that send, and go again.
+  for (let attempt = 0; ; attempt++) {
+    const messageWhere = await clearMessages(messages)
+    try {
+      await purgeRows(u, b, listings, disputes, userIds, bookings, messageWhere)
+      return
+    } catch (error) {
+      if (attempt < 5 && error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') continue
+      throw error
+    }
+  }
+}
+
+async function purgeRows(u: { in: string[] }, b: { in: string[] }, listings: string[], disputes: string[], userIds: string[], bookings: string[], messageWhere: Prisma.MessageLogWhereInput) {
   await db.$transaction([
     db.message.deleteMany({ where: { OR: [{ senderId: u }, { receiverId: u }] } }),
     db.wishlist.deleteMany({ where: { OR: [{ userId: u }, { listingId: { in: listings } }] } }),
     db.notification.deleteMany({ where: { OR: [{ userId: u }, ...userIds.map((id) => ({ body: { contains: id } })), ...bookings.map((id) => ({ body: { contains: id } }))] } }),
-    db.messageLog.deleteMany({ where: { OR: [{ userId: u }, { bookingId: b }] } }),
+    db.messageLog.deleteMany({ where: messageWhere }),
     db.disputeEvidence.deleteMany({ where: { disputeId: { in: disputes } } }),
     db.disputeEvent.deleteMany({ where: { disputeId: { in: disputes } } }),
     db.dispute.deleteMany({ where: { id: { in: disputes } } }),
