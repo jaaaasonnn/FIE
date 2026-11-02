@@ -3117,5 +3117,23 @@
   "testFile": "e2e/tests/perf/server-first.spec.ts",
   "test": "the admin overview comes with its figures",
   "e2e": true
+ },
+ {
+  "what": "G5: the client pages have no Suspense boundary of their own, so React keeps the server's copy",
+  "edits": [
+   {
+    "file": "src/app/dashboard/host/HostDashboardClient.tsx",
+    "find": "import { useEffect, useState } from 'react'",
+    "replace": "import { Suspense, useEffect, useState } from 'react'"
+   },
+   {
+    "file": "src/app/dashboard/host/HostDashboardClient.tsx",
+    "find": "  return <HostDashboardContent initial={initial} />",
+    "replace": "  return <Suspense><HostDashboardContent initial={initial} /></Suspense>"
+   }
+  ],
+  "testFile": "e2e/tests/perf/server-first.spec.ts",
+  "test": "each page keeps the copy the server sent",
+  "e2e": true
  }
 ]

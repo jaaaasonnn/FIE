@@ -94,3 +94,32 @@ test('the admin overview comes with its figures', async ({ page, world, signIn }
   await expect(page.getByRole('heading', { name: 'Access denied' })).toHaveCount(0)
   expect(asked).toEqual([])
 })
+
+// React must take over the HTML the server sent, not throw it away and draw the page again once its
+// JavaScript has arrived: then the page would show its content no sooner than before. (A Suspense boundary
+// inside these client pages did that; they have none now.)
+test('each page keeps the copy the server sent', async ({ page, world, signIn }) => {
+  const host = await world.host()
+  const guest = await world.guest()
+  const admin = await world.admin()
+  const home = await world.listing(host)
+  const bookingId = await world.mustBook(guest, home.id)
+  await page.addInitScript(() => {
+    document.addEventListener('DOMContentLoaded', () => {
+      ;(window as unknown as { __served?: Element | null }).__served = document.querySelector('body > div[hidden][id^="S:"] > *') ?? document.querySelector('main > *')
+    })
+  })
+  const redrawn: string[] = []
+  for (const [who, url] of [[guest, `/checkout/${bookingId}`], [guest, '/dashboard/guest'], [host, '/dashboard/host'], [null, `/listings/${home.id}`], [null, '/search'], [admin, '/admin']] as const) {
+    await page.context().clearCookies()
+    if (who) await signIn(who)
+    for (let i = 0; i < 3; i++) {
+      await page.goto(url)
+      await page.waitForTimeout(500)
+      const kept = await page.evaluate(() => document.querySelector('main > *') === (window as unknown as { __served?: Element | null }).__served)
+      if (!kept) redrawn.push(`${url} (load ${i + 1})`)
+    }
+  }
+  expect(redrawn).toEqual([])
+})
+

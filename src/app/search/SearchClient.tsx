@@ -2,7 +2,7 @@
 
 import { NotAnswered, fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
-import { useState, useEffect, useRef, useCallback, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, SlidersHorizontal, MapPin, Star, Bed, Bath, X,
@@ -612,5 +612,6 @@ const SCROLL_KEEP_MS = 30 * 60 * 1000
 const EAGER_CARDS = 4
 
 export function SearchClient({ initial = null }: { initial?: SearchInitial }) {
-  return <Suspense><SearchContent initial={initial} /></Suspense>
+  // (no Suspense boundary of its own: see app/dashboard/host/HostDashboardClient.tsx)
+  return <SearchContent initial={initial} />
 }

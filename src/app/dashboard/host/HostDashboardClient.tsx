@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Plus, Home, Calendar, DollarSign, Star, Users, Eye, Loader2, CheckCircle } from 'lucide-react'
@@ -448,34 +448,9 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
   )
 }
 
-// useSearchParams() needs a Suspense boundary for the page to prerender.
-// The fallback mirrors the header + loading state above so there's no jump.
-export function HostDashboardFallback() {
-  return (
-    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
-        <div className="max-w-6xl mx-auto flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--gold-light)' }} />
-          <div className="space-y-2">
-            <div className="h-6 w-48 rounded-full animate-pulse" style={{ backgroundColor: 'rgba(250,247,242,0.15)' }} />
-            <div className="h-3 w-24 rounded-full animate-pulse" style={{ backgroundColor: 'rgba(250,247,242,0.1)' }} />
-          </div>
-        </div>
-      </div>
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="flex flex-col items-center justify-center py-24 gap-3">
-          <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading dashboard…</p>
-        </div>
-      </div>
-    </div>
-  )
-}
-
+// No Suspense boundary of its own: the page is drawn on the server for each request, so useSearchParams()
+// never waits, and a boundary here made React throw the server's copy away and draw the dashboard again
+// once its JavaScript had arrived (G5)
 export function HostDashboardClient({ initial = null }: { initial?: HostDashboardInitial }) {
-  return (
-    <Suspense fallback={<HostDashboardFallback />}>
-      <HostDashboardContent initial={initial} />
-    </Suspense>
-  )
+  return <HostDashboardContent initial={initial} />
 }

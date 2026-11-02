@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Shield, CheckCircle, Phone, CreditCard, AlertCircle, Loader2, MessageSquare, Lock, Check, AlertTriangle, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -145,11 +145,8 @@ export function CheckoutLoading() {
 export type CheckoutInitial = { booking: BookingData } | null
 
 export function CheckoutClient({ initial = null }: { initial?: CheckoutInitial }) {
-  return (
-    <Suspense fallback={null}>
-      <CheckoutPageInner initial={initial} />
-    </Suspense>
-  )
+  // (no Suspense boundary of its own: see app/dashboard/host/HostDashboardClient.tsx)
+  return <CheckoutPageInner initial={initial} />
 }
 
 function CheckoutPageInner({ initial }: { initial: CheckoutInitial }) {
