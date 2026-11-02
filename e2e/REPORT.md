@@ -6,6 +6,43 @@ Branch `payments-switched-off`, from `main` at `c27c0bd`, pushed after each comm
 tested on the local test stack only, under `caffeinate -dims` on mains power; no live database, switch or
 environment variable touched; no real Paystack, email or SMS.
 
+### SU8 fixed, and the full set again (`06734e5`, `183992d`)
+
+- **SU8** (`06734e5`, test code only): the map and date-picker "file does not arrive" tests end with
+  `page.unrouteAll({ behavior: 'ignoreErrors' })`; so do `resilience/loads.spec.ts`'s routed test (the only other
+  test that fetches inside a route) and the context fixture (`e2e/lib/test.ts`), whose route for the fake
+  Paystack's pages fetches in the Safari set-ups. Checked first: the affected tests 20 of 20, the Safari payment
+  tests 8 of 8, no error outside a test.
+- **Each suite's own results** (`183992d`): `E2E_REPORT_DIR` puts the JSON results, HTML report and artifacts in a
+  folder of the run's own. The run below wrote `e2e/.reports/su8/full/<suite>/`, each with a `summary.txt` naming
+  every test that did not simply pass.
+
+**The full set, once, on `183992d`, under `caffeinate -dims`, mains power:**
+
+| Check | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass (39 warnings, none new); 1,675 tests in each of the six zones |
+| Harness build | pass |
+| Money rules (with SU7's) | clean before and after (2 of 2 each) |
+| Chromium suite, races at 50 rounds | **216 passed, 4 skipped (the four "pictures" tests, only when asked for), 1 flaky, 0 failed, 0 did not run, no error outside a test** |
+| Chaos | 17 passed |
+| Other five set-ups | 226 passed, 4 skipped (the map in headless Firefox), 0 flaky, 0 did not run |
+| Removal proofs | **all 269 hold** |
+| Bundle guard | pass; **desktop search 648 KB of 650** |
+
+SU7's races at 50 rounds: switched off as the money landed, 41 paid and left alone and 9 refunded in full and
+ended; switched off as Pay was pressed, 14 refused before Paystack and 36 paid on a page handed out first and
+refunded in full. Never both, never neither, one charge every round.
+
+**Not clean: one flaky test, not re-run.** `resilience/services.spec.ts`, "the send job starts on two servers at
+once: each email goes once", failed once and passed on its retry: one of the four simultaneous `send-messages` runs
+answered 500 (every email still went exactly once). The app log has the cause: `messageLog.update` in
+`src/lib/messaging/deliver.ts` (recording a message's outcome) threw P2025, "No record was found for an update".
+The send job works over the whole database, and another test's clean-up (`purge` in `e2e/lib/db.ts`, the only code
+that deletes `MessageLog` rows) deleted a row it was sending. Recorded as **SU9**: older than these branches
+(`deliver.ts` unchanged since `6c66f24`), not reachable in production today (the app never deletes these rows), a
+small fix proposed; needs your go-ahead.
+
 ### The rule, as decided
 
 A home is no longer available when its host switched it off (`isActive = false` and `moderationHold = false`) or
