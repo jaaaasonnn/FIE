@@ -71,6 +71,15 @@ const dateInputStyle = {
 const dayLabel = (key: string, withYear = false) =>
   formatDay(`${key}T12:00:00Z`, { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
 
+/** What a phone shows in a date field (globals.css .date-field-face): "Add date", or "Wed, 13 Nov". Never read out: the input's own value is. */
+function DateFace({ value }: { value: string }) {
+  return (
+    <span className="date-field-face" data-empty={value ? 'false' : 'true'} aria-hidden>
+      {value ? formatDay(`${value}T12:00:00Z`, { weekday: 'short', day: 'numeric', month: 'short' }) : 'Add date'}
+    </span>
+  )
+}
+
 /** "13 to 16 Oct, 3 nights", "From 13 Oct, 3 months" or "From 13 Oct, one year". */
 function dateSummary(f: DateFilters): string {
   if (f.mode === 'TEMP_STAY') return `From ${dayLabel(f.checkIn)}, ${f.months === '1' ? '1 month' : `${f.months} months`}`
@@ -225,7 +234,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
       {/* Sticky top bar */}
       <div className="sticky z-30"
         style={{
-          top: '4.25rem',
+          top: 'var(--site-header-height)',
           backgroundColor: 'var(--color-bg-card)',
           borderBottom: '1px solid var(--color-border)',
           boxShadow: '0 1px 6px rgba(31,27,22,0.05)',
@@ -241,7 +250,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
                 placeholder="Search by city, neighbourhood..."
                 value={filters.query}
                 onChange={(e) => setFilters((f) => ({ ...f, query: e.target.value }))}
-                className="flex-1 text-sm bg-transparent border-none outline-none"
+                className="flex-1 min-w-0 w-full text-sm bg-transparent border-none outline-none"
                 style={{ color: 'var(--color-text-primary)' }}
               />
               {filters.query && (
@@ -284,7 +293,8 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
               }}>
               {/* The icon keeps the brand gold; only the word takes the deeper shade, to be readable */}
               <SlidersHorizontal size={15} aria-hidden style={showFilters ? { color: 'var(--color-accent)' } : undefined} />
-              Filters
+              {/* A phone keeps the room for the search field: the button is its icon, its name kept for screen readers */}
+              <span className="max-md:sr-only">Filters</span>
             </button>
 
             {/* Mobile map button */}
@@ -292,18 +302,21 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
               onClick={() => setShowMapMobile(true)}
               className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
               style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-              <MapIcon size={15} /> Map
+              <MapIcon size={15} aria-hidden /> <span className="max-md:sr-only">Map</span>
             </button>
           </div>
 
           {/* Dates: always visible, since they decide what is available */}
-          <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
+          <div className="search-dates mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
             <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
               {filters.mode === 'TEMP_STAY' || filters.mode === 'PERMANENT' ? 'Move-in' : 'Check-in'}
-              <input type="date" value={filters.checkIn} min={todayKey()}
-                onChange={(e) => setFilters((f) => ({ ...f, checkIn: e.target.value, checkOut: f.checkOut && e.target.value && f.checkOut <= e.target.value ? '' : f.checkOut }))}
-                className="focus-ring mt-1 text-sm px-3 py-2 rounded-xl font-normal"
-                style={dateInputStyle} />
+              <span className="date-field mt-1">
+                <input type="date" value={filters.checkIn} min={todayKey()}
+                  onChange={(e) => setFilters((f) => ({ ...f, checkIn: e.target.value, checkOut: f.checkOut && e.target.value && f.checkOut <= e.target.value ? '' : f.checkOut }))}
+                  className="date-field-input focus-ring text-sm px-3 py-2 rounded-xl font-normal"
+                  style={dateInputStyle} />
+                <DateFace value={filters.checkIn} />
+              </span>
             </label>
             {filters.mode === 'TEMP_STAY' ? (
               <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
@@ -320,10 +333,13 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
             ) : (
               <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
                 Check-out
-                <input type="date" value={filters.checkOut} min={filters.checkIn || todayKey()}
-                  onChange={(e) => setFilters((f) => ({ ...f, checkOut: e.target.value }))}
-                  className="focus-ring mt-1 text-sm px-3 py-2 rounded-xl font-normal"
-                  style={dateInputStyle} />
+                <span className="date-field mt-1">
+                  <input type="date" value={filters.checkOut} min={filters.checkIn || todayKey()}
+                    onChange={(e) => setFilters((f) => ({ ...f, checkOut: e.target.value }))}
+                    className="date-field-input focus-ring text-sm px-3 py-2 rounded-xl font-normal"
+                    style={dateInputStyle} />
+                  <DateFace value={filters.checkOut} />
+                </span>
               </label>
             )}
           </div>

@@ -451,9 +451,10 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
 
         {/* Title row */}
-        <div className="flex items-start justify-between gap-4 mb-5">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+        {/* A phone: the share, save and report buttons on a row of their own above the title, which gets the width */}
+        <div className="flex items-start justify-between gap-4 mb-5 max-sm:flex-col-reverse max-sm:gap-1">
+          <div className="min-w-0 max-sm:self-stretch">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2 [overflow-wrap:anywhere]" style={{ color: 'var(--color-text-primary)' }}>
               {listing.title}
             </h1>
             <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
@@ -477,7 +478,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
               </p>
             )}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-0 sm:gap-2 flex-shrink-0 max-sm:self-end">
             <button aria-label="Share this home" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} aria-hidden /></button>
             <button onClick={toggleWishlist} disabled={wishBusy}
               className="p-2 rounded-full hover:bg-stone-100 transition-all"
@@ -670,8 +671,8 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
                       {listing.host.name[0]}
                     </div>
                 }
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1">
                     <h4 className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{listing.host.name}</h4>
                     {listing.host.isVerified  && <HostIdBadge />}
                     {listing.host.isSuperhost && <SuperhostBadge />}

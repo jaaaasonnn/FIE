@@ -53,9 +53,9 @@ export function StatCard({
 }) {
   return (
     <Card className="p-5">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-[#6B645C] mb-1">{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-sm text-[#6B645C] mb-1 whitespace-nowrap overflow-hidden text-ellipsis" title={label}>{label}</p>
           <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
             {value}
           </p>

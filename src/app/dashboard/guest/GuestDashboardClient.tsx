@@ -233,7 +233,8 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       {/* Header */}
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
+      {/* (desktop: the welcome band; a phone has the compact header below instead) */}
+      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="hidden md:block py-10 px-4">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-xl font-bold flex-shrink-0"
@@ -278,11 +279,45 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-8">
-        <VerifyEmailNotice className="mb-6" serverUser={initial?.user} />
-        <NotificationsList className="mb-6" initial={initial?.notifications} />
+      {/* A phone: the compact header, one row of figures, then the trips straight away; notices after them */}
+      <div className="max-w-6xl mx-auto px-4 py-8 max-md:flex max-md:flex-col max-md:pt-4 max-md:pb-6">
+        <div className="md:hidden flex items-center gap-3 mb-3">
+          <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center text-base font-semibold flex-shrink-0"
+            style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
+            {user.profilePhoto
+              // eslint-disable-next-line @next/next/no-img-element -- the same avatar as the welcome band's
+              ? <img src={user.profilePhoto} alt="" className="w-full h-full object-cover" />
+              : (user.name ?? 'G')[0].toUpperCase()}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="truncate" style={{ color: 'var(--color-text-primary)' }}>Hi, {firstName}</h1>
+            {user.isVerified ? (
+              <HostIdBadge host={false} />
+            ) : (
+              <Link href="/auth/verify-id" className="trips-chip inline-flex items-center gap-1.5 mt-1 px-3 rounded-full text-sm font-medium whitespace-nowrap"
+                style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}>
+                <Clock size={14} aria-hidden /> Verification pending · Verify ID
+              </Link>
+            )}
+          </div>
+        </div>
+        <dl className="md:hidden max-md:order-1 grid grid-cols-4 mb-5 rounded-2xl" style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+          {[
+            { label: 'Bookings', value: dataLoading ? '-' : bookings.length },
+            { label: 'Saved', value: dataLoading ? '-' : wishlistCount },
+            { label: 'Reviews', value: dataLoading ? '-' : reviewsGivenCount },
+            { label: 'Trust', value: `${user.trustScore ?? 0}` },
+          ].map(({ label, value }, i) => (
+            <div key={label} className="flex flex-col items-center py-2.5 min-w-0" style={i ? { borderLeft: '1px solid var(--color-border)' } : undefined}>
+              <dd className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>{value}</dd>
+              <dt className="text-xs whitespace-nowrap" style={{ color: 'var(--color-text-muted)' }}>{label}</dt>
+            </div>
+          ))}
+        </dl>
+        <VerifyEmailNotice className="mb-6 max-md:order-3" serverUser={initial?.user} />
+        <NotificationsList className="mb-6 max-md:order-3" initial={initial?.notifications} />
         {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatCard icon={<Calendar size={18} style={{ color: 'var(--color-accent)' }} />}
             label="Total Bookings" value={dataLoading ? '-' : bookings.length}
             sub={dataLoading ? undefined : `${completedCount} completed`} />
@@ -296,7 +331,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
         </div>
 
         {/* Nav links */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+        <div className="hidden md:grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
           {[
             { href: '/dashboard/guest', icon: Calendar, label: 'Bookings', active: true },
             { href: '/dashboard/guest/wishlist', icon: Heart, label: 'Wishlist' },
@@ -319,7 +354,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
 
         {/* Verify ID banner */}
         {!user.isVerified && (
-          <div className="p-5 rounded-2xl mb-8 flex items-center justify-between gap-4"
+          <div className="p-5 rounded-2xl mb-8 hidden md:flex items-center justify-between gap-4"
             style={{ backgroundColor: 'var(--color-border)', border: '1px solid var(--color-text-primary)' }}>
             <div className="flex items-center gap-3">
               <Shield size={20} aria-hidden className="flex-shrink-0" style={{ color: 'var(--color-text-primary)' }} />
@@ -339,7 +374,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
         )}
 
         {/* Bookings */}
-        <div className="mb-8">
+        <div className="mb-8 max-md:order-2">
           <h2 className="text-xl font-bold mb-5" style={{ color: 'var(--color-text-primary)' }}>Your Bookings</h2>
 
           {loadFailed && !dataLoading ? (
@@ -387,8 +422,8 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-stone-100 flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>
+                        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                          <h3 className="font-semibold text-sm leading-snug min-w-0" style={{ color: 'var(--color-text-primary)' }}>
                             {b.listing?.title}
                           </h3>
                           <span className="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0"
@@ -505,7 +540,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
         </div>
 
         {/* Notifications */}
-        <div className="soft-panel p-5">
+        <div className="soft-panel p-5 max-md:order-4">
           <div className="flex items-center gap-2 mb-4">
             <Bell size={18} style={{ color: 'var(--color-accent)' }} />
             <h3 className="font-bold" style={{ color: 'var(--color-text-primary)' }}>Recent Notifications</h3>

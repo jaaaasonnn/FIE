@@ -163,7 +163,7 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
           role="radiogroup"
           aria-label="Rental type"
           onKeyDown={onTabKeyDown}
-          className="hero-enter self-start w-full sm:w-auto flex p-1 bg-white border rounded-full"
+          className="mode-switch hero-enter self-start w-full sm:w-auto flex p-1 bg-white border rounded-full"
           style={{ borderColor: 'var(--color-border)', '--i': 0 } as React.CSSProperties}
         >
           {RENTAL_MODES.map(({ value, label, icon: Icon }, i) => {
