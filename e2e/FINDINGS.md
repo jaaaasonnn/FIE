@@ -69,6 +69,22 @@ fails).
 | F16 | Low | Photo uploads sent at the same moment overwrite each other. Five single-photo uploads together: all five answered 200, the listing kept three. The lost files stay in storage with nothing pointing at them. `photos` is one JSON column that each request reads, changes and writes back. The page sends one request, so a host is unlikely to meet it. | 5 concurrent `POST /api/listings/[id]/photos` | same file, "five photos uploaded at the same moment" |
 | F17 | High (needs your decision) | A payout is converted to cedis at the exchange rate on the day it is sent (`src/lib/payouts.ts`, the latest `ExchangeRate` row), not at the rate the guest was charged at. Guests are charged in cedis at booking time; hosts are paid 48 hours after check-in, which can be months later. If the cedi has weakened in between, the host is sent more cedis than 90% of what was collected. In the test a 15% move means the host is sent 103.5% of everything the guest paid: FieGH pays the commission and more out of its own pocket. If the cedi strengthens, the host gets less than 90%. Refunds do use the rate stored on the payment. This may be intended (prices are in dollars), but then FieGH carries the currency risk on every advance booking and nothing limits or reports it. | Pay a booking, change the rate by 15%, run the payout job: compare the transfer with the payment's `amountPesewas`. | `tests/chaos/crash.spec.ts` "the host is never sent more cedis than 90%" |
 
+# mobile-speed: where things stand (2026-11-02, branch `mobile-speed`)
+
+G5 as the owner decided on 2026-10-28, one commit per change; the home page's code was left alone (redesign
+pending). Results and the before/after table: REPORT.md, "mobile-speed".
+
+| # | Rank | Status | How it was fixed | Tests | Commit |
+|---|---|---|---|---|---|
+| G5 | Medium | Fixed on real throttling; simulated LCP still over on 5 pages | Map only when shown, date picker on demand, Sentry without tracing, admin's Prisma leak gone (script on first load 286-565 → 204-224 KB per page), and checkout, both dashboards, a listing, search and admin come with their data from the server (`src/lib/serverRead.ts`). Mobile LCP with real throttling 3.9-5.3 → 1.6-1.7 s; simulated 3.3-7.3 → 2.4-3.5 s (the simulation counts scripts that do not hold the paint up). | `tests/perf/bundle.spec.ts`, `tests/perf/server-first.spec.ts`, `tests/chaos/server-first.spec.ts`, `tests/resilience/browser-errors.spec.ts`, `src/lib/security/clientImports.test.ts`. Proofs 245-248, 250-256. | `4c3da58` … `c55c4f4`, `0e99928` |
+| G5a | Medium | Fixed | The host dashboard moved as it loaded (CLS 0.176 on the empty database): the notices above it each arrived on their own. They now come with the page. CLS is 0 on every page. | Lighthouse; proof 252. | `81de7c5` |
+| G6b | Medium | Fixed (found here) | The chunk guard fetched and ran Next's `nomodule` polyfills (about 40 KB) on every page view: a browser that runs modules never downloads them, so the guard took them for missing. | `src/lib/chunkGuard.test.ts`; proof 249. | `97c2589` |
+| G5b | Medium | Fixed (found here) | Client pages wrapped in a Suspense boundary of their own: React threw the server's HTML away and drew the page again once its JavaScript arrived (checkout on every load). | "each page keeps the copy the server sent"; proof 256. | `0e99928` |
+| G5c | Low | Open, seen once | React error 418 (text differs between server and browser) on the host dashboard, iPhone set-up, during a crawl. Not reproduced in 6 targeted runs; a text comparison found no difference. React recovers by drawing that part again. | `tests/navigation/crawl.spec.ts` would show it again. | |
+
+Decided against on the agreed measure: inlining the stylesheets (`669ecfc`, reverted): simulated runs worse,
+real throttling better (REPORT.md).
+
 # Second go: where things stand (2026-10-21, branch `fix-perf-1`)
 
 Fixed as the owner decided on 2026-10-21, one commit each, every one with tests that fail when the fix is taken
@@ -90,7 +106,7 @@ browser tests instead, and says so.
 | G13 | Medium | Fixed (15 of 17) | The live project could not be reached on 2026-10-21 (paused). Once it was restored, on 2026-10-26, the owner approved 15 statements: the 17 proposed less `Booking_paid_checkIn_idx` and the partial `Booking_live_checkOut_idx`. Each was run alone (`CREATE INDEX CONCURRENTLY`), checked valid and ready, with the rows of all 24 tables unchanged. `schema.prisma` names all 15, and `prisma migrate diff` against the live database is empty. Undo: `.scratch/idx/undo-15.sql`. | `migrate diff` empty | this commit |
 | Capacity | | Done | See REPORT.md, "fix-perf-1". | | |
 
-Deferred by the owner, not touched: G12, G14, G3, G16 and the JavaScript reduction (G5).
+Deferred by the owner, not touched: G12, G14, G3, G16 and the JavaScript reduction (G5; done on 2026-11-02, see "mobile-speed" above).
 
 # Second go (2026-10-15, branch `e2e-performance`)
 

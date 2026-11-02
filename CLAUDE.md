@@ -237,7 +237,7 @@ The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a t
   - Bookings already made are not touched, and a guest can still pay for one. A person decides what happens to them.
   - The record is a `Notification` to every admin (`ACCOUNT_SUSPENDED`, `ACCOUNT_RESTORED`), written in the same transaction: who, whom, when and why. There is no separate audit table. The three columns on `User` say only how things stand now and are cleared on restore.
   - The person is sent `account.suspended` or `account.restored` (email only; it never carries the admin's reason).
-- **Still open:** npm audit lists 12 issues, none in Next (on 16.3.8, pinned exactly; a test fails if it goes below). They are MapLibre 5 (fixed in 6, the only one that runs in a browser), vitest 3 (fixed in 4), the Prisma CLI and the ESLint tooling: each needs a major upgrade not yet done. Admin accounts have no second factor.
+- **Still open:** npm audit lists 12 issues (60 on 2026-11-02: its list has grown; not looked into), none in Next (on 16.3.8, pinned exactly; a test fails if it goes below). They are MapLibre 5 (fixed in 6, the only one that runs in a browser), vitest 3 (fixed in 4), the Prisma CLI and the ESLint tooling: each needs a major upgrade not yet done. Admin accounts have no second factor.
 
 ## End-to-end tests
 
@@ -248,6 +248,19 @@ The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a t
 - A test for a known bug expects the right behaviour and is marked `test.fail()` with the finding's number. When the bug is fixed the test starts passing and Playwright reports "expected to fail": remove the mark then. None is marked at present: all 17 findings of the first go are fixed.
 - The accessibility baseline (`e2e/a11y-baseline.json`) is empty: the scan fails on any failure, on 47 pages and 12 main states. Small muted text is `#736D62` (`--color-text-muted`, and `text-[#736D62]` where `text-stone-400` was used on a light background). Gold `#C9932E` is never the colour of small text on a light background: use `--color-accent-deep` for the words and keep the icon gold. Listing photos are one JSON column changed behind a lock on the listing's row (`changePhotos` in the photos route).
 - The unit tests (`npm test`) are separate and unchanged: `src/**/*.test.ts`.
+
+## Page speed (G5, branch `mobile-speed`)
+
+- **Budget:** 350 KB of compressed script on a page's first load, the router's prefetches left out; desktop search with its map 650 KB. `e2e/tests/perf/bundle.spec.ts` fails over it, and on map code anywhere but desktop search or date-picker code before a date field is opened (the home page's hero is exempt until its redesign).
+- **Loaded only when needed:** the map (`ListingsMap`, through `lib/useOnDemand.ts`: on a phone when "Map" is pressed, on desktop once the list has drawn) and the listing page's date picker (`components/ui/LazyDatePicker.tsx`). A file that does not arrive gives "Try again".
+- **No server code in client files:** `src/lib/security/clientImports.test.ts` follows every `'use client'` file's imports and fails on Prisma, `db.ts`, `session.ts`, `supabase.ts`, bcrypt, `ws` or Node modules. Constants a page needs from a server file go in a file that imports nothing (`lib/exchangeRateShared.ts`).
+- **Sentry in the browser** (`src/instrumentation-client.ts`) is built by hand from `@sentry/nextjs`'s parts without tracing (its `init` always bundles tracing, and `compiler.define` would change the server builds too). `...SCRUBBING` stays in it. Server and edge set-ups are unchanged.
+- **Pages that come with their data:** checkout, both dashboards, a listing, search and admin. Each `page.tsx` is a server file that calls the API route's own `GET` in the same process (`lib/serverRead.ts`) and passes a 200's answer to `*Client.tsx` as `initial`; anything else, or no answer within 3 s, gives `null` and the page fetches in the browser as before. A route's checks and privacy rules are therefore the page's. Rules that keep it working:
+  - the client file has **no Suspense boundary of its own** (React would throw the server's HTML away); the page is sent once its reads are done;
+  - nothing in the first draw may depend on the browser: dates in a fixed time zone or after `useHydrated()`, numbers with a fixed locale;
+  - until the browser's session check answers, the person the server found draws the page (`authUser ?? (loading ? initial.user : null)`); a clear 401 still sends them to log in (G1);
+  - a form drawn by the server is disabled until the page is running.
+- Measuring: `e2e/README.md`, "Page speed". Results: `e2e/load/results/g5-*.md`.
 
 ## Key Technical Decisions & Why
 - **MapTiler over Mapbox** — avoids Mapbox's credit card requirement during development

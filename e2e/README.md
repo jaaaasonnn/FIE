@@ -21,6 +21,26 @@ npm run e2e:down      # stop everything
 - Reports: `e2e/.reports/html` (open `index.html`), traces for failed tests in `e2e/.reports/artifacts`. Logs: `e2e/.state/*.log`.
 - Stop `next dev` first: the tests build into the same `.next` folder.
 
+## Page speed (G5)
+
+```bash
+zsh e2e/load/measure-g5.sh <label>              # rebuild, bundle guard, Lighthouse on the empty and seeded databases (resumable)
+node e2e/load/compare-g5.mjs <before> <after>   # the table against the budgets, written to e2e/load/results/g5-<after>.md
+E2E_LH_THROTTLING=devtools node e2e/run.mjs exec node e2e/load/lighthouse.mjs <label> 3   # the browser really slowed, not simulated
+```
+
+- `tests/perf/bundle.spec.ts`: the script budget (350 KB on first load, the router's prefetches left out; desktop
+  search with its map 650 KB), and the map and date picker only when asked for. Each page's files: `.reports/bundle/`.
+- `tests/perf/server-first.spec.ts`: the server-first pages' data is in their HTML, shows with the browser's own
+  request blocked, and React keeps the copy the server sent. Their fallbacks when the server cannot read in time
+  are in `tests/chaos/server-first.spec.ts`, which locks a table for longer than the server waits.
+- Simulated LCP (Lighthouse's default) for pages whose data comes with the HTML lands at about 2.4 or 3.1 s from
+  run to run; the devtools runs are the check. Do nothing heavy on the machine while measuring.
+- `page.goto` in the test fixture returns once a streamed page has settled and React has taken it over: a hidden
+  copy of the page can sit in the document for up to about 300 ms, and a click before React attaches is lost.
+- A removal proof marked `"e2e": true` names an end-to-end test: the runner rebuilds the app from the changed
+  source (`scripts/e2e-proof.mjs`) and rebuilds it from the committed source at the end. It needs the stack up.
+
 ## Guards
 
 Every process is started by `run.mjs` with the environment from `env.e2e`. It never reads `.env`.

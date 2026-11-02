@@ -1,5 +1,113 @@
 # End-to-end test report
 
+## mobile-speed: G5, pages that come with their data (2026-11-01/02, branch `mobile-speed`)
+
+Branch `mobile-speed`, from `main` at `38a9975`, not merged. Everything ran on this MacBook Air on mains power on
+the local test stack, built only through the harness; nothing real was called; no switch was set in `.env`; no
+email, SMS, Paystack, Arkesel or Sentry upload; **the live database was not touched.** The home page's code was
+left alone (its redesign is next): its figures moved only with the shared changes.
+
+### What changed, in order (one commit each)
+
+1. **Guards** (`4c3da58`): a script budget per page (`tests/perf/bundle.spec.ts`: 350 KB compressed on first
+   load, the router's prefetching of linked pages left out; desktop search with its map 650 KB; map code only on
+   desktop search; date-picker code only once a date field is opened), browser errors reaching Sentry scrubbed
+   (`tests/resilience/browser-errors.spec.ts`: an error and an unhandled rejection), and no server code in any
+   client file (`src/lib/security/clientImports.test.ts`).
+2. **Admin's Prisma leak** (`6dcaf89`): two constants moved to `lib/exchangeRateShared.ts`.
+3. **The map** (`f214627`): fetched on a phone only when "Map" is pressed (it had loaded, hidden, on every phone:
+   280 KB), on desktop once the list has drawn, same-size skeleton, "Try again" if the file fails
+   (`lib/useOnDemand.ts`). Its stylesheet already loaded only with it.
+4. **The date picker** (`a0490c5`): on the listing page, fetched when a date field is opened
+   (`components/ui/LazyDatePicker.tsx`); the same input until then.
+5. **Sentry** (`7b3b164`): `compiler.define` was not used: Next applies it to the server and edge builds too,
+   which stay unchanged. The browser client is built from the same parts minus tracing; `...SCRUBBING` is word
+   for word as before; `onRouterTransitionStart` is gone (Sentry's build prints a notice about it: it feeds
+   navigation tracing only). About 42 KB less on every page.
+   **Found on the way (G6 follow-up, `97c2589`):** the chunk guard fetched and ran Next's `nomodule` polyfills
+   (about 40 KB) on every page view; it now leaves them alone.
+6. **Server-first pages** (`afb52c4` checkout, `8f40bc5` guest dashboard, `81de7c5` host dashboard, `986cd53`
+   listing, `a9b47e9` search, `c55c4f4` admin): each `page.tsx` calls the API route's own `GET` in the same
+   process for the request being answered (`lib/serverRead.ts`), so the data and its checks are those the browser
+   would get, and only a 200 is used. With no answer within 3 s the page fetches in the browser as before (tries,
+   Try again, G1's 401 rule). The notices above the dashboards come with them too, which ends the host dashboard's
+   layout shift. Then `0e99928`: the client pages had Suspense boundaries of their own, and React threw the
+   server's HTML away and drew checkout again once its JavaScript arrived (on every load); they are gone, with a
+   test that each page keeps the element the server sent.
+7. **Inlined stylesheets** (`669ecfc`, reverted in `699f8c7`): see "For the owner" below.
+8. **Logo font** (`b175444`): Unbounded is kept for "fie." and no longer preloaded. No measurable gain beyond the
+   run-to-run spread; the logo is drawn in the fallback at first paint and swaps about 0.5 s later. Screenshots:
+   before (Unbounded at first paint, as now on `main`) and after, at desktop and phone size, were shown to the owner.
+9. **Packages** (`a027977`): the 7 unused packages removed, 2 type packages moved to devDependencies.
+
+The commit `39ca97f` ("measuring after the Sentry change") carried half-made server-first files by mistake and did
+not build on its own; `2fe83a5` puts them back and the server-first commits follow it. Nothing was force-pushed.
+
+### Before and after against the budgets
+
+Lighthouse 12.8.2 as in Stage B (simulated slow 4G, CPU 4x, median of 5 runs). "JS first load, phone" is the
+bundle guard's count (the baseline built from `38a9975` through the harness).
+
+| Page | LCP mobile, empty DB | LCP mobile, seeded | CLS (worst) | TBT (worst) | JS first load, phone | JS, Lighthouse | Desktop LCP, seeded |
+|---|---|---|---|---|---|---|---|
+| home | 3.6 s → 3.3 s **over** | 3.6 s → 3.3 s **over** | 0.000 → 0.000 | 41 → 17 ms | 327 → 247 KB | 320 → 261 KB | 0.6 s → 0.7 s |
+| search with map (desktop: 204 KB, 484 KB with the map) | 4.5 s → 3.1 s **over** | 7.3 s → 3.2 s **over** | 0.000 → 0.000 | 193 → 18 ms | 565 → 204 KB | 604 → 279 KB | 1.5 s → 0.7 s |
+| listing | 4.2 s → 3.4 s **over** | 4.2 s → 3.5 s **over** | 0.038 → 0.000 | 78 → 28 ms | 347 → 223 KB | 354 → 299 KB | 0.9 s → 0.6 s |
+| checkout | 4.1 s → 2.4 s | 4.1 s → 2.4 s | 0.077 → 0.000 | 67 → 31 ms | 286 → 206 KB | 320 → 280 KB | 0.9 s → 0.5 s |
+| guest dashboard | 3.8 s → 3.2 s **over** | 4.2 s → 2.6 s **over** | 0.000 → 0.000 | 63 → 32 ms | 304 → 224 KB | 361 → 321 KB | 0.8 s → 0.6 s |
+| host dashboard | 4.4 s → 2.4 s | 3.3 s → 3.4 s **over** | 0.176 → 0.000 | 71 → 19 ms | 300 → 220 KB | 336 → 296 KB | 1.0 s → 0.5 s |
+| admin | 4.4 s → 3.1 s **over** | 4.8 s → 2.4 s | 0.000 → 0.000 | 64 → 31 ms | 309 → 212 KB | 343 → 287 KB | 1.0 s → 0.5 s |
+
+
+Simulated LCP for the server-first pages lands at about 2.4 or about 3.1 s from run to run: the simulation counts
+every script that started before the content was painted, even ones that do not hold it up; in Lighthouse's own
+recording, LCP is the first paint. So the same pages were measured with the browser really slowed to the same line
+and CPU (`E2E_LH_THROTTLING=devtools`, empty database, 3 runs):
+
+| Page | Mobile LCP | Mobile CLS | Mobile TBT | Desktop LCP |
+|---|---|---|---|---|
+| home (unchanged, redesign pending) | 1.57 → 1.55 s | 0.000 → 0.000 | 62 → 40 ms | 0.09 → 0.08 s |
+| search with map | 5.34 → 1.60 s | 0.000 → 0.000 | 143 → 15 ms | 0.17 → 0.16 s |
+| listing | 5.04 → 1.63 s | 0.038 → 0.000 | 62 → 15 ms | 0.20 → 0.12 s |
+| checkout | 3.90 → 1.65 s | 0.077 → 0.000 | 52 → 22 ms | 0.19 → 0.13 s |
+| guest dashboard | 3.99 → 1.67 s | 0.000 → 0.000 | 48 → 24 ms | 0.16 → 0.12 s |
+| host dashboard | 4.59 → 1.66 s | 0.123 → 0.000 | 50 → 23 ms | 0.22 → 0.15 s |
+| admin | 4.03 → 1.66 s | 0.000 → 0.000 | 50 → 22 ms | 0.19 → 0.11 s |
+
+The harness's photos are small generated ones, so the image pages (home, search, listing) do not carry a real
+photo's weight in either table. Results per step: `e2e/load/results/g5-*.md`.
+
+### Verification on the final code (`414ae03`, under `caffeinate -dims`, mains power)
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (warnings only, all from before) |
+| `npm run test:tz` (six time zones) | pass, 1,476 tests each |
+| Full harness build | pass, logged (`e2e/.reports/mobile-speed/final/build.log`) |
+| Chromium suite, races at 50 rounds | 199 passed, 4 skipped (the opt-in contrast measurement), none flaky |
+| Chaos set (now with the server-first fallbacks) | 17 passed |
+| Core set in Firefox, WebKit, tablet, iPhone, Android | 189 passed, 1 skipped (the map in Firefox), none flaky |
+| Resilience and session sets, accessibility scan | in the Chromium suite: pass, 0 accessibility failures |
+| Money and date rules (`load/invariants.spec.ts`) | clean before and after |
+| Removal proofs (restore-safe runner) | **all 256 hold**; 245-256 are new (245 admin import, 246 map on phones, 247 eager date picker, 248 browser scrubbing end to end, 249 chunk guard and `nomodule`, 250-255 each page's server data, 256 no Suspense boundary of their own). 246 and 245 were re-anchored when their code moved to `SearchClient.tsx` and `AdminClient.tsx`; none of 1-244 needed it. |
+
+### For the owner
+
+- **Inlined stylesheets** were reverted because the agreed measure (the simulated runs) got worse: LCP up on 5 of
+  7 pages and TBT up on all (listing 259 ms). With real throttling the same change made every page 0.2 to 0.9 s
+  faster (checkout 1.67 → 0.81 s). Which measure to trust there is your call; `669ecfc` has it.
+- The logo font change shows no gain in either measure and costs a flash of the plain logo. One commit to revert.
+- `npm audit` reports 60 issues now, before and after the package change (CLAUDE.md says 12: its list has grown).
+- Seen once, not reproduced in 6 targeted runs: React error 418 (text differed between server and browser) on the
+  host dashboard in the iPhone set-up during a crawl. React recovers by drawing that part again.
+
+### Not checked
+
+- Real phones, real networks, Vercel and Supabase's real latency: the server now waits for its reads (up to 3 s)
+  before sending these pages.
+- Real Sentry: that a report from the hand-built client shows a readable stack trace from the uploaded source maps.
+- Real MapTiler tiles and real photos (the harness answers with a blank style and small photos).
+
 ## fix-perf-1: fixes and capacity (2026-10-21, branch `fix-perf-1`)
 
 Branch `fix-perf-1`, from `e2e-performance`, not merged. Everything ran on this MacBook Air on the local test
