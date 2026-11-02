@@ -3456,9 +3456,10 @@
     "replace": "max-sm:gap-1"
    }
   ],
-  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
-  "test": "signed out: no text outside its box",
-  "e2e": true
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "a listing on a small phone",
+  "e2e": true,
+  "project": "android"
  },
  {
   "what": "App shell polish: the search field stays inside its box on a phone",

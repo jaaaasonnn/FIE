@@ -273,6 +273,18 @@ test.describe('stage 1 polish, on a phone', () => {
     await expect(faces.first()).toHaveText('Wed, 10 Mar')
   })
 
+  test('a listing on a small phone: the title has the full width, its share, save and report buttons above it @core', async ({ page, world }) => {
+    test.skip(!isPhone(), 'phones only')
+    const host = await world.host()
+    const home = await world.listing(host)
+    await page.goto(`/listings/${home.id}`)
+    const title = await page.getByRole('heading', { level: 1, name: home.title }).boundingBox()
+    const share = await page.getByRole('button', { name: 'Share this home' }).boundingBox()
+    const main = await page.locator('main').boundingBox()
+    expect(share!.y + share!.height, 'the buttons are above the title').toBeLessThanOrEqual(title!.y + 1)
+    expect(title!.width, 'the title has the width of the page, less its margins').toBeGreaterThan(main!.width - 48 - 1)
+  })
+
   test('Trips on a phone: a compact header, one row of figures, then the bookings; notices after them @core', async ({ page, world, signIn }) => {
     test.skip(!isPhone(), 'phones only')
     const { guest } = await people(world)
