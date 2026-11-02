@@ -15,11 +15,14 @@ const manrope = Manrope({
   variable: '--font-manrope',
 })
 
-// Logo wordmark only ("fie."), never body or headline text
+// Logo wordmark only ("fie."), never body or headline text. Not preloaded (G5): it is four letters, so
+// it no longer competes with the page's own text font and data for the first moments on a slow line; the
+// logo is drawn in the fallback and swaps to Unbounded when it arrives.
 const unbounded = Unbounded({
   subsets: ['latin'],
   weight: ['900'],
   display: 'swap',
+  preload: false,
   variable: '--font-unbounded',
 })
 
