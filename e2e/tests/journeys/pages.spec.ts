@@ -1,6 +1,8 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
+import { APP } from '../../lib/world'
+import { measured } from '../../lib/race'
 
 // Second go, Stage B findings fixed on branch fix-perf-1: G4, G9, G8, G10.
 
@@ -105,8 +107,23 @@ test('back from a listing returns to the same place in the search results @core'
 })
 
 // G10: the home page was kept for an hour (revalidate 3600). A home switched off, put on hold or whose host was
-// suspended stayed in its hero, linking to a page that is gone, for up to an hour.
-test('a home switched off leaves the home page at once, not up to an hour later', async ({ page, world }) => {
+// suspended stayed in its hero, linking to a page that is gone, for up to an hour. Now: usually at once, at most a
+// minute (SU6: a copy another visit was drawing at the moment of the change is kept until the timed refresh).
+const MINUTE_AND_A_BIT = 75_000
+
+/** Opens the home page until it no longer links to the home; how long that took, in ms */
+async function goneFromHomePage(page: Page, id: string) {
+  const start = Date.now()
+  await expect.poll(async () => {
+    await page.goto('/')
+    await expect(page.locator('main')).toBeVisible()
+    return page.locator(`a[href="/listings/${id}"]`).count()
+  }, { timeout: MINUTE_AND_A_BIT, intervals: [500, 1_000, 2_000] }).toBe(0)
+  return Date.now() - start
+}
+
+test('a home switched off leaves the home page, usually at once and at most a minute later', async ({ page, world }) => {
+  test.setTimeout(120_000)
   const host = await world.host()
   const home = await world.listing(host)
   // Made the hero's first choice for short stays: featured and rated highest
@@ -116,7 +133,50 @@ test('a home switched off leaves the home page at once, not up to an hour later'
   await page.goto('/')
   await expect(page.locator(`a[href="/listings/${home.id}"]`).first()).toBeAttached()
   expect((await host.call('DELETE', `/api/listings/${home.id}`)).status).toBe(200)
-  await page.goto('/')
-  await expect(page.locator('main')).toBeVisible()
-  await expect(page.locator(`a[href="/listings/${home.id}"]`)).toHaveCount(0)
+  measured(`a switched-off home left the home page after ${await goneFromHomePage(page, home.id)} ms`)
+})
+
+test('the home page is kept for at most a minute between drawings (SU6)', async () => {
+  // The bound on a copy that was being drawn at the moment of a change: Next keeps it until this refresh
+  const res = await fetch(`${APP[0]}/`)
+  expect(res.status).toBe(200)
+  expect(res.headers.get('cache-control')).toMatch(/^s-maxage=60\b/)
+})
+
+// SU6: Next keeps a drawn page stamped with the moment it was stored, not when its data was read. A visit that
+// read the listings just before a home was switched off and stored the page just after the change marked it is
+// kept as fresh: before, until the next change anywhere or five minutes. Four lanes at once: three visitors
+// drawing the home page all the time and a host editing another listing (each edit marks the page, so drawings
+// are always under way); the home is switched off in the middle of it, as one more visit arrives, then
+// everything stops and nothing else marks the page. Up to ten rounds, until one leaves the home behind; that
+// copy must be gone within a minute.
+test('a home switched off while other visits are drawing the home page is gone from it within a minute (SU6)', async ({ page, world }) => {
+  test.setTimeout(240_000)
+  const host = await world.host()
+  const other = await world.listing(host)
+  const linked = async (id: string) => (await (await fetch(`${APP[0]}/`)).text()).includes(`/listings/${id}"`)
+  for (let round = 0; round < 10; round++) {
+    const home = await world.listing(host)
+    // Above every other home in the hero's order, whatever other tests have left
+    await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS), isFeatured: true, avgRating: 1_000 + round } })
+    expect((await host.call('PATCH', `/api/listings/${home.id}`, { title: home.title })).status).toBe(200)
+    await expect.poll(() => linked(home.id), { timeout: 10_000, message: 'the home is in the hero to begin with' }).toBe(true)
+
+    let busy = true
+    const lanes = [
+      ...[0, 1, 2].map(async () => { while (busy) await fetch(`${APP[0]}/`).then((r) => r.text()).catch(() => '') }),
+      (async () => { while (busy) { await host.call('PATCH', `/api/listings/${other.id}`, { title: other.title }); await new Promise((r) => setTimeout(r, 20)) } })(),
+    ]
+    await new Promise((r) => setTimeout(r, 300))
+    // And one drawing started just before the switch-off, as a visitor arriving at that moment would
+    expect((await host.call('PATCH', `/api/listings/${other.id}`, { title: other.title })).status).toBe(200)
+    const arriving = fetch(`${APP[0]}/`).then((r) => r.text()).catch(() => '')
+    expect((await host.call('DELETE', `/api/listings/${home.id}`)).status).toBe(200)
+    busy = false
+    await Promise.all([...lanes, arriving])
+    if (!(await linked(home.id))) continue
+    measured(`round ${round + 1}: a copy drawn at the moment of the switch-off kept the home; it went after ${await goneFromHomePage(page, home.id)} ms`)
+    return
+  }
+  measured('no round left the home behind')
 })

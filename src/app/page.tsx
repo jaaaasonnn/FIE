@@ -7,8 +7,11 @@ import { HostCTASection } from '@/components/home/HostCTASection'
 
 // The hero photos come from live listings. The page is drawn again after
 // any change that could add or take away one of them (lib/homePage.ts), and
-// every five minutes whatever happens, for anything that is not (G10).
-export const revalidate = 300
+// every minute whatever happens (G10). So a home switched off leaves the hero
+// usually at once, and at most a minute later: the minute is for a copy that
+// another visit was drawing at the moment of the change, which Next keeps as
+// fresh (SU6, lib/homePage.ts).
+export const revalidate = 60
 
 // next/image resizes the hero photos per device, so Unsplash is asked for one
 // generous source size and local files are used as they are.

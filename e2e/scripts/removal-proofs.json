@@ -3197,5 +3197,18 @@
   ],
   "testFile": "src/lib/dateText.test.ts",
   "test": "month 8: every format formatStayDate is asked for"
+ },
+ {
+  "what": "SU6: the home page is redrawn every minute, so a copy drawn at the moment of a switch-off lasts at most a minute",
+  "edits": [
+   {
+    "file": "src/app/page.tsx",
+    "find": "export const revalidate = 60",
+    "replace": "export const revalidate = 300"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/pages.spec.ts",
+  "test": "the home page is kept for at most a minute between drawings",
+  "e2e": true
  }
 ]
