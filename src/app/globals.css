@@ -658,13 +658,28 @@ input, select, textarea, button {
   height: 100%;
   min-height: 44px;
   color: var(--color-text-muted);
-  font-size: 11px;
-  line-height: 14px;
-  font-weight: 600;
+  font-size: 0.6875rem;
+  line-height: 0.875rem;
+  font-weight: 500;
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
-.bottom-bar-tab[aria-current="page"] { color: var(--color-accent-deep); }
+.bottom-bar-tab[aria-current="page"] { color: var(--color-accent-deep); font-weight: 600; }
+.bottom-bar-icon { transition: transform 120ms var(--ease-out, ease-out), opacity 120ms ease-out; }
+.bottom-bar-tab:active .bottom-bar-icon { transform: scale(0.88); opacity: 0.75; }
+@media (prefers-reduced-motion: reduce) { .bottom-bar-tab:active .bottom-bar-icon { transform: none; } }
+/* Trips: FieGH's own mark, the same asset and mask as the header's logo (.logo-mark): gold when it is the page
+   you are on, the muted grey otherwise */
+.bottom-bar-mark {
+  display: block;
+  width: 28px;
+  height: 24px;
+  background-color: currentColor;
+  -webkit-mask: url('/logo-mark.png') center / contain no-repeat;
+  mask: url('/logo-mark.png') center / contain no-repeat;
+}
+.bottom-bar-tab[aria-current="page"] .bottom-bar-mark { background-color: var(--color-logo); }
 .bottom-bar-tab[aria-current="page"]::before {
   content: '';
   position: absolute;
@@ -676,7 +691,7 @@ input, select, textarea, button {
   background: var(--color-accent);
 }
 .bottom-bar-tab:focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: -4px; border-radius: 10px; }
-.bottom-bar-icon { position: relative; display: inline-flex; width: 24px; height: 24px; }
+.bottom-bar-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; }
 .bottom-bar-badge {
   position: absolute;
   top: 6px;
@@ -726,3 +741,73 @@ input, select, textarea, button {
 }
 .account-row:hover { background: var(--color-bg); }
 .account-row:focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: -2px; }
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  @media (max-width: 767px) {
+    /* Lightly see-through, blurred, still white enough behind the labels */
+    .bottom-bar { background: rgba(255, 255, 255, 0.94); -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); }
+  }
+}
+
+/* ── Phones: type scale, targets, header (app shell, stage 1 polish) ─────────────────────────────────────
+   Below 768 px only; desktop is as it was. In rem, so a person's own text size still applies. Body 15 px,
+   small text 13 px (nothing under 12 px but the bar's tab labels), page titles 24-26 px, section titles 19 px,
+   card titles 16 px, titles at 600 rather than 800/900, tighter lines. The "fie." wordmark keeps Unbounded 900.
+   Every button, field, select and pill link is at least 44 px tall, an icon-only one 44 px wide. */
+:root { --site-header-height: 4.25rem; }
+@media (max-width: 767px) {
+  :root { --site-header-height: 3.5rem; }
+  body { font-size: 0.9375rem; line-height: 1.5; }
+  h1 { font-size: 1.5rem !important; font-weight: 600 !important; line-height: 1.2 !important; letter-spacing: -0.01em; }
+  h2 { font-size: 1.1875rem !important; font-weight: 600 !important; line-height: 1.3 !important; }
+  h3 { font-size: 1rem !important; font-weight: 600 !important; line-height: 1.35 !important; }
+  h1.sr-only, h2.sr-only, h3.sr-only { font-size: inherit !important; }
+  .text-xs, .text-\[10px\], .text-\[11px\], .text-\[12px\], .text-\[13px\] { font-size: 0.8125rem !important; line-height: 1.35 !important; }
+  .font-extrabold:not(.wordmark), .font-black:not(.wordmark) { font-weight: 700 !important; }
+  .text-2xl, .text-3xl, .text-4xl, .text-5xl { line-height: 1.2 !important; }
+
+  button:not(.react-datepicker *):not(.bottom-bar-tab),
+  select,
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="hidden"]),
+  [role="button"] { min-height: 44px; }
+  button:has(> svg:only-child), a:has(> svg:only-child) { min-width: 44px; min-height: 44px; }
+  a.rounded-full, a.rounded-xl[class*="px-"], a[class*="px-4"][class*="py-2"] {
+    min-height: 44px; display: inline-flex; align-items: center; justify-content: center;
+  }
+  /* Chips and badges never wrap in the middle of their words */
+  .rounded-full:is(span, a, button) { white-space: nowrap; }
+
+  /* The header: 56 px, the logo at its usual size */
+  .site-header-bar { height: var(--site-header-height) !important; }
+
+  /* Explore: the rental types, each sized to its words; the group scrolls sideways if they do not fit,
+     and below 375 px the icons step aside so all three normally do */
+  .mode-switch { overflow-x: auto; scrollbar-width: none; max-width: 100%; }
+  .mode-switch::-webkit-scrollbar { display: none; }
+  .mode-switch .mode-segment { flex: 1 0 auto; height: 44px; padding-inline: 14px; }
+}
+@media (max-width: 374px) {
+  .mode-switch .mode-segment > svg { display: none; }
+  .mode-switch .mode-segment { padding-inline: 12px; }
+}
+
+/* ── Phones: the search page's date fields. The browser's own date input (its calendar opens on a tap), drawn
+   in FieGH's style: our font, height and corners, "Add date" until a date is chosen, then the date as we write
+   it; never the browser's "dd/mm/yyyy". Desktop is as it was. */
+.date-field { position: relative; display: block; }
+.date-field-face { display: none; }
+@media (max-width: 767px) {
+  .search-dates { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+  .search-dates > label, .search-dates > p { min-width: 0; }
+  .date-field { min-width: 0; }
+  .date-field-input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; height: 44px; color: transparent !important; -webkit-appearance: none; appearance: none; }
+  .date-field-input::-webkit-datetime-edit, .date-field-input::-webkit-date-and-time-value { opacity: 0; }
+  .date-field-input::-webkit-calendar-picker-indicator { opacity: 0; position: absolute; inset: 0; width: auto; height: auto; margin: 0; padding: 0; cursor: pointer; }
+  .date-field-face {
+    display: flex; position: absolute; inset: 0; align-items: center; gap: 8px; padding: 0 12px;
+    pointer-events: none; font-size: 0.9375rem; font-weight: 500; color: var(--color-text-primary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .date-field-face[data-empty="true"] { color: var(--color-text-muted); font-weight: 400; }
+  .date-field-input:focus-visible + .date-field-face { outline: none; }
+}

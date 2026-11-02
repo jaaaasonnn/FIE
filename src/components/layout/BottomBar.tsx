@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import { Heart, MessageSquare, Search, UserCircle } from 'lucide-react'
-import { FieMark } from './FieMark'
 
 // The phone's bottom bar (stage 1 of the app shell). A server component: links and inline SVG only, so it
 // adds no script to any page; it is drawn by the pages that have it, each naming its own tab, and hidden
@@ -21,7 +20,8 @@ const TABS: { tab: Tab; href: string; label: string }[] = [
 
 function Icon({ tab, active }: { tab: Tab; active: boolean }) {
   const props = { size: 24, strokeWidth: active ? 2.25 : 1.75, 'aria-hidden': true as const }
-  if (tab === 'trips') return <FieMark active={active} />
+  // FieGH's own mark: the header logo's asset and mask (globals.css .bottom-bar-mark), gold on the page you are on
+  if (tab === 'trips') return <span className="bottom-bar-mark" aria-hidden />
   if (tab === 'explore') return <Search {...props} />
   if (tab === 'wishlists') return <Heart {...props} />
   if (tab === 'messages') return <MessageSquare {...props} />
