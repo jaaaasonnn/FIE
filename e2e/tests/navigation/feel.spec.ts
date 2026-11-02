@@ -4,6 +4,7 @@ import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { measured } from '../../lib/race'
 import { AuthPage, CheckoutPage, FakePaystack, ListingPage } from '../../pages'
+import { runEmail } from '../../lib/runId'
 
 // How the site behaves around the edges of a journey: links opened cold,
 // back and forward, a refresh half way, a button pressed twice, a second tab.
@@ -186,7 +187,7 @@ test.describe('pressed twice', () => {
 
   test('the sign-up button double-clicked makes one account and shows no error', async ({ page, world }) => {
     const tag = Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36)
-    const email = `e2e-dbl-${tag}@fiegh.test`
+    const email = runEmail('dbl', tag)
     const auth = new AuthPage(page)
     await auth.gotoSignUp()
     await page.getByPlaceholder('Kwame Mensah').fill('E2E Double')

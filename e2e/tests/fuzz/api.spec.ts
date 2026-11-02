@@ -7,6 +7,7 @@ import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { measured } from '../../lib/race'
 import { call, type Actor, type Reply, type World } from '../../lib/world'
+import { runEmail } from '../../lib/runId'
 
 // Hostile input to every route that takes any: wrong types, huge and tiny
 // numbers, enormous strings, emoji, null bytes, nested objects, nonsense
@@ -59,7 +60,7 @@ async function routes(world: World): Promise<Route[]> {
   const requested = await world.mustBook(guest, request.id)
   const dates = world.dates(2)
   return [
-    { name: '/api/auth/signup', method: 'POST', path: '/api/auth/signup', as: null, valid: { name: 'E2E Fuzz', email: 'e2e-fuzz@fiegh.test', password: 'Fuzz-pass-12345', role: 'GUEST', phone: '0241234567' } },
+    { name: '/api/auth/signup', method: 'POST', path: '/api/auth/signup', as: null, valid: { name: 'E2E Fuzz', email: runEmail('fuzz', 'signup'), password: 'Fuzz-pass-12345', role: 'GUEST', phone: '0241234567' } },
     { name: '/api/auth/signin', method: 'POST', path: '/api/auth/signin', as: null, valid: { identifier: guest.email, password: 'wrong' } },
     { name: '/api/auth/forgot-password', method: 'POST', path: '/api/auth/forgot-password', as: null, valid: { email: guest.email } },
     { name: '/api/auth/reset-password', method: 'POST', path: '/api/auth/reset-password', as: null, valid: { token: 'x'.repeat(43), password: 'Fuzz-pass-12345' } },
@@ -79,7 +80,7 @@ async function routes(world: World): Promise<Route[]> {
     { name: '/api/notifications', method: 'PATCH', path: '/api/notifications', as: guest, valid: { id: 'x' } },
     { name: '/api/users/me', method: 'PATCH', path: '/api/users/me', as: guest, valid: { name: 'E2E Fuzz', bio: 'hello', nationality: 'Ghanaian', businessName: 'x', phone: '0241234567', email: 'x@fiegh.test', optionalEmails: true } },
     { name: '/api/users/me/password', method: 'POST', path: '/api/users/me/password', as: guest, valid: { currentPassword: 'wrong-on-purpose', newPassword: 'Fuzz-pass-12345' } },
-    { name: '/api/users/me/email', method: 'POST', path: '/api/users/me/email', as: guest, valid: { email: 'e2e-fuzz-new@fiegh.test', password: 'wrong-on-purpose' } },
+    { name: '/api/users/me/email', method: 'POST', path: '/api/users/me/email', as: guest, valid: { email: runEmail('fuzz', 'new'), password: 'wrong-on-purpose' } },
     { name: '/api/bookings/[id]/disputes', method: 'POST', path: `/api/bookings/${booking}/disputes`, as: guest, valid: { reason: 'NO_ACCESS', description: 'Nobody was there to let us in at all.' } },
     { name: '/api/disputes/[id]', method: 'POST', path: '/api/disputes/not-a-dispute', as: host, valid: { response: 'That is not what happened.' } },
     { name: '/api/listings', method: 'POST', path: '/api/listings', as: host, valid: { title: 'E2E fuzz home', description: 'A flat made by the fuzz test and removed afterwards.', propertyType: 'Apartment', region: 'Central', city: 'Cape Coast', neighbourhood: 'Pedu', bedrooms: 2, bathrooms: 1, maxGuests: 2, rentalModes: ['SHORT_STAY'], priceNightly: 80, priceMonthly: 600, priceAnnual: 6000, damageDeposit: 50, instantBook: true, lat: 5.1, lng: -1.2, amenities: ['wifi'], rules: ['no smoking'], photos: [], cancellationPolicy: 'MODERATE', minStayNights: 1, advanceMonthsRequired: 3, digitalAddress: 'GA-183-8164' } },

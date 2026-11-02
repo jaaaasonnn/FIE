@@ -5,6 +5,7 @@
 import crypto from 'crypto'
 import { db, purge } from './db'
 import { fakes, until } from './fakes'
+import { runEmail } from './runId'
 
 export const APP = ['http://localhost:3200', 'http://localhost:3201'] as const
 export const CRON_SECRET = process.env.CRON_SECRET ?? 'e2e-cron-secret'
@@ -89,7 +90,7 @@ export class World {
   /** `tag` ends up in the email address, for a test that must tell the fakes about a person before they exist. */
   async person(role: 'GUEST' | 'HOST', over: { name?: string; phone?: string; tag?: string } = {}): Promise<Actor> {
     const tag = over.tag ?? unique()
-    const actor = new Actor('', `e2e-${role.toLowerCase()}-${tag}@fiegh.test`, `E2e-pass-${tag}`, over.name ?? `E2E ${role === 'HOST' ? 'Host' : 'Guest'} ${tag}`, role)
+    const actor = new Actor('', runEmail(role.toLowerCase(), tag), `E2e-pass-${tag}`, over.name ?? `E2E ${role === 'HOST' ? 'Host' : 'Guest'} ${tag}`, role)
     const r = await call('POST', '/api/auth/signup', { name: actor.name, email: actor.email, password: actor.password, role, ...(over.phone ? { phone: over.phone } : {}) }, { ip: actor.ip })
     if (r.status !== 201) throw new Error(`sign-up failed: ${r.status} ${r.text}`)
     actor.id = r.json.user.id

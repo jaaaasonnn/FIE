@@ -1,5 +1,8 @@
 // What the tests use to steer the fake services and to read what they received.
+import { RUN_ID } from './runId'
 const FAKE = 'http://127.0.0.1:4010/__control'
+/** The rules this worker has added and not yet removed */
+const added = new Set<string>()
 
 async function get<T>(path: string, query: Record<string, string | undefined> = {}): Promise<T> {
   const q = new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined) as [string, string][])
@@ -37,10 +40,27 @@ export const fakes = {
   smsReport: (id: string, status: string, o: { forged?: boolean; smsId?: string; times?: number; method?: 'GET' | 'POST' } = {}) => post<{ statuses: number[] }>('/sms-report', { id, status, ...o }),
   calls: (o: { endpoint?: Endpoint; service?: string; match?: string } = {}) => get<{ endpoint: string; text: string; at: number }[]>('/calls', o),
   files: (match?: string) => get<string[]>('/files', { match }),
-  /** Makes one endpoint misbehave for requests containing `match`. Returns a function that removes the rule. */
-  async rule(endpoint: Endpoint, behaviour: Behaviour, o: { match?: string; times?: number; delayMs?: number; message?: string } = {}): Promise<() => Promise<void>> {
-    const rule = await post<{ id: string }>('/rule', { endpoint, behaviour, ...o })
-    return async () => { await fetch(`${FAKE}/rule?id=${rule.id}`, { method: 'DELETE' }) }
+  /**
+   * Makes one endpoint misbehave for requests containing `match`. Returns a function that removes the rule.
+   * SU10: `match` is required (the fake refuses a rule without one), and every rule is also removed when the
+   * test that added it ends, however it ends (the `fakeRules` fixture, lib/test.ts).
+   */
+  async rule(endpoint: Endpoint, behaviour: Behaviour, o: { match: string; times?: number; delayMs?: number; message?: string }): Promise<() => Promise<void>> {
+    const res = await fetch(`${FAKE}/rule`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ endpoint, behaviour, owner: RUN_ID, ...o }) })
+    const rule = await res.json() as { id?: string; error?: string }
+    if (!res.ok || !rule.id) throw new Error(`the fake refused the rule (${endpoint}, ${behaviour}): ${rule.error ?? res.status}`)
+    added.add(rule.id)
+    return async () => { added.delete(rule.id!); await fetch(`${FAKE}/rule?id=${rule.id}`, { method: 'DELETE' }) }
+  },
+  /** Removes every rule added in this worker since the last call: run when each test ends */
+  async removeTestRules(): Promise<void> {
+    const ids = [...added]
+    added.clear()
+    await Promise.all(ids.map((id) => fetch(`${FAKE}/rule?id=${id}`, { method: 'DELETE' })))
+  },
+  /** Removes every rule this test process added, in any worker: run at the end of the run */
+  async removeRunRules(): Promise<number> {
+    return ((await (await fetch(`${FAKE}/rules?owner=${encodeURIComponent(RUN_ID)}`, { method: 'DELETE' })).json()) as { removed: number }).removed
   },
   rules: () => get<{ id: string; hits?: number; waiting?: number }[]>('/rules'),
 }

@@ -6,6 +6,7 @@
 // photos are answered locally, anything else is refused and recorded.
 import { test as base, expect, type BrowserContext, type Page } from '@playwright/test'
 import { World, freshIp, type Actor } from './world'
+import { fakes } from './fakes'
 
 export type Problems = { console: string[]; pageErrors: string[]; failedRequests: string[]; external: string[]; /** What the report-only content policy would have blocked */ csp: string[] }
 const LOCAL = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/|data:|blob:|about:)/
@@ -60,6 +61,7 @@ type Fixtures = {
   world: World
   problems: Problems
   signIn: (person: Actor, page?: Page) => Promise<void>
+  fakeRules: void
 }
 
 // Next streams each page that reads data on the server: the page's HTML arrives in a hidden holder
@@ -123,6 +125,11 @@ export const test = base.extend<Fixtures>({
     // Whatever the test was about, the browser must not have tried to reach a third party
     expect(problems.external, 'requests to anything but this machine').toEqual([])
   },
+  // SU10: every fake-service rule a test added is removed when it ends, passed, failed or timed out
+  fakeRules: [async ({}, use) => {
+    await use()
+    await fakes.removeTestRules()
+  }, { auto: true }],
   world: async ({}, use) => {
     const world = new World()
     await use(world)

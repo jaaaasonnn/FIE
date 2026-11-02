@@ -4,6 +4,7 @@ import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { allowForRounds, ROUNDS, measured, serverErrors, statuses, together } from '../../lib/race'
 import { call, cron, freshIp } from '../../lib/world'
+import { runEmail } from '../../lib/runId'
 
 test.beforeEach(allowForRounds)
 
@@ -16,7 +17,7 @@ test.describe('races: accounts', () => {
     const made: string[] = []
     try {
       for (let round = 0; round < ROUNDS; round++) {
-        const email = `e2e-twin-${tag()}@fiegh.test`
+        const email = runEmail('twin', tag())
         const join = (server: 0 | 1, casing: (s: string) => string) => call('POST', '/api/auth/signup', { name: 'E2E Twin', email: casing(email), password: 'Twin-pass-12345', role: 'GUEST' }, { server })
         const replies = await together(() => join(0, (s) => s), () => join(1, (s) => s.toUpperCase()), () => join(0, (s) => ` ${s} `))
         const rows = await db.user.findMany({ where: { email: { equals: email, mode: 'insensitive' } }, select: { id: true } })
@@ -32,7 +33,7 @@ test.describe('races: accounts', () => {
     try {
       for (let round = 0; round < ROUNDS; round++) {
         const phone = `024${Math.floor(1000000 + Math.random() * 8999999)}`
-        const join = (server: 0 | 1, written: string) => call('POST', '/api/auth/signup', { name: 'E2E Twin', email: `e2e-twin-${tag()}@fiegh.test`, phone: written, password: 'Twin-pass-12345', role: 'GUEST' }, { server })
+        const join = (server: 0 | 1, written: string) => call('POST', '/api/auth/signup', { name: 'E2E Twin', email: runEmail('twin', tag()), phone: written, password: 'Twin-pass-12345', role: 'GUEST' }, { server })
         const replies = await together(() => join(0, phone), () => join(1, `+233${phone.slice(1)}`))
         const rows = await db.user.findMany({ where: { phone: { endsWith: phone.slice(1) } }, select: { id: true } })
         made.push(...rows.map((r) => r.id))
@@ -47,7 +48,7 @@ test.describe('races: accounts', () => {
     try {
       const errors: string[] = []
       for (let round = 0; round < 6; round++) {
-        const email = `e2e-twin-${tag()}@fiegh.test`
+        const email = runEmail('twin', tag())
         const replies = await together(...[0, 1, 0, 1].map((server) => () => call('POST', '/api/auth/signup', { name: 'E2E Twin', email, password: 'Twin-pass-12345', role: 'GUEST' }, { server: server as 0 | 1, ip: freshIp() })))
         made.push(...replies.filter((r) => r.status === 201).map((r) => r.json.user.id))
         errors.push(...serverErrors(replies))
@@ -148,7 +149,7 @@ test.describe('races: limits when requests arrive together', () => {
     const ip = freshIp()
     const made: string[] = []
     try {
-      const replies = await together(...Array.from({ length: 10 }, (_, i) => () => call('POST', '/api/auth/signup', { name: 'E2E Burst', email: `e2e-burst-${tag()}-${i}@fiegh.test`, password: 'Burst-pass-12345', role: 'GUEST' }, { ip, server: (i % 2) as 0 | 1 })))
+      const replies = await together(...Array.from({ length: 10 }, (_, i) => () => call('POST', '/api/auth/signup', { name: 'E2E Burst', email: runEmail('burst', `${tag()}-${i}`), password: 'Burst-pass-12345', role: 'GUEST' }, { ip, server: (i % 2) as 0 | 1 })))
       expect(serverErrors(replies)).toEqual([])
       made.push(...replies.filter((r) => r.status === 201).map((r) => r.json.user.id))
       measured(`${made.length} of 10 simultaneous sign-ups from one address made an account (the limit is 5 an hour)`)

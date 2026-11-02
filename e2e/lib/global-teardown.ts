@@ -1,10 +1,16 @@
 import fs from 'fs'
-import { db, purge } from './db'
+import { db, purgeRunLeftovers } from './db'
+import { fakes } from './fakes'
+import { RUN_ID } from './runId'
 
-/** After everything: remove what is left (the admins every test kept), and check the app's server never tried to reach anything but this machine. */
+/**
+ * After everything: remove what this process left (the admins every test kept, people made through the sign-up
+ * form) and any fake-service rule it added, and check the app's server never tried to reach anything but this
+ * machine. SU10: only this process's own (lib/runId.ts); another process's people and rules are never touched.
+ */
 export default async function globalTeardown() {
-  const left = await db.user.findMany({ where: { email: { startsWith: 'e2e-', endsWith: '@fiegh.test' }, NOT: { email: { startsWith: 'e2e-explore-' } } }, select: { id: true } })
-  await purge(left.map((u) => u.id))
+  await purgeRunLeftovers(RUN_ID)
+  await fakes.removeRunRules()
   await db.$disconnect()
   const log = process.env.E2E_EGRESS_LOG
   const blocked = log && fs.existsSync(log) ? fs.readFileSync(log, 'utf8').trim() : ''

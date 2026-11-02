@@ -309,8 +309,16 @@ async function control(req, res, url, body) {
   const p = body.length ? JSON.parse(body.toString('utf8')) : {}
   const q = Object.fromEntries(url.searchParams)
   if (path === '/health') return send(res, 200, { ok: true, pid: process.pid })
-  if (path === '/rule' && req.method === 'POST') { const rule = { id: next('rule'), ...p }; state.rules.push(rule); return send(res, 200, rule) }
+  if (path === '/rule' && req.method === 'POST') {
+    // SU10: a rule with no match would break every request on the stack, other tests' and other processes' too
+    if (typeof p.match !== 'string' || p.match.trim().length < 4) {
+      return send(res, 400, { error: 'A failure rule needs a match: text found only in the requests it is for (a booking id, a payment reference), at least 4 characters. A rule with no match would break every request on the stack.' })
+    }
+    const rule = { id: next('rule'), ...p }; state.rules.push(rule); return send(res, 200, rule)
+  }
   if (path === '/rule' && req.method === 'DELETE') { state.rules = state.rules.filter((r) => r.id !== q.id); return send(res, 200, { ok: true }) }
+  // Every rule one test process added (its id is the owner), at the end of its run
+  if (path === '/rules' && req.method === 'DELETE') { const before = state.rules.length; state.rules = state.rules.filter((r) => !q.owner || r.owner !== q.owner); return send(res, 200, { removed: before - state.rules.length }) }
   if (path === '/rules') return send(res, 200, state.rules)
   if (path === '/tx' && req.method === 'GET') {
     const found = [...state.tx.values()].filter((t) => (!q.reference || t.reference === q.reference) && (!q.match || JSON.stringify(t).includes(q.match)))

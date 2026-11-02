@@ -3,6 +3,7 @@ import { db } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { call } from '../../lib/world'
 import { AuthPage, Header } from '../../pages'
+import { runEmail } from '../../lib/runId'
 
 // Accounts: getting in, getting out, and getting back in after forgetting.
 
@@ -41,7 +42,7 @@ test.describe('accounts', () => {
 
     // An address with no account gets the same words, and no email
     await page.goto('/auth/forgot-password')
-    const nobody = `e2e-nobody-${Date.now().toString(36)}@fiegh.test`
+    const nobody = runEmail('nobody', Date.now().toString(36))
     // The page says the same thing whether or not the address has an account
     expect(await answer(nobody)).toBe(said)
     expect(await fakes.inbox(nobody)).toHaveLength(0)

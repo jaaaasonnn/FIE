@@ -100,7 +100,8 @@ test.describe('storage failing', () => {
 test.describe('jobs', () => {
   test('the exchange-rate service fails: the rate in force is kept', async () => {
     const before = await db.exchangeRate.findFirstOrThrow({ orderBy: { updatedAt: 'desc' } })
-    const undo = await fakes.rule('rate', 'http500', {})
+    // The rate service is asked one thing, so the rule names that request
+    const undo = await fakes.rule('rate', 'http500', { match: 'pair/USD/GHS' })
     const run = await cron('update-exchange-rate')
     await undo()
     expect(run.status).toBeLessThan(600)

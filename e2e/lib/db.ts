@@ -42,6 +42,13 @@ async function clearMessages(where: Prisma.MessageLogWhereInput): Promise<Prisma
   }
 }
 
+/** SU10: every test person one process made and has not removed yet: their emails start e2e-<run id>- (lib/runId.ts) */
+export async function purgeRunLeftovers(runId: string): Promise<number> {
+  const left = await db.user.findMany({ where: { email: { startsWith: `e2e-${runId}-`, endsWith: '@fiegh.test' } }, select: { id: true } })
+  await purge(left.map((u) => u.id))
+  return left.length
+}
+
 /** Deletes everything that hangs off these people, by id. */
 export async function purge(userIds: string[]): Promise<void> {
   if (userIds.length === 0) return

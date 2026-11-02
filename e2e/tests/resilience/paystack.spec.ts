@@ -71,8 +71,10 @@ test.describe('Paystack fails when the guest comes back', () => {
     test(`verify ${what}: the guest paid, sees "still being checked", and is confirmed once Paystack is back`, async ({ world }) => {
       const { guest, id } = await unpaid(world)
       const pay = await world.startPayment(guest, id)
+      // The rule below is for this payment only: without a reference it could not be scoped (SU10)
+      expect(pay.reference, `the payment started: ${pay.status} ${pay.text}`).toBeTruthy()
       await fakes.setTx(pay.reference!, { status: 'success' })
-      const undo = await fakes.rule('verify', behaviour, { match: pay.reference })
+      const undo = await fakes.rule('verify', behaviour, { match: pay.reference! })
       const back = await world.verify(guest, pay.reference!)
       expect(back.status).toBe(307)
       expect(back.headers.get('location')).not.toContain('payment=success')

@@ -4,6 +4,7 @@ import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { Actor } from '../../lib/world'
 import { AuthPage, CheckoutPage, FakePaystack, ListingPage } from '../../pages'
+import { runEmail } from '../../lib/runId'
 
 // The shortest path through the product, in a real browser on the production
 // build: someone signs up, finds a home, books it and pays.
@@ -11,7 +12,7 @@ import { AuthPage, CheckoutPage, FakePaystack, ListingPage } from '../../pages'
 test.describe('the main journey @smoke @core', () => {
   test('a new guest signs up through the form and is sent a confirmation link that works', async ({ page, world }) => {
     const tag = Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36)
-    const person = new Actor('', `e2e-form-${tag}@fiegh.test`, `Form-pass-${tag}`, `E2E Form ${tag}`, 'GUEST')
+    const person = new Actor('', runEmail('form', tag), `Form-pass-${tag}`, `E2E Form ${tag}`, 'GUEST')
     const auth = new AuthPage(page)
     await auth.gotoSignUp()
     await auth.signUp(person)

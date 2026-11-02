@@ -1,10 +1,14 @@
 import path from 'path'
 import { defineConfig, devices } from '@playwright/test'
+import crypto from 'crypto'
 
 // Run through the launcher only: `node e2e/run.mjs test`. It supplies the fake
 // environment; lib/db.ts refuses to load without it.
 // Where the results, the HTML report and failure artifacts go. E2E_REPORT_DIR gives one run its own folder, so
 // that a later run (the chaos set, another browser set-up) does not overwrite its results.
+// SU10: this process's id (lib/runId.ts). Set here, in the runner, so every worker it starts inherits it.
+process.env.E2E_RUN_ID ||= `r${crypto.randomBytes(4).toString('hex')}`
+
 const reports = process.env.E2E_REPORT_DIR ? path.resolve(process.env.E2E_REPORT_DIR) : path.join(__dirname, '.reports')
 const core = /@core/
 // WebKit keeps the app's Secure session cookie only over https, as on the real site: the WebKit-engine
