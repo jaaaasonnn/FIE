@@ -395,7 +395,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
             <p className="text-sm flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               {loading
                 ? <><Loader2 size={13} className="animate-spin" style={{ color: 'var(--color-accent)' }} /> Searching…</>
-                : <span><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> properties found
+                : <span><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> {total === 1 ? 'property' : 'properties'} found
                     {filters.region && <span> in <strong>{filters.region}</strong></span>}
                     {filters.mode   && <span> · <strong>{MODE_LABELS[filters.mode]}</strong></span>}
                     {dateQuery(filters) && !dateError && <span>, available {dateSummary(filters).replace(/^From/, 'from')}</span>}
@@ -585,7 +585,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
           <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
             style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }}>
             <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-              Map view · {total} properties
+              Map view · {total} {total === 1 ? 'property' : 'properties'}
             </span>
             <button onClick={() => setShowMapMobile(false)}
               className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
