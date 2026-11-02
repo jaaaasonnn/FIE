@@ -7,11 +7,11 @@ import { Plus, Home, Calendar, DollarSign, Star, Users, Eye, Loader2, CheckCircl
 import { StatCard } from '@/components/ui/Card'
 import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
-import { useAuth, type AuthUser } from '@/context/AuthContext'
+import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
-import { NotificationsList, type Notification } from '@/components/NotificationsList'
+import { NotificationsList } from '@/components/NotificationsList'
 import { VerifyEmailNotice } from '@/components/account/VerifyEmailNotice'
-import { HostIdNotice, type HostIdLoaded } from '@/components/host/HostIdNotice'
+import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { monthEarnings, monthEarningsPesewas } from '@/lib/hostEarnings'
 import { COMMISSION_PERCENT } from '@/lib/fees'
 import { readJson } from '@/lib/clientFetch'
@@ -68,24 +68,8 @@ function firstPhoto(photos: unknown): string {
   return ''
 }
 
-/**
- * Read on the server with the page (page.tsx): the host from GET /api/auth/session, their listings and
- * bookings, and what the notices above the dashboard show. Null when the listings or bookings had no
- * answer: the page then waits for the browser's session check and fetches them itself, as before.
- */
-export type HostDashboardInitial = {
-  user: AuthUser
-  listings: ApiListing[]
-  bookings: ApiBooking[]
-  notifications: Notification[] | null
-  hostId: HostIdLoaded | null
-} | null
-
-function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
-  const { user: authUser, loading: authLoading } = useAuth()
-  // Until the browser's own session check has answered, the host the server found draws the page
-  const user = authUser ?? (authLoading ? initial?.user ?? null : null)
-  const userId = user?.id ?? null
+function HostDashboardContent() {
+  const { user, loading: authLoading } = useAuth()
   const searchParams = useSearchParams()
   const createdId = searchParams.get('created')
   const createdHeld = searchParams.get('held') === '1'
@@ -99,7 +83,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
     userId: string
     listings: ApiListing[]
     bookings: ApiBooking[]
-  } | null>(initial ? { userId: initial.user.id, listings: initial.listings, bookings: initial.bookings } : null)
+  } | null>(null)
   const current  = user && dashboard?.userId === user.id ? dashboard : null
   const listings = current?.listings ?? []
   const bookings = current?.bookings ?? []
@@ -110,10 +94,8 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
   const loading  = !!user && !current && !loadFailed
 
   useEffect(() => {
-    if (!userId) return
-    // The server sent this host's dashboard with the page: nothing to fetch the first time
-    if (initial?.user.id === userId && loadTry === 0) return
-    if (authLoading) return
+    if (authLoading || !user) return
+    const userId = user.id
     Promise.all([
       readJson(`/api/listings?hostId=${userId}&limit=50`),
       readJson(`/api/bookings?hostId=${userId}`),
@@ -127,7 +109,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
       })
       // Say so, rather than show no listings and no bookings
       .catch(() => setFailed({ userId, loadTry }))
-  }, [userId, authLoading, loadTry, initial])
+  }, [user, authLoading, loadTry])
 
   const activeListings = listings.filter((l) => l.isActive)
   const activeBookings = bookings.filter((b) => b.status === 'CONFIRMED' || b.status === 'PENDING')
@@ -211,10 +193,10 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <VerifyEmailNotice className="mb-6" serverUser={initial?.user} />
-        <NotificationsList className="mb-6" initial={initial?.notifications} />
+        <VerifyEmailNotice className="mb-6" />
+        <NotificationsList className="mb-6" />
         {/* A host can list and take bookings without one, but is paid only once their ID is approved */}
-        <HostIdNotice className="mb-6" initial={initial?.hostId} serverUser={initial?.user} />
+        <HostIdNotice className="mb-6" />
         {createdId && (
           <div
             className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl px-4 py-3"
@@ -240,7 +222,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
 
         {loadFailed && !authLoading ? (
           <LoadFailed className="py-24" onRetry={() => setLoadTry((n) => n + 1)} />
-        ) : loading || (authLoading && !current) ? (
+        ) : loading || authLoading ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3">
             <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading dashboard…</p>
@@ -254,8 +236,8 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
                 label="This Month"
                 value={earnedPesewas !== null
                   ? `GH₵ ${Math.round(earnedPesewas / 100).toLocaleString('en-GH')}`
-                  : `$${earnedThisMonth.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                sub={`${earnedPesewas !== null ? `$${earnedThisMonth.toLocaleString('en-US', { maximumFractionDigits: 0 })} · ` : ''}Paid stays and rent, after ${COMMISSION_PERCENT} commission`}
+                  : `$${earnedThisMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
+                sub={`${earnedPesewas !== null ? `$${earnedThisMonth.toLocaleString(undefined, { maximumFractionDigits: 0 })} · ` : ''}Paid stays and rent, after ${COMMISSION_PERCENT} commission`}
               />
               <StatCard
                 icon={<Calendar size={18} style={{ color: '#2563EB' }} />}
@@ -336,7 +318,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
                           <div className="flex items-center gap-3">
                             <div className="text-right">
                               <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                                ${b.totalPrice.toLocaleString('en-US')}
+                                ${b.totalPrice.toLocaleString()}
                               </p>
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium"
                                 style={{ backgroundColor: s.bg, color: s.color }}>
@@ -450,7 +432,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
 
 // useSearchParams() needs a Suspense boundary for the page to prerender.
 // The fallback mirrors the header + loading state above so there's no jump.
-export function HostDashboardFallback() {
+function HostDashboardFallback() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
@@ -472,10 +454,10 @@ export function HostDashboardFallback() {
   )
 }
 
-export function HostDashboardClient({ initial = null }: { initial?: HostDashboardInitial }) {
+export default function HostDashboardPage() {
   return (
     <Suspense fallback={<HostDashboardFallback />}>
-      <HostDashboardContent initial={initial} />
+      <HostDashboardContent />
     </Suspense>
   )
 }

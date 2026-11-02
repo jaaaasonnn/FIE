@@ -3,19 +3,15 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { Mail } from 'lucide-react'
-import { useAuth, type AuthUser } from '@/context/AuthContext'
+import { useAuth } from '@/context/AuthContext'
 
 /**
  * Shown on the dashboards to someone who cannot yet book, list a home or pay
  * because their email address is not confirmed. Nothing is shown while that
  * rule is switched off, or once the address is confirmed.
- *
- * `serverUser` is the person the server found with the page: drawn from until the browser's own session
- * check has answered, so the notice is there from the start rather than pushing the page down later.
  */
-export function VerifyEmailNotice({ className = '', serverUser = null }: { className?: string; serverUser?: AuthUser | null }) {
-  const { user: authUser, loading } = useAuth()
-  const user = authUser ?? (loading ? serverUser : null)
+export function VerifyEmailNotice({ className = '' }: { className?: string }) {
+  const { user } = useAuth()
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   if (!user?.mustVerifyEmail) return null

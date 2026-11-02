@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Users, Home, Calendar, DollarSign, Shield, AlertTriangle,
@@ -8,10 +8,10 @@ import {
 } from 'lucide-react'
 import { StatCard } from '@/components/ui/Card'
 import { ScrollHintRow } from '@/components/ui/ScrollHintRow'
-import { useAuth, type AuthUser } from '@/context/AuthContext'
+import { useAuth } from '@/context/AuthContext'
 import { AUTO_UPDATED_BY, type AutoFetchStatus } from '@/lib/exchangeRateShared'
 import { AdminDisputes } from '@/components/admin/AdminDisputes'
-import { NotificationsList, type Notification } from '@/components/NotificationsList'
+import { NotificationsList } from '@/components/NotificationsList'
 import { AdminMessages } from '@/components/admin/AdminMessages'
 import { AdminRent } from '@/components/admin/AdminRent'
 import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
@@ -59,30 +59,16 @@ type AdminStats = {
   payoutsWaitingForId?: number
 }
 
-type RateAnswer = { rate?: number; updatedAt?: string | null; updatedBy?: string | null; autoFetchStatus?: AutoFetchStatus | null }
-
-/**
- * Read on the server with the page (page.tsx): the admin from GET /api/auth/session and the Overview's
- * two answers (GET /api/admin?type=stats and ?type=exchange-rate). Null when the server had no answer:
- * the page then waits for the browser's session check and fetches them itself, as before.
- */
-export type AdminInitial = { user: AuthUser; stats: AdminStats; rate: RateAnswer; notifications: Notification[] | null } | null
-
-export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
+export default function AdminPage() {
   const router = useRouter()
-  const { user: authUser, loading: authLoading } = useAuth()
-  // Until the browser's own session check has answered, the admin the server found draws the page
-  const user = authUser ?? (authLoading ? initial?.user ?? null : null)
-  const adminId = user?.role === 'ADMIN' ? user.id : null
+  const { user, loading: authLoading } = useAuth()
   const [activeTab, setActiveTab] = useState('Overview')
-  const [exchangeRate, setExchangeRate] = useState(initial?.rate.rate != null ? String(initial.rate.rate) : '15.5')
-  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(initial?.rate.updatedAt ?? null)
-  const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(initial?.rate.updatedBy ?? null)
-  const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(initial?.rate.autoFetchStatus ?? null)
-  // The Overview the server sent is shown as it is the first time; coming back to the tab loads it again
-  const overviewServed = useRef(!!initial)
+  const [exchangeRate, setExchangeRate] = useState('15.5')
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(null)
+  const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(null)
+  const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(null)
 
-  const [stats, setStats] = useState<AdminStats | null>(initial?.stats ?? null)
+  const [stats, setStats] = useState<AdminStats | null>(null)
   const [users, setUsers] = useState<AdminUser[]>([])
   const reloadUsers = async () => {
     const res = await fetch('/api/admin/users')
@@ -102,7 +88,12 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
     if (!user) router.replace('/login?redirect=/admin')
   }, [user, authLoading, router])
 
-  function applyRateResponse(r: RateAnswer) {
+  function applyRateResponse(r: {
+    rate?: number
+    updatedAt?: string | null
+    updatedBy?: string | null
+    autoFetchStatus?: AutoFetchStatus | null
+  }) {
     if (r.rate != null) setExchangeRate(String(r.rate))
     setRateUpdatedAt(r.updatedAt ?? null)
     setRateUpdatedBy(r.updatedBy ?? null)
@@ -111,8 +102,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
 
   // Load data per tab
   useEffect(() => {
-    if (!adminId) return
-    if (activeTab === 'Overview' && overviewServed.current) { overviewServed.current = false; return }
+    if (!user || user.role !== 'ADMIN') return
 
     async function load() {
       setTabLoading(true)
@@ -151,7 +141,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
     }
 
     load()
-  }, [activeTab, adminId])
+  }, [activeTab, user])
 
   // Put a listing on hold (switches it off; its host cannot switch it back
   // on) or clear the hold and reactivate it.
@@ -188,7 +178,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
     alert('Exchange rate updated')
   }
 
-  if (authLoading && !user) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
         <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
@@ -282,7 +272,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
               {activeTab === 'Listing checks' && <AdminListingChecks />}
               {activeTab === 'Messages' && <AdminMessages />}
 
-              {activeTab === 'Overview' && <NotificationsList className="mb-6" initial={initial?.notifications} />}
+              {activeTab === 'Overview' && <NotificationsList className="mb-6" />}
 
               {activeTab === 'Overview' && (
                 <div>
@@ -290,8 +280,8 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                     <StatCard icon={<Users size={18} style={{ color: 'var(--color-accent)' }} />} label="Total Users" value={stats?.totalUsers ?? '-'} />
                     <StatCard icon={<Home size={18} style={{ color: '#2563EB' }} />} label="Active Listings" value={stats?.totalListings ?? '-'} />
                     <StatCard icon={<Calendar size={18} style={{ color: '#059669' }} />} label="Total Bookings" value={stats?.totalBookings ?? '-'}
-                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString('en-US')} paid for stays` : undefined} />
-                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString('en-US')}` : '-'}
+                      sub={stats ? `$${Math.round(stats.totalRevenue).toLocaleString()} paid for stays` : undefined} />
+                    <StatCard icon={<DollarSign size={18} style={{ color: '#F59E0B' }} />} label="Platform Revenue" value={stats ? `$${Math.round(stats.platformRevenue).toLocaleString()}` : '-'}
                       sub={`${COMMISSION_PERCENT} commission on stay prices`} />
                   </div>
 

@@ -115,41 +115,16 @@ async function getAvailability(listingId: string): Promise<{ bookedRanges: Booke
   }
 }
 
-/** Arriving from a search by dates: what the address asks the booking box to start with. */
-export type Prefill = { mode: string | null; checkIn: string | null; checkOut: string | null; months: string | null }
-
-/**
- * Read on the server with the page (page.tsx): GET /api/listings/[id] and its availability, and the
- * dates from the address. Null listing when the server had no answer for it (not found, an error, no
- * answer in time): the page then fetches it in the browser as before.
- */
-export type ListingInitial = {
-  listing: ApiListing | null
-  availability: { bookedRanges: BookedRange[]; blockedDates: string[] } | null
-  prefill: Prefill
-}
-
-/** The rental type and dates the booking box starts with, for a listing and the address's dates. */
-function startingChoice(l: ApiListing, q: Prefill) {
-  const mode = q.mode && l.rentalModes?.includes(q.mode) ? q.mode : l.rentalModes?.[0] ?? ''
-  const from = fromDayKey(q.checkIn)
-  const to = from ? fromDayKey(q.checkOut) : null
-  const m = parseInt(q.months ?? '', 10)
-  return { mode, checkIn: from, checkOut: from && to && to > from ? to : null, months: from && m >= 1 && m <= 11 ? m : null }
-}
-
-export function ListingClient({ initial = null }: { initial?: ListingInitial | null }) {
+export default function ListingDetailPage() {
   const { id: listingId } = useParams<{ id: string }>()
   const router = useRouter()
   const { user } = useAuth()
   const { rate: ghsRate } = useExchangeRate()
-  // What the server sent with the page, for the booking box's starting choice
-  const [first] = useState(() => (initial?.listing ? startingChoice(initial.listing, initial.prefill) : null))
 
   // Listing data
-  const [listing,    setListing]    = useState<ApiListing | null>(initial?.listing ?? null)
+  const [listing,    setListing]    = useState<ApiListing | null>(null)
   // Which listing the fetched data belongs to; loading is derived from it
-  const [loadedId,    setLoadedId]    = useState<string | null>(initial?.listing ? listingId : null)
+  const [loadedId,    setLoadedId]    = useState<string | null>(null)
   const listLoading = loadedId !== listingId
   const [notFound,    setNotFound]   = useState(false)
   // Not loaded even after its tries: the listing may well exist (G6)
@@ -158,20 +133,20 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
 
   // UI state
   const [photoIdx,     setPhotoIdx]     = useState(0)
-  const [selectedMode, setSelectedMode] = useState(first?.mode ?? '')
+  const [selectedMode, setSelectedMode] = useState('')
   const [savedHeart,   setWishlisted]   = useState(false)
   const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
   const [wishBusy,     setWishBusy]     = useState(false)
-  const [months,       setMonths]       = useState(first?.months ?? 1)
+  const [months,       setMonths]       = useState(1)
 
   // Date state
-  const [checkIn,  setCheckIn]  = useState<Date | null>(first?.checkIn ?? null)
-  const [checkOut, setCheckOut] = useState<Date | null>(first?.checkOut ?? null)
+  const [checkIn,  setCheckIn]  = useState<Date | null>(null)
+  const [checkOut, setCheckOut] = useState<Date | null>(null)
 
   // Availability state
-  const [availLoading, setAvailLoading] = useState(!initial?.availability)
-  const [bookedRanges, setBookedRanges] = useState<BookedRange[]>(initial?.availability?.bookedRanges ?? [])
-  const [blockedDates, setBlockedDates] = useState<string[]>(initial?.availability?.blockedDates ?? [])
+  const [availLoading, setAvailLoading] = useState(true)
+  const [bookedRanges, setBookedRanges] = useState<BookedRange[]>([])
+  const [blockedDates, setBlockedDates] = useState<string[]>([])
 
   // Booking submit state
   const [bookLoading, setBookLoading] = useState(false)
@@ -181,8 +156,6 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
 
   // ── Fetch listing data ────────────────────────────────────────────────
   useEffect(() => {
-    // The server sent the listing with the page: nothing to fetch the first time
-    if (initial?.listing && loadTry === 0) return
     let active = true
     fetchRetry(`/api/listings/${listingId}`)
       .then((r) => {
@@ -194,25 +167,30 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
         if (!d || !active) return
         const l: ApiListing = d.listing
         setListing(l)
+        setSelectedMode(l.rentalModes?.[0] ?? '')
 
         // Arriving from a search by dates: pre-fill the booking box. Read
         // straight from the address so the page needs no Suspense boundary.
         const q = new URLSearchParams(window.location.search)
-        const start = startingChoice(l, { mode: q.get('mode'), checkIn: q.get('checkIn'), checkOut: q.get('checkOut'), months: q.get('months') })
-        setSelectedMode(start.mode)
-        if (start.checkIn) setCheckIn(start.checkIn)
-        if (start.checkOut) setCheckOut(start.checkOut)
-        if (start.months) setMonths(start.months)
+        const wantedMode = q.get('mode')
+        if (wantedMode && l.rentalModes?.includes(wantedMode)) setSelectedMode(wantedMode)
+        const from = fromDayKey(q.get('checkIn'))
+        if (from) {
+          setCheckIn(from)
+          const to = fromDayKey(q.get('checkOut'))
+          if (to && to > from) setCheckOut(to)
+          const m = parseInt(q.get('months') ?? '', 10)
+          if (m >= 1 && m <= 11) setMonths(m)
+        }
       })
       .catch(() => { if (active) setLoadFailed(true) })
       .finally(() => { if (active) setLoadedId(listingId) })
     return () => { active = false }
-  }, [listingId, loadTry, initial])
+  }, [listingId, loadTry])
 
   // ── Fetch availability ────────────────────────────────────────────────
   // availLoading starts true, so the initial load sets nothing synchronously
   useEffect(() => {
-    if (initial?.availability) return
     let active = true
     getAvailability(listingId)
       .then((a) => {
@@ -223,7 +201,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
       .catch(() => { /* non-fatal */ })
       .finally(() => { if (active) setAvailLoading(false) })
     return () => { active = false }
-  }, [listingId, initial])
+  }, [listingId])
 
   // Manual refresh, e.g. after a booking hits a date conflict
   const fetchAvailability = useCallback(async () => {
@@ -426,7 +404,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
   // ── Render ────────────────────────────────────────────────────────────
   const photos   = listing.photos ?? []
   const hostJoined = new Date(listing.host.createdAt)
-    .toLocaleDateString('en-GH', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .toLocaleDateString('en-GH', { month: 'long', year: 'numeric' })
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -732,7 +710,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
                       </div>
                       <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{r.comment}</p>
                       <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-                        {new Date(r.createdAt).toLocaleDateString('en-GH', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                        {new Date(r.createdAt).toLocaleDateString('en-GH', { month: 'long', year: 'numeric' })}
                       </p>
                     </div>
                   ))}

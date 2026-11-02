@@ -3,11 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { IdCard } from 'lucide-react'
-import { useAuth, type AuthUser } from '@/context/AuthContext'
+import { useAuth } from '@/context/AuthContext'
 import { HOST_ID_BANNER, LISTING_ID_NOTICE, VERIFY_ID_PATH, waitingForIdLine, type HostIdState } from '@/lib/hostId'
 
-export type HostIdLoaded = { idState: HostIdState; waitingForId: { count: number; amount: number; amountPesewas?: number | null } | null }
-type Loaded = HostIdLoaded
+type Loaded = { idState: HostIdState; waitingForId: { count: number; amount: number; amountPesewas?: number | null } | null }
 
 /**
  * Tells a host, on their own pages, that FieGH pays them only once their ID
@@ -17,24 +16,18 @@ type Loaded = HostIdLoaded
  *
  * `variant="listing"` is the short notice on the last step of creating a
  * listing. `showWaiting` adds the money that has fallen due and is waiting.
- *
- * `initial` is the payouts route's answer and `serverUser` the person, as the server read them with the
- * page (lib/serverRead.ts): the notice is then there from the start, and nothing below it moves.
  */
-export function HostIdNotice({ variant = 'banner', showWaiting = false, className = '', initial = null, serverUser = null }: {
+export function HostIdNotice({ variant = 'banner', showWaiting = false, className = '' }: {
   variant?: 'banner' | 'listing'
   showWaiting?: boolean
   className?: string
-  initial?: Loaded | null
-  serverUser?: AuthUser | null
 }) {
-  const { user: authUser, loading } = useAuth()
-  const user = authUser ?? (loading ? serverUser : null)
-  const [loaded, setLoaded] = useState<Loaded | null>(initial)
+  const { user } = useAuth()
+  const [loaded, setLoaded] = useState<Loaded | null>(null)
   const hostId = user?.role === 'HOST' ? user.id : null
 
   useEffect(() => {
-    if (!hostId || initial) return
+    if (!hostId) return
     let active = true
     fetch(`/api/payouts?hostId=${hostId}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -43,7 +36,7 @@ export function HostIdNotice({ variant = 'banner', showWaiting = false, classNam
       })
       .catch(() => {})
     return () => { active = false }
-  }, [hostId, initial])
+  }, [hostId])
 
   if (!hostId || !loaded || loaded.idState === 'APPROVED') return null
   const words = HOST_ID_BANNER[loaded.idState]
