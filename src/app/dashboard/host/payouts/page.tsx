@@ -9,6 +9,7 @@ import { PAYOUT_DOLLARS_NOTE, PAYOUT_IN_CEDIS_LINE } from '@/lib/fees'
 import { NO_CEDI_AMOUNT } from '@/lib/cediShare'
 import { HostIdNotice } from '@/components/host/HostIdNotice'
 import { NEW_METHOD_NOTE } from '@/lib/payoutMethod'
+import { formatDay } from '@/lib/dateText'
 
 type ApiPayout = {
   id: string
@@ -437,9 +438,9 @@ export default function HostPayoutsPage() {
                             </p>
                             {p.instalment && (
                               <p className="text-xs text-[#6B645C] mt-0.5">
-                                Rent from {new Date(p.instalment.periodStart).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                                Rent from {formatDay(p.instalment.periodStart, { day: 'numeric', month: 'short', year: 'numeric' })}
                                 {' to '}
-                                {new Date(p.instalment.periodEnd).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}
+                                {formatDay(p.instalment.periodEnd, { day: 'numeric', month: 'short', year: 'numeric' })}
                               </p>
                             )}
                             {p.status === 'HELD' && (
@@ -450,7 +451,7 @@ export default function HostPayoutsPage() {
                               </p>
                             )}
                             <p className="text-xs text-[#6B645C] mt-0.5">
-                              {methodLabel(p)} · {new Date(p.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {methodLabel(p)} · {formatDay(p.createdAt, { day: 'numeric', month: 'short', year: 'numeric' }, 'local')}
                             </p>
                             {p.reference && (
                               <p className="text-xs text-[#736D62] mt-0.5">Ref: {p.reference}</p>

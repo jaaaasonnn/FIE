@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
+import { formatMoment } from '@/lib/dateText'
 
 type Switches = {
   enabled: boolean
@@ -52,7 +53,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }>
 }
 const CHANNEL_LABEL: Record<string, string> = { EMAIL: 'Email', SMS: 'SMS', IN_APP: 'In-app' }
 const AUDIENCE_LABEL: Record<string, string> = { guest: 'Guest', host: 'Host', user: 'The person', admin: 'Admin' }
-const when = (value: string) => new Date(value).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+const when = (value: string) => formatMoment(value, 'local')
 
 function Chip({ status }: { status: string }) {
   const s = STATUS_STYLE[status] ?? STATUS_STYLE.LOGGED

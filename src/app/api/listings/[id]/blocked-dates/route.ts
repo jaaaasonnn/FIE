@@ -5,6 +5,7 @@ import { Prisma } from '@prisma/client'
 import { db } from '@/lib/db'
 import { requireHost } from '@/lib/roles'
 import { HOST_BLOCK, dayKey, parseDayRange, parseNote } from '@/lib/hostCalendar'
+import { formatDay } from '@/lib/dateText'
 
 // The host's calendar for one listing: read it, block days, unblock days.
 // Every handler takes the user from the session and checks they own the
@@ -27,7 +28,7 @@ async function requireCalendarAccess(listingId: string) {
   return { listing }
 }
 
-const shortDate = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
+const shortDate = (d: Date) => formatDay(d, { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** GET: the host's own blocks (with their private notes) and the guest bookings that take dates. */
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {

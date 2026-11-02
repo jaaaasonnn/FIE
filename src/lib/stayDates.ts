@@ -5,6 +5,7 @@
 // day at the property.
 
 import { dayKey, parseDay } from '@/lib/hostCalendar'
+import { formatDay, type DayFormat } from '@/lib/dateText'
 
 export const DAY_MS = 86_400_000
 
@@ -53,9 +54,12 @@ export function daysBetween(from: Date, to: Date): number {
   return Math.round((to.getTime() - from.getTime()) / DAY_MS)
 }
 
-/** A stored stay date for display, the same in every time zone. */
-export function formatStayDate(value: string | Date, options: Intl.DateTimeFormatOptions): string {
-  return new Date(value).toLocaleDateString('en-GH', { ...options, timeZone: 'UTC' })
+/**
+ * A stored stay date for display, the same in every time zone and in every runtime: "6 Sep 2027",
+ * "Mon, 6 September". From our own month names (lib/dateText.ts), never the locale data (SU5).
+ */
+export function formatStayDate(value: string | Date, format: DayFormat): string {
+  return formatDay(value, format, 'UTC')
 }
 
 // ── Date picker rules ────────────────────────────────────────────────────

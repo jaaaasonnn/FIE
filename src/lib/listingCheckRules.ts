@@ -9,6 +9,8 @@
 // owns the home and promises nothing about it. Every sentence a person reads
 // about it is written here, once, so the site cannot say more than that.
 
+import { formatDay } from '@/lib/dateText'
+
 export type CheckRow = {
   checkedAt: Date | string
   expiresAt: Date | string
@@ -165,7 +167,7 @@ export const HOST_ID_BADGE = 'Host ID checked'
 export const ID_BADGE = 'ID checked'
 
 const longDate = (value: Date | string) =>
-  new Date(value).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+  formatDay(value, { day: 'numeric', month: 'long', year: 'numeric' })
 
 /** The tooltip, and the line under the badge on the listing page. */
 export function checkExplanation(check: { checkedAt: Date | string; expiresAt: Date | string }): string {

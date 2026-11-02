@@ -264,7 +264,7 @@ export default function HostBookingsPage() {
                         {s.label}
                       </span>
                       <p className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                        ${b.totalPrice.toLocaleString()}
+                        ${b.totalPrice.toLocaleString('en-US')}
                         <span className="text-xs font-normal text-[#736D62] block">
                           You earn {formatUsd(hostShare(b.subtotal))} after commission{rent ? ', month by month' : ''}
                         </span>

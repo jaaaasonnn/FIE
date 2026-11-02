@@ -30,6 +30,7 @@ import { useAuth, type AuthUser } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { DIGITAL_ADDRESS_PUBLIC, checkExplanation, type PublicCheck } from '@/lib/listingCheckRules'
+import { formatDay } from '@/lib/dateText'
 
 // ── API types ────────────────────────────────────────────────────────────────
 type ApiListing = {
@@ -432,8 +433,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
 
   // ── Render ────────────────────────────────────────────────────────────
   const photos   = listing.photos ?? []
-  const hostJoined = new Date(listing.host.createdAt)
-    .toLocaleDateString('en-GH', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const hostJoined = formatDay(listing.host.createdAt, { month: 'long', year: 'numeric' })
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -739,7 +739,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
                       </div>
                       <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>{r.comment}</p>
                       <p className="text-xs mt-2" style={{ color: 'var(--color-text-muted)' }}>
-                        {new Date(r.createdAt).toLocaleDateString('en-GH', { month: 'long', year: 'numeric', timeZone: 'UTC' })}
+                        {formatDay(r.createdAt, { month: 'long', year: 'numeric' })}
                       </p>
                     </div>
                   ))}

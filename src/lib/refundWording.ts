@@ -2,6 +2,7 @@
 
 import { formatUsd } from '@/lib/utils'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { formatDay } from '@/lib/dateText'
 
 export type RefundSummary = { amount: number; status: string; processedAt?: string | Date | null }
 
@@ -9,7 +10,7 @@ export function refundStatusText(refund: RefundSummary): string {
   const amount = formatUsd(refund.amount)
   if (refund.status === 'PROCESSED') {
     const on = refund.processedAt
-      ? ` on ${new Date(refund.processedAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })}`
+      ? ` on ${formatDay(refund.processedAt, { day: 'numeric', month: 'short', year: 'numeric' })}`
       : ''
     return `${amount} was refunded${on}.`
   }

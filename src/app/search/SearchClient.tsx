@@ -21,6 +21,7 @@ import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { CHECK_FILTER_LABEL, HOST_ID_BADGE } from '@/lib/listingCheckRules'
 import { dateQuery, getDisplayPrice, searchQuery, shapeResults, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
+import { formatDay } from '@/lib/dateText'
 
 // ── The map, loaded only when it is shown (G5) ───────────────────────────────
 // MapLibre is over 250 KB. A phone fetches it only when "Map" is pressed; a wider screen once the list has
@@ -68,7 +69,7 @@ const dateInputStyle = {
 }
 
 const dayLabel = (key: string, withYear = false) =>
-  new Date(`${key}T12:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' })
+  formatDay(`${key}T12:00:00Z`, { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
 
 /** "13 to 16 Oct, 3 nights", "From 13 Oct, 3 months" or "From 13 Oct, one year". */
 function dateSummary(f: DateFilters): string {

@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { HostIdBadge, SuperhostBadge, Badge } from '@/components/ui/Badge'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { useAuth } from '@/context/AuthContext'
+import { formatDay } from '@/lib/dateText'
 
 type ProfileData = {
   id: string
@@ -110,9 +111,7 @@ export default function ProfilePage() {
   }
 
   const displayName = profile.name ?? 'FieGH User'
-  const memberSince = new Date(profile.memberSince).toLocaleDateString('en-GH', {
-    month: 'long', year: 'numeric',
-  })
+  const memberSince = formatDay(profile.memberSince, { month: 'long', year: 'numeric' }, 'local')
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
@@ -279,7 +278,7 @@ export default function ProfilePage() {
                   </div>
                   <p className="text-sm text-[#6B645C]">{r.comment}</p>
                   <p className="text-xs text-[#736D62] mt-2">
-                    {new Date(r.date).toLocaleDateString('en-GH', { month: 'short', year: 'numeric' })}
+                    {formatDay(r.date, { month: 'short', year: 'numeric' }, 'local')}
                   </p>
                 </div>
               ))}

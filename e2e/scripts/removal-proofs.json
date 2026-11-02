@@ -3137,12 +3137,12 @@
   "e2e": true
  },
  {
-  "what": "SU1: the pay-by time uses hourCycle h12, so the 12 o clock hour is 12, not 0",
+  "what": "SU1: the pay-by time writes the 12 o clock hour as 12, not 0 (re-anchored on the 12-hour clock built from numbers, SU5)",
   "edits": [
    {
     "file": "src/lib/payDeadline.ts",
-    "find": "minute: '2-digit', hourCycle: 'h12',",
-    "replace": "minute: '2-digit', hour12: true,"
+    "find": "time: `${hour % 12 || 12}:",
+    "replace": "time: `${hour % 12}:"
    }
   ],
   "testFile": "src/lib/payDeadline.test.ts",
@@ -3185,5 +3185,17 @@
   "testFile": "e2e/tests/journeys/map.spec.ts",
   "test": "without WebGL2 the map area says so",
   "e2e": true
+ },
+ {
+  "what": "SU5: stay dates are written from our own month names, so September is Sep in Node as in Safari",
+  "edits": [
+   {
+    "file": "src/lib/stayDates.ts",
+    "find": "  return formatDay(value, format, 'UTC')",
+    "replace": "  return new Date(value).toLocaleDateString('en-GH', { ...format, timeZone: 'UTC' })"
+   }
+  ],
+  "testFile": "src/lib/dateText.test.ts",
+  "test": "month 8: every format formatStayDate is asked for"
  }
 ]

@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { refundStatusText, type RefundSummary } from '@/lib/refundWording'
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { formatDay } from '@/lib/dateText'
 
 type ApiPayment = {
   id: string
@@ -182,7 +183,7 @@ export default function GuestPaymentsPage() {
                               </p>
                             )}
                             <p className="text-xs text-[#736D62]">
-                              {method} · {new Date(p.createdAt).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {method} · {formatDay(p.createdAt, { day: 'numeric', month: 'short', year: 'numeric' }, 'local')}
                             </p>
                           </div>
                         </div>

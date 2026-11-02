@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { CheckCircle, Loader2, XCircle } from 'lucide-react'
 import type { HostIdState } from '@/lib/hostId'
+import { formatDayNumeric } from '@/lib/dateText'
 
 type Verification = {
   id: string
@@ -160,7 +161,7 @@ function ReviewRow({ v, onChanged }: { v: Verification; onChanged: () => void })
           <div>
             <p className="font-semibold" style={ink}>{v.user.name ?? 'User'} <span className="text-xs font-normal" style={muted}>· {v.user.role === 'HOST' ? 'Host' : v.user.role === 'ADMIN' ? 'Admin' : 'Guest'}</span></p>
             <p className="text-sm text-[#6B645C]">{idName}</p>
-            <p className="text-xs text-[#736D62]">Sent {new Date(v.createdAt).toLocaleDateString('en-GH')}</p>
+            <p className="text-xs text-[#736D62]">Sent {formatDayNumeric(v.createdAt, 'local')}</p>
             <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: status.bg, color: status.color }}>{status.label}</span>
             {v.notes && <p className="text-xs mt-2 max-w-xs" style={muted}>Note (admins only): {v.notes}</p>}
           </div>

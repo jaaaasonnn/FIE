@@ -1,3 +1,5 @@
+import { formatDay } from '@/lib/dateText'
+
 export type ApiMessage = {
   id: string
   senderId: string
@@ -45,7 +47,7 @@ export function formatRelativeTime(iso: string): string {
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   if (days < 7) return `${days}d ago`
-  return new Date(iso).toLocaleDateString('en-GH', { day: 'numeric', month: 'short' })
+  return formatDay(iso, { day: 'numeric', month: 'short' }, 'local')
 }
 
 /** Conversation key: booking > listing > pairwise */

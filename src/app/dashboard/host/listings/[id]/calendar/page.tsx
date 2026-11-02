@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation'
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { formatStayDate } from '@/lib/stayDates'
+import { formatDay } from '@/lib/dateText'
 
 type Block = { date: string; note: string | null }
 type Booking = { id: string; checkIn: string; checkOut: string; status: string; guestName: string }
@@ -77,8 +78,7 @@ export default function ListingCalendarPage() {
   const today = todayKey()
   const daysInMonth = new Date(Date.UTC(view.year, view.month + 1, 0)).getUTCDate()
   const leading = (new Date(Date.UTC(view.year, view.month, 1)).getUTCDay() + 6) % 7
-  const monthLabel = new Date(Date.UTC(view.year, view.month, 1))
-    .toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const monthLabel = formatDay(new Date(Date.UTC(view.year, view.month, 1)), { month: 'long', year: 'numeric' })
 
   function moveMonth(delta: number) {
     setView((v) => {

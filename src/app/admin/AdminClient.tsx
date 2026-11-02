@@ -18,6 +18,8 @@ import { AdminListingChecks } from '@/components/admin/AdminListingChecks'
 import { AdminUserSuspension } from '@/components/admin/AdminUserSuspension'
 import { AdminVerifications } from '@/components/admin/AdminVerifications'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT } from '@/lib/fees'
+import { formatDayNumeric, formatMoment } from '@/lib/dateText'
+import { useHydrated } from '@/lib/useHydrated'
 
 const TABS = ['Overview', 'Users', 'Listings', 'Bookings', 'Payments', 'Verifications', 'Listing checks', 'Disputes', 'Rent', 'Messages', 'Reviews', 'Settings']
 
@@ -73,6 +75,8 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
   const { user: authUser, loading: authLoading } = useAuth()
   // Until the browser's own session check has answered, the admin the server found draws the page
   const user = authUser ?? (authLoading ? initial?.user ?? null : null)
+  // Times are drawn in UTC by the server and in the reader's zone once the page is running
+  const hydrated = useHydrated()
   const adminId = user?.role === 'ADMIN' ? user.id : null
   const [activeTab, setActiveTab] = useState('Overview')
   const [exchangeRate, setExchangeRate] = useState(initial?.rate.rate != null ? String(initial.rate.rate) : '15.5')
@@ -373,7 +377,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                                     <span className="text-xs text-[#736D62]">{u.email ?? ''}</span>
                                     {u.suspendedAt && (
                                       <span className="block text-xs mt-0.5" style={{ color: '#991B1B' }} title={u.suspendedReason ?? undefined}>
-                                        Suspended {new Date(u.suspendedAt).toLocaleDateString('en-GH')}{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
+                                        Suspended {formatDayNumeric(u.suspendedAt, 'local')}{u.suspendedReason ? `: ${u.suspendedReason}` : ''}
                                       </span>
                                     )}
                                   </div>
@@ -400,7 +404,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                                 </span>
                               </td>
                               <td className="py-3 px-3 text-xs text-[#736D62]">
-                                {new Date(u.createdAt).toLocaleDateString('en-GH')}
+                                {formatDayNumeric(u.createdAt, 'local')}
                               </td>
                               <td className="py-3 px-3">
                                 <div className="flex gap-1 items-start">
@@ -491,7 +495,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                         style={{ backgroundColor: '#FEE2E2', border: '1px solid #FCA5A5' }}>
                         <AlertTriangle size={16} style={{ color: '#991B1B', flexShrink: 0, marginTop: 2 }} />
                         <p className="text-xs" style={{ color: '#991B1B' }}>
-                          Last automatic fetch failed at {new Date(rateAutoFetchStatus.at).toLocaleString()}:{' '}
+                          Last automatic fetch failed at {formatMoment(rateAutoFetchStatus.at, hydrated ? 'local' : 'UTC')}:{' '}
                           {rateAutoFetchStatus.error}. Still using the rate below. Nothing is broken,
                           but the automation needs a look if this keeps happening.
                         </p>
@@ -521,7 +525,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                         <>
                           {' · '}
                           {rateUpdatedBy === AUTO_UPDATED_BY ? 'auto-fetched' : 'manually set'}
-                          {' '}{new Date(rateUpdatedAt).toLocaleString()}
+                          {' '}{formatMoment(rateUpdatedAt, hydrated ? 'local' : 'UTC')}
                         </>
                       )}
                     </p>

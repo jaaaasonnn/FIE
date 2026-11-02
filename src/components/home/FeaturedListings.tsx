@@ -196,7 +196,7 @@ export function FeaturedListings() {
                 const yearly   = l.rentalModes?.length === 1 && l.rentalModes[0] === 'PERMANENT' && l.priceAnnual ? l.priceAnnual : null
                 const price    = yearly ?? l.priceNightly ?? l.priceMonthly ?? 0
                 const unit     = yearly ? 'year' : l.priceNightly ? 'night' : 'month'
-                const ghsPrice = Math.round(price * ghsRate).toLocaleString()
+                const ghsPrice = Math.round(price * ghsRate).toLocaleString('en-GH')
                 const photo    = l.photos?.[0] ?? ''
                 const mode     = MODE_LABELS[l.rentalModes?.[0]]
                 const place    = [l.neighbourhood, l.city].filter(Boolean).join(', ')

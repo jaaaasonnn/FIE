@@ -7,6 +7,8 @@
 // expiry job (lib/bookingExpiry.ts) acts PAY_GRACE_MS after a deadline, so a
 // guest already on Paystack's page can finish.
 
+import { monthName, weekdayName } from '@/lib/dateText'
+
 const HOUR_MS = 60 * 60 * 1000
 
 export const INSTANT_PAY_WINDOW_MS = 1 * HOUR_MS
@@ -91,20 +93,23 @@ export function payState(booking: PayStateBooking, now: Date = new Date()): PayS
  * "3:45 pm today" or "Fri 9 Oct, 3:45 pm".
  */
 export function formatPayBy(payBy: string | Date, now: Date = new Date(), timeZone?: string): string {
-  // Put together from the parts, so every browser writes it the same way. hourCycle 'h12', not hour12:
-  // en-GB's 12-hour clock with hour12 is 0-11 in Node, so the 12 o'clock hour came out "0:34 pm" on the
-  // server and "12:34 pm" in the browser, and React threw the server's page away (hour12 also overrides
-  // hourCycle, so it must not be set beside it).
+  // Put together from numbers, so every runtime writes it the same way: Intl gives only the numbers of the
+  // moment in the zone; the names and the 12-hour clock are ours. SU1: en-GB's own 12-hour clock is 0-11 in
+  // Node ("0:34 pm" on the server, "12:34 pm" in a browser). SU5: its short month is "Sept" in Node,
+  // Chromium and Firefox and "Sep" in Safari. Either difference made React throw the server's page away.
   const parts = (date: Date) => {
-    const found = new Intl.DateTimeFormat('en-GB', {
-      weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
-      hour: 'numeric', minute: '2-digit', hourCycle: 'h12', ...(timeZone ? { timeZone } : {}),
+    const found = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23',
+      ...(timeZone ? { timeZone } : {}),
     }).formatToParts(date)
-    const part = (type: string) => found.find((p) => p.type === type)?.value ?? ''
+    const part = (type: string) => Number(found.find((p) => p.type === type)?.value)
+    const [year, month, day, minute] = [part('year'), part('month'), part('day'), part('minute')]
+    const hour = part('hour') % 24
+    const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay()
     return {
-      day: `${part('weekday')} ${part('day')} ${part('month')}`,
-      year: part('year'),
-      time: `${part('hour')}:${part('minute')} ${part('dayPeriod').toLowerCase()}`,
+      day: `${weekdayName(weekday, 'short')} ${day} ${monthName(month, 'short')}`,
+      year,
+      time: `${hour % 12 || 12}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'am' : 'pm'}`,
     }
   }
   const at = parts(new Date(payBy))
