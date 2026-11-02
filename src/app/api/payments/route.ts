@@ -12,6 +12,7 @@ import type { Payment } from '@prisma/client'
 import { awaitPage, claimPaymentSlot, closeOpenPayment, reusable } from '@/lib/openPayment'
 import { fetchCharge, settlePayment } from '@/lib/paymentSettle'
 import { OutboundTimeoutError, PAYSTACK_NOT_ANSWERING, READ_TIMEOUT_MS, sendOnce } from '@/lib/outbound'
+import { HOME_NO_LONGER_AVAILABLE, HOME_UNAVAILABLE, homeUnavailable } from '@/lib/homeAvailability'
 
 /** What the guest is told when Paystack could not be asked to start the payment. Paystack's own wording stays in the server log. */
 const PAYMENT_NOT_STARTED = 'The payment could not be started. Please try again in a moment.'
@@ -70,7 +71,8 @@ export async function GET(req: Request) {
  * Flow:
  *  1. Require a valid session
  *  2. Load booking; must belong to the logged-in guest, unpaid, not cancelled,
- *     accepted by the host if it was a request, and still inside its time to pay
+ *     on a home still available (lib/homeAvailability.ts), accepted by the host
+ *     if it was a request, and still inside its time to pay
  *  3. Convert USD total → GHS pesewas
  *  4. Create Payment (PENDING) + stamp booking.paymentReference
  *  5. Call Paystack Initialize Transaction
@@ -129,7 +131,7 @@ export async function POST(req: Request) {
     const [booking, rateRow] = await Promise.all([
       db.booking.findUnique({
         where: { id: bookingId },
-        include: { guest: true, listing: true, instalments: { orderBy: { sequence: 'asc' } } },
+        include: { guest: true, listing: true, host: { select: { suspendedAt: true } }, instalments: { orderBy: { sequence: 'asc' } } },
       }),
       db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } }),
     ])
@@ -183,6 +185,11 @@ export async function POST(req: Request) {
           { error: 'The host declined this request, so it cannot be paid for. Please choose another home or other dates.' },
           { status: 409 },
         )
+      }
+      // The home was switched off by its host, or the host is suspended (lib/homeAvailability.ts):
+      // nothing is started, so an open Paystack page is not handed back either
+      if (homeUnavailable(booking)) {
+        return NextResponse.json({ error: HOME_NO_LONGER_AVAILABLE, code: HOME_UNAVAILABLE }, { status: 409 })
       }
       // A request is paid for only once the host has accepted it: paying is
       // what confirms a booking, and that is the host's decision to make first

@@ -3210,5 +3210,29 @@
   "testFile": "e2e/tests/journeys/pages.spec.ts",
   "test": "the home page is kept for at most a minute between drawings",
   "e2e": true
+ },
+ {
+  "what": "SU7: a booking on a home switched off by its host cannot be paid for",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "      if (homeUnavailable(booking)) {",
+    "replace": "      if (homeUnavailable(booking) && false) {"
+   }
+  ],
+  "testFile": "src/lib/paymentSettle.test.ts",
+  "test": "is refused on a home switched off by its host, before anything is written or sent"
+ },
+ {
+  "what": "SU7: a request on a switched-off home cannot be accepted",
+  "edits": [
+   {
+    "file": "src/app/api/bookings/[id]/route.ts",
+    "find": "      if (action === 'accept' && homeUnavailable(booking)) {",
+    "replace": "      if (action === 'accept' && homeUnavailable(booking) && false) {"
+   }
+  ],
+  "testFile": "src/lib/paymentSettle.test.ts",
+  "test": "is refused on a switched-off home, and the request stays as it was"
  }
 ]

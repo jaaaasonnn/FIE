@@ -14,6 +14,7 @@ import { dayKey } from '@/lib/hostCalendar'
 import { OPEN_INSTALMENT_STATUSES, SETTLED_INSTALMENT_STATUSES, endTenancyQuote, refundableRent } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { bookingFor } from '@/lib/privacy'
+import { HOME_UNAVAILABLE, SWITCH_ON_BEFORE_ACCEPTING, homeUnavailable } from '@/lib/homeAvailability'
 
 const bookingInclude = {
   listing: { select: { id: true, title: true, photos: true, city: true, neighbourhood: true } },
@@ -81,7 +82,8 @@ export async function PATCH(
     const booking = await db.booking.findUnique({
       where: { id },
       include: {
-        listing: { select: { title: true, cancellationPolicy: true } },
+        listing: { select: { title: true, cancellationPolicy: true, isActive: true, moderationHold: true } },
+        host: { select: { suspendedAt: true } },
         payments: { where: { status: 'SUCCESS' }, orderBy: { createdAt: 'desc' }, take: 1 },
         instalments: { select: { sequence: true, status: true, amount: true, periodEnd: true } },
       },
@@ -174,6 +176,10 @@ export async function PATCH(
           { error: `This request cannot be accepted online because a payment on it is being refunded. Please contact support at ${SUPPORT_EMAIL}.` },
           { status: 409 },
         )
+      }
+      // The guest could not pay for it (lib/homeAvailability.ts); declining is always allowed
+      if (action === 'accept' && homeUnavailable(booking)) {
+        return NextResponse.json({ error: SWITCH_ON_BEFORE_ACCEPTING, code: HOME_UNAVAILABLE }, { status: 409 })
       }
       try {
         const updated = await db.booking.update({

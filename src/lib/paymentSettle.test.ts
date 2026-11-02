@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 type Row = Record<string, unknown>
 const state = vi.hoisted(() => ({
   payments: [] as Row[], bookings: [] as Row[], refunds: [] as Row[], blockedDates: [] as Row[],
-  listing: {} as Row, user: null as { id: string; role: string; email: string | null } | null, writes: 0,
+  listing: {} as Row, host: {} as Row, user: null as { id: string; role: string; email: string | null } | null, writes: 0,
 }))
 const sentry = vi.hoisted(() => ({
   captureException: vi.fn(), captureMessage: vi.fn(),
@@ -28,6 +28,8 @@ vi.mock('@/lib/db', async () => {
   const matches = (row: Row, where: Row = {}): boolean =>
     Object.entries(where).every(([key, cond]) => {
       if (key === 'OR') return (cond as Row[]).some((c) => matches(row, c))
+      // A booking's home and host (every booking here is on the one listing, with the one host)
+      if ((key === 'listing' || key === 'host') && 'guestId' in row) return matches(key === 'listing' ? state.listing : state.host, cond as Row)
       const value = row[key] ?? null
       if (cond !== null && typeof cond === 'object' && !(cond instanceof Date)) {
         const c = cond as { in?: unknown[]; not?: unknown; lte?: Date; gte?: Date; lt?: Date }
@@ -47,6 +49,7 @@ vi.mock('@/lib/db', async () => {
     return {
       ...b,
       listing: { ...state.listing },
+      host: { id: b.hostId, ...state.host },
       guest: { id: b.guestId, email: 'guest@example.test' },
       payments: state.payments.filter((p) => p.bookingId === b.id && matches(p, paymentsWhere)).map((p) => ({ ...p })),
       refund: state.refunds.find((r) => r.bookingId === b.id) ?? null,
@@ -180,6 +183,7 @@ import { POST as startPayment } from '@/app/api/payments/route'
 import { POST as createBooking } from '@/app/api/bookings/route'
 import { PATCH as updateBooking } from '@/app/api/bookings/[id]/route'
 import * as expireCron from '@/app/api/cron/expire-bookings/route'
+import { HOME_NO_LONGER_AVAILABLE, HOME_UNAVAILABLE, SWITCH_ON_BEFORE_ACCEPTING } from '@/lib/homeAvailability'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -247,7 +251,8 @@ beforeEach(() => {
   state.bookings.length = 0
   state.refunds.length = 0
   state.blockedDates.length = 0
-  state.listing = { id: 'listing_1', hostId: 'host_1', title: 'A home', cancellationPolicy: 'MODERATE' }
+  state.listing = { id: 'listing_1', hostId: 'host_1', title: 'A home', cancellationPolicy: 'MODERATE', isActive: true, moderationHold: false }
+  state.host = { suspendedAt: null }
   state.user = { id: 'guest_1', role: 'GUEST', email: 'guest@example.test' }
   state.writes = 0
   sentry.captureMessage.mockReset()
@@ -920,5 +925,76 @@ describe('the expiry job', () => {
       request({ status: 'CONFIRMED', payBy: ahead(HOUR) })
       expect((await runExpiry()).checked).toBe(0)
     })
+  })
+})
+
+// ─── SU7: a home that is no longer available ────────────────────────────────
+
+/** The home switched off by its host, put on hold, or its host suspended (lib/homeAvailability.ts) */
+const switchedOff = () => Object.assign(state.listing, { isActive: false, moderationHold: false })
+const held = () => Object.assign(state.listing, { isActive: false, moderationHold: true })
+const initialised = () => fetchMock.mockImplementation(async () => json({ status: true, data: { authorization_url: 'https://checkout.paystack.com/x', access_code: 'x', reference: 'r' } }))
+const suspended = () => Object.assign(state.host, { suspendedAt: ago(HOUR) })
+
+describe('SU7: paying for a booking whose home is no longer available', () => {
+  for (const [what, make] of [['switched off by its host', switchedOff], ['whose host is suspended', suspended]] as const) {
+    it(`is refused on a home ${what}, before anything is written or sent`, async () => {
+      unpaid({}, false)
+      make()
+      const res = await pay()
+      expect(res.status).toBe(409)
+      expect(await res.json()).toEqual({ error: HOME_NO_LONGER_AVAILABLE, code: HOME_UNAVAILABLE })
+      expect(state.payments).toHaveLength(0)
+      expect(state.writes).toBe(0)
+      expect(fetchMock).not.toHaveBeenCalled()
+    })
+  }
+
+  it('does not hand back a Paystack page that was already open', async () => {
+    unpaid({}, { authorizationUrl: 'https://checkout.paystack.com/open' })
+    switchedOff()
+    const res = await pay()
+    expect(res.status).toBe(409)
+    expect((await res.json()).code).toBe(HOME_UNAVAILABLE)
+    expect(fetchMock).not.toHaveBeenCalled()
+    // The open payment is left for the expiry job, which asks Paystack before it ends the booking
+    expect(payment().status).toBe('PENDING')
+  })
+
+  it('still lets a home on hold be paid for: holds are outside the rule', async () => {
+    unpaid({}, false)
+    held()
+    initialised()
+    const res = await pay()
+    expect(res.status).toBe(200)
+    expect(payment()).toMatchObject({ status: 'PENDING', bookingId: 'booking_1' })
+  })
+})
+
+describe('SU7: accepting a request on a home that is no longer available', () => {
+  it('is refused on a switched-off home, and the request stays as it was', async () => {
+    unpaid({ status: 'PENDING', payBy: null }, false)
+    switchedOff()
+    state.user = { id: 'host_1', role: 'HOST', email: null }
+    const res = await patch({ action: 'accept' })
+    expect(res.status).toBe(409)
+    expect(await res.json()).toEqual({ error: SWITCH_ON_BEFORE_ACCEPTING, code: HOME_UNAVAILABLE })
+    expect(booking()).toMatchObject({ status: 'PENDING', payBy: null })
+  })
+
+  it('can still be declined on a switched-off home', async () => {
+    unpaid({ status: 'PENDING', payBy: null }, false)
+    switchedOff()
+    state.user = { id: 'host_1', role: 'HOST', email: null }
+    expect((await patch({ action: 'decline' })).status).toBe(200)
+    expect(booking().status).toBe('DECLINED')
+  })
+
+  it('is allowed on a home on hold', async () => {
+    unpaid({ status: 'PENDING', payBy: null }, false)
+    held()
+    state.user = { id: 'host_1', role: 'HOST', email: null }
+    expect((await patch({ action: 'accept' })).status).toBe(200)
+    expect(booking().status).toBe('CONFIRMED')
   })
 })
