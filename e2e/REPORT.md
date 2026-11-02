@@ -34,10 +34,12 @@ left alone (its redesign is next): its figures moved only with the shared change
    layout shift. Then `0e99928`: the client pages had Suspense boundaries of their own, and React threw the
    server's HTML away and drew checkout again once its JavaScript arrived (on every load); they are gone, with a
    test that each page keeps the element the server sent.
-7. **Inlined stylesheets** (`669ecfc`, reverted in `699f8c7`): see "For the owner" below.
-8. **Logo font** (`b175444`): Unbounded is kept for "fie." and no longer preloaded. No measurable gain beyond the
-   run-to-run spread; the logo is drawn in the fallback at first paint and swaps about 0.5 s later. Screenshots:
-   before (Unbounded at first paint, as now on `main`) and after, at desktop and phone size, were shown to the owner.
+7. **Inlined stylesheets** (`669ecfc`, reverted in `699f8c7`): kept reverted by the owner's decision. An open
+   option to revisit after the live Lighthouse run; see "For the owner" below.
+8. **Logo font** (`b175444`, reverted in `89850c0` by the owner's decision): Unbounded was kept for "fie." and no
+   longer preloaded. No measurable gain beyond the run-to-run spread, and the logo was drawn in the fallback at
+   first paint and swapped about 0.5 s later. It is preloaded again, as on `main` before this branch; home and
+   search measured after the revert are in `results/g5-final.md`.
 9. **Packages** (`a027977`): the 7 unused packages removed, 2 type packages moved to devDependencies.
 
 The commit `39ca97f` ("measuring after the Sentry change") carried half-made server-first files by mistake and did
@@ -95,8 +97,9 @@ photo's weight in either table. Results per step: `e2e/load/results/g5-*.md`.
 
 - **Inlined stylesheets** were reverted because the agreed measure (the simulated runs) got worse: LCP up on 5 of
   7 pages and TBT up on all (listing 259 ms). With real throttling the same change made every page 0.2 to 0.9 s
-  faster (checkout 1.67 → 0.81 s). Which measure to trust there is your call; `669ecfc` has it.
-- The logo font change shows no gain in either measure and costs a flash of the plain logo. One commit to revert.
+  faster (checkout 1.67 → 0.81 s). Decision: it stays reverted for now, an open option to revisit once
+  Lighthouse has been run against the live site; `669ecfc` has the change (one setting in `next.config.ts`).
+- The logo font change showed no gain in either measure and cost a flash of the plain logo: reverted (`89850c0`).
 - `npm audit` reports 60 issues now, before and after the package change (CLAUDE.md says 12: its list has grown).
 - Seen once, not reproduced in 6 targeted runs: React error 418 (text differed between server and browser) on the
   host dashboard in the iPhone set-up during a crawl. React recovers by drawing that part again.

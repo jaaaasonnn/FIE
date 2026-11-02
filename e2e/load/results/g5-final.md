@@ -30,3 +30,19 @@ Simulated LCP for the server-first pages lands at about 2.4 or about 3.1 s from 
 | admin | 4.03 → 1.66 s | 0.000 → 0.000 | 50 → 22 ms | 0.19 → 0.11 s |
 
 The harness serves small generated photos, so the image pages (home, search, listing) do not carry a real photo's weight here; on the real site their LCP is the first photo's download.
+
+## After the logo-font revert (`89850c0`): real throttling, empty database, 3 runs, median
+
+The owner reverted `b175444`, so Unbounded ("fie.") is preloaded again as on `main`. Measured on mains power
+under `caffeinate -dims` with the machine otherwise idle (2026-11-02, label `msfontrevert-devtools-empty`).
+Each cell is before the revert (`msfinal`) → after.
+
+| Page | Mobile LCP | Mobile CLS | Mobile TBT | Desktop LCP |
+|---|---|---|---|---|
+| home (unchanged, redesign pending) | 1.55 → 1.58 s | 0.000 → 0.000 | 40 → 36 ms | 0.08 → 0.09 s |
+| search with map | 1.60 → 1.64 s | 0.000 → 0.000 | 15 → 25 ms | 0.16 → 0.18 s |
+
+The harness measures every page, so the others were measured too; each moved by 0.02 to 0.08 s on mobile (admin
+1.68 s, the slowest checkout 1.74 s), all under the 2.5 s budget. Differences of this size are within the
+run-to-run spread: the font preload costs nothing measurable, as before. The bundle guard is unchanged (13
+passed): the font is not script.
