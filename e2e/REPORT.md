@@ -1,5 +1,38 @@
 # End-to-end test report
 
+## su10-harness: test processes and fake rules cannot break each other (2026-11-02, branch `su10-harness`)
+
+From `main` at `e457dd1`; test harness only, no app code; no live database, switch or environment variable.
+
+- **No rule without a match.** The fake's control refuses one (400: "A failure rule needs a match ... A rule with no
+  match would break every request on the stack."); `fakes.rule` requires a `match` and throws if refused. The two
+  tests that scoped a rule to a payment reference (`resilience/paystack.spec.ts`, `chaos/crash.spec.ts`) check the
+  reference exists first: the type checker found them once `match` was required. The exchange-rate rule names its
+  request (`pair/USD/GHS`).
+- **Every rule removed when its test ends**, passed, failed or timed out: an automatic fixture (`fakeRules`,
+  `e2e/lib/test.ts`); and at the end of the run, every rule the process added (rules carry the process's id).
+- **Clean-up only of its own process.** Each process gets an id (`E2E_RUN_ID`, set in `playwright.config.ts`,
+  inherited by its workers; `e2e/lib/runId.ts`); every test person's email carries it (`runEmail`, in all eight
+  places a test makes one), and the end-of-run clean-up removes only `e2e-<its id>-…` people.
+
+Tests, `tests/resilience/harness.spec.ts`: a rule with no match is refused, three ways, and none is added; a test
+that adds a rule and fails, and one that adds a rule and times out (both expected), leave no rule behind; one
+process's clean-up removes its own leftovers and never another's. With the fixture's clean-up taken out by hand,
+the rule test fails (9 rules left); put back, it passes.
+
+| Run (retries off, each its own results folder `e2e/.reports/su10/`) | Result |
+|---|---|
+| The harness tests | 5 of 5 (two of them expected to fail, and did) |
+| The whole resilience set | 57 of 57 |
+| Smoke, while a second process ran `paystack.spec`, `services.spec` and `switched-off.spec` | smoke 7 of 7 (19:51:02-19:51:15); the second process 30 of 30 (19:50:54-19:51:38), so smoke's clean-up ran in the middle of it |
+| The other tests the change touched (fuzz, account races, navigation, accounts) | 39 of 39 |
+| Chaos | 17 of 17 |
+| Rules left on the fake, test users left in the database | none, none |
+| Lint, type check | pass (39 warnings, none new) |
+
+No removal proof added: an end-to-end proof rebuilds the app, which this change does not touch; the rule test was
+checked against its fixture by hand instead.
+
 ## payments-switched-off: SU7, a home that is no longer available (2026-11-02, branch `payments-switched-off`)
 
 Branch `payments-switched-off`, from `main` at `c27c0bd`, pushed after each commit, **not merged**. Built and
