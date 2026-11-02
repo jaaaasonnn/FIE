@@ -2993,7 +2993,7 @@
   "what": "G5: the map is not loaded on a phone until \"Map\" is pressed",
   "edits": [
    {
-    "file": "src/app/search/page.tsx",
+    "file": "src/app/search/SearchClient.tsx",
     "find": "{wide && <ListingsMap wanted={mapWanted} ",
     "replace": "{<ListingsMap wanted "
    }
@@ -3090,6 +3090,19 @@
   ],
   "testFile": "e2e/tests/perf/server-first.spec.ts",
   "test": "a listing comes with the listing and its photos",
+  "e2e": true
+ },
+ {
+  "what": "G5: search comes with its first results from the server",
+  "edits": [
+   {
+    "file": "src/app/search/page.tsx",
+    "find": "return <SearchClient initial={initial} />",
+    "replace": "return <SearchClient initial={null} />"
+   }
+  ],
+  "testFile": "e2e/tests/perf/server-first.spec.ts",
+  "test": "search comes with its first results",
   "e2e": true
  }
 ]

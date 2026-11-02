@@ -90,10 +90,13 @@ test('checkout: the app\'s script files never arrive: a plain message and Try ag
   await expect(cardButton(page)).toBeVisible({ timeout: 15_000 })
 })
 
+// (the first search comes with the page now: this is one the browser makes, after typing)
 test('a search that is not answered says "try again", not "No properties found" @core', async ({ page }) => {
+  await page.goto('/search')
+  await page.waitForLoadState('networkidle')
   let down = true
   await page.route('**/api/listings?*', (route) => (down ? route.fulfill({ status: 503, body: 'unavailable' }) : route.continue()))
-  await page.goto('/search')
+  await page.getByPlaceholder('Search by city, neighbourhood...').fill(`Nowhere${Date.now()}`)
   await expect(tryAgain(page)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('No properties found')).toHaveCount(0)
   down = false
@@ -101,6 +104,8 @@ test('a search that is not answered says "try again", not "No properties found" 
   await expect(tryAgain(page)).toBeHidden()
 })
 
+// G7 (fixed): the answer to Book lost on the way back. The booking was made; pressing Book again said "Those
+// dates just became unavailable… pick new dates". Now it says the dates are the guest's own, with the way to pay.
 test('the answer to Book is lost: pressing Book again says the dates are the guest\'s own, and leads to paying @core', async ({ page, world, signIn, context }) => {
   const host = await world.host()
   const guest = await world.guest()

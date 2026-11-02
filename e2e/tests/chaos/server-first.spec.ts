@@ -145,3 +145,22 @@ test.describe('listing', () => {
     await expect(page.getByRole('heading', { name: home.title })).toBeVisible()
   })
 })
+
+test.describe('search', () => {
+  test('the server cannot run the first search and the browser\'s is not answered: "try again", not "No properties found", and trying again works', async ({ page, world }) => {
+    const host = await world.host()
+    await world.listing(host)
+    let down = true
+    await page.route('**/api/listings?*', (route) => (down ? route.fulfill({ status: 503, body: 'unavailable' }) : route.continue()))
+    await withTableLocked('Listing', async (release) => {
+      await page.goto('/search')
+      await expect(tryAgain(page)).toBeVisible({ timeout: 30_000 })
+      await expect(page.getByText('No properties found')).toHaveCount(0)
+      await release()
+    })
+    down = false
+    await tryAgain(page).click()
+    await expect(tryAgain(page)).toBeHidden()
+    await expect(page.locator('a[href^="/listings/"]').first()).toBeVisible()
+  })
+})

@@ -72,3 +72,14 @@ test('a listing comes with the listing and its photos', async ({ page, world }) 
   await expect(page.getByRole('heading', { level: 1, name: home.title })).toBeVisible()
   expect(asked).toEqual([])
 })
+
+test('search comes with its first results', async ({ page, world }) => {
+  const host = await world.host()
+  const region = 'Upper East'
+  const home = await world.listing(host, { region, city: `Bolga${Date.now().toString(36)}` })
+  expect(await html(page, `/search?region=${encodeURIComponent(region)}`)).toContain(home.title)
+  const asked = await blockApi(page, '**/api/listings?*')
+  await page.goto(`/search?region=${encodeURIComponent(region)}`)
+  await expect(page.getByText(home.title).first()).toBeVisible()
+  expect(asked).toEqual([])
+})
