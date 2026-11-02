@@ -43,7 +43,8 @@ if (!rebuild()) process.exit(2)
 fs.rmSync(path.join(ROOT, '.next', 'E2E_BUILD'), { force: true })
 
 const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-const t = run('test', '--project=chromium', file.replace(/^e2e\//, ''), '-g', escaped, '--retries=0', '--reporter=json')
+// PROOF_PROJECT: the browser set-up (a phone-only test needs a phone's); Chromium otherwise
+const t = run('test', `--project=${process.env.PROOF_PROJECT || 'chromium'}`, file.replace(/^e2e\//, ''), '-g', escaped, '--retries=0', '--reporter=json')
 let stats
 try { stats = JSON.parse(t.stdout.slice(t.stdout.indexOf('{'))).stats } catch { console.error(`no report from the test run:\n${(t.stdout + t.stderr).slice(-2000)}`); process.exit(2) }
 const ran = stats.expected + stats.unexpected + stats.flaky

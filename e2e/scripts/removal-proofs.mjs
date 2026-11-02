@@ -19,7 +19,8 @@
 // of vitest; it gets the test file and name as $PROOF_TEST_FILE and $PROOF_TEST, and fails the proof
 // by exiting non-zero).
 //
-// A proof marked "e2e": true names an end-to-end test (e2e/tests/...). It needs the test stack up: the app
+// A proof marked "e2e": true names an end-to-end test (e2e/tests/...); "project" names the browser set-up it runs
+// in (default chromium; "android" or "iphone" for a phone-only test). It needs the test stack up: the app
 // is rebuilt from the changed source and the test run in Chromium (e2e/scripts/e2e-proof.mjs), and once the
 // run is over the app is rebuilt from the source as committed. If the run is stopped part way, the stack
 // is left on a build of changed source with its E2E_BUILD mark removed: run `node e2e/run.mjs up --build`.
@@ -127,9 +128,9 @@ if (resume && fs.existsSync(resultsFile)) {
 }
 
 // --- one proof ----------------------------------------------------------------------------------
-function runTest(testFile, test, e2e) {
+function runTest(testFile, test, e2e, project) {
   return new Promise((resolve) => {
-    const env = { ...process.env, PROOF_TEST_FILE: testFile, PROOF_TEST: test }
+    const env = { ...process.env, PROOF_TEST_FILE: testFile, PROOF_TEST: test, ...(project ? { PROOF_PROJECT: project } : {}) }
     const escaped = test.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
     child = testCmd || e2e
       ? spawn('sh', ['-c', testCmd || e2eCmd], { cwd: root, env })
@@ -141,7 +142,7 @@ function runTest(testFile, test, e2e) {
   })
 }
 
-async function proof(i, { what, edits, testFile, test, e2e }) {
+async function proof(i, { what, edits, testFile, test, e2e, project }) {
   let problem = ''
   let failed = false
   let ran = 0
@@ -158,7 +159,7 @@ async function proof(i, { what, edits, testFile, test, e2e }) {
       fs.writeFileSync(f, now.replace(find, () => replace))
     }
     if (!problem) {
-      const r = await runTest(testFile, test, e2e && !testCmd)
+      const r = await runTest(testFile, test, e2e && !testCmd, project)
       if (testCmd) {
         ran = 1
         failed = r.code !== 0

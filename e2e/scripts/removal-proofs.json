@@ -3295,5 +3295,87 @@
   ],
   "testFile": "src/lib/homeAvailability.test.ts",
   "test": "is a pay state of its own: unpaid on such a home, or ended for it"
+ },
+ {
+  "what": "App shell: the bottom bar steps aside while a text field has focus (the keyboard)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "[contenteditable=\"true\"]):focus) .bottom-bar {",
+    "replace": "[contenteditable=\"true\"]):focus) .not-the-bottom-bar {"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "the bar steps aside while the keyboard is up",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "App shell: a page with the bar keeps room for it, so its end is never behind the bar",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "    padding-bottom: calc(var(--bottom-bar-offset) + 16px);",
+    "replace": "    padding-bottom: 0;"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "signed out: on the public pages, with the right tab marked, and nothing under it",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "App shell: the browser never brings a control (Pay now) to rest under the bar",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "    scroll-padding-bottom: calc(var(--bottom-bar-offset) + 16px);",
+    "replace": "    scroll-padding-bottom: 0;"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "signed in: on every page it belongs to",
+  "e2e": true,
+  "project": "iphone"
+ },
+ {
+  "what": "App shell: the bottom bar script is loaded at phone widths only, never on a desktop",
+  "edits": [
+   {
+    "file": "src/lib/bottomBar.ts",
+    "find": "if(window.matchMedia&&matchMedia('(max-width: ${PHONE_MAX_WIDTH}px)').matches){",
+    "replace": "if(true){"
+   }
+  ],
+  "testFile": "e2e/tests/perf/bundle.spec.ts",
+  "test": "every main page is within 350 KB, with no map or date-picker code it does not need",
+  "e2e": true
+ },
+ {
+  "what": "App shell: the unread count is the asker's own, never anyone else's",
+  "edits": [
+   {
+    "file": "src/app/api/messages/unread/route.ts",
+    "find": "where: { receiverId: user.id, isRead: false }",
+    "replace": "where: { isRead: false }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "signed out it is 0 and not a failure",
+  "e2e": true
+ },
+ {
+  "what": "App shell: the bar marks the tab of the page it is on",
+  "edits": [
+   {
+    "file": "src/components/layout/BottomBar.tsx",
+    "find": "aria-current={on ? 'page' : undefined}",
+    "replace": "aria-current={undefined}"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/app-shell.spec.ts",
+  "test": "signed in: on every page it belongs to",
+  "e2e": true,
+  "project": "android"
  }
 ]

@@ -19,6 +19,9 @@ import { test, expect } from '../../lib/test'
 // Run with no throttling: it counts bytes, not time. Lighthouse (e2e/load/lighthouse.mjs) measures time.
 
 const BUDGET_KB = 350
+// App shell, stage 1: the bottom bar's unread badge, loaded at phone widths only (src/lib/bottomBar.ts)
+const BAR_SCRIPT = '/bar.js'
+const PAGES_WITH_BAR = ['home', 'search', 'guest dashboard']
 const SEARCH_WITH_MAP_KB = 650
 // Markers found only in the libraries' own code, never in the app's
 const MAP_CODE = /maplibregl|maplibre-gl/
@@ -47,7 +50,9 @@ function collect(page: Page) {
   page.on('response', (r) => {
     // (a script file fetched by code counts too: the chunk guard once fetched the polyfills on every page)
     const type = r.request().resourceType()
-    if (!r.url().includes('/_next/') || !(type === 'script' || (type === 'fetch' && /\.js(\?|$)/.test(r.url())))) return
+    // The phone's bottom bar has one script outside the bundle (public/bar.js): it counts too
+    const barScript = new URL(r.url()).pathname === BAR_SCRIPT
+    if (!barScript && (!r.url().includes('/_next/') || !(type === 'script' || (type === 'fetch' && /\.js(\?|$)/.test(r.url()))))) return
     pending.push((async () => {
       try {
         const [sizes, body] = await Promise.all([r.request().sizes(), r.text()])
@@ -148,6 +153,9 @@ for (const [size, device] of [['phone', PHONE], ['desktop', DESKTOP]] as const) 
         if (!mapAllowed && l.mapKB > 0) over.push(`${name}: ${l.mapKB} KB of map code`)
         if (mapAllowed && l.totalKB > SEARCH_WITH_MAP_KB) over.push(`${name}: ${l.totalKB} KB with the map, cap ${SEARCH_WITH_MAP_KB}`)
         if (name !== 'home' && l.pickerKB > 0) over.push(`${name}: ${l.pickerKB} KB of date-picker code before a date field was opened`)
+        const bar = l.files.some((f) => f.url === BAR_SCRIPT)
+        if (size === 'desktop' && bar) over.push(`${name}: the phone's bottom-bar script was downloaded on a desktop`)
+        if (size === 'phone' && PAGES_WITH_BAR.includes(name) && !bar) over.push(`${name}: the bottom bar's script was not counted on a phone`)
       }
       report(size, all)
       expect(over).toEqual([])
