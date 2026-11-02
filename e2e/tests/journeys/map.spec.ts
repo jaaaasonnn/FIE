@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import fs from 'fs'
 import path from 'path'
 import type { Page } from '@playwright/test'
@@ -18,7 +19,9 @@ test.skip(({ browserName }) => browserName === 'firefox', 'headless Firefox has 
 /** Collects what would show the map broke: page errors, map or worker errors in the console, files that failed */
 function watchForMapTrouble(page: Page) {
   const trouble: string[] = []
-  page.on('pageerror', (e) => trouble.push(`page error: ${e.message}`))
+  // (in the Safari set-ups the page is on https and the fake Sentry on plain http, so WebKit refuses its
+  // reports and raises that as a page error: not the map's)
+  page.on('pageerror', (e) => { if (!e.message.includes('/api/1/envelope/')) trouble.push(`page error: ${e.message}`) })
   page.on('console', (m) => { if (m.type() === 'error' && /maplibre|worker|webgl|style|tile|glyph/i.test(m.text())) trouble.push(`console: ${m.text()}`) })
   page.on('requestfailed', (r) => { if (/\/_next\/|maplibre|worker/.test(r.url())) trouble.push(`failed: ${r.url()} ${r.failure()?.errorText}`) })
   page.on('response', (r) => { if (r.status() >= 400 && /\/_next\/|maplibre|worker/.test(r.url())) trouble.push(`${r.status()}: ${r.url()}`) })
@@ -49,7 +52,7 @@ test.describe('the search map', () => {
   test('shows a pin for each home, and a pin opens a popup that links to it; Escape closes it @core', async ({ page, world }) => {
     const trouble = watchForMapTrouble(page)
     const host = await world.host()
-    const city = `Osu${Date.now().toString(36)}`
+    const city = `Osu${crypto.randomBytes(5).toString('hex')}`
     const west = await world.listing(host, { city, region: 'Greater Accra', priceNightly: 60, lat: ACCRA.lat, lng: ACCRA.lng - 0.03 })
     const east = await world.listing(host, { city, region: 'Greater Accra', priceNightly: 95, lat: ACCRA.lat + 0.005, lng: ACCRA.lng + 0.03 })
     await openMap(page, city, 2)
@@ -85,7 +88,7 @@ test.describe('the search map', () => {
   test('two homes close together are one cluster that zooms apart when pressed', async ({ page, world }) => {
     const trouble = watchForMapTrouble(page)
     const host = await world.host()
-    const city = `Labone${Date.now().toString(36)}`
+    const city = `Labone${crypto.randomBytes(5).toString('hex')}`
     const homes = [
       await world.listing(host, { city, region: 'Greater Accra', lat: ACCRA.lat, lng: ACCRA.lng }),
       await world.listing(host, { city, region: 'Greater Accra', lat: ACCRA.lat + 0.0004, lng: ACCRA.lng + 0.0004 }),
@@ -106,7 +109,7 @@ test.describe('the search map', () => {
   test('homes at the same spot are listed when their cluster is pressed, each a link', async ({ page, world }) => {
     const trouble = watchForMapTrouble(page)
     const host = await world.host()
-    const city = `Ridge${Date.now().toString(36)}`
+    const city = `Ridge${crypto.randomBytes(5).toString('hex')}`
     const homes = []
     for (let i = 0; i < 3; i++) homes.push(await world.listing(host, { city, region: 'Greater Accra', lat: ACCRA.lat, lng: ACCRA.lng }))
     await openMap(page, city, 3)

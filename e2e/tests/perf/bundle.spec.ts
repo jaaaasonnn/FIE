@@ -1,5 +1,7 @@
 import fs from 'fs'
+import http from 'http'
 import path from 'path'
+import zlib from 'zlib'
 import { devices, type Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 
@@ -24,6 +26,21 @@ const PICKER_CODE = /react-datepicker__month-container/
 
 type Loaded = { totalKB: number; mapKB: number; pickerKB: number; files: { url: string; kb: number; map: boolean; picker: boolean }[] }
 
+/** A file's size as the server sends it (gzip, as to a browser), and its text */
+function overTheWire(url: string): Promise<{ bytes: number; text: string }> {
+  return new Promise((resolve, reject) => {
+    http.get(url, { headers: { 'accept-encoding': 'gzip' } }, (res) => {
+      const chunks: Buffer[] = []
+      res.on('data', (c: Buffer) => chunks.push(c))
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks)
+        const text = (res.headers['content-encoding'] === 'gzip' ? zlib.gunzipSync(raw) : raw).toString('utf8')
+        resolve({ bytes: raw.length, text })
+      })
+    }).on('error', reject)
+  })
+}
+
 /** Collects every script the page fetches from now on, with its size on the wire and what it holds. */
 function collect(page: Page) {
   const pending: Promise<Loaded['files'][number] | null>[] = []
@@ -34,6 +51,12 @@ function collect(page: Page) {
     pending.push((async () => {
       try {
         const [sizes, body] = await Promise.all([r.request().sizes(), r.text()])
+        // The map's worker file (maplibre 6) is fetched by the worker, so the page sees the request but not its
+        // bytes: those are counted from the file itself, compressed as the server sends it
+        if (sizes.responseBodySize === 0 && /\.m?js(\?|$)/.test(r.url())) {
+          const wire = await overTheWire(r.url())
+          return { url: r.url().replace(/^https?:\/\/[^/]+/, ''), kb: wire.bytes / 1024, map: MAP_CODE.test(wire.text), picker: PICKER_CODE.test(wire.text) }
+        }
         return { url: r.url().replace(/^https?:\/\/[^/]+/, ''), kb: sizes.responseBodySize / 1024, map: MAP_CODE.test(body), picker: PICKER_CODE.test(body) }
       } catch { return null }
     })())

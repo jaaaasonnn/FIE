@@ -92,6 +92,10 @@ export const REGION_CENTERS: Record<string, [number, number]> = {
 
 const ACCRA_DEFAULT: ViewState = { longitude: -0.187, latitude: 5.55, zoom: 11.5 }
 
+// maplibre 6 runs its worker from a file of its own, which it looks for next to itself. Once bundled it is
+// not there, so the bundler is handed the file and the map is told where it is served.
+const WORKER_URL = new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).href
+
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY || ''
 const MAP_STYLE = `https://api.maptiler.com/maps/positron/style.json?key=${MAPTILER_KEY}`
 
@@ -557,6 +561,7 @@ export function ListingsMap({
         onClick={handleMapClick}
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLE}
+        workerUrl={WORKER_URL}
         maxZoom={MAX_ZOOM}
         attributionControl={false}
       >
