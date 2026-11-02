@@ -62,6 +62,11 @@ test.describe('email failing', () => {
 
   test('the send job starts on two servers at once: each email goes once', async ({ world }) => {
     const people = await Promise.all(Array.from({ length: 4 }, () => world.guest()))
+    // AS1: each person's two emails are written to the message log just after their sign-up has answered.
+    // The four runs below must find all eight queued, or nothing on the test stack would send the late ones.
+    await expect.poll(() => db.messageLog.count({
+      where: { userId: { in: people.map((p) => p.id) }, channel: 'EMAIL', event: { in: ['account.welcome', 'account.verify_email'] } },
+    }), { timeout: 15_000, message: 'all eight sign-up emails queued' }).toBe(8)
     const runs = await together(() => cron('send-messages', { server: 0 }), () => cron('send-messages', { server: 1 }), () => cron('send-messages', { server: 0 }), () => cron('send-messages', { server: 1 }))
     expect(serverErrors(runs)).toEqual([])
     for (const person of people) {
