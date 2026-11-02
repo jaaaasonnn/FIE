@@ -28,7 +28,8 @@ const db = new pg.Client({ connectionString: process.env.DIRECT_URL })
 await db.connect()
 const one = async (sql, params = []) => (await db.query(sql, params)).rows[0]
 
-let ipCounter = 0
+// From a random start, so runs within the hour are not refused by the sign-up limit per address
+let ipCounter = Math.floor(Math.random() * 60000)
 const ip = () => `10.66.${Math.floor(++ipCounter / 250)}.${ipCounter % 250}`
 async function api(method, url, body, cookie) {
   const r = await fetch(APP + url, { method, redirect: 'manual', headers: { origin: APP, 'content-type': 'application/json', 'x-vercel-forwarded-for': ip(), ...(cookie ? { cookie: `fiegh_session=${cookie}` } : {}) }, body: body ? JSON.stringify(body) : undefined })
