@@ -13,6 +13,7 @@ import type { Sealed } from '@/lib/sealed'
 import { removalReasonText } from '@/lib/listingCheckRules'
 import { HOST_ID_SELECT, hostIdApproved } from '@/lib/hostId'
 import type { Audience, EventName, Facts } from '@/lib/messaging/templates'
+import { HOME_UNAVAILABLE } from '@/lib/homeAvailability'
 
 /** The IDs each event is raised with. */
 export type EventIds = {
@@ -100,9 +101,9 @@ async function booking(bookingId: string): Promise<Loaded | null> {
   const b = await db.booking.findUnique({
     where: { id: bookingId },
     include: {
-      listing: { select: { id: true, title: true } },
+      listing: { select: { id: true, title: true, isActive: true, moderationHold: true } },
       guest: { select: { id: true, name: true } },
-      host: { select: { id: true, name: true, paystackRecipientCode: true, payoutMethodVerifiedAt: true, ...HOST_ID_SELECT } },
+      host: { select: { id: true, name: true, paystackRecipientCode: true, payoutMethodVerifiedAt: true, suspendedAt: true, ...HOST_ID_SELECT } },
       // The payment that confirmed the booking: on a booking paid in
       // instalments, later rent payments are not what "was paid" for it
       payments: { where: { status: 'SUCCESS', OR: [{ instalmentId: null }, { instalment: { sequence: 1 } }] }, orderBy: { createdAt: 'desc' }, take: 1 },
@@ -147,7 +148,8 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       refundUsd: b.refund?.amount ?? null,
       refundPesewas: b.refund?.amountPesewas ?? null,
       refundId: b.refund?.id,
-      expiredFor: b.cancelReason === 'NO_HOST_RESPONSE' ? 'NO_HOST_RESPONSE' : 'UNPAID_EXPIRED',
+      expiredFor: b.cancelReason === HOME_UNAVAILABLE ? 'HOME_UNAVAILABLE' : b.cancelReason === 'NO_HOST_RESPONSE' ? 'NO_HOST_RESPONSE' : 'UNPAID_EXPIRED',
+      homeGone: b.cancelReason !== HOME_UNAVAILABLE ? null : b.host.suspendedAt ? 'HOST_SUSPENDED' : 'SWITCHED_OFF',
       payoutUsd,
       payoutPesewas,
     },

@@ -3258,5 +3258,17 @@
   ],
   "testFile": "src/lib/paymentSettle.test.ts",
   "test": "reads the home again inside the transaction: switched off between the decision and the write, it is refunded"
+ },
+ {
+  "what": "SU7: the expiry job ends an unpaid booking on a switched-off home at its next run, whatever its deadline",
+  "edits": [
+   {
+    "file": "src/lib/bookingExpiry.ts",
+    "find": "    ...homeUnavailableWhere,",
+    "replace": "    id: 'no booking has this id',"
+   }
+  ],
+  "testFile": "src/lib/paymentSettle.test.ts",
+  "test": "ends an unpaid booking on a home switched off by its host at its next run, long before its time to pay is up"
  }
 ]

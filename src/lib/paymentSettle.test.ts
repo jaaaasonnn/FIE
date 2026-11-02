@@ -173,6 +173,7 @@ vi.mock('@/lib/db', async () => {
 
 import { settlePayment } from '@/lib/paymentSettle'
 import { db } from '@/lib/db'
+import { notify } from '@/lib/messaging/notify'
 import { runExpiry } from '@/lib/bookingExpiry'
 import {
   EXPIRED_UNANSWERED, EXPIRED_UNPAID, HOST_MUST_ACCEPT, PAY_WINDOW_PASSED,
@@ -1080,5 +1081,87 @@ describe('SU7: money that lands after the home became unavailable', () => {
     spy.mockRestore()
     expect(result.outcome).toBe('refunded')
     ended()
+  })
+})
+
+describe('SU7: the expiry job and a home that is no longer available', () => {
+  const run = (dryRun = false) => runExpiry({ dryRun })
+  const blocked = () => state.blockedDates.push(
+    { listingId: 'listing_1', date: new Date('2027-03-10T12:00:00Z'), reason: 'BOOKED' },
+    { listingId: 'listing_1', date: new Date('2027-03-11T12:00:00Z'), reason: 'HOST' },
+  )
+
+  for (const [what, make] of [['switched off by its host', switchedOff], ['whose host is suspended', suspended]] as const) {
+    it(`ends an unpaid booking on a home ${what} at its next run, long before its time to pay is up`, async () => {
+      unpaid({ payBy: ahead(20 * HOUR) }, false)
+      blocked()
+      make()
+      const result = await run()
+      expect(result.results).toEqual([{ bookingId: 'booking_1', kind: 'HOME_UNAVAILABLE', action: 'ended', openPayments: 0 }])
+      expect(booking()).toMatchObject({ status: 'CANCELLED', paymentStatus: 'UNPAID', cancelledBy: 'SYSTEM', cancelReason: HOME_UNAVAILABLE })
+      expect(state.blockedDates).toEqual([expect.objectContaining({ reason: 'HOST' })])
+      expect(vi.mocked(notify)).toHaveBeenCalledWith('booking.expired', { bookingId: 'booking_1' })
+    })
+  }
+
+  it('ends a request nobody has answered on a switched-off home, whatever its deadline', async () => {
+    unpaid({ status: 'PENDING', payBy: null, createdAt: ago(HOUR) }, false)
+    switchedOff()
+    expect((await run()).results[0]).toMatchObject({ kind: 'HOME_UNAVAILABLE', action: 'ended' })
+    expect(booking()).toMatchObject({ status: 'CANCELLED', cancelReason: HOME_UNAVAILABLE })
+  })
+
+  it('ends a booking made before deadlines existed (no payBy) once its home is switched off', async () => {
+    unpaid({ payBy: null }, false)
+    switchedOff()
+    expect((await run()).results[0]).toMatchObject({ kind: 'HOME_UNAVAILABLE', action: 'ended' })
+  })
+
+  it('asks Paystack first: a payment that went through is settled (and refunded), not lost', async () => {
+    unpaid({ payBy: ahead(20 * HOUR) })
+    switchedOff()
+    paystackSays('success')
+    expect((await run()).results[0]).toMatchObject({ kind: 'HOME_UNAVAILABLE', action: 'paid', openPayments: 1 })
+    expect(booking()).toMatchObject({ status: 'CANCELLED', paymentStatus: 'PAID', cancelReason: HOME_UNAVAILABLE })
+    expect(state.refunds).toHaveLength(1)
+  })
+
+  it('waits for the next run while a payment is still in progress at Paystack', async () => {
+    unpaid({ payBy: ahead(20 * HOUR) })
+    switchedOff()
+    paystackSays('ongoing')
+    expect((await run()).results[0]).toMatchObject({ action: 'waiting' })
+    expect(booking()).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'UNPAID' })
+  })
+
+  it('only reports would-end on a dry run, and while the job is switched off', async () => {
+    unpaid({ payBy: ahead(20 * HOUR) }, false)
+    switchedOff()
+    expect((await run(true)).results).toEqual([{ bookingId: 'booking_1', kind: 'HOME_UNAVAILABLE', action: 'would-end', openPayments: 0 }])
+    vi.stubEnv('BOOKING_EXPIRY_ENABLED', '')
+    expect((await run()).results[0]).toMatchObject({ action: 'would-end' })
+    expect(state.writes).toBe(0)
+    expect(booking().status).toBe('CONFIRMED')
+  })
+
+  it('leaves a booking made before BOOKING_EXPIRY_NOT_BEFORE alone', async () => {
+    unpaid({ payBy: ahead(20 * HOUR), createdAt: new Date('2026-12-01T10:00:00Z') }, false)
+    switchedOff()
+    expect((await run()).results).toEqual([])
+  })
+
+  it('leaves a home on hold alone: nothing ends early, and the booking can still be paid', async () => {
+    unpaid({ payBy: ahead(20 * HOUR) }, false)
+    held()
+    expect((await run()).results).toEqual([])
+    expect(booking()).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'UNPAID' })
+  })
+
+  it('never touches a paid booking on a switched-off home', async () => {
+    unpaid({ paymentStatus: 'PAID' }, false)
+    switchedOff()
+    suspended()
+    expect((await run()).results).toEqual([])
+    expect(booking()).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID' })
   })
 })

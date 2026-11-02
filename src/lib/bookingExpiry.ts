@@ -12,6 +12,10 @@
 // be reached, or a payment is still in progress, the booking is left for the
 // next run.
 //
+// SU7: a third kind, HOME_UNAVAILABLE: an unpaid booking or an unanswered request whose home its host
+// switched off, or whose host is suspended (lib/homeAvailability.ts; a home on hold is not one), is ended
+// at the next run whatever its deadline, after the same check with Paystack. A dry run reports would-end.
+//
 // An ended booking is CANCELLED with cancelledBy SYSTEM, which every date and
 // payment check already understands. Money that arrives afterwards is
 // refunded in full by settlePayment; the booking is never revived.
@@ -29,6 +33,7 @@ import {
   CANCELLED_BY_SYSTEM, NO_HOST_RESPONSE, PAY_GRACE_MS, REQUEST_ANSWER_WINDOW_MS, UNPAID_EXPIRED,
 } from '@/lib/payDeadline'
 import { OPEN_INSTALMENT_STATUSES } from '@/lib/rentRules'
+import { HOME_UNAVAILABLE, homeUnavailableWhere } from '@/lib/homeAvailability'
 
 const HOUR_MS = 60 * 60 * 1000
 /** A booking still waiting on Paystack this long after it fell due raises an alert. */
@@ -36,7 +41,7 @@ export const STUCK_EXPIRY_ALERT_MS = 24 * HOUR_MS
 /** Stuck alerts go out on one run a day (the first after 09:00 UTC), not on all 96. */
 export const STUCK_ALERT_HOUR_UTC = 9
 
-export type ExpiryKind = 'UNPAID' | 'UNANSWERED'
+export type ExpiryKind = 'UNPAID' | 'UNANSWERED' | 'HOME_UNAVAILABLE'
 
 /** Confirmed, unpaid, and past the time to pay plus the grace. No deadline means never. */
 export function unpaidDueWhere(now: Date, notBefore: Date | null): Prisma.BookingWhereInput {
@@ -61,9 +66,21 @@ export function unansweredDueWhere(now: Date, notBefore: Date | null): Prisma.Bo
   }
 }
 
+/** Unpaid bookings and unanswered requests on a home that is no longer available, whatever their deadline (SU7). */
+export function homeGoneWhere(notBefore: Date | null): Prisma.BookingWhereInput {
+  return {
+    status: { in: ['CONFIRMED', 'PENDING'] },
+    paymentStatus: 'UNPAID',
+    ...homeUnavailableWhere,
+    ...(notBefore ? { createdAt: { gte: notBefore } } : {}),
+  }
+}
+
 export type ExpiryAction =
   | 'expired'        // ended, dates released
   | 'would-expire'   // dry run
+  | 'ended'          // HOME_UNAVAILABLE: ended, dates released
+  | 'would-end'      // HOME_UNAVAILABLE, dry run
   | 'paid'           // a payment turned out to have gone through: settled instead
   | 'waiting'        // Paystack unreachable or a payment still in progress: next run
   | 'changed'        // accepted, paid or cancelled by someone while this run was looking
@@ -97,13 +114,17 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
       : { mode: 'live' }
   const live = mode.mode === 'live'
 
-  const [unpaid, unanswered] = await Promise.all([
+  const [unpaid, unanswered, homeGone] = await Promise.all([
     db.booking.findMany({ where: unpaidDueWhere(now, gate.notBefore), select }),
     db.booking.findMany({ where: unansweredDueWhere(now, gate.notBefore), select }),
+    db.booking.findMany({ where: homeGoneWhere(gate.notBefore), select }),
   ])
+  // A booking whose home has gone is ended for that reason, even if its time to pay has also run out
+  const gone = new Set(homeGone.map((b) => b.id))
   const due = [
-    ...unpaid.map((booking) => ({ booking, kind: 'UNPAID' as const })),
-    ...unanswered.map((booking) => ({ booking, kind: 'UNANSWERED' as const })),
+    ...homeGone.map((booking) => ({ booking, kind: 'HOME_UNAVAILABLE' as const })),
+    ...unpaid.filter((b) => !gone.has(b.id)).map((booking) => ({ booking, kind: 'UNPAID' as const })),
+    ...unanswered.filter((b) => !gone.has(b.id)).map((booking) => ({ booking, kind: 'UNANSWERED' as const })),
   ]
 
   const results: ExpiryItem[] = []
@@ -112,7 +133,7 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
   for (const { booking, kind } of due) {
     const base = { bookingId: booking.id, kind, openPayments: booking.payments.length }
     if (!live) {
-      results.push({ ...base, action: 'would-expire' })
+      results.push({ ...base, action: kind === 'HOME_UNAVAILABLE' ? 'would-end' : 'would-expire' })
       continue
     }
 
@@ -136,8 +157,10 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
     if (waiting) {
       const item: ExpiryItem = { ...base, action: 'waiting', detail: waiting }
       results.push(item)
-      const dueAt = kind === 'UNPAID' ? booking.payBy!.getTime() + PAY_GRACE_MS : booking.createdAt.getTime() + REQUEST_ANSWER_WINDOW_MS
-      if (now.getTime() - dueAt >= STUCK_EXPIRY_ALERT_MS) stuck.push(item)
+      // A booking whose home has gone counts from when it would have fallen due anyway
+      const dueAt = booking.status === 'PENDING' ? booking.createdAt.getTime() + REQUEST_ANSWER_WINDOW_MS
+        : booking.payBy ? booking.payBy.getTime() + PAY_GRACE_MS : null
+      if (dueAt !== null && now.getTime() - dueAt >= STUCK_EXPIRY_ALERT_MS) stuck.push(item)
       continue
     }
     if (paid) {
@@ -154,7 +177,7 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
         where: { id: booking.id, status: booking.status, paymentStatus: 'UNPAID' },
         data: {
           status: 'CANCELLED', cancelledBy: CANCELLED_BY_SYSTEM, cancelledAt: now,
-          cancelReason: kind === 'UNPAID' ? UNPAID_EXPIRED : NO_HOST_RESPONSE,
+          cancelReason: kind === 'HOME_UNAVAILABLE' ? HOME_UNAVAILABLE : kind === 'UNPAID' ? UNPAID_EXPIRED : NO_HOST_RESPONSE,
         },
       })
       if (updated.count === 0) return false
@@ -171,7 +194,7 @@ export async function runExpiry({ dryRun = false, now = new Date() }: { dryRun?:
       return true
     })
     if (ended) notify('booking.expired', { bookingId: booking.id })
-    results.push({ ...base, action: ended ? 'expired' : 'changed' })
+    results.push({ ...base, action: !ended ? 'changed' : kind === 'HOME_UNAVAILABLE' ? 'ended' : 'expired' })
   }
 
   // One alert a day per booking that has been waiting on Paystack for a day

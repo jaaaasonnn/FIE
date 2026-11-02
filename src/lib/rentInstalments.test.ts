@@ -30,6 +30,11 @@ vi.mock('@/lib/db', async () => {
   const matches = (row: Row, where: Row = {}): boolean =>
     Object.entries(where).every(([key, cond]) => {
       if (key === 'OR') return (cond as Row[]).some((c) => matches(row, c))
+      // A booking's home and host (SU7: the expiry job looks for homes that are no longer available)
+      if ((key === 'listing' || key === 'host') && 'listingId' in row && 'hostId' in row) {
+        const related = key === 'listing' ? state.listings.find((l) => l.id === row.listingId) ?? {} : hostOf(row) ?? {}
+        return matches(related as Row, cond as Row)
+      }
       const value = row[key] ?? null
       if (cond !== null && typeof cond === 'object' && !(cond instanceof Date)) {
         const c = cond as { in?: unknown[]; not?: unknown; lte?: Date | number; gte?: Date | number; lt?: Date | number; gt?: Date | number }

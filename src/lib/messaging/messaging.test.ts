@@ -217,7 +217,7 @@ const WORST: Facts = {
 
 describe('templates', () => {
   it.each(EVENT_NAMES)('%s renders with nothing missing', (event) => {
-    for (const facts of [SAMPLE_FACTS, WORST, { ...SAMPLE_FACTS, raisedByRole: 'HOST' as const, expiredFor: 'NO_HOST_RESPONSE' as const, verificationStatus: 'REJECTED', reviewPublished: false, refundUsd: null, refundPesewas: null, payBy: null, paidPesewas: null }]) {
+    for (const facts of [SAMPLE_FACTS, WORST, { ...SAMPLE_FACTS, expiredFor: 'HOME_UNAVAILABLE' as const, homeGone: 'SWITCHED_OFF' as const }, { ...SAMPLE_FACTS, expiredFor: 'HOME_UNAVAILABLE' as const, homeGone: 'HOST_SUSPENDED' as const }, { ...SAMPLE_FACTS, raisedByRole: 'HOST' as const, expiredFor: 'NO_HOST_RESPONSE' as const, verificationStatus: 'REJECTED', reviewPublished: false, refundUsd: null, refundPesewas: null, payBy: null, paidPesewas: null }]) {
       const pieces = render(event, facts)
       expect(pieces.length).toBeGreaterThan(0)
       for (const piece of pieces) {

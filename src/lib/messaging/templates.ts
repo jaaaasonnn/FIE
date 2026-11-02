@@ -44,7 +44,9 @@ export type Facts = {
   refundUsd?: number | null
   refundPesewas?: number | null
   refundId?: string
-  expiredFor?: 'UNPAID_EXPIRED' | 'NO_HOST_RESPONSE'
+  expiredFor?: 'UNPAID_EXPIRED' | 'NO_HOST_RESPONSE' | 'HOME_UNAVAILABLE'
+  /** Why the home is no longer available, when expiredFor is HOME_UNAVAILABLE (SU7) */
+  homeGone?: 'SWITCHED_OFF' | 'HOST_SUSPENDED' | null
   // Payouts
   payoutUsd?: number | null
   payoutPesewas?: number | null
@@ -275,8 +277,37 @@ export const TEMPLATES = {
   },
 
   'booking.expired': {
-    label: 'A booking or request runs out of time',
-    render: (f) => f.expiredFor === 'NO_HOST_RESPONSE'
+    label: 'A booking or request runs out of time, or its home is no longer available',
+    render: (f) => f.expiredFor === 'HOME_UNAVAILABLE'
+      ? [
+          {
+            to: 'guest',
+            email: {
+              subject: `Your booking for ${home(f)} has ended`,
+              lines: [
+                hello(f.guestName),
+                `The home you booked is no longer available, so your booking from ${stay(f)} has ended. You have not been charged.`,
+              ],
+              link: { label: 'Find another home', path: '/search' },
+            },
+            inApp: { title: 'Your booking has ended', body: `${home(f)}, ${stay(f)}. The home you booked is no longer available, so your booking has ended. You have not been charged.` },
+          },
+          // A suspended host's account is in a person's hands; only a host who switched the home off is told
+          ...(f.homeGone === 'SWITCHED_OFF'
+            ? [{
+                to: 'host' as const,
+                email: {
+                  subject: `A booking for ${home(f)} has ended`,
+                  lines: [
+                    hello(f.hostName),
+                    `Your booking for ${home(f)} from ${stay(f)} ended because the home is switched off. The guest was not charged.`,
+                  ],
+                  link: hostBookingsLink,
+                },
+              }]
+            : []),
+        ]
+      : f.expiredFor === 'NO_HOST_RESPONSE'
       ? [
           {
             to: 'guest',
@@ -355,11 +386,16 @@ export const TEMPLATES = {
         to: 'guest',
         email: {
           subject: `Your payment for ${home(f)} is being refunded`,
-          lines: [
-            hello(f.guestName),
-            `Your payment of ${paid(f)} reached us after the booking for ${home(f)} from ${stay(f)} had ended, so the booking could not be confirmed.`,
-            `We are refunding the whole amount: ${refund(f)}. ${REFUND_TIMING}`,
-          ],
+          lines: f.expiredFor === 'HOME_UNAVAILABLE'
+            ? [
+                hello(f.guestName),
+                `The home became unavailable before your payment of ${paid(f)} for ${home(f)} from ${stay(f)} arrived, so it is being refunded in full: ${refund(f)}. Refunds can take several working days to arrive.`,
+              ]
+            : [
+                hello(f.guestName),
+                `Your payment of ${paid(f)} reached us after the booking for ${home(f)} from ${stay(f)} had ended, so the booking could not be confirmed.`,
+                `We are refunding the whole amount: ${refund(f)}. ${REFUND_TIMING}`,
+              ],
           link: bookingLink(f),
         },
       },
