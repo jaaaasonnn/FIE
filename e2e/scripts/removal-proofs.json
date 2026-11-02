@@ -424,8 +424,8 @@
   "edits": [
    {
     "file": "src/app/api/bookings/route.ts",
-    "find": "      return NextResponse.json({ booking: bookingFor({ ...booking, listing: { ...booking.listing, digitalAddress: address } }, user) })",
-    "replace": "      return NextResponse.json({ booking: { ...booking, listing: { ...booking.listing, digitalAddress: address } } })"
+    "find": "      return NextResponse.json({ booking: bookingFor(withHomeAvailable({ ...booking, listing: { ...booking.listing, digitalAddress: address } }), user) })",
+    "replace": "      return NextResponse.json({ booking: withHomeAvailable({ ...booking, listing: { ...booking.listing, digitalAddress: address } }) })"
    }
   ],
   "testFile": "src/lib/security/exposure.test.ts",
@@ -436,8 +436,8 @@
   "edits": [
    {
     "file": "src/app/api/bookings/route.ts",
-    "find": "    return NextResponse.json({ bookings: bookings.map((b) => bookingFor(b, user)) })",
-    "replace": "    return NextResponse.json({ bookings })"
+    "find": "    return NextResponse.json({ bookings: bookings.map((b) => bookingFor(withHomeAvailable(b), user)) })",
+    "replace": "    return NextResponse.json({ bookings: bookings.map((b) => withHomeAvailable(b)) })"
    }
   ],
   "testFile": "src/lib/security/exposure.test.ts",
