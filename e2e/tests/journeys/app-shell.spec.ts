@@ -229,6 +229,69 @@ test.describe('the phone\'s bottom bar (app shell, stage 1)', () => {
   })
 })
 
+test.describe('stage 1 polish, on a phone', () => {
+  test('the Trips icon is the header\'s own logo mark: the same asset, gold on Trips, grey elsewhere @core', async ({ page, world, signIn }) => {
+    test.skip(!isPhone(), 'the bar is for phones')
+    const guest = await world.guest()
+    await signIn(guest)
+    const markOf = (selector: string) => page.locator(selector).first().evaluate((el) => { const s = getComputedStyle(el); return { mask: s.maskImage || s.webkitMaskImage, colour: s.backgroundColor } })
+    await page.goto('/')
+    const header = await markOf('header .logo-mark')
+    const idle = await markOf('[data-bottom-bar] .bottom-bar-mark')
+    expect(header.mask).toContain('logo-mark.png')
+    expect(idle.mask).toBe(header.mask)
+    await page.goto('/dashboard/guest')
+    const active = await markOf('[data-bottom-bar] .bottom-bar-mark')
+    expect(active.mask).toBe(header.mask)
+    expect(active.colour, 'gold on Trips, as the header logo').toBe(header.colour)
+    expect(idle.colour, 'grey elsewhere').not.toBe(header.colour)
+  })
+
+  test('the header is 56 px tall on a phone, with the logo at its usual size @core', async ({ page }) => {
+    test.skip(!isPhone(), 'phones only')
+    await page.goto('/how-it-works')
+    const bar = await page.locator('.site-header-bar').boundingBox()
+    expect(Math.round(bar!.height)).toBe(56)
+    const logo = await page.locator('header .logo-mark').boundingBox()
+    expect(Math.round(logo!.height)).toBe(24)
+  })
+
+  test('the search dates read "Add date" in FieGH\'s style, side by side, never the browser\'s pattern @core', async ({ page }) => {
+    test.skip(!isPhone(), 'phones only')
+    await page.goto('/search')
+    const faces = page.locator('.search-dates .date-field-face')
+    await expect(faces).toHaveCount(2)
+    for (const face of await faces.all()) await expect(face).toHaveText('Add date')
+    await expect(faces.first()).toBeVisible()
+    const inputs = page.locator('.search-dates input[type="date"]')
+    expect(await inputs.first().evaluate((el) => getComputedStyle(el).color)).toBe('rgba(0, 0, 0, 0)')
+    const [a, b] = [await inputs.nth(0).boundingBox(), await inputs.nth(1).boundingBox()]
+    expect(Math.round(a!.y), 'check-in and check-out in one row').toBe(Math.round(b!.y))
+    expect(Math.round(a!.height)).toBe(44)
+    // Picking a date shows it in our words
+    await inputs.first().fill('2027-03-10')
+    await expect(faces.first()).toHaveText('Wed, 10 Mar')
+  })
+
+  test('Trips on a phone: a compact header, one row of figures, then the bookings; notices after them @core', async ({ page, world, signIn }) => {
+    test.skip(!isPhone(), 'phones only')
+    const { guest } = await people(world)
+    await signIn(guest)
+    await page.goto('/dashboard/guest')
+    const hi = page.getByRole('heading', { name: /^Hi, / })
+    await expect(hi).toBeVisible()
+    await expect(page.getByRole('heading', { name: /^Welcome back/ })).toBeHidden()
+    await expect(page.getByRole('link', { name: /Verification pending · Verify ID/ })).toHaveAttribute('href', '/auth/verify-id')
+    const top = async (locator: import('@playwright/test').Locator) => (await locator.boundingBox())!.y
+    const figures = page.locator('dl').filter({ hasText: 'Bookings' }).first()
+    const bookings = page.getByRole('heading', { name: 'Your Bookings' })
+    const notices = page.getByRole('heading', { name: 'Recent Notifications' })
+    expect(await top(hi)).toBeLessThan(await top(figures))
+    expect(await top(figures)).toBeLessThan(await top(bookings))
+    expect(await top(bookings)).toBeLessThan(await top(notices))
+  })
+})
+
 test.describe('the unread count (GET /api/messages/unread)', () => {
   test('signed out it is 0 and not a failure; signed in it is the person\'s own, never someone else\'s', async ({ world }) => {
     const anon = await fetch('http://localhost:3200/api/messages/unread')
@@ -245,16 +308,59 @@ test.describe('the unread count (GET /api/messages/unread)', () => {
   })
 })
 
-/** For the report: FieGH's mark as the Trips icon, at 24, 48 and 192 px, inactive and active */
-test('the logo mark, drawn at 24, 48 and 192 px', async ({ page }) => {
+/**
+ * For the report: the header's logo and the Trips tab's mark side by side at 24, 28 and 48 px, drawn by the site's
+ * own styles and asset (the header's .logo-mark and the bar's .bottom-bar-mark both mask public/logo-mark.png).
+ */
+test('the logo mark: the header logo and the Trips tab, side by side at 24, 28 and 48 px', async ({ page }) => {
   test.skip(!process.env.E2E_SHELL_SHOTS, 'pictures only when asked for')
-  const source = fs.readFileSync(path.join(__dirname, '../../../src/components/layout/FieMark.tsx'), 'utf8')
-  const d = /d="([^"]+)"/.exec(source)![1]
-  const svg = (size: number, active: boolean) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${active ? '#C9932E' : '#736D62'}" stroke-width="${active ? 2.6 : 1.75}" stroke-linejoin="miter"><path d="${d}"/></svg>`
-  await page.setContent(`<body style="margin:24px;background:#fff;font:14px sans-serif;color:#1F1B16">
-    ${[24, 48, 192].map((s) => `<div style="display:flex;gap:32px;align-items:end;margin-bottom:24px"><div>${svg(s, false)}<div>${s} px, inactive</div></div><div>${svg(s, true)}<div>${s} px, active</div></div></div>`).join('')}
-  </body>`)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/how-it-works')
+  await page.evaluate(() => {
+    const box = document.createElement('div')
+    box.id = 'logo-compare'
+    box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#fff;padding:24px;font:600 13px Manrope,sans-serif;color:#1F1B16;overflow:auto'
+    const row = (size: number) => {
+      const r = document.createElement('div')
+      r.style.cssText = 'display:flex;gap:28px;align-items:flex-end;margin-bottom:22px'
+      const cell = (label: string, el: HTMLElement) => { const c = document.createElement('div'); c.append(el); const t = document.createElement('div'); t.textContent = label; t.style.marginTop = '6px'; c.append(t); return c }
+      const header = document.createElement('span'); header.className = 'logo-mark'; header.style.cssText = `display:block;font-size:${size}px`
+      const active = document.createElement('a'); active.className = 'bottom-bar-tab'; active.setAttribute('aria-current', 'page'); active.style.cssText = 'height:auto;display:inline-block'
+      const markA = document.createElement('span'); markA.className = 'bottom-bar-mark'; markA.style.cssText = `height:${size}px;width:${Math.round(size * 646 / 384)}px`; active.append(markA)
+      const idle = document.createElement('a'); idle.className = 'bottom-bar-tab'; idle.style.cssText = 'height:auto;display:inline-block'
+      const markI = document.createElement('span'); markI.className = 'bottom-bar-mark'; markI.style.cssText = `height:${size}px;width:${Math.round(size * 646 / 384)}px`; idle.append(markI)
+      r.append(cell(`header, ${size} px`, header), cell(`tab active, ${size} px`, active), cell(`tab inactive, ${size} px`, idle))
+      return r
+    }
+    for (const size of [24, 28, 48]) box.append(row(size))
+    document.body.append(box)
+  })
   fs.mkdirSync(SHOTS, { recursive: true })
-  await page.screenshot({ path: path.join(SHOTS, 'logo-mark.png'), fullPage: true })
+  await page.locator('#logo-compare').screenshot({ path: path.join(SHOTS, 'logo-compare.png') })
 })
 
+/** For the report: the main pages at 360 and 390 px, signed out and signed in with an unread message */
+test('pictures of the main pages at 360 and 390 px @core', async ({ page, world, signIn }) => {
+  test.skip(!process.env.E2E_SHELL_SHOTS || !['iphone', 'android'].includes(test.info().project.name), 'pictures only when asked for, on the phones')
+  test.setTimeout(240_000)
+  const host = await world.host()
+  const guest = await world.guest()
+  const home = await world.listing(host)
+  const bookingId = await world.mustBook(guest, home.id)
+  expect((await host.call('POST', '/api/messages', { receiverId: guest.id, content: 'Welcome, the key is with the caretaker', bookingId })).status).toBe(201)
+  const dir = path.join(SHOTS, 'pages')
+  fs.mkdirSync(dir, { recursive: true })
+  const take = async (width: number, name: string, url: string) => {
+    await page.setViewportSize({ width, height: Math.round(width * 2.05) })
+    await page.goto(url, { waitUntil: 'load' })
+    await page.waitForTimeout(1500)
+    await page.screenshot({ path: path.join(dir, `${test.info().project.name}-${width}-${name}.png`) })
+  }
+  for (const width of [360, 390]) {
+    for (const [name, url] of [['explore-signed-out', '/'], ['search-signed-out', '/search?q=Accra'], ['how-it-works', '/how-it-works']]) await take(width, name, url)
+  }
+  await signIn(guest)
+  for (const width of [360, 390]) {
+    for (const [name, url] of [['explore-signed-in-badge', '/'], ['search', '/search?q=Accra'], ['trips', '/dashboard/guest'], ['wishlists', '/dashboard/guest/wishlist'], ['messages', '/dashboard/guest/messages'], ['profile', '/account']]) await take(width, name, url)
+  }
+})
