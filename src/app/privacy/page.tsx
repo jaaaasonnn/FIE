@@ -1,7 +1,9 @@
 import { SUPPORT_EMAIL } from '@/lib/contact'
+import { BottomBar } from '@/components/layout/BottomBar'
 
 export default function PrivacyPage() {
   return (
+    <>
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <header className="max-w-3xl mx-auto px-4 pt-10 md:pt-14">
         <h1 className="text-[2.25rem] md:text-[3rem] mb-2" style={{ color: 'var(--color-text-primary)' }}>
@@ -62,5 +64,7 @@ export default function PrivacyPage() {
         </div>
       </div>
     </div>
+      <BottomBar />
+    </>
   )
 }

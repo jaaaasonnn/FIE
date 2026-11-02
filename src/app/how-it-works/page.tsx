@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { COMMISSION_PERCENT, GUEST_FEE_CHARGED, GUEST_FEE_PERCENT, HOST_KEEPS_PERCENT } from '@/lib/fees'
 import { PAYOUTS_NEED_ID } from '@/lib/hostId'
+import { BottomBar } from '@/components/layout/BottomBar'
 
 type Step = { icon: LucideIcon; title: string; desc: string }
 
@@ -70,6 +71,7 @@ function Steps({ id, heading, steps }: { id: string; heading: string; steps: Ste
 
 export default function HowItWorksPage() {
   return (
+    <>
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-14 pb-16 md:pb-24">
         <header className="mb-10 md:mb-14">
@@ -116,5 +118,7 @@ export default function HowItWorksPage() {
         </section>
       </div>
     </div>
+      <BottomBar />
+    </>
   )
 }

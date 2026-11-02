@@ -10,6 +10,7 @@ import { ADVANCE_RULE_NOTE } from '@/lib/rentRules'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_FAQ } from '@/lib/listingCheckRules'
 import { PAYOUTS_NEED_ID, WHO_NEEDS_ID } from '@/lib/hostId'
+import { BottomBar } from '@/components/layout/BottomBar'
 
 // Built from the dispute rules in lib/disputes.ts
 const PROBLEM_ANSWER =
@@ -153,6 +154,7 @@ const linkStyle = { color: 'var(--color-accent-deep)' }
 
 export default function FAQPage() {
   return (
+    <>
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 md:pt-14 pb-16 md:pb-24">
         <header className="mb-10 md:mb-14">
@@ -282,5 +284,7 @@ export default function FAQPage() {
         </div>
       </div>
     </div>
+      <BottomBar />
+    </>
   )
 }

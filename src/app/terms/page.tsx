@@ -4,6 +4,7 @@ import { GUEST_FEE_CHARGED, GUEST_FEE_LINE, HOST_COMMISSION_LINE, PAYOUT_IN_CEDI
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { CHECK_TERMS } from '@/lib/listingCheckRules'
 import { PAYOUTS_NEED_ID } from '@/lib/hostId'
+import { BottomBar } from '@/components/layout/BottomBar'
 
 // Built from the dispute rules in lib/disputes.ts
 const list = (reasons: Record<string, string>) => Object.values(reasons).map((r) => r.toLowerCase()).join('; ')
@@ -34,6 +35,7 @@ const CANCELLATION_TERMS =
 
 export default function TermsPage() {
   return (
+    <>
     <div style={{ backgroundColor: 'var(--color-bg)' }}>
       <header className="max-w-3xl mx-auto px-4 pt-10 md:pt-14">
         <h1 className="text-[2.25rem] md:text-[3rem] mb-2" style={{ color: 'var(--color-text-primary)' }}>
@@ -102,5 +104,7 @@ export default function TermsPage() {
         </div>
       </div>
     </div>
+      <BottomBar />
+    </>
   )
 }

@@ -8,6 +8,7 @@ import type { Notification } from '@/components/NotificationsList'
 import { serverRead } from '@/lib/serverRead'
 import type { AuthUser } from '@/context/AuthContext'
 import { GuestDashboardClient, type GuestDashboardInitial } from './GuestDashboardClient'
+import { BottomBar } from '@/components/layout/BottomBar'
 
 // The dashboard comes with its data (lib/serverRead.ts): the same session check and the same five reads
 // the browser makes, in the same process. If any has no answer, the page does it all in the browser as before.
@@ -30,5 +31,5 @@ export default async function GuestDashboardPage() {
       initial = { user: me.user, answers: answers as NonNullable<GuestDashboardInitial>['answers'], notifications: unread?.notifications ?? null }
     }
   }
-  return <GuestDashboardClient initial={initial} />
+  return <><GuestDashboardClient initial={initial} /><BottomBar active="trips" /></>
 }

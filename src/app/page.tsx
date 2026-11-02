@@ -4,6 +4,7 @@ import { HeroSection, type ModePhoto } from '@/components/home/HeroSection'
 import { FeaturedListings } from '@/components/home/FeaturedListings'
 import { RegionsSection } from '@/components/home/RegionsSection'
 import { HostCTASection } from '@/components/home/HostCTASection'
+import { BottomBar } from '@/components/layout/BottomBar'
 
 // The hero photos come from live listings. The page is drawn again after
 // any change that could add or take away one of them (lib/homePage.ts), and
@@ -115,6 +116,7 @@ export default async function HomePage() {
       <FeaturedListings />
       <RegionsSection />
       <HostCTASection />
+      <BottomBar active="explore" />
     </>
   )
 }

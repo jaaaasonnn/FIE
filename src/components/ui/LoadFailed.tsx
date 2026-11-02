@@ -23,7 +23,7 @@ export function LoadFailed({ onRetry, className = 'min-h-[60vh]' }: { onRetry: (
 /** Along the bottom of every page when the sign-in check got no answer: nothing is assumed until it does. */
 export function LoadFailedBar({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-[#E8E1D6] bg-white px-4 py-3 shadow-lg" role="alert">
+    <div className="load-failed-bar fixed inset-x-0 bottom-0 z-[60] border-t border-[#E8E1D6] bg-white px-4 py-3 shadow-lg" role="alert">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-[#1F1B16]">{LOAD_FAILED}</p>
         <Button size="sm" onClick={onRetry}>

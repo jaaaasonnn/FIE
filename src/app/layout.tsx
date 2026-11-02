@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Manrope, Unbounded } from 'next/font/google'
 import './globals.css'
 import { Navbar } from '@/components/layout/Navbar'
@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/Toaster'
 import { AuthProvider } from '@/context/AuthContext'
 import { ExchangeRateProvider } from '@/context/ExchangeRateContext'
 import { CHUNK_GUARD_SCRIPT } from '@/lib/chunkGuard'
+import { BAR_LOADER_SCRIPT } from '@/lib/bottomBar'
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -35,6 +36,14 @@ export const metadata: Metadata = {
   }
 }
 
+// viewport-fit=cover: the phone's bottom bar reaches the bottom edge and keeps clear of the iPhone's home bar
+// with env(safe-area-inset-bottom) (globals.css)
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export default function RootLayout({
   children
 }: {
@@ -47,6 +56,8 @@ export default function RootLayout({
             at it until the stylesheets above it have loaded, as a plain inline script would be: files that
             fail before it runs are found by its check when the page has loaded. */}
         <script type="module" dangerouslySetInnerHTML={{ __html: CHUNK_GUARD_SCRIPT }} />
+        {/* The phone's bottom bar: its unread badge (public/bar.js), loaded at phone widths only (lib/bottomBar.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: BAR_LOADER_SCRIPT }} type="module" />
       </head>
       <body className={manrope.className}>
         <AuthProvider>
