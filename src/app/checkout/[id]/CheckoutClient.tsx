@@ -21,6 +21,7 @@ import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
 import { useHydrated } from '@/lib/useHydrated'
 import Image from 'next/image'
+import { HOME_GONE_REFUNDED, HOME_NO_LONGER_AVAILABLE } from '@/lib/homeAvailability'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type BookingData = {
@@ -82,6 +83,12 @@ function readBooking(data: { booking: BookingData }, instalmentId: string | null
     const refusal = laterInstalmentRefusal({ instalment: rent, instalments: data.booking.instalments ?? [], booking: data.booking })
     if (refusal) return { notice: { title: 'This rent cannot be paid right now', body: refusal } }
     return { booking: data.booking }
+  }
+
+  // The home was switched off or its host suspended (lib/homeAvailability.ts): it cannot be paid for, and
+  // money that arrived after that is on its way back
+  if (state === 'HOME_UNAVAILABLE') {
+    return { notice: { title: 'This home is no longer available', body: data.booking.paymentStatus === 'PAID' || returned === 'refunded' ? HOME_GONE_REFUNDED : HOME_NO_LONGER_AVAILABLE } }
   }
 
   // Not paid, or not answered, in time: the dates have been released

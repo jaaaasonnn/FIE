@@ -58,6 +58,21 @@ export async function checkInvariants(): Promise<Violation[]> {
      where subtotal < 0 or "serviceFee" < 0 or "damageDeposit" < 0 or "totalPrice" < 0 or abs("totalPrice" - (subtotal + "serviceFee" + "damageDeposit")) > ${CENT}`))
   add('rent instalments add up to the rent', await q(`
     select b.id, b.subtotal, sum(i.amount) instalments from "Booking" b join "Instalment" i on i."bookingId" = b.id group by b.id, b.subtotal having abs(sum(i.amount) - b.subtotal) > ${CENT}`))
+  // SU7: a booking ended because its home was switched off or its host suspended was never charged, or
+  // holds one refund of everything its first payment took; and it is never paid out
+  add('a booking ended because its home went was never charged, or is refunded in full', await q(`
+    select b.id, b."paymentStatus", r.amount refunded, r.reason, (
+      select coalesce(sum(p.amount), 0) from "Payment" p left join "Instalment" i on i.id = p."instalmentId"
+       where p."bookingId" = b.id and p.status = 'SUCCESS' and coalesce(i.sequence, 1) = 1) paid
+    from "Booking" b left join "Refund" r on r."bookingId" = b.id
+    where b."cancelReason" = 'HOME_UNAVAILABLE' and (
+      (b."paymentStatus" = 'UNPAID' and exists (select 1 from "Payment" p where p."bookingId" = b.id and p.status = 'SUCCESS'))
+      or (b."paymentStatus" = 'PAID' and (r.id is null or r.reason <> 'LATE_PAYMENT' or abs(r.amount - (
+        select coalesce(sum(p.amount), 0) from "Payment" p left join "Instalment" i on i.id = p."instalmentId"
+         where p."bookingId" = b.id and p.status = 'SUCCESS' and coalesce(i.sequence, 1) = 1)) > ${CENT})))`))
+  add('no payout for a booking ended because its home went', await q(`
+    select po.id, po.status from "Payout" po join "Booking" b on b.id = po."bookingId" where b."cancelReason" = 'HOME_UNAVAILABLE'`))
+
   add('a suspended account has no sessions', await q(`select s.id from "Session" s join "User" u on u.id = s."userId" where u."suspendedAt" is not null`))
   add('emails and phone numbers are unique', await q(`select lower(email) e, count(*)::int n from "User" where email is not null group by 1 having count(*) > 1`))
 
@@ -103,3 +118,18 @@ export async function expectInvariants(): Promise<void> {
   }
   throw new Error(`Money and date rules broken:\n${list(broken)}`)
 }
+
+/**
+ * SU7: unpaid bookings and unanswered requests on a home its host switched off (not on hold) or whose host
+ * is suspended. Right after a live run of the expiry job there must be none, except a booking whose payment
+ * is still open at Paystack (the job waits for that to be settled first).
+ */
+export async function unpaidOnHomesGone(): Promise<Violation[]> {
+  const rows = await db.$queryRawUnsafe<Record<string, unknown>[]>(`
+    select b.id, b.status from "Booking" b join "Listing" l on l.id = b."listingId" join "User" h on h.id = b."hostId"
+     where b.status in ('CONFIRMED','PENDING') and b."paymentStatus" = 'UNPAID'
+       and ((l."isActive" = false and l."moderationHold" = false) or h."suspendedAt" is not null)
+       and not exists (select 1 from "Payment" p where p."bookingId" = b.id and p.status = 'PENDING')`)
+  return rows.map((row) => ({ rule: 'no unpaid booking on a home that is no longer available survives a live expiry run', detail: JSON.stringify(row) }))
+}
+

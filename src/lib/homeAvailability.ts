@@ -23,6 +23,9 @@ export const HOME_UNAVAILABLE = 'HOME_UNAVAILABLE'
 /** What the guest is told instead of a Pay button, and when a payment is refused */
 export const HOME_NO_LONGER_AVAILABLE = 'This home is no longer available. You have not been charged.'
 
+/** What the guest is told when their money arrived after the home went, and is being refunded */
+export const HOME_GONE_REFUNDED = 'The home became unavailable before your payment arrived, so it is being refunded in full. Refunds can take several working days to arrive.'
+
 /** What the host is told when they try to accept a request on such a home */
 export const SWITCH_ON_BEFORE_ACCEPTING = 'Switch this home back on before accepting requests for it.'
 
@@ -43,3 +46,17 @@ export const homeUnavailableWhere = {
     { host: { suspendedAt: { not: null } } },
   ],
 }
+
+/**
+ * A booking as the people on it may see it: with `homeAvailable` worked out here, and without the home's raw
+ * switches or the host's suspension (a guest is never told a host's account state).
+ */
+export function withHomeAvailable<B extends { listing: Record<string, unknown> & HomeState['listing']; host: Record<string, unknown> & NonNullable<HomeState['host']> }>(booking: B) {
+  const listing = { ...booking.listing }
+  delete listing.isActive
+  delete listing.moderationHold
+  const host = { ...booking.host }
+  delete host.suspendedAt
+  return { ...booking, listing: listing as Omit<B['listing'], 'isActive' | 'moderationHold'>, host: host as Omit<B['host'], 'suspendedAt'>, homeAvailable: !homeUnavailable(booking) }
+}
+

@@ -16,6 +16,7 @@ import { RentSchedule, type ScheduleInstalment } from '@/components/booking/Rent
 import { rentPlan, tenancyMonths } from '@/lib/rentRules'
 import { fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
+import { HOME_GONE_REFUNDED, HOME_NO_LONGER_AVAILABLE } from '@/lib/homeAvailability'
 
 type BookingData = {
   id: string
@@ -138,6 +139,7 @@ function BookingPageInner() {
     : pay === 'PAY_WINDOW_PASSED' ? 'The time to pay has passed'
     : pay === 'EXPIRED_UNPAID' ? 'Booking expired'
     : pay === 'EXPIRED_UNANSWERED' ? 'Request expired'
+    : pay === 'HOME_UNAVAILABLE' ? 'This home is no longer available'
     : booking.status === 'CANCELLED' ? 'Booking cancelled'
     : booking.status === 'DECLINED' ? 'Request declined'
     : booking.status === 'COMPLETED' ? 'Stay completed'
@@ -149,6 +151,7 @@ function BookingPageInner() {
     : pay === 'PAY_WINDOW_PASSED' ? PAY_WINDOW_PASSED
     : pay === 'EXPIRED_UNPAID' ? (booking.refund ? 'This booking was not paid in time, so the dates were released.' : EXPIRED_UNPAID)
     : pay === 'EXPIRED_UNANSWERED' ? EXPIRED_UNANSWERED
+    : pay === 'HOME_UNAVAILABLE' ? (booking.refund ? HOME_GONE_REFUNDED : HOME_NO_LONGER_AVAILABLE)
     : null
 
   const instalments = booking.instalments ?? []

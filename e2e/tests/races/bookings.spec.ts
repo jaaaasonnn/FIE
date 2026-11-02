@@ -252,3 +252,85 @@ test.describe('races: paying from two tabs (G15)', () => {
     await expectInvariants()
   })
 })
+
+// SU7: a home switched off by its host at the very moment a guest's money lands, or a guest presses Pay.
+// Every round must end one of two ways: paid and left alone (the money got there first), or refunded in
+// full once and ended (the switch-off got there first). Never both, never neither, never a second charge.
+test.describe('races: a home switched off while the guest pays (SU7)', () => {
+  test.beforeEach(allowForRounds)
+
+  test('switched off at the moment the money lands, from webhooks on both servers and the guest\'s return', async ({ world }) => {
+    const host = await world.host()
+    const outcomes = { paid: 0, refunded: 0 }
+    for (let round = 0; round < ROUNDS; round++) {
+      const guest = await world.guest()
+      const home = await world.listing(host)
+      const id = await world.mustBook(guest, home.id)
+      const pay = await world.startPayment(guest, id)
+      expect(pay.status, `round ${round}`).toBe(200)
+      await fakes.setTx(pay.reference!, { status: 'success', webhook: 'none' })
+      // All in the same tick: the switch-off, Paystack's webhook on both servers, the guest's return
+      const [off, hookA, hookB, back] = await Promise.all([
+        host.call('DELETE', `/api/listings/${home.id}`),
+        fakes.webhook(APP[0], 'charge.success', { reference: pay.reference, times: 2 }),
+        fakes.webhook(APP[1], 'charge.success', { reference: pay.reference, times: 2 }),
+        world.verify(guest, pay.reference!, { server: round % 2 as 0 | 1 }),
+      ])
+      expect(serverErrors([off, back]), `round ${round}`).toEqual([])
+      expect([...hookA.statuses, ...hookB.statuses].filter((s) => s !== 200), `round ${round}: every signed webhook is answered 200`).toEqual([])
+      // The job's own look, as at its next run, settles anything still open
+      await cron('expire-bookings')
+      const booking = await db.booking.findUniqueOrThrow({ where: { id } })
+      const payments = await db.payment.findMany({ where: { bookingId: id } })
+      const refunds = await db.refund.findMany({ where: { bookingId: id } })
+      expect(payments.map((p) => p.status), `round ${round}: one payment, settled once`).toEqual(['SUCCESS'])
+      expect(await fakes.tx(id), `round ${round}: one charge at Paystack`).toHaveLength(1)
+      if (booking.status === 'CONFIRMED') {
+        expect(booking, `round ${round}`).toMatchObject({ paymentStatus: 'PAID', cancelReason: null })
+        expect(refunds, `round ${round}: a paid booking is left alone`).toHaveLength(0)
+        outcomes.paid++
+      } else {
+        expect(booking, `round ${round}`).toMatchObject({ status: 'CANCELLED', paymentStatus: 'PAID', cancelReason: 'HOME_UNAVAILABLE' })
+        expect(refunds.map((r) => [r.reason, r.amount]), `round ${round}: refunded once, in full`).toEqual([['LATE_PAYMENT', booking.totalPrice]])
+        outcomes.refunded++
+      }
+    }
+    measured(`switched off as the money landed, ${ROUNDS} rounds: ${outcomes.paid} paid and left alone, ${outcomes.refunded} refunded in full and ended`)
+    await expectInvariants()
+  })
+
+  test('switched off at the moment the guest presses Pay', async ({ world }) => {
+    const host = await world.host()
+    const outcomes = { refused: 0, refunded: 0 }
+    for (let round = 0; round < ROUNDS; round++) {
+      const guest = await world.guest()
+      const home = await world.listing(host)
+      const id = await world.mustBook(guest, home.id)
+      const [off, pay] = await Promise.all([
+        host.call('DELETE', `/api/listings/${home.id}`),
+        world.startPayment(guest, id, { server: round % 2 as 0 | 1 }),
+      ])
+      expect(off.status, `round ${round}`).toBe(200)
+      if (pay.status === 409) {
+        expect(pay.json.code, `round ${round}`).toBe('HOME_UNAVAILABLE')
+        expect(await fakes.tx(id), `round ${round}: nothing reached Paystack`).toHaveLength(0)
+        outcomes.refused++
+      } else {
+        // The page was handed out just before the switch-off: if the guest pays on it, the money goes back
+        expect(pay.status, `round ${round}`).toBe(200)
+        await fakes.setTx(pay.reference!, { status: 'success', webhook: 'none' })
+        await fakes.webhook(APP[round % 2], 'charge.success', { reference: pay.reference })
+        await world.verify(guest, pay.reference!)
+        const booking = await db.booking.findUniqueOrThrow({ where: { id } })
+        expect(booking, `round ${round}`).toMatchObject({ status: 'CANCELLED', paymentStatus: 'PAID', cancelReason: 'HOME_UNAVAILABLE' })
+        expect((await db.refund.findMany({ where: { bookingId: id } })).map((r) => r.amount), `round ${round}`).toEqual([booking.totalPrice])
+        outcomes.refunded++
+      }
+      await cron('expire-bookings')
+      const after = await db.booking.findUniqueOrThrow({ where: { id } })
+      expect(after, `round ${round}: ended either way`).toMatchObject({ status: 'CANCELLED', cancelReason: 'HOME_UNAVAILABLE' })
+    }
+    measured(`switched off as Pay was pressed, ${ROUNDS} rounds: ${outcomes.refused} refused before Paystack, ${outcomes.refunded} paid on a page handed out first and refunded in full`)
+    await expectInvariants()
+  })
+})

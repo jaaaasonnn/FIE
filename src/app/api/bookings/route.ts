@@ -19,6 +19,7 @@ import { notify } from '@/lib/messaging/notify'
 import { buildSchedule, tenancyStands } from '@/lib/rentRules'
 import { BUSY_TRY_AGAIN, BusyError, withSerialRetry } from '@/lib/serialRetry'
 import { OWN_BOOKING, ownBooking, type OwnBooking } from '@/lib/ownBooking'
+import { withHomeAvailable } from '@/lib/homeAvailability'
 
 /** What a guest or host is shown of a rent instalment: no admin's id. */
 const instalmentSelect = {
@@ -282,10 +283,12 @@ export async function GET(req: Request) {
               welcomeMessage: true,
               // Read with the booking (one round trip less) and sent only as decided below
               digitalAddress: true,
+              // Whether it can still be paid for (lib/homeAvailability.ts); only the answer is sent
+              isActive: true, moderationHold: true,
             },
           },
           guest:    { select: { id: true, name: true, email: true, phone: true, profilePhoto: true } },
-          host:     { select: { id: true, name: true, profilePhoto: true, phone: true } },
+          host:     { select: { id: true, name: true, profilePhoto: true, phone: true, suspendedAt: true } },
           payments: true,
           refund:   true,
           disputes: { select: { id: true, raisedByRole: true, status: true, outcome: true } },
@@ -306,7 +309,7 @@ export async function GET(req: Request) {
 
       // The other person's phone and email stay out until the booking is
       // confirmed and paid (lib/privacy.ts)
-      return NextResponse.json({ booking: bookingFor({ ...booking, listing: { ...booking.listing, digitalAddress: address } }, user) })
+      return NextResponse.json({ booking: bookingFor(withHomeAvailable({ ...booking, listing: { ...booking.listing, digitalAddress: address } }), user) })
     }
 
     // guestId/hostId are the security boundary here — this list is the
@@ -340,10 +343,10 @@ export async function GET(req: Request) {
       where,
       include: {
         listing: {
-          select: { id: true, title: true, photos: true, city: true, neighbourhood: true },
+          select: { id: true, title: true, photos: true, city: true, neighbourhood: true, isActive: true, moderationHold: true },
         },
         guest:    { select: { id: true, name: true, profilePhoto: true, trustScore: true, isVerified: true } },
-        host:     { select: { id: true, name: true, profilePhoto: true } },
+        host:     { select: { id: true, name: true, profilePhoto: true, suspendedAt: true } },
         payments: true,
         refund:   true,
         disputes: { select: { id: true, raisedByRole: true, status: true, outcome: true } },
@@ -352,7 +355,7 @@ export async function GET(req: Request) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ bookings: bookings.map((b) => bookingFor(b, user)) })
+    return NextResponse.json({ bookings: bookings.map((b) => bookingFor(withHomeAvailable(b), user)) })
   } catch (error) {
     console.error('Bookings GET error:', error)
     return NextResponse.json({ error: 'Failed to fetch bookings' }, { status: 500 })

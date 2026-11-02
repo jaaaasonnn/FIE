@@ -27,6 +27,7 @@ import { LoadFailed } from '@/components/ui/LoadFailed'
 import { useHydrated } from '@/lib/useHydrated'
 import type { AuthUser } from '@/context/AuthContext'
 import Image from 'next/image'
+import { HOME_GONE_REFUNDED, HOME_NO_LONGER_AVAILABLE } from '@/lib/homeAvailability'
 
 type ApiBooking = {
   id: string
@@ -64,6 +65,7 @@ const PAY_STATE_STYLES: Record<string, { bg: string; color: string; label: strin
   PAY_WINDOW_PASSED: { bg: '#FEE2E2', color: '#991B1B', label: 'Not paid in time' },
   EXPIRED_UNPAID: { bg: '#FEE2E2', color: '#991B1B', label: 'Expired' },
   EXPIRED_UNANSWERED: { bg: '#FEE2E2', color: '#991B1B', label: 'Expired' },
+  HOME_UNAVAILABLE: { bg: '#FEE2E2', color: '#991B1B', label: 'No longer available' },
 }
 
 const MODE_LABELS: Record<string, string> = {
@@ -93,6 +95,7 @@ function buildActivityFeed(bookings: ApiBooking[], messages: ApiMessage[], userI
     if (pay === 'AWAITING_PAYMENT') message = `Your booking at ${title} is waiting for payment`
     else if (pay === 'EXPIRED_UNPAID' || pay === 'PAY_WINDOW_PASSED') message = `Your booking at ${title} was not paid in time`
     else if (pay === 'EXPIRED_UNANSWERED') message = `Your request at ${title} expired without an answer`
+    else if (pay === 'HOME_UNAVAILABLE') message = `${title} is no longer available. You have not been charged`
     else if (b.status === 'CONFIRMED') message = `Your booking at ${title} is confirmed`
     else if (b.status === 'CANCELLED') message = `Your booking at ${title} was cancelled`
     else if (b.status === 'DECLINED') message = `Your booking request at ${title} was declined`
@@ -427,6 +430,12 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                         )}
                         {pay === 'AWAITING_HOST' && (
                           <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{HOST_MUST_ACCEPT} Nothing has been charged.</p>
+                        )}
+                        {pay === 'HOME_UNAVAILABLE' && !b.refund && (
+                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{HOME_NO_LONGER_AVAILABLE}</p>
+                        )}
+                        {pay === 'HOME_UNAVAILABLE' && b.refund && (
+                          <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{HOME_GONE_REFUNDED}</p>
                         )}
                         {b.refund && (
                           <p className="text-xs mt-1.5" style={{ color: 'var(--color-text-primary)' }}>{refundStatusText(b.refund)}</p>

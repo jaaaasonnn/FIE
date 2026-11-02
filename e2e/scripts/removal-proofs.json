@@ -3270,5 +3270,30 @@
   ],
   "testFile": "src/lib/paymentSettle.test.ts",
   "test": "ends an unpaid booking on a home switched off by its host at its next run, long before its time to pay is up"
+ },
+ {
+  "what": "SU7: the checkout says the home is no longer available instead of offering to pay",
+  "edits": [
+   {
+    "file": "src/app/checkout/[id]/CheckoutClient.tsx",
+    "find": "  if (state === 'HOME_UNAVAILABLE') {",
+    "replace": "  if (state === 'HOME_UNAVAILABLE' && false) {"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/switched-off.spec.ts",
+  "test": "a booking made before the switch-off cannot be paid for",
+  "e2e": true
+ },
+ {
+  "what": "SU7: an unpaid booking on a home that is no longer available has a pay state of its own",
+  "edits": [
+   {
+    "file": "src/lib/payDeadline.ts",
+    "find": "  if (booking.homeAvailable === false && (booking.status === 'PENDING' || booking.status === 'CONFIRMED')) return 'HOME_UNAVAILABLE'",
+    "replace": "  if (booking.homeAvailable === false && (booking.status === 'PENDING' || booking.status === 'CONFIRMED') && false) return 'HOME_UNAVAILABLE'"
+   }
+  ],
+  "testFile": "src/lib/homeAvailability.test.ts",
+  "test": "is a pay state of its own: unpaid on such a home, or ended for it"
  }
 ]

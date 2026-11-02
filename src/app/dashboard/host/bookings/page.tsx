@@ -62,6 +62,7 @@ const PAY_STATE_UI: Record<string, { bg: string; color: string; label: string }>
   PAY_WINDOW_PASSED:  { bg: '#FEF3C7', color: '#92400E', label: 'Awaiting payment' },
   EXPIRED_UNPAID:     { bg: '#FEE2E2', color: '#991B1B', label: 'Expired, not paid' },
   EXPIRED_UNANSWERED: { bg: '#FEE2E2', color: '#991B1B', label: 'Expired, not answered' },
+  HOME_UNAVAILABLE:   { bg: '#FEE2E2', color: '#991B1B', label: 'Home switched off' },
 }
 
 const MODE_LABELS: Record<string, string> = {

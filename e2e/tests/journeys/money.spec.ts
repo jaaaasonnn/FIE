@@ -151,6 +151,20 @@ test.describe('the payout and what holds it', () => {
     await expectInvariants()
   })
 
+  test('a stay paid before its home was switched off stands, and the host is paid for it as usual (SU7)', async ({ world }) => {
+    const host = await world.host()
+    const { id, home } = await paidStay(world, host)
+    expect((await host.call('DELETE', `/api/listings/${home.id}`)).status).toBe(200)
+    // The expiry job leaves a paid booking alone, whatever happened to the home
+    await cron('expire-bookings')
+    expect(await db.booking.findUniqueOrThrow({ where: { id } })).toMatchObject({ status: 'CONFIRMED', paymentStatus: 'PAID', cancelReason: null })
+    expect(await db.refund.count({ where: { bookingId: id } })).toBe(0)
+    await makeDue(id)
+    await cron('process-payouts')
+    await expect.poll(async () => (await transfersFor(id)).length).toBe(1)
+    await expectInvariants()
+  })
+
   test('a suspended host is not paid; the payout waits and goes out when the account is restored', async ({ world }) => {
     const admin = await world.admin()
     const host = await world.host()

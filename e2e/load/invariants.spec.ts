@@ -1,7 +1,8 @@
 import fs from 'fs'
 import path from 'path'
 import { test, expect } from '@playwright/test'
-import { checkInvariants } from '../lib/invariants'
+import { checkInvariants, unpaidOnHomesGone } from '../lib/invariants'
+import { cron } from '../lib/world'
 
 // The money and date rules (lib/invariants.ts) over the whole test database, seeded load set included.
 // Run before and after every load scenario: node e2e/run.mjs test --project=perf load/invariants.spec.ts
@@ -16,3 +17,20 @@ test('the money and date rules hold over the whole database', async () => {
   fs.writeFileSync(path.join(dir, `${label}.json`), JSON.stringify({ label, at: new Date().toISOString(), seconds: (Date.now() - started) / 1000, broken }, null, 1))
   expect(broken, broken.map((b) => `${b.rule}: ${b.detail}`).join('\n')).toEqual([])
 })
+
+// SU7: this one runs the expiry job once, live (it is switched on in e2e/env.e2e), then checks that no unpaid
+// booking is left on a home its host switched off or whose host is suspended. So, unlike the rules above,
+// it writes: it ends the bookings the job would end on its next run anyway.
+test('after a live expiry run, no unpaid booking is left on a home that is no longer available', async () => {
+  test.setTimeout(300_000)
+  const run = await cron('expire-bookings', { timeoutMs: 240_000 })
+  expect(run.status).toBe(200)
+  const left = await unpaidOnHomesGone()
+  const label = process.env.E2E_INVARIANTS_LABEL ?? 'adhoc'
+  const dir = path.join(__dirname, '..', '.reports', 'invariants')
+  fs.mkdirSync(dir, { recursive: true })
+  fs.writeFileSync(path.join(dir, `${label}-homes-gone.json`), JSON.stringify({ label, at: new Date().toISOString(), ended: run.json?.results?.filter((r: { kind: string }) => r.kind === 'HOME_UNAVAILABLE').length ?? null, left }, null, 1))
+  expect(left, left.map((b) => b.detail).join('\n')).toEqual([])
+  expect(await checkInvariants()).toEqual([])
+})
+

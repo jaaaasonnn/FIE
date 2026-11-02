@@ -8,6 +8,7 @@
 // guest already on Paystack's page can finish.
 
 import { monthName, weekdayName } from '@/lib/dateText'
+import { HOME_UNAVAILABLE } from '@/lib/homeAvailability'
 
 const HOUR_MS = 60 * 60 * 1000
 
@@ -67,6 +68,7 @@ export type PayState =
   | 'PAY_WINDOW_PASSED'   // not paid and the deadline has gone; the job will release it
   | 'EXPIRED_UNPAID'
   | 'EXPIRED_UNANSWERED'
+  | 'HOME_UNAVAILABLE'    // the home was switched off or its host suspended (lib/homeAvailability.ts): not payable, or ended
   | null
 
 export type PayStateBooking = {
@@ -75,14 +77,18 @@ export type PayStateBooking = {
   payBy?: string | Date | null
   cancelledBy?: string | null
   cancelReason?: string | null
+  /** From the booking reads (lib/homeAvailability.ts); missing means available */
+  homeAvailable?: boolean
 }
 
 /** Where an unpaid booking stands, or null when payment is not the question. */
 export function payState(booking: PayStateBooking, now: Date = new Date()): PayState {
   if (booking.status === 'CANCELLED' && booking.cancelledBy === CANCELLED_BY_SYSTEM) {
+    if (booking.cancelReason === HOME_UNAVAILABLE) return 'HOME_UNAVAILABLE'
     return booking.cancelReason === NO_HOST_RESPONSE ? 'EXPIRED_UNANSWERED' : 'EXPIRED_UNPAID'
   }
   if (booking.paymentStatus !== 'UNPAID') return null
+  if (booking.homeAvailable === false && (booking.status === 'PENDING' || booking.status === 'CONFIRMED')) return 'HOME_UNAVAILABLE'
   if (booking.status === 'PENDING') return 'AWAITING_HOST'
   if (booking.status === 'CONFIRMED') return pastPayBy(booking.payBy, now) ? 'PAY_WINDOW_PASSED' : 'AWAITING_PAYMENT'
   return null
