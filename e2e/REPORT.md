@@ -1,5 +1,92 @@
 # End-to-end test report
 
+## payments-switched-off: SU7, a home that is no longer available (2026-11-02, branch `payments-switched-off`)
+
+Branch `payments-switched-off`, from `main` at `c27c0bd`, pushed after each commit, **not merged**. Built and
+tested on the local test stack only, under `caffeinate -dims` on mains power; no live database, switch or
+environment variable touched; no real Paystack, email or SMS.
+
+### The rule, as decided
+
+A home is no longer available when its host switched it off (`isActive = false` and `moderationHold = false`) or
+the host is suspended (`src/lib/homeAvailability.ts`). **Homes on hold are deliberately outside the rule**: an
+admin hold and the automatic contact-details hold store the same thing (`isActive = false`, `moderationHold =
+true`), so the code cannot tell them apart, and an automatic hold must never end a guest's booking. Held homes stay
+payable, nothing ends their bookings early, money that lands on them is confirmed, and an admin who holds a home
+with unpaid bookings handles those **by hand**. A hold-kind column (for example `Listing.holdKind`, set by the two
+hold paths) would let admin holds join the rule later; it is a schema change on the live database, not made.
+
+### What changed, in order (one commit each, each pushed)
+
+1. **`65354a6`**: `POST /api/payments` refuses a booking's first payment on such a home (409, `HOME_UNAVAILABLE`,
+   "This home is no longer available. You have not been charged."), before a payment row is written or Paystack is
+   called, so an open Paystack page is not handed back either. Accepting a request there is refused ("Switch this
+   home back on before accepting requests for it."); declining works. Later rent on a paid tenancy is untouched.
+   Proofs 263, 264.
+2. **`40ccd7a`** (`settlePayment`, the riskiest change): a successful charge on an unpaid confirmed booking on such
+   a home is refunded in full: in one transaction the payment is claimed (SUCCESS), the booking ends (`CANCELLED`,
+   `SYSTEM`, `HOME_UNAVAILABLE`, `PAID`), open instalments are cancelled, its own nights are released (never a
+   host's own blocks), and the refund is recorded through the existing late-payment path (`LATE_PAYMENT`). The home
+   is read again inside that transaction after the claim; if it changed since the decision, the charge is decided
+   again. A booking paid before is never touched. Proofs 265, 266.
+3. **`1bf9483`**: `expire-bookings` ends unpaid bookings and unanswered requests on such a home at its next run,
+   whatever their deadline (bookings with no `payBy` too), after asking Paystack: a payment that went through is
+   settled (and refunded), one in progress waits. Dry run, or the job switched off: `would-end`. The approved
+   messages (guest; the host who switched the home off; the refund with "several working days"). A suspended host
+   is not written to: the approved wording covered a switched-off home only. Proof 267.
+4. **`a0002bf`**: booking reads carry `homeAvailable` (the home's switches and the host's suspension are not sent);
+   a new pay state; checkout, the guest's booking page and dashboard show the message instead of a Pay button; the
+   host's bookings show "Home switched off". End-to-end tests, races, money rules. Proofs 268 (end to end), 269.
+5. **`d2bd91e`**: removal proofs 36 and 37 (H6, contact details hidden) re-anchored: commit 4 wrapped the lines they
+   look for, so the full run could not apply them. Both hold.
+
+`CLAUDE.md`: the suspension rule no longer says a guest can still pay for a suspended host's bookings; a new section
+"A home that is no longer available (SU7)", with holds outside the rule and handled by hand.
+
+### Tests
+
+- Unit (`paymentSettle.test.ts`, `homeAvailability.test.ts`, `messaging/homeUnavailable.test.ts`): refused for a
+  switched-off home and a suspended host, an open page not handed back, a held home payable and acceptable; money
+  after the switch-off refunded once even with webhook and verify arriving twice together; a held home confirmed; a
+  booking paid before the switch-off untouched; a switch-off between the decision and the write caught; every case
+  of the expiry job; the approved wording.
+- End to end (`switched-off.spec.ts`, every browser set-up): SU7's `test.fail()` is now a normal test (refused,
+  what the guest sees, ended by the job, both told); a suspended host; **the held-home edge** (stays payable, not
+  ended, its payment confirmed, no refund); **switched off while the guest is on Paystack's page** (the payment
+  finishes, one charge, one full refund, the booking ends, webhooks on both servers twice change nothing).
+  Screenshots: `e2e/.reports/switched-off/`.
+- `money.spec.ts`: a stay paid before its home was switched off stands and **is paid out**.
+- Races, 50 rounds each: **switched off as the money lands** (webhooks on both servers and the guest's return in the
+  same tick): 40 rounds paid and left alone, 10 refunded in full and ended, never both, never neither, one payment
+  and one charge every round. **Switched off as Pay is pressed**: 15 refused before Paystack, 35 paid on a page
+  handed out first and refunded in full.
+- Money rules (`e2e/lib/invariants.ts`): a booking ended because its home went was never charged or holds one full
+  refund, and has no payout; `load/invariants.spec.ts` now also runs the expiry job live and checks that no unpaid
+  booking is left on such a home (so, unlike the rest of the checker, it writes: it ends what the job would end).
+
+### The full set, once (`a0002bf`, under `caffeinate -dims`, mains power)
+
+| Check | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass (39 warnings, none new); 1,675 tests in each of the six zones |
+| Harness build | pass |
+| Money rules, with the new ones | clean before and after (2 of 2 each time) |
+| Chromium suite, races at 50 rounds | **216 passed, 4 skipped, 0 failed, 0 flaky, 1 did not run; exit 1**: one error outside any test (SU8, below) |
+| Chaos | 17 passed |
+| Other five set-ups | 226 passed, 4 skipped, 0 failed, 0 flaky |
+| Removal proofs | **267 held, 2 did not**: 36 and 37 could not be applied (their text had moved, commit 4); re-anchored in `d2bd91e`, and both hold |
+| Bundle guard | pass; **desktop search 648 KB of 650** |
+
+**So the run was not clean**, and nothing was re-run to make it so:
+
+- **The Chromium suite exited 1.** `tests/perf/bundle.spec.ts`, "a date-picker file that does not arrive gives Try
+  again" (not changed by SU7) left its `page.route` handler fetching a chunk after the test ended; Playwright raised
+  "route.fetch: Test ended" outside any test and stopped that worker, and one test was counted "did not run" (all
+  221 started; which one was cut short is not recorded: the run's JSON was overwritten by the chaos set). Recorded
+  as SU8, with the one-line fix proposed (`page.unrouteAll({ behavior: 'ignoreErrors' })`); not fixed.
+- **Proofs 36 and 37** did not run in the full set because their anchors had moved: a mistake in commit 4, fixed in
+  `d2bd91e` and both proved holding on their own afterwards. The full set was not run again.
+
 ## security-upgrades: the audit items that ship (2026-11-02, branch `security-upgrades`)
 
 Branch `security-upgrades`, from `main` at `2c51a84`, pushed, **not merged**. Everything ran on this MacBook Air on
