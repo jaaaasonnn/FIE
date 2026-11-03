@@ -1,5 +1,40 @@
 # End-to-end test report
 
+## AS2 resolved in the tests (2026-11-03, branch `payout-retry-claim`, test code only)
+
+**Cause.** The payout job works on every payout in the database. In both full runs where AS2 showed, its
+test overlapped "the payout job starts on two servers at the same moment" (four runs per round, in another
+worker). That test's runs took AS2's retry: (b) they sent it and listed it in their own answer; (a) once,
+one had claimed it and was still on its way to Paystack when AS2 read the payout. No app defect: payout
+code, the cron route and every other app file are unchanged.
+
+**Changes (`3e8810c`, test code only).** The AS2 test checks the payout once no run is working on it, still
+requiring one payout row, PROCESSING, one retry and exactly one transfer, and records which run listed it.
+`e2e/lib/payoutRetry.ts` holds the shared steps. `races/payout-retry.spec.ts` makes the reproduction permanent:
+(b) another run takes the retry first; (a) the claiming run is held at Paystack; (a2) the claimer dies, nothing
+happens until the 15-minute limit, then the next run asks Paystack (404) and sends once; (c) three runs at once,
+the payout made long ago; (d) three runs find an abandoned claim. (c) and (d) run 20 rounds, or `E2E_ROUNDS`
+if more. Each has its own host and checks only its own payouts, settled.
+
+**Proof** (`e2e/.reports/as2c/full/`, each run in its own folder, clean rebuilds, `caffeinate -dims` on mains):
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (39 warnings, none new) |
+| New tests alone, 50 rounds | 5 passed |
+| Money rules | clean before and after |
+| Chromium suite at 50, run 1 (clean rebuild) | **241 passed, 13 skipped, 0 failed, 0 flaky** |
+| Chromium suite at 50, run 2 (clean rebuild) | **241 passed, 13 skipped, 0 failed, 0 flaky** |
+| Removal proofs 284-286 | all 3 hold (284: the wait removed, (a) fails; 285 and 286: the stale-claim pick-up removed, (a2) and (d) fail) |
+
+AS3 did not show. In the two Chromium runs, AS2's payout was listed by one of the test's own runs every round
+(17 and 17); in the 50-round run alone, (b) was taken by another test's run 7 times of 17, (a) 7 of 17, (a2) 1
+of 17: the interference is common, and now harmless.
+
+**AS6 (new, Low, open):** a run that loses the claim reports `paid` with the payout still PENDING although it
+sent nothing; in (d) two or three runs said "paid" for one transfer in 43 rounds of 50. Fix before
+`PAYOUTS_ENABLED` is switched on (option B, payout code: needs the go-ahead).
+
 ## app-shell, stage 1: the full set again (2026-11-03, `5de4ce8`, not merged)
 
 Run once on `5de4ce8` (the AS5 keys `ffe265c` and the sign-out test fix in), after a clean rebuild (`down`, `.next`

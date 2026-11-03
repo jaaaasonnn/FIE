@@ -74,7 +74,7 @@ Rules worth knowing:
 - A transfer that gets no answer from Paystack within 15 seconds is not recorded as failed. The payout stays `PENDING`, the job reports `unanswered`, and no retry is counted. Before any transfer is sent a second time (a stale claim, or a retry) Paystack is asked for it by reference (`GET /transfer/verify/:reference`): one it holds is adopted, only "not found" allows a send, and if Paystack cannot be asked nothing is sent.
 - Still not built: payouts for a monthly or long-term stay made before instalments existed (it has no `Instalment` rows), refunds after check-in outside a dispute (support handles these by hand), host cancellation penalties, and returning the damage deposit after check-out (done by hand).
 
-Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries transfer, refund and payment events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
+Before turning payouts on, fix AS6 (`e2e/FINDINGS.md`): a run that loses the claim on a payout reports it `paid` though it sent nothing. Before turning payouts or refunds on: confirm in the Paystack dashboard that transfers are enabled and OTP for transfers is off, check Paystack's refund rules for mobile money, point the Paystack webhook at the real domain (it carries transfer, refund and payment events), and run the launch clean of test bookings (delete `Refund` rows before `Payment` and `Booking`).
 
 ## Host ID before payout
 
@@ -265,6 +265,7 @@ The security pass (2026-10) is in `src/lib/security/*.test.ts`; each fix has a t
 - The test clean-up (`purge`, `e2e/lib/db.ts`) never deletes a `MessageLog` row a send job is sending (SU9): it waits for it, since the job records the outcome by id. `deliver.ts` was not changed: the app never deletes those rows.
 - Test processes do not get in each other's way (SU10): each has an id (`E2E_RUN_ID`, `e2e/lib/runId.ts`) carried in every test person's email (`runEmail`), and the end-of-run clean-up removes only its own people. A fake-service failure rule needs a `match` (the fake refuses one without), and every rule is removed when the test that added it ends, however it ends (fixture `fakeRules`). A new test person's email must come from `runEmail`.
 - The fake Paystack records when every request arrived and was answered (`fakes.calls`: `at`, `answeredAt` or `abandonedAt`, `ms`, `status`): use it to tell a slow fake from a problem in the app. The send job sends the 50 oldest messages due per run, so a test that needs its own messages sent runs it until they have gone, not once (AS1).
+- The payout job works on every payout in the database, so a run another test starts can take a payout's retry and list it in its own answer (AS2). Payout race tests check the payout once it has settled (`settledPayout`, `e2e/lib/payoutRetry.ts`), never which run's answer listed it; `races/payout-retry.spec.ts` covers a retry taken by another run, a claimer held up or dead, and three runs at once.
 - The unit tests (`npm test`) are separate and unchanged: `src/**/*.test.ts`.
 
 ## Page speed (G5, branch `mobile-speed`)
