@@ -1,5 +1,78 @@
 # End-to-end test report
 
+## app-shell, stage 1 polish (2026-11-03, branch `app-shell`, not merged)
+
+Phones only; desktop unchanged (desktop search **648 KB**, no desktop page downloads the bar's script). Money,
+sign-in, messaging and payout code untouched; no schema or live-database change.
+
+1. **Logo:** Trips' icon is the header logo's own asset and mask (`public/logo-mark.png`), gold on Trips like the
+   header, the muted grey elsewhere; `e2e/.reports/app-shell/logo-compare.png` shows them side by side at 24, 28
+   and 48 px.
+2. **Type scale** (rem): body 15 px, small text 13 px, page titles 24 px, section titles 19 px, card titles 16 px,
+   titles at 600, tighter lines; nothing under 12 px but the tab labels (11 px); 44 px targets everywhere.
+3. **Nothing outside its box:** a new audit (`tests/layout/phone-fit.spec.ts`) at 320, 360, 390 and 430 px on
+   home, search, a listing, how it works, and signed in Trips, wishlist, messages and account. It found 355
+   problems at first, none now: the Explore rental types (now sized to their words, scrolling if they must,
+   icons hidden below 375 px), Trips' chip and stat cards, the search field ("Accra"), the search dates, the host
+   row and title row on a listing (its buttons on their own row on a small phone), a booking's title and status
+   pill, the stat card label, and the guest's page-tab row (desktop only now: the bar does that on a phone).
+4. **Search dates:** side by side, 44 px, our font and corners, "Add date" or "Wed, 10 Mar", over the browser's
+   own date input (its calendar on a tap); no picker code, so the bundle is unchanged.
+5. **Header and bar:** header 56 px with the logo at its size; tab labels 11 px, the active one semi-bold in
+   `--color-accent-deep` under the gold marker, a slight press, no tap flash, thin top border, lightly blurred.
+6. **Trips on a phone:** a compact header ("Hi, <name>", one verification chip), one row of four figures, then
+   the bookings; notices after them. Layout only.
+
+Removal proofs 276-283 (the logo mask, the 56 px header, the date face, Trips' order, the 44 px minimum, the
+listing title's width, the search field's box, and drawing late answers fresh). Screenshots of the main pages at
+360 and 390 px on iPhone and Android: `e2e/.reports/app-shell/pages/`.
+
+**The full set, once (`ce349ba`, each suite in its own folder, `e2e/.reports/polish/full/`):**
+
+| Check | Result |
+|---|---|
+| Lint, type check, `npm run test:tz` | pass (39 warnings, none new); 1,675 tests in each zone |
+| Money rules | clean before and after |
+| Chromium suite, races at 50 | **233 passed, 13 skipped, 1 failed, 1 flaky** |
+| Chaos | 17 passed |
+| Other five set-ups | **272 passed, 36 skipped, 2 failed** |
+| Removal proofs | all 282 hold (281 re-pointed first, see below) |
+| Bundle guard | desktop search 648 KB; phone pages 202-244 KB |
+
+**Not clean. What failed and why** (none re-run to pass):
+- *Layout shift at phone width* (failed twice): the booking page 0.135, Wishlists 0.008, when their answers came
+  late under load: React moved the loading screen's pieces into place. Older than the polish; reproduced with
+  every answer 1.5 s late; fixed by keying each state (AS5, `ffe265c`), and the guard now covers late answers
+  (0 on seven pages). Proof 283.
+- *"Signing out from the menu"* on iPhone and Android (failed twice each): the test expected Trips' heading
+  "Welcome back"; on a phone it is now "Hi, <name>", as asked. The sign-out worked; the test now accepts both.
+- *The payout-retry race (AS2)*, flaky: caught with its timings. The fake was never asked anything during the
+  retry, yet the payout ended PENDING with its retry counted: the cause is in the app's retry path, which was not
+  touched (FINDINGS AS2).
+- Proof 281 first did not hold (the fit audit cannot see the listing title's row reliably); it now names a direct
+  test of that layout, and holds.
+- After the run the stack served a home page linking a stylesheet from an earlier build (AS4, harness); a clean
+  rebuild put it right.
+
+The fixes were checked on their own (layout shift 0 with late answers; sign-out passing in all six set-ups;
+proof 283 holds); the full set has not been run again.
+
+**Proposals for stage 2** (not built):
+- A compact search summary pill at the top of Explore and search ("Accra · 10-12 Mar · 2 guests") that opens a
+  full-screen sheet: where, dates (the date picker on demand), who, rental type; Search at the bottom of the sheet.
+- Vertical, full-width result cards on a phone: a big photo (swipeable, dots), the heart on the photo, title,
+  area, rating, our badge, price per night or month (and the total once dates are chosen), all fixed heights.
+- Explore without the top header on a phone: the search pill is the top of the page; the logo in the pill or not
+  at all (the bar is the navigation).
+- Sticky filter chips under the search pill (rental type, price, bedrooms, checked homes) that stay while the list
+  scrolls; the map as a floating button above the bar.
+- Loading: skeletons the exact size of the cards, never a centred spinner; pull to refresh on Trips and Messages.
+- Transitions: the listing photo growing from the card into the listing page; sheets sliding up; `prefers-reduced-
+  motion` respected.
+- Empty states with a picture and one action (no trips yet, nothing saved, no messages), in FieGH's voice.
+- Scroll: the header hiding on scroll down and coming back on scroll up; scroll position kept on Back.
+- The dark bands at the top of Messages, Wishlists and Payments replaced by plain titles on a phone, as on Trips.
+
 ## app-shell: AS1 fixed, AS2 investigated (2026-11-02, test code only, not merged)
 
 **AS1** (`6b0a20c`, `c2f64af`): the send-job test had two timing causes, both in the test. It started its runs
