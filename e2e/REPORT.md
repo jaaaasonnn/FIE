@@ -1,5 +1,36 @@
 # End-to-end test report
 
+## app-shell, stage 1: the full set again (2026-11-03, `5de4ce8`, not merged)
+
+Run once on `5de4ce8` (the AS5 keys `ffe265c` and the sign-out test fix in), after a clean rebuild (`down`, `.next`
+removed, `up --build`, for AS4), under `caffeinate -dims` on mains power. Each suite in its own folder,
+`e2e/.reports/polish2/full/`. Nothing was re-run.
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (39 warnings, none new) |
+| `npm run test:tz` | 1,675 passed in each of the six zones |
+| Money rules | clean before and after |
+| Chromium suite, races at 50 | **236 passed, 13 skipped, 0 failed, 0 flaky** |
+| Chaos | **17 passed** |
+| Other five set-ups | **274 passed, 36 skipped, 0 failed, 0 flaky** |
+| Removal proofs | **all 283 hold** |
+| Bundle guard | desktop search **648 KB** (limit 648); phone pages 202-244 KB (limit 350) |
+| Layout shift at phone width | 0.0000 on every page, signed out, signed in, and with every answer 1.5 s late (seven pages) |
+| Accessibility at phone width | 0 problems, signed out, guest with an unread message, host |
+
+**Clean: no test failed, none was retried, none flaky, none "did not run".** Every skip is a planned one:
+pictures only when asked for (11), the bar is for phones (12), phones only (16), widths set by the fit test in
+three set-ups only (6), the map in headless Firefox (4).
+
+- **AS2** passed all 17 rounds. One round (11) is worth recording: the retry was sent (lookup 404, then the
+  transfer, 200) and the payout ended `PROCESSING` with one retry, as it should, but **none of the three runs
+  listed it** in its answer. In the other 16 rounds exactly one run said "retry sent". So a run can act on the
+  retry without reporting it; in the failing round (polish run) a run claimed it and neither sent nor reported.
+  Both point at the same place in the retry path. Payout code not touched.
+- **AS3** did not show.
+- **AS4** did not show: the clean rebuild came first, and `.next/BUILD_ID` was present after the proofs.
+
 ## app-shell, stage 1 polish (2026-11-03, branch `app-shell`, not merged)
 
 Phones only; desktop unchanged (desktop search **648 KB**, no desktop page downloads the bar's script). Money,
