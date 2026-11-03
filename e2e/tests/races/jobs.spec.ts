@@ -4,6 +4,7 @@ import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { allowForRounds, ROUNDS, cancel, measured, serverErrors, together } from '../../lib/race'
 import { APP, cron, type Actor, type World } from '../../lib/world'
+import { failedPayout, listedBy, paystackAsked, settledPayout } from '../../lib/payoutRetry'
 
 test.beforeEach(allowForRounds)
 
@@ -48,31 +49,20 @@ test.describe('races: payouts', () => {
   test('a failed payout is retried while the normal job runs: still paid once', async ({ world }) => {
     const host = await world.host()
     for (let round = 0; round < Math.max(1, Math.ceil(ROUNDS / 3)); round++) {
-      const id = await duePayout(world, host)
-      const undo = await fakes.rule('transfer', 'http500', { match: `booking ${id}`, times: 1 })
-      await cron('process-payouts')
-      const failed = await db.payout.findFirstOrThrow({ where: { bookingId: id } })
-      expect(failed.status, `after Paystack answered 500: ${failed.failureReason}`).toBe('FAILED')
-      expect(await transfersFor(id)).toHaveLength(0)
-      await undo()
-      // More than the retry delay passes
-      await db.payout.update({ where: { id: failed.id }, data: { lastFailedAt: new Date(Date.now() - 2 * 3_600_000) } })
+      const { bookingId: id, payoutId, reference } = await failedPayout(world, host)
       // AS2: each run timed, and what Paystack (the fake) was asked and how long it took to answer
       const timed = (server: 0 | 1) => async () => { const start = Date.now(); const reply = await cron('process-payouts', { server }); return { ...reply, ms: Date.now() - start } }
       const started = Date.now()
       const runs = await together(timed(0), timed(1), timed(1))
-      const reference = (await db.payout.findFirstOrThrow({ where: { bookingId: id } })).paystackTransferReference
-      const asked = (await fakes.calls({ service: 'paystack' })).filter((c) => c.at >= started - 1_000 && (c.text.includes(`booking ${id}`) || (!!reference && c.text.includes(reference))))
-      // What each run said about this payout: new and resumed payouts are listed by booking, retries by payout
-      type Said = { bookingId?: string; payoutId?: string; action?: string; ok?: boolean; status?: string; unanswered?: boolean; error?: string }
-      const said = runs.map((r) => Object.values(r.json ?? {}).flatMap((v) => Array.isArray(v) ? (v as Said[]).filter((x) => x?.bookingId === id || x?.payoutId === failed.id).map((x) =>
-        x.action ? `${x.action}${x.error ? ` (${x.error})` : ''}` : `retry ${x.ok ? 'sent' : x.unanswered ? 'unanswered' : 'not sent'}, ${x.status}${x.error ? ` (${x.error})` : ''}`) : []))
-      const timing = `runs ${runs.map((r) => `${r.status} in ${r.ms} ms: ${said[runs.indexOf(r)].join(', ') || 'nothing for this payout'}`).join(' | ')}; Paystack ${asked.map((c) => `${c.endpoint} +${c.at - started} ms, ${c.abandonedAt ? `given up on after ${c.ms} ms` : `answered ${c.status} in ${c.ms} ms`}`).join(' | ') || 'not asked'}`
+      expect(serverErrors(runs), `round ${round}`).toEqual([])
+      // Another test's run of the job may have taken the retry and be part way through it (AS2): the payout is
+      // checked once no run is still working on it, and the report says which run's answer listed it
+      const payout = await settledPayout(payoutId)
+      const asked = await paystackAsked(started - 1_000, id, reference)
+      const timing = `runs ${runs.map((r) => `${r.status} in ${r.ms} ms`).join(', ')}; listed by ${listedBy(runs, id, payoutId)}; Paystack ${asked.map((c) => `${c.endpoint} +${c.at - started} ms, ${c.abandonedAt ? `given up on after ${c.ms} ms` : `answered ${c.status} in ${c.ms} ms`}`).join(' | ') || 'not asked'}`
       measured(`round ${round + 1}: ${timing}`)
-      expect(serverErrors(runs), `round ${round}: ${timing}`).toEqual([])
-      const payouts = await db.payout.findMany({ where: { bookingId: id } })
-      expect(payouts).toHaveLength(1)
-      expect(payouts[0], `round ${round}: ${payouts[0].failureReason}; ${timing}`).toMatchObject({ status: 'PROCESSING', retryCount: 1 })
+      expect(await db.payout.count({ where: { bookingId: id } }), `round ${round}: ${timing}`).toBe(1)
+      expect(payout, `round ${round}: ${payout.failureReason}; ${timing}`).toMatchObject({ status: 'PROCESSING', retryCount: 1 })
       expect(await transfersFor(id), `round ${round}: ${timing}`).toHaveLength(1)
     }
     await expectInvariants()

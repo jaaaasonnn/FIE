@@ -3491,5 +3491,44 @@
   "testFile": "e2e/tests/perf/layout-shift.spec.ts",
   "test": "no layout shift at phone width when the answers arrive late",
   "e2e": true
+ },
+ {
+  "what": "AS2: a payout-retry race checks the payout only once no run is still working on it (another test's run may hold the retry)",
+  "edits": [
+   {
+    "file": "e2e/lib/payoutRetry.ts",
+    "find": "export async function settledPayout(payoutId: string, timeout = 20_000) {\n  await expect.poll",
+    "replace": "export async function settledPayout(payoutId: string, timeout = 20_000) {\n  if (timeout < 0) await expect.poll"
+   }
+  ],
+  "testFile": "e2e/tests/races/payout-retry.spec.ts",
+  "test": "(a) another run has claimed the retry and is on its way to Paystack",
+  "e2e": true
+ },
+ {
+  "what": "AS2: a retry whose claiming run died is picked up by the stale-claim rule and sent exactly once",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "  for (const payout of stuck) {",
+    "replace": "  for (const payout of stuck.slice(0, 0)) {"
+   }
+  ],
+  "testFile": "e2e/tests/races/payout-retry.spec.ts",
+  "test": "(a2) the run that claimed the retry dies before calling Paystack",
+  "e2e": true
+ },
+ {
+  "what": "AS2: three runs that find an abandoned retry claim send it exactly once (the stale-claim rule)",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "  for (const payout of stuck) {",
+    "replace": "  for (const payout of stuck.slice(0, 0)) {"
+   }
+  ],
+  "testFile": "e2e/tests/races/payout-retry.spec.ts",
+  "test": "(d) three runs at once find a retry whose claimer died",
+  "e2e": true
  }
 ]
