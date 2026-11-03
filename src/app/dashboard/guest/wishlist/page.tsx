@@ -156,13 +156,14 @@ export default function WishlistPage() {
           ))}
         </div>
 
+        {/* Each state has its own key: what arrives is drawn fresh, not moved from where "Loading" was */}
         {loading || authLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
+          <div key="loading" className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading wishlist…</p>
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-20">
+          <div key="empty" className="text-center py-20">
             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Nothing saved yet</h3>
             <p className="text-[#6B645C] mb-6 max-w-sm mx-auto">
               Tap the heart on a home you love and it&apos;ll wait for you here.
@@ -173,7 +174,7 @@ export default function WishlistPage() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div key="saved" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {items.map((listing) => (
               <div
                 key={listing.id}

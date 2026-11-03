@@ -63,7 +63,8 @@ test.describe('accounts', () => {
     const guest = await world.guest()
     await signIn(guest)
     await page.goto('/dashboard/guest')
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Welcome back')
+    // (Trips greets a guest "Welcome back" on a wide screen and "Hi, <name>" on a phone: app shell polish)
+    await expect(page.getByRole('heading', { level: 1 })).toContainText(/Welcome back|Hi, /)
     // On a phone the account is inside the menu; on a wide screen it is its own button
     // (the dashboard comes with the page and can be drawn before the menu knows who is signed in: G5)
     const account = page.getByRole('button', { name: /E2E/ }).first()

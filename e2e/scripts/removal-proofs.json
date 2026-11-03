@@ -3473,5 +3473,23 @@
   "testFile": "e2e/tests/layout/phone-fit.spec.ts",
   "test": "signed out: no text outside its box",
   "e2e": true
+ },
+ {
+  "what": "App shell polish: a booking page whose answer arrives late is drawn fresh, not moved from its loading screen",
+  "edits": [
+   {
+    "file": "src/app/bookings/[id]/BookingPageClient.tsx",
+    "find": "      <div key=\"loading\" className=\"min-h-screen flex items-center justify-center\"",
+    "replace": "      <div className=\"min-h-screen flex items-center justify-center\""
+   },
+   {
+    "file": "src/app/bookings/[id]/BookingPageClient.tsx",
+    "find": "    <div key=\"booking\" className=\"min-h-screen\"",
+    "replace": "    <div className=\"min-h-screen\""
+   }
+  ],
+  "testFile": "e2e/tests/perf/layout-shift.spec.ts",
+  "test": "no layout shift at phone width when the answers arrive late",
+  "e2e": true
  }
 ]
