@@ -11,6 +11,7 @@ process.env.E2E_RUN_ID ||= `r${crypto.randomBytes(4).toString('hex')}`
 
 const reports = process.env.E2E_REPORT_DIR ? path.resolve(process.env.E2E_REPORT_DIR) : path.join(__dirname, '.reports')
 const core = /@core/
+const contention = /races\/contention\.spec\.ts$/
 // WebKit keeps the app's Secure session cookie only over https, as on the real site: the WebKit-engine
 // projects go through the https front (run.mjs), whose throwaway certificate only these browsers accept
 const httpsFront = { baseURL: 'https://localhost:3443', ignoreHTTPSErrors: true }
@@ -38,7 +39,10 @@ export default defineConfig({
   },
   projects: [
     // Everything, in Chromium. Tests that stop the database or a server are kept apart and run alone.
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: /chaos\// },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: [/chaos\//, contention] },
+    // AS3's bursts of bookings load the one Postgres for about 12 minutes: beside them the timing-bound races
+    // ran out of time (the full set of 2026-11-04). Run alone, one test at a time, after the Chromium suite.
+    { name: 'contention', use: { ...devices['Desktop Chrome'] }, testMatch: contention, fullyParallel: false, workers: 1 },
     { name: 'chaos', use: { ...devices['Desktop Chrome'] }, testMatch: /chaos\//, fullyParallel: false, workers: 1 },
     // The core journeys again in the other engines and on small screens with touch
     { name: 'firefox', use: { ...devices['Desktop Firefox'] }, grep: core, testIgnore: /chaos\// },

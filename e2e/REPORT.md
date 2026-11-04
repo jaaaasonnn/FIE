@@ -33,6 +33,16 @@ every rule. 13 s is the longest ceiling whose slowest answer stays under about 1
 old rules on both stress bursts. At the stress distance a burst of 20 still outruns it; the test prints that
 rate and asserts only that nothing is booked twice and every answer matches the database.
 
+**First full set (`8787678`, stopped, not merged).** Chromium run 1 at 50: 245 passed, 0 failed, **1 flaky**:
+`races/bookings.spec.ts`, "the guest cancels at the moment the payment lands", ran past its 400 s limit on the
+first try (it takes 314-319 s in earlier full runs) and passed on the retry in 265 s; the foreign-key error in
+its log is the clean-up after the timeout. That try ran beside the contention tests' bursts of 100 and 200
+bookings on the same Postgres, which, while the tables are small, collide with every other booking (the AS3
+cause), and each retry now waits longer. No booking on 3200 or 3201 was told "busy". Fixed in the tests, as
+decided: `races/contention.spec.ts` is its own Playwright project, `contention` (one worker), left out of
+`chromium` and run alone after the Chromium runs, in every full set and in `npm run e2e`. The 400 s limit
+is unchanged.
+
 **Next.** Revisit the locking option (B) only if Sentry shows `SERIAL_RETRY_EXHAUSTED` in production, or
 before any marketing push.
 

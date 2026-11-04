@@ -179,12 +179,13 @@ try {
   else if (command === 'app:start') { startApp(Number(rest[0])).unref(); await waitFor(`http://localhost:${rest[0]}/api/auth/session`, `the app on ${rest[0]}`); log(`the app on ${rest[0]} is back`); process.exit(0) }
   else if (command === 'db:reset') { const pg = postgres(); await pg.start(); await setupDatabase(pg, { fresh: true }); await pg.stop() }
   else if (command === 'suite') {
-    // Everything in Chromium, then the tests that break things, which must run alone. Both always run.
+    // Everything in Chromium, then the bursts of bookings (AS3) and the tests that break things, each alone. All always run.
     const env = e2eEnv({ extra: { ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('E2E_'))), E2E_EGRESS_LOG: EGRESS_LOG, E2E_STATE_DIR: STATE } })
     const play = (...args) => spawnSync('npx', ['playwright', 'test', '-c', path.join(E2E_DIR, 'playwright.config.ts'), ...args, ...rest], { cwd: ROOT, env, stdio: 'inherit' }).status ?? 1
     const main = play('--project=chromium')
+    const contention = play('--project=contention')
     const chaos = play('--project=chaos')
-    process.exit(main || chaos)
+    process.exit(main || contention || chaos)
   }
   else if (command === 'test' || command === 'exec') {
     // E2E_ROUNDS, E2E_WORKERS and the like are passed on; nothing else from this shell is

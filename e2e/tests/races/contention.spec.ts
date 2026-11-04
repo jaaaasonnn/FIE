@@ -1,7 +1,8 @@
 // AS3: many bookings at one instant, through the contention lane (an app server whose distance from Postgres each
 // test sets, run.mjs and lib/lane.ts), so each booking's Serializable transaction is open as long as it would be
-// on Vercel and Supabase. Every test makes its own guests and homes and depends on no other test; it runs whatever
-// else the suite is doing at the same time. Ten rounds each, whatever E2E_ROUNDS says.
+// on Vercel and Supabase. Every test makes its own guests and homes and depends on no other test. The file is its own
+// project (`contention`, playwright.config.ts), run alone after the Chromium suite: its bursts load the one Postgres
+// for about 12 minutes, and beside them the timing-bound races ran out of time. Ten rounds each, whatever E2E_ROUNDS says.
 //
 // Realistic (5-15 ms, Vercel's dub1 beside Supabase's eu-west-1): every booking is made, nobody is told "busy".
 // Stress (30-80 ms): Postgres lets one of these transactions through at a time (they read the same small tables

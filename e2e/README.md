@@ -9,7 +9,7 @@ can reach the live database, Paystack, Resend, Arkesel, Sentry, Supabase or MapT
 ```bash
 npm run e2e:up        # terminal 1: Postgres, fakes, build if needed, two app servers. Stays running.
 npm run e2e:smoke     # terminal 2: the fast set, a few minutes
-npm run e2e           # everything in Chromium, then the tests that break things on purpose
+npm run e2e           # everything in Chromium, then the bursts of bookings (AS3) alone, then the tests that break things on purpose
 npm run e2e:all       # the above plus the core journeys in Firefox, WebKit, tablet and two phones
 npm run e2e:down      # stop everything
 ```
@@ -17,6 +17,7 @@ npm run e2e:down      # stop everything
 - `node e2e/run.mjs up --build` rebuilds the app first. Do this after changing anything under `src/`.
 - `node e2e/run.mjs up --fresh-db` drops and re-creates the test database. The tables are made once, so do this after any change to `prisma/schema.prisma`.
 - `node e2e/run.mjs test <playwright args>` passes arguments through, for example `tests/races -g "same dates" --repeat-each=20`.
+- `races/contention.spec.ts` is its own project, `contention` (one worker, nothing beside it): `node e2e/run.mjs test --project=contention`. The `chromium` project leaves it out. Its bursts of bookings load the one Postgres for about 12 minutes, and in the first AS3 full set a timing-bound race beside them ran past its limit.
 - `node e2e/run.mjs exec <command>` runs any command with the test environment.
 - Reports: `e2e/.reports/html` (open `index.html`), traces for failed tests in `e2e/.reports/artifacts`, every test's result in `e2e/.reports/results.json`. Two test processes can share the stack: each tags its people with its own id and cleans up only those (SU10). `E2E_REPORT_DIR=<folder>` puts all three in a folder of the run's own, so one suite's results are never overwritten by the next. Logs: `e2e/.state/*.log`.
 - Stop `next dev` first: the tests build into the same `.next` folder.

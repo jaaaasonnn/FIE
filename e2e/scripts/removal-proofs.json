@@ -3552,7 +3552,8 @@
   ],
   "testFile": "e2e/tests/races/contention.spec.ts",
   "test": "twenty guests book twenty different homes at one instant, ten rounds: every booking is made, nobody is told \"busy\"",
-  "e2e": true
+  "e2e": true,
+  "project": "contention"
  },
  {
   "what": "AS3: without the time ceiling a transaction aborted every time is run all 12 times, however long that takes",
