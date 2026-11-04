@@ -43,6 +43,26 @@ decided: `races/contention.spec.ts` is its own Playwright project, `contention` 
 `chromium` and run alone after the Chromium runs, in every full set and in `npm run e2e`. The 400 s limit
 is unchanged.
 
+**Full set (`f44b5fe`, clean, merged).** Clean rebuilds (`down`, `.next` removed, `up --build`), `caffeinate -dims`
+on mains power, each suite in its own folder (`e2e/.reports/as3/full2/`). Nothing was re-run.
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (39 warnings, none new) |
+| `npm run test:tz` | 1,682 passed in each of the six zones |
+| Money rules | clean before and after |
+| Chromium suite, races at 50, run 1 (clean rebuild) | **241 passed, 13 skipped, 0 failed, 0 flaky** |
+| Chromium suite, races at 50, run 2 (clean rebuild) | **241 passed, 13 skipped, 0 failed, 0 flaky** |
+| Contention, alone | **5 passed, 0 flaky** (below) |
+| Chaos | **17 passed** |
+| Other five set-ups | **274 passed, 36 skipped, 0 failed, 0 flaky** |
+| Removal proofs | **all 289 hold** (287: the old rules, 20 guests at 5-15 ms told "busy"; 288: the ceiling removed; 289: the Sentry report removed) |
+
+Contention, alone: at 5-15 ms 100/100 and 200/200 booked, nobody told "busy" (slowest 5.7 s and 8.6 s); at
+30-80 ms 6/100 and 72/200 told "busy" (slowest 14.6 s and 14.5 s), nothing booked twice, every answer matching
+the database; same dates: one booking every round, nobody told "busy". "The guest cancels at the moment the
+payment lands" took 302 s and 306 s (limit 400 s). No booking on 3200 or 3201 gave up.
+
 **Next.** Revisit the locking option (B) only if Sentry shows `SERIAL_RETRY_EXHAUSTED` in production, or
 before any marketing push.
 
