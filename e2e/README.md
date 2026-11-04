@@ -65,6 +65,7 @@ Two things do use the network, as they always have: `npm install`, and `next bui
 |---|---|
 | Supabase Postgres 17.6 behind the Supavisor pooler | Postgres 17.10 from `embedded-postgres`, `max_connections=60` (each app server's Prisma pool is 10: `run.mjs`, `--pool=N` or `E2E_APP_POOL`), tables from `prisma db push`, then `prisma/enable_rls.sql` and `prisma/constraints.sql` unchanged, with the roles `anon`, `authenticated` and `service_role` created first. **No pooler.** |
 | Vercel (many instances) | Two `next start` processes on ports 3200 and 3201 sharing the database. Race tests send their two requests to different processes. |
+| Vercel `dub1` a few ms from Supabase `eu-west-1` | A third `next start` on 3204 (the contention lane, pool 20) whose database goes through `fakes/db-latency.mjs` on 54330. A test sets its delay with `setLaneLatency` (`lib/lane.ts`, control port 54334): `REALISTIC` 5-15 ms, `STRESS` 30-80 ms (AS3). |
 | Paystack | `fakes/server.mjs`: initialize, a checkout page with Pay / Declined / Close, verify, refund, transfer, bank list, account resolve, signed webhooks. A duplicate transfer reference is refused with HTTP 400, as the app's own comments say Paystack does. |
 | Resend | An inbox the tests read. Honours `Idempotency-Key`. |
 | Arkesel (SMS) | Send and balance, answered as Arkesel's published spec shows them; every SMS it took, for the tests to read; a balance that runs down and can be set; and, when a test asks, a delivery report sent to the link the SMS carried. People have no phone number unless a test gives them one. |

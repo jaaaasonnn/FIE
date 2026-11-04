@@ -7,7 +7,10 @@ import { db, purge } from './db'
 import { fakes, until } from './fakes'
 import { runEmail } from './runId'
 
-export const APP = ['http://localhost:3200', 'http://localhost:3201'] as const
+/** 0 and 1: the two app servers. 2: the contention lane, an app server at a distance from Postgres that each test sets (AS3, lib/lane.ts). */
+export const APP = ['http://localhost:3200', 'http://localhost:3201', 'http://localhost:3204'] as const
+export type Server = 0 | 1 | 2
+export const LANE: Server = 2
 export const CRON_SECRET = process.env.CRON_SECRET ?? 'e2e-cron-secret'
 const RUN = crypto.randomBytes(3).toString('hex')
 let counter = 0
@@ -16,7 +19,7 @@ const unique = () => `${RUN}${process.pid.toString(36)}${(++counter).toString(36
 export const freshIp = () => `10.${crypto.randomInt(1, 254)}.${crypto.randomInt(1, 254)}.${crypto.randomInt(1, 254)}`
 
 export type Reply<T = any> = { status: number; json: T; text: string; headers: Headers }
-export type CallOptions = { server?: 0 | 1; form?: FormData; headers?: Record<string, string>; raw?: string; /** Give up after this long: the answer then has status 0 */ timeoutMs?: number }
+export type CallOptions = { server?: Server; form?: FormData; headers?: Record<string, string>; raw?: string; /** Give up after this long: the answer then has status 0 */ timeoutMs?: number }
 
 export async function call(method: string, path: string, body?: unknown, o: CallOptions & { cookie?: string | null; ip?: string } = {}): Promise<Reply> {
   const base = APP[o.server ?? 0]
@@ -144,7 +147,7 @@ export class World {
     return { id: r.json.listing.id, title }
   }
 
-  async book(guest: Actor, listingId: string, o: { checkIn?: string; checkOut?: string; rentalMode?: string; nights?: number; server?: 0 | 1 } = {}): Promise<Reply> {
+  async book(guest: Actor, listingId: string, o: { checkIn?: string; checkOut?: string; rentalMode?: string; nights?: number; server?: Server } = {}): Promise<Reply> {
     const dates = o.checkIn ? { checkIn: o.checkIn, checkOut: o.checkOut! } : this.dates(o.nights ?? 2)
     return guest.call('POST', '/api/bookings', { listingId, rentalMode: o.rentalMode ?? 'SHORT_STAY', ...dates }, { server: o.server })
   }

@@ -218,7 +218,7 @@ export async function POST(req: Request) {
         }
 
         return newBooking
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }), { op: 'booking', ids: { listingId, guestId } })
     } catch (txErr) {
       const code = (txErr as NodeJS.ErrnoException).code ?? (txErr as Error).message
       if (code === 'DATE_CONFLICT') {

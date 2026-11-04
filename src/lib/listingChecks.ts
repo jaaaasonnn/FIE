@@ -103,7 +103,7 @@ export async function markChecked({
           photos: JSON.stringify(photoList(listing.photos)),
         },
       })
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }), { op: 'listing-check', ids: { listingId, adminId } })
     console.info('[Listing checks] checked', { listingId, checkId: check.id, adminId })
     notify('listing.checked', { checkId: check.id })
     return { ok: true, checkId: check.id, expiresAt }

@@ -1,5 +1,41 @@
 # End-to-end test report
 
+## AS3 fixed: bursts of bookings (2026-11-04, branch `booking-contention`)
+
+**Cause.** While the tables are small Postgres reads them whole, so a booking's Serializable transaction
+collides with every other booking in flight, even on a different home: in effect one commits at a time (about
+0.74 s a run at 30-80 ms from the database). The old retry rules (9 runs, 20-200 ms pauses, about 1 s of
+waiting) gave up before a burst had drained, and the guest was told "busy". Nothing was booked twice.
+
+**Change (option A, `src/lib/serialRetry.ts` only; no locking or isolation change).** 12 runs; a pause that
+grows (50 ms doubling to 2 s, each a random time between half and the whole step); no run starts after 13 s.
+A give-up is one Sentry warning (`db_issue: SERIAL_RETRY_EXHAUSTED`, the op and IDs only) and one log line
+with the runs, the total wait and why. The four callers (booking, host calendar, listing check, deposit cover)
+were reviewed: each body only reads and writes through its `tx`; messages, logs of the outcome and Paystack
+calls come after the commit. Each now passes `{ op, ids }`.
+
+**Measuring.** A contention lane: a third app server (3204, pool 20) whose database goes through its own
+delay proxy, set by each test. Realistic is 5-15 ms (Vercel `dub1` beside Supabase `eu-west-1`, with room
+to spare); stress is 30-80 ms. `races/contention.spec.ts`, 10 rounds a test, one test at a time. Told
+"busy", and the slowest answer:
+
+| Rules | Realistic, 10 guests | Realistic, 20 guests | Stress, 10 guests | Stress, 20 guests | Slowest (stress) |
+|---|---|---|---|---|---|
+| Old (9 runs, 20-200 ms, no ceiling) | 0/100 | **50/200 (fails)** | 10/100 | 110/200 | 9.2 s |
+| New, 8 s ceiling | 0/100 | **5/200 (fails)** | 30/100 | 121/200 | 9.3 s |
+| New, 10 s | 0/100 | 0/200 | 19/100 | 106/200 | 11.4 s |
+| New, 12 s | 0/100 | 0/200 | 10/100 | 86/200 | 13.5 s |
+| **New, 13 s (chosen)** | **0/100** | **0/200** | **6/100** | **81/200** | **14.2 s** |
+| New, 14 s | 0/100 | 0/200 | 3/100 | 68/200 | 15.5 s (over 15 s) |
+
+Ten guests on the same dates of one home: exactly one booking every round and nobody told "busy", under
+every rule. 13 s is the longest ceiling whose slowest answer stays under about 15 s, and is better than the
+old rules on both stress bursts. At the stress distance a burst of 20 still outruns it; the test prints that
+rate and asserts only that nothing is booked twice and every answer matches the database.
+
+**Next.** Revisit the locking option (B) only if Sentry shows `SERIAL_RETRY_EXHAUSTED` in production, or
+before any marketing push.
+
 ## AS2 resolved in the tests (2026-11-03, branch `payout-retry-claim`, test code only)
 
 **Cause.** The payout job works on every payout in the database. In both full runs where AS2 showed, its

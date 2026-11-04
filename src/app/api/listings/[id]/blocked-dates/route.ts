@@ -115,7 +115,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           })
         }
         return fresh.length
-      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }), { op: 'calendar-block', ids: { listingId: id } })
 
       return NextResponse.json({ blocked: created, alreadyBlocked: range.days.length - created }, { status: 201 })
     } catch (txErr) {

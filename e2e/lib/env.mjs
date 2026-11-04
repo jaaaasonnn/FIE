@@ -6,7 +6,12 @@ import { fileURLToPath } from 'url'
 
 export const E2E_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 export const ROOT = path.resolve(E2E_DIR, '..')
-export const PORTS = { pg: 54329, fakes: 4010, storage: 4011, tls: 4443, front: 3443, app: [3200, 3201] }
+// AS3, the contention lane: `laneApp` is a third app server that reaches the database through its own latency
+// proxy on `pgLane` (fakes/db-latency.mjs). A test sets the proxy's round trip on `laneControl` before using it
+// (e2e/lib/lane.ts). Only the contention tests (server 2 in lib/world.ts) send it anything.
+export const PORTS = { pg: 54329, pgLane: 54330, laneControl: 54334, fakes: 4010, storage: 4011, tls: 4443, front: 3443, app: [3200, 3201], laneApp: 3204 }
+/** The lane's round trip, in ms, until a test sets another */
+export const LANE_LATENCY = '30-80'
 export const FAKE = `http://127.0.0.1:${PORTS.fakes}`
 /** Hosts the app has written into its code, and where the preload sends them instead. */
 export const HOST_MAP = {
@@ -53,7 +58,9 @@ export function assertLocal(env, realKeys = new Set()) {
   for (const key of ['DATABASE_URL', 'DIRECT_URL']) {
     let url
     try { url = new URL(env[key]) } catch { throw new GuardError(`${key} is not a URL: refusing to start`) }
-    if (url.hostname !== '127.0.0.1' || url.port !== String(PORTS.pg) || url.pathname !== '/fiegh_e2e') throw new GuardError(`${key} does not point at the local test database: refusing to start`)
+    // The contention lane's app reaches the same database through its latency proxy
+    const ports = key === 'DATABASE_URL' ? [String(PORTS.pg), String(PORTS.pgLane)] : [String(PORTS.pg)]
+    if (url.hostname !== '127.0.0.1' || !ports.includes(url.port) || url.pathname !== '/fiegh_e2e') throw new GuardError(`${key} does not point at the local test database: refusing to start`)
   }
   for (const key of realKeys) if (env[key] === undefined) throw new GuardError(`${key} is in .env but has no test value: refusing to start`)
   if (!String(env.PAYSTACK_SECRET_KEY).startsWith('sk_test_e2e_')) throw new GuardError('PAYSTACK_SECRET_KEY is not the fake key: refusing to start')

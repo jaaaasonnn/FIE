@@ -1,5 +1,5 @@
 // For removal-proofs.mjs: a proof whose test is end-to-end. The fix has already been taken out of the
-// source; this rebuilds the app from the source as it now is, restarts the two app servers on that build,
+// source; this rebuilds the app from the source as it now is, restarts the app servers on that build,
 // and runs the one test in Chromium.
 //
 //   PROOF_TEST_FILE=e2e/tests/... PROOF_TEST="title" node e2e/scripts/e2e-proof.mjs
@@ -15,7 +15,8 @@ import { spawnSync } from 'child_process'
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..')
 const run = (...args) => spawnSync('node', [path.join(ROOT, 'e2e/run.mjs'), ...args], { cwd: ROOT, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
-const APPS = ['3200', '3201']
+// The contention lane's app (3204) too: a proof's test may run there
+const APPS = ['3200', '3201', '3204']
 
 if (!fs.existsSync(path.join(ROOT, 'e2e/.state/pids.json'))) {
   console.error('the test stack is not up: start it with `node e2e/run.mjs up`')

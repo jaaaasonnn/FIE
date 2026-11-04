@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import { abortNextTransactions, type Row } from '@/lib/testing/fakeDb'
-import { BUSY_TRY_AGAIN, SERIAL_RETRIES } from '@/lib/serialRetry'
+import { BUSY_TRY_AGAIN, SERIAL_ATTEMPTS } from '@/lib/serialRetry'
 import type { State } from './harness'
 
 // Limits on what anyone can do over and over: guessing passwords, making
@@ -13,6 +13,11 @@ const state = vi.hoisted(() => ({ tables: {}, user: null } as State))
 vi.mock('@/lib/db', async () => ({ db: (await import('@/lib/testing/fakeDb')).fakeDb(state.tables) }))
 vi.mock('@/lib/session', async (original) => ({ ...(await original<typeof import('@/lib/session')>()), getSessionUser: async () => (state.user ? { ...state.user } : null) }))
 vi.mock('@/lib/messaging/notify', () => ({ notify: vi.fn() }))
+// The real rules for running an aborted booking again, without its pauses (they add up to seconds)
+vi.mock('@/lib/serialRetry', async (original) => {
+  const real = await original<typeof import('@/lib/serialRetry')>()
+  return { ...real, withSerialRetry: <T>(run: () => Promise<T>, o: import('@/lib/serialRetry').SerialRetryOptions = {}) => real.withSerialRetry(run, { ...o, pause: async () => {} }) }
+})
 
 import { NOW, as, home, json, person, reset, stay } from './harness'
 import { LIMITS, MAX_MESSAGE_LENGTH, NO_REASON_TO_MESSAGE, TOO_MANY_OPEN_BOOKINGS, TOO_MANY_OPEN_REQUESTS, signInKey } from '@/lib/rateLimit'
@@ -215,14 +220,14 @@ describe('booking', () => {
     afterEach(() => abortNextTransactions(0))
 
     it('runs it again, and the guest gets their dates', async () => {
-      abortNextTransactions(SERIAL_RETRIES)
+      abortNextTransactions(SERIAL_ATTEMPTS - 1)
       const reply = await request('home1', 9)
       expect(reply.status).toBe(201)
       expect(state.tables.booking).toHaveLength(1)
     })
 
     it('says "busy, try again" when it is aborted every time, never that the dates are taken, and writes nothing', async () => {
-      abortNextTransactions(SERIAL_RETRIES + 1)
+      abortNextTransactions(SERIAL_ATTEMPTS)
       const reply = await request('home1', 9)
       expect(reply.status).toBe(503)
       expect(reply.headers.get('Retry-After')).toBe('2')

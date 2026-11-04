@@ -1882,8 +1882,8 @@
   "edits": [
    {
     "file": "src/lib/serialRetry.ts",
-    "find": "      if (run >= SERIAL_RETRIES) throw new BusyError()",
-    "replace": "      throw new BusyError()"
+    "find": "      if (run >= SERIAL_ATTEMPTS) {",
+    "replace": "      if (run >= 1) {"
    }
   ],
   "testFile": "src/lib/security/limits.test.ts",
@@ -2055,7 +2055,7 @@
    },
    {
     "file": "src/lib/listingChecks.ts",
-    "find": "    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))\n    console.info",
+    "find": "    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }), { op: 'listing-check', ids: { listingId, adminId } })\n    console.info",
     "replace": "    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))()\n    console.info"
    }
   ],
@@ -3530,5 +3530,52 @@
   "testFile": "e2e/tests/races/payout-retry.spec.ts",
   "test": "(d) three runs at once find a retry whose claimer died",
   "e2e": true
+ },
+ {
+  "what": "AS3: the old retry rules (9 runs, 20-200 ms pauses, no time ceiling) tell guests \"busy\" in a burst at a realistic distance from the database",
+  "edits": [
+   {
+    "file": "src/lib/serialRetry.ts",
+    "find": "export const SERIAL_ATTEMPTS = 12",
+    "replace": "export const SERIAL_ATTEMPTS = 9"
+   },
+   {
+    "file": "src/lib/serialRetry.ts",
+    "find": "  return Math.round(step / 2 + random * (step / 2))",
+    "replace": "  return step * 0 + Math.round(20 + random * 180)"
+   },
+   {
+    "file": "src/lib/serialRetry.ts",
+    "find": "export const SERIAL_CEILING_MS = 13_000",
+    "replace": "export const SERIAL_CEILING_MS = 1e9"
+   }
+  ],
+  "testFile": "e2e/tests/races/contention.spec.ts",
+  "test": "twenty guests book twenty different homes at one instant, ten rounds: every booking is made, nobody is told \"busy\"",
+  "e2e": true
+ },
+ {
+  "what": "AS3: without the time ceiling a transaction aborted every time is run all 12 times, however long that takes",
+  "edits": [
+   {
+    "file": "src/lib/serialRetry.ts",
+    "find": "      if (now() - started + ms > SERIAL_CEILING_MS) {",
+    "replace": "      if (now() - started + ms > Infinity) {"
+   }
+  ],
+  "testFile": "src/lib/serialRetry.test.ts",
+  "test": "starts no further run after SERIAL_CEILING_MS (13 s), even with runs left"
+ },
+ {
+  "what": "AS3: a give-up is reported to Sentry (db_issue SERIAL_RETRY_EXHAUSTED, IDs only)",
+  "edits": [
+   {
+    "file": "src/lib/serialRetry.ts",
+    "find": "  Sentry.captureMessage(",
+    "replace": "  if (op.length < 0) Sentry.captureMessage("
+   }
+  ],
+  "testFile": "src/lib/serialRetry.test.ts",
+  "test": "reports it to Sentry once, tagged, with IDs and counts only, and logs the runs and the total wait"
  }
 ]

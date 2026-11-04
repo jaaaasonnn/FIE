@@ -13,7 +13,7 @@ import { spawn, spawnSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
 import EmbeddedPostgres from 'embedded-postgres'
-import { E2E_DIR, ROOT, PORTS, HOST_MAP, FAKE, e2eEnv, GuardError } from './lib/env.mjs'
+import { E2E_DIR, ROOT, PORTS, HOST_MAP, FAKE, e2eEnv, GuardError, LANE_LATENCY } from './lib/env.mjs'
 
 const STATE = path.join(E2E_DIR, '.state')
 const PIDS = path.join(STATE, 'pids.json')
@@ -41,12 +41,16 @@ const log = (...a) => console.log('[e2e]', ...a)
 // (Postgres moves to PG_REAL_PORT and a proxy takes its place on PORTS.pg, so every guard still holds).
 const opt = (name) => rest.find((a) => a.startsWith(`--${name}=`))?.split('=')[1]
 const APPS = [3200, 3201, 3202, 3203].slice(0, Math.min(4, Math.max(2, Number(opt('apps') ?? 2))))
-const ALL_APPS = [3200, 3201, 3202, 3203]
+const ALL_APPS = [3200, 3201, 3202, 3203, PORTS.laneApp]
 // Each app process's pool when `--pool` is not given (E2E_APP_POOL also sets it, for one app started with
 // `app:start`). Left to Prisma it would be physical CPUs x 2 + 1 (21 on a 10-core Mac) per app, and the test
 // Postgres has 60 connections for two or more apps, the test workers (3 each) and the checkers (SU2).
 const DEFAULT_POOL = 10
 const POOL = opt('pool') ?? process.env.E2E_APP_POOL ?? String(DEFAULT_POOL)
+// The contention lane's app (AS3) stands for many server instances at once, each with its own connection, so
+// its pool is wide enough that a burst of bookings waits on Postgres, not on the pool. It holds no connection
+// until a test uses it.
+const LANE_POOL = 20
 const DB_LATENCY = opt('db-latency')
 const PG_REAL_PORT = 54331
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
@@ -115,7 +119,9 @@ function build() {
 }
 
 export function startApp(port, extraEnv = {}) {
-  const pooled = { DATABASE_URL: `${e2eEnv().DATABASE_URL}&connection_limit=${Number(POOL)}` }
+  const slow = port === PORTS.laneApp
+  const url = slow ? e2eEnv().DATABASE_URL.replace(`:${PORTS.pg}/`, `:${PORTS.pgLane}/`) : e2eEnv().DATABASE_URL
+  const pooled = { DATABASE_URL: `${url}&connection_limit=${slow ? LANE_POOL : Number(POOL)}` }
   const env = e2eEnv({ appPort: port, extra: { ...pooled, NODE_OPTIONS: `--require ${path.join(E2E_DIR, 'preload/egress.cjs')}`, E2E_HOST_MAP: JSON.stringify(HOST_MAP), E2E_EGRESS_LOG: EGRESS_LOG, E2E_TLS_PORT: String(PORTS.tls), NODE_EXTRA_CA_CERTS: TLS.cert, PORT: String(port), ...extraEnv } })
   const out = fs.openSync(path.join(STATE, `app-${port}.log`), 'a')
   return spawn('npx', ['next', 'start', '-p', String(port)], { cwd: ROOT, env, stdio: ['ignore', out, out], detached: true })
@@ -134,17 +140,20 @@ async function up() {
     latency = spawn('node', [path.join(E2E_DIR, 'fakes/db-latency.mjs')], { env: { PATH: process.env.PATH, E2E_LATENCY_MS: DB_LATENCY, E2E_LATENCY_LISTEN: String(PORTS.pg), E2E_LATENCY_TARGET: String(PG_REAL_PORT) }, stdio: ['ignore', fs.openSync(path.join(STATE, 'db-latency.log'), 'a'), fs.openSync(path.join(STATE, 'db-latency.log'), 'a')], detached: true })
     await sleep(500)
   }
+  // The contention lane (AS3): its own proxy straight to Postgres, for the app on PORTS.laneApp only; each test
+  // sets its round trip on PORTS.laneControl
+  const lane = spawn('node', [path.join(E2E_DIR, 'fakes/db-latency.mjs')], { env: { PATH: process.env.PATH, E2E_LATENCY_MS: LANE_LATENCY, E2E_LATENCY_CONTROL: String(PORTS.laneControl), E2E_LATENCY_LISTEN: String(PORTS.pgLane), E2E_LATENCY_TARGET: String(DB_LATENCY ? PG_REAL_PORT : PORTS.pg) }, stdio: ['ignore', fs.openSync(path.join(STATE, 'lane.log'), 'a'), fs.openSync(path.join(STATE, 'lane.log'), 'a')], detached: true })
   await setupDatabase(pg, { fresh: rest.includes('--fresh-db') })
   const fakes = spawn('node', [path.join(E2E_DIR, 'fakes/server.mjs')], { env: { ...e2eEnv(), E2E_FAKES_PORT: String(PORTS.fakes), E2E_STORAGE_PORT: String(PORTS.storage), E2E_TLS_PORT: String(PORTS.tls), E2E_TLS_KEY: TLS.key, E2E_TLS_CERT: TLS.cert }, stdio: ['ignore', fs.openSync(path.join(STATE, 'fakes.log'), 'a'), fs.openSync(path.join(STATE, 'fakes.log'), 'a')], detached: true })
   await waitFor(`${FAKE}/__control/health`, 'the fake services', 20)
   // https in front of the first app server, for WebKit's Secure cookie
   const front = spawn('node', [path.join(E2E_DIR, 'fakes/https-front.mjs')], { env: { PATH: process.env.PATH, E2E_FRONT_PORT: String(PORTS.front), E2E_FRONT_TARGET: String(PORTS.app[0]), E2E_FRONT_KEY: FRONT_TLS.key, E2E_FRONT_CERT: FRONT_TLS.cert }, stdio: ['ignore', fs.openSync(path.join(STATE, 'front.log'), 'a'), fs.openSync(path.join(STATE, 'front.log'), 'a')], detached: true })
   if (rest.includes('--build') || !fs.existsSync(path.join(ROOT, '.next', 'E2E_BUILD'))) build()
-  const apps = APPS.map((port) => startApp(port))
-  fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, front: front.pid, latency: latency?.pid, apps: Object.fromEntries(APPS.map((p, i) => [p, apps[i].pid])) }))
-  for (const port of APPS) await waitFor(`http://localhost:${port}/api/auth/session`, `the app on ${port}`)
-  log(`up: app on ${APPS.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}${DB_LATENCY ? ` through a ${DB_LATENCY} ms proxy (real port ${PG_REAL_PORT})` : ''}, pool ${POOL} per app, fakes on ${PORTS.fakes}/${PORTS.storage}`)
-  const stop = async () => { killGroup(fakes.pid); killGroup(front.pid); if (latency) killGroup(latency.pid); for (const port of [...ALL_APPS, PORTS.front]) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
+  const apps = [...APPS, PORTS.laneApp].map((port) => startApp(port))
+  fs.writeFileSync(PIDS, JSON.stringify({ runner: process.pid, fakes: fakes.pid, front: front.pid, latency: latency?.pid, lane: lane.pid, apps: Object.fromEntries([...APPS, PORTS.laneApp].map((p, i) => [p, apps[i].pid])) }))
+  for (const port of [...APPS, PORTS.laneApp]) await waitFor(`http://localhost:${port}/api/auth/session`, `the app on ${port}`)
+  log(`up: app on ${APPS.map((p) => `http://localhost:${p}`).join(' and ')} (and https://localhost:${PORTS.front}), Postgres on ${PORTS.pg}${DB_LATENCY ? ` through a ${DB_LATENCY} ms proxy (real port ${PG_REAL_PORT})` : ''}, pool ${POOL} per app, fakes on ${PORTS.fakes}/${PORTS.storage}; contention lane: app on ${PORTS.laneApp}, ${LANE_LATENCY} ms from Postgres until a test sets it, pool ${LANE_POOL}`)
+  const stop = async () => { killGroup(fakes.pid); killGroup(front.pid); if (latency) killGroup(latency.pid); killGroup(lane.pid); for (const port of [...ALL_APPS, PORTS.front]) killPort(port); await pg.stop().catch(() => {}); fs.rmSync(PIDS, { force: true }); process.exit(0) }
   process.on('SIGINT', stop); process.on('SIGTERM', stop)
   setInterval(() => {}, 1 << 30) // stay up until told to stop
 }
@@ -157,7 +166,7 @@ async function down() {
   const pids = JSON.parse(fs.readFileSync(PIDS, 'utf8'))
   if (pids.runner !== process.pid) { try { process.kill(pids.runner, 'SIGTERM') } catch {} }
   for (let i = 0; i < 40 && fs.existsSync(PIDS); i++) await sleep(250)
-  killGroup(pids.fakes); if (pids.front) killGroup(pids.front); if (pids.latency) killGroup(pids.latency); for (const port of [...ALL_APPS, PORTS.fakes, PORTS.storage, PORTS.tls, PORTS.front]) killPort(port)
+  killGroup(pids.fakes); if (pids.front) killGroup(pids.front); if (pids.latency) killGroup(pids.latency); if (pids.lane) killGroup(pids.lane); for (const port of [...ALL_APPS, PORTS.fakes, PORTS.storage, PORTS.tls, PORTS.front, PORTS.pgLane, PORTS.laneControl]) killPort(port)
   fs.rmSync(PIDS, { force: true })
   log('down')
 }

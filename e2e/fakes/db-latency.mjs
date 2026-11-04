@@ -2,9 +2,12 @@
 // app expects the database (E2E_LATENCY_LISTEN) and passes bytes to the real one (E2E_LATENCY_TARGET), each
 // chunk held for a random one-way delay so a round trip costs E2E_LATENCY_MS (e.g. "30-80"), in order.
 // Loopback only. A stand-in for the network between Vercel and Supabase; it cannot reproduce their pooler.
+// With E2E_LATENCY_CONTROL (a port), `POST /latency?ms=5-15` on it changes the round trip from then on (the
+// contention lane, run.mjs: each test sets the distance it wants before its burst).
+import http from 'http'
 import net from 'net'
 
-const [lo, hi] = String(process.env.E2E_LATENCY_MS ?? '30-80').split('-').map(Number)
+let [lo, hi] = String(process.env.E2E_LATENCY_MS ?? '30-80').split('-').map(Number)
 const listen = Number(process.env.E2E_LATENCY_LISTEN)
 const target = Number(process.env.E2E_LATENCY_TARGET)
 const oneWay = () => (lo + Math.random() * (hi - lo)) / 2
@@ -45,3 +48,14 @@ net.createServer((client) => {
   client.on('close', () => { open--; server.destroy() }); server.on('close', () => client.destroy())
 }).listen(listen, '127.0.0.1', () => console.log(`[db-latency] 127.0.0.1:${listen} -> 127.0.0.1:${target}, round trip ${lo}-${hi} ms`))
 setInterval(() => console.log(`[db-latency] ${new Date().toISOString()} open connections ${open}`), 60_000).unref()
+const control = Number(process.env.E2E_LATENCY_CONTROL)
+if (control) {
+  http.createServer((req, res) => {
+    const m = /^\/latency\?ms=(\d+)-(\d+)$/.exec(req.url ?? '')
+    if (req.method === 'POST' && m && Number(m[1]) <= Number(m[2])) {
+      ;[lo, hi] = [Number(m[1]), Number(m[2])]
+      console.log(`[db-latency] round trip now ${lo}-${hi} ms`)
+    } else if (req.url !== '/latency') { res.writeHead(400); res.end('POST /latency?ms=LO-HI'); return }
+    res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ lo, hi }))
+  }).listen(control, '127.0.0.1')
+}

@@ -92,7 +92,7 @@ export async function coverFromDeposit({
       // Never more out of the deposit than was paid into it
       const used = await tx.instalment.aggregate({ where: { bookingId: booking.id }, _sum: { coveredFromDeposit: true } })
       if ((used._sum.coveredFromDeposit ?? 0) > booking.damageDeposit - depositRefunded + 0.005) throw new Changed()
-    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }))
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }), { op: 'deposit-cover', ids: { instalmentId: instalment.id, bookingId: booking.id } })
   } catch (error) {
     if (error instanceof Changed) {
       return { ok: false, status: 409, error: 'This rent payment or its deposit changed a moment ago. Nothing was covered. Please look again.' }
