@@ -107,3 +107,13 @@ export async function openSheet(page: Page): Promise<Locator> {
   await page.waitForFunction(() => (document.querySelector('[data-search-sheet] .search-sheet-panel')?.getAnimations() ?? []).every((a) => a.playState !== 'running'))
   return sheet
 }
+
+/**
+ * The search page's count of results, as this screen size writes it: "6 homes" on a phone (app shell, stage 2),
+ * "6 properties found" from 768 px up.
+ */
+export function resultCount(page: Page, n: number): Locator {
+  const phone = (page.viewportSize()?.width ?? 1280) < 768
+  const words = phone ? `${n} ${n === 1 ? 'home' : 'homes'}` : `${n} ${n === 1 ? 'property' : 'properties'} found`
+  return page.getByText(new RegExp(`^${words}`)).filter({ visible: true }).first()
+}

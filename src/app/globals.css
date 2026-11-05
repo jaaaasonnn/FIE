@@ -742,11 +742,11 @@ input, select, textarea, button {
 .account-row:hover { background: var(--color-bg); }
 .account-row:focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: -2px; }
 
-@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  @media (max-width: 767px) {
-    /* Nearly solid, with a light blur: card text and photo colours never show through the labels or icons */
-    .bottom-bar { background: rgba(255, 255, 255, 0.97); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
-  }
+@media (max-width: 767px) {
+  /* Nearly solid (98.5%) and not blurred: card text and photo colours never show through the labels or icons. A
+     backdrop blur, even with the bar at 97-98.5%, let the cards' dark text show faintly behind the tab labels in
+     WebKit and Chromium; the same bar without it shows nothing (measured at 320 px, 2026-11-05). */
+  .bottom-bar { background: rgba(255, 255, 255, 0.985); box-shadow: 0 -1px 0 rgba(31, 27, 22, 0.04); }
 }
 
 /* ── Phones: type scale, targets, header (app shell, stage 1 polish) ─────────────────────────────────────

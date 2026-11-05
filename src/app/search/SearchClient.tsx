@@ -456,11 +456,15 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
             <p className="text-sm flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               {loading
                 ? <>Searching…</>
-                : <span><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> {total === 1 ? 'property' : 'properties'} found
+                : <>
+                  {/* A phone: the count only; the chips beside it already say what it is filtered by */}
+                  <span className="md:hidden"><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> {total === 1 ? 'home' : 'homes'}</span>
+                  <span className="max-md:hidden"><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> {total === 1 ? 'property' : 'properties'} found
                     {filters.region && <span> in <strong>{filters.region}</strong></span>}
                     {filters.mode   && <span> · <strong>{MODE_LABELS[filters.mode]}</strong></span>}
                     {dateQuery(filters) && !dateError && <span>, available {dateSummary(filters).replace(/^From/, 'from')}</span>}
-                  </span>}
+                  </span>
+                </>}
             </p>
 
             <div className="flex flex-wrap gap-2">
@@ -474,6 +478,7 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
               )}
               {filters.mode && (
                 <button onClick={() => setFilters((f) => ({ ...f, mode: '' }))}
+                  aria-label={`Clear rental type: ${MODE_LABELS[filters.mode]}`}
                   className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
                   style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)', border: '1px solid var(--color-border-strong)' }}>
                   {MODE_LABELS[filters.mode]} <X size={11} />
@@ -481,6 +486,7 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
               )}
               {filters.region && (
                 <button onClick={() => setFilters((f) => ({ ...f, region: '' }))}
+                  aria-label={`Clear region: ${filters.region}`}
                   className="flex items-center gap-1 text-xs px-3 py-1 rounded-full"
                   style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)', border: '1px solid var(--color-border-strong)' }}>
                   {filters.region} <X size={11} />

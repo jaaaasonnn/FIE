@@ -3,7 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
-import { searchFor } from '../../pages'
+import { resultCount, searchFor } from '../../pages'
 
 // The search map (src/components/map/ListingsMap.tsx): pins, a popup that links to the home, clusters that
 // zoom apart or list homes that share a spot, Escape, and the map's own files and worker arriving without
@@ -33,7 +33,7 @@ function watchForMapTrouble(page: Page) {
 async function openMap(page: Page, city: string, count: number) {
   await page.goto('/search')
   await searchFor(page, city)
-  await expect(page.getByText(`${count} ${count === 1 ? 'property' : 'properties'} found`)).toBeVisible()
+  await expect(resultCount(page, count)).toBeVisible()
   const toggle = page.getByRole('button', { name: 'Map', exact: true })
   if (await toggle.isVisible()) await toggle.click()
   await expect(page.locator('canvas.maplibregl-canvas:visible').first()).toBeVisible({ timeout: 20_000 })
@@ -129,7 +129,7 @@ test.describe('the search map', () => {
     await withoutWebGL2(page)
     await page.goto('/search')
     await searchFor(page, city)
-    await expect(page.getByText('2 properties found')).toBeVisible()
+    await expect(resultCount(page, 2)).toBeVisible()
     for (const home of homes) await expect(page.locator(`a[href^="/listings/${home.id}"]:visible`).first()).toBeVisible()
     const toggle = page.getByRole('button', { name: 'Map', exact: true })
     if (await toggle.isVisible()) await toggle.click()

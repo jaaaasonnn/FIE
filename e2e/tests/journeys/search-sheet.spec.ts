@@ -3,7 +3,7 @@ import path from 'path'
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
-import { openSheet } from '../../pages'
+import { openSheet, resultCount } from '../../pages'
 
 // App shell, stage 2: the search sheet (src/components/search/SearchSheet.tsx, public/sheet.js) and search on a
 // phone (src/app/search/SearchClient.tsx). @core, so it runs in every set-up: on a phone the sheet opens from
@@ -30,9 +30,17 @@ const mark = (page: Page) => page.evaluate(() => { (window as unknown as { __kep
 const kept = (page: Page) => page.evaluate(() => (window as unknown as { __kept?: boolean }).__kept === true)
 
 test.describe('the search sheet', () => {
-  test('desktop: no sheet, no summary pill, the search bar as it was @core', async ({ page }) => {
+  test('desktop: no sheet, no summary pill, no hearts on the cards, the search bar as it was @core', async ({ page, world }) => {
     test.skip(isPhone(), 'the desktop\'s case')
-    await page.goto('/search')
+    const host = await world.host()
+    const city = `De${Date.now().toString(36)}`
+    const home = await world.listing(host, { city })
+    await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS('3')) } })
+    await page.goto(`/search?q=${city}`)
+    await expect(page.locator(`a[href^="/listings/${home.id}"]`).first()).toBeVisible()
+    // The cards' hearts are a phone's (the stylesheet's display once won over md:hidden)
+    await expect(page.locator('.heart-button').filter({ visible: true })).toHaveCount(0)
+    await expect(page.locator('.search-card-count').filter({ visible: true })).toHaveCount(0)
     await expect(page.getByPlaceholder('Search by city, neighbourhood...')).toBeVisible()
     await expect(page.locator('[data-search-pill]:visible')).toHaveCount(0)
     await expect(page.getByRole('dialog', { name: 'Search homes' })).toBeHidden()
@@ -90,7 +98,7 @@ test.describe('the search sheet', () => {
     await expect(page).toHaveURL(`/search?q=${city}&mode=SHORT_STAY&checkIn=${checkIn}&checkOut=${checkOut}&guests=2`)
     const from = checkIn.slice(0, 7) === checkOut.slice(0, 7) ? String(Number(checkIn.slice(8, 10))) : short(checkIn)
     await expect(page.locator('[data-search-pill]:visible')).toHaveText(`${city} · ${from} to ${short(checkOut)} · 2 guests`)
-    await expect(page.getByText('1 property found')).toBeVisible()
+    await expect(resultCount(page, 1)).toBeVisible()
   })
 
   test('a monthly stay asks for months, not a check-out; a long-term one for a move-in day only @core', async ({ page }) => {
@@ -118,7 +126,7 @@ test.describe('the search sheet', () => {
     await world.listing(host, { city: b })
     await page.goto(`/search?q=${a}`)
     await expect(page.locator('[data-search-pill]:visible')).toHaveText(a)
-    await expect(page.getByText('1 property found')).toBeVisible()
+    await expect(resultCount(page, 1)).toBeVisible()
     await mark(page)
     const sheet = await openSheet(page)
     await expect(sheet.getByRole('combobox', { name: 'Where' })).toHaveValue(a)
@@ -128,7 +136,7 @@ test.describe('the search sheet', () => {
     await expect(page.locator('[data-search-pill]:visible')).toHaveText(b)
     await expect(page).toHaveURL(`/search?q=${b}`)
     expect(await kept(page), 'the search changed in place').toBe(true)
-    await expect(page.getByText('1 property found')).toBeVisible()
+    await expect(resultCount(page, 1)).toBeVisible()
   })
 
   test('with no script: the pill opens the sheet and its form searches through /search @core', async ({ browser, world }) => {
@@ -203,7 +211,10 @@ test.describe('search on a phone', () => {
     const chips = page.getByRole('group', { name: 'Filters' })
     await chips.getByRole('button', { name: 'Monthly' }).click()
     await expect(chips.getByRole('button', { name: 'Monthly' })).toHaveAttribute('aria-pressed', 'true')
-    await expect(page.getByText(/found · Monthly/)).toBeVisible()
+    // The count only on a phone; the chip under it says what the search is filtered by
+    await expect(page.getByRole('button', { name: 'Clear rental type: Monthly' })).toBeVisible()
+    await expect(page.getByText(/^\d+ homes?$/).filter({ visible: true })).toHaveCount(1)
+    await expect(page.getByText(/available .* nights|found ·/).filter({ visible: true })).toHaveCount(0)
     await chips.getByRole('button', { name: 'Checked homes' }).click()
     await expect(chips.getByRole('button', { name: 'Checked homes' })).toHaveAttribute('aria-pressed', 'true')
     await chips.getByRole('button', { name: 'Filters' }).click()

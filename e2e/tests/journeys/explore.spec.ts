@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import type { Page } from '@playwright/test'
+import sharp from 'sharp'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import type { Actor, World } from '../../lib/world'
@@ -89,6 +90,33 @@ test.describe('Explore on a phone', () => {
       }))
       expect(chips.map((c) => c.text)).toEqual(['Short Stay', 'Monthly', 'Long-Term', 'Checked homes'])
       for (const c of chips) expect(c, `${width}px "${c.text}"`).toMatchObject({ fits: true, lines: 1 })
+    }
+  })
+
+  test('the bottom bar is nearly solid: no card text or photo shows through its labels, at 320 to 430 px @core', async ({ page, world }) => {
+    test.skip(!isPhone(), 'the bar is a phone\'s')
+    test.setTimeout(KEPT_PAGE_MS + 60_000)
+    const home = await frontHome(world, await world.host())
+    await expect.poll(() => shown(page, home.id), { timeout: KEPT_PAGE_MS }).toBe(true)
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 700 })
+      await page.goto('/')
+      await page.waitForLoadState('networkidle')
+      // Cards' text right behind the tab labels
+      await page.evaluate(() => {
+        const bar = document.querySelector('[data-bottom-bar]')!.getBoundingClientRect()
+        const text = Array.from(document.querySelectorAll('.explore-card-body')).find((el) => el.getBoundingClientRect().top > bar.top)
+        if (text) window.scrollBy({ top: text.getBoundingClientRect().top - bar.top - 28, behavior: 'instant' })
+      })
+      const bar = (await page.locator('[data-bottom-bar]').boundingBox())!
+      const clip = { x: 0, y: bar.y + 2, width, height: 60 }
+      const drawn = await sharp(await page.screenshot({ clip })).raw().toBuffer()
+      const style = await page.addStyleTag({ content: '.bottom-bar { background: #fff !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' })
+      const solid = await sharp(await page.screenshot({ clip })).raw().toBuffer()
+      await style.evaluate((el) => (el as Element).remove())
+      let differ = 0
+      for (let i = 0; i < drawn.length; i++) if (Math.abs(drawn[i] - solid[i]) > 6) differ++
+      expect(differ / drawn.length, `${width} px: share of the bar's pixels that the page behind it changes`).toBeLessThan(0.002)
     }
   })
 

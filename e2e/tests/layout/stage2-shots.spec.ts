@@ -105,6 +105,20 @@ test.describe('stage 2 pictures', () => {
       await expect(page.locator(`.explore-phone [data-heart="${ids[1]}"]`).first()).toHaveAttribute('aria-pressed', 'true')
       await save(page, `${width}-explore-signed-in`)
     }
+    // The bar over a card's text, at each width (the text of the first row's cards right behind the tab labels)
+    for (const width of PHONE_WIDTHS) {
+      await page.setViewportSize({ width, height: 844 })
+      await explore(page, ids[1])
+      await page.evaluate(() => {
+        // The first card whose text starts below the bar's top: scrolled so its title sits behind the tab labels
+        const bar = document.querySelector('[data-bottom-bar]')!.getBoundingClientRect()
+        const text = Array.from(document.querySelectorAll('.explore-card-body')).find((el) => el.getBoundingClientRect().top > bar.top) ?? document.querySelector('.explore-card-body')!
+        window.scrollBy({ top: text.getBoundingClientRect().top - bar.top - 28, behavior: 'instant' })
+      })
+      await save(page, `${width}-explore-bar-over-text`)
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+      await save(page, `${width}-explore-end`)
+    }
     // Swiped along the first row
     await page.locator('.explore-strip').first().evaluate((el) => el.scrollBy({ left: 600, behavior: 'instant' }))
     await page.waitForTimeout(300)

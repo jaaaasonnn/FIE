@@ -33,7 +33,7 @@ E2E_LH_THROTTLING=devtools node e2e/run.mjs exec node e2e/load/lighthouse.mjs <l
 - `tests/perf/bundle.spec.ts`: the script budget (350 KB on first load, the router's prefetches left out; desktop
   search with its map 650 KB), and the map and date picker only when asked for. Each page's files: `.reports/bundle/`.
   The map's worker file (maplibre 6) is fetched by the worker, so the page sees the request but not its bytes: the
-  guard counts it from the file as the server sends it (gzip). Desktop search with the map is at 648 of 650 KB.
+  guard counts it from the file as the server sends it (gzip). Desktop search with the map is at 649.8 of 650 KB (app shell stage 2): the first job of stage 3 is to keep the phone-only search code off desktop (`FINDINGS.md`, AS8).
 - `tests/journeys/map.spec.ts`: pins, the popup and its link, clusters that zoom apart or list homes that share a
   spot, Enter and Escape, the map's credits, and no map or worker error. `E2E_MAP_SHOTS=<label>` saves screenshots
   to `.reports/map-shots/`. The harness's map style is a plain background: no streets, real pins and popups.
