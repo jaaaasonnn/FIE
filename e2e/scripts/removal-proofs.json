@@ -3578,5 +3578,315 @@
   ],
   "testFile": "src/lib/serialRetry.test.ts",
   "test": "reports it to Sentry once, tagged, with IDs and counts only, and logs the runs and the total wait"
+ },
+ {
+  "what": "Stage 2: Explore's rows leave out the homes of a suspended host",
+  "edits": [
+   {
+    "file": "src/lib/explore.ts",
+    "find": "  host: { ...HOST_NOT_SUSPENDED },\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/exploreRows.test.ts",
+  "test": "makes rows of live homes only"
+ },
+ {
+  "what": "Stage 2: a city needs three live homes for a row",
+  "edits": [
+   {
+    "file": "src/lib/exploreRows.ts",
+    "find": "    if (count < MIN_HOMES_PER_CITY) continue",
+    "replace": "    if (count < 1) continue"
+   }
+  ],
+  "testFile": "src/lib/exploreRows.test.ts",
+  "test": "needs three homes for a row, the most homes first, at most four rows"
+ },
+ {
+  "what": "Stage 2: GET /api/wishlists?only=ids gives the person's own ids only",
+  "edits": [
+   {
+    "file": "src/app/api/wishlists/route.ts",
+    "find": "      const saved = await db.wishlist.findMany({ where: { userId }, select: { listingId: true } })",
+    "replace": "      const saved = await db.wishlist.findMany({ where: {}, select: { listingId: true } })"
+   }
+  ],
+  "testFile": "src/lib/security/wishlistIds.test.ts",
+  "test": "gives the signed-in person their own saved ids and nothing else"
+ },
+ {
+  "what": "Stage 2: the search page reads checked from the address (Explore's Checked homes chip)",
+  "edits": [
+   {
+    "file": "src/lib/searchQuery.ts",
+    "find": "    checked:      get('checked') === 'true',",
+    "replace": "    checked:      false,"
+   }
+  ],
+  "testFile": "src/lib/searchSheet.test.ts",
+  "test": "the address's q and checked start the search"
+ },
+ {
+  "what": "Stage 2: every Explore card in a row the same size, whatever its title",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "flex: 0 0 clamp(240px, 74vw, 300px); width: clamp(240px, 74vw, 300px); min-width: 0;",
+    "replace": "flex: 0 0 clamp(240px, 74vw, 300px);"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/explore.spec.ts",
+  "test": "the page: no header, the pill and chips, rows of at most eight cards, nothing from the desktop page",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: no header on Explore at phone width",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  body:has(.explore-phone) .site-header { display: none; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/explore.spec.ts",
+  "test": "the page: no header, the pill and chips, rows of at most eight cards, nothing from the desktop page",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: the bottom bar is solid (at 98.5% card text showed behind its labels)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .bottom-bar { background: var(--color-bg-card); box-shadow: 0 -1px 0 rgba(31, 27, 22, 0.04); }",
+    "replace": "  .bottom-bar { background: rgba(255, 255, 255, 0.985); box-shadow: 0 -1px 0 rgba(31, 27, 22, 0.04); }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/explore.spec.ts",
+  "test": "the bottom bar is nearly solid: no card text or photo shows through its labels, at 320 to 430 px",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: the phone header is solid as it slides back over the page",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .site-header { background-color: var(--color-bg) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "coming back over the page, no text shows through it, at 320 to 430 px",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: Back closes the search sheet",
+  "edits": [
+   {
+    "file": "public/shell.js",
+    "find": "    else if (isOpen()) hide()\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "from Explore: opens, keeps focus inside, Escape and Back close it without leaving the page",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: Tab stays inside the search sheet",
+  "edits": [
+   {
+    "file": "public/shell.js",
+    "find": "    e.preventDefault()\n    var at = items.indexOf(document.activeElement)",
+    "replace": "    var at = items.indexOf(document.activeElement); return"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "from Explore: opens, keeps focus inside, Escape and Back close it without leaving the page",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: with no script the sheet's form searches through /search",
+  "edits": [
+   {
+    "file": "src/components/search/SearchSheet.tsx",
+    "find": "<form action=\"/search\" method=\"get\"",
+    "replace": "<form action=\"/\" method=\"get\""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "with no script: the pill opens the sheet and its form searches through /search",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: on the search page the sheet changes the search in place",
+  "edits": [
+   {
+    "file": "src/app/search/SearchClient.tsx",
+    "find": "      detail.handled = true\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "on the search page: the summary pill opens the sheet with the search shown, and Search changes it in place",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: no heart on a desktop search card",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "@media (min-width: 768px) { .heart-button.search-card-heart { display: none; } }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "desktop: no sheet, no summary pill, no hearts on the cards, the search bar as it was",
+  "e2e": true
+ },
+ {
+  "what": "Stage 2: phone search says \"6 homes\", not the sentence",
+  "edits": [
+   {
+    "file": "src/app/search/SearchClient.tsx",
+    "find": "{total === 1 ? 'home' : 'homes'}</span>",
+    "replace": "{total === 1 ? 'property' : 'properties'} found · Monthly available nights</span>"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "the chips change the search: a rental type, and FieGH's check",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: the header steps aside on scroll down",
+  "edits": [
+   {
+    "file": "public/shell.js",
+    "find": "      else if (y - lastY > 6) setHeader(true)",
+    "replace": "      else if (false) setHeader(true)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "down hides it, up brings it back; the search page's bar moves with it",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: the header stays on checkout and log-in and while the menu or the sheet is open",
+  "edits": [
+   {
+    "file": "public/shell.js",
+    "find": "    return /^\\/(checkout|login)",
+    "replace": "    return false && /^\\/(checkout|login)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "never on checkout or log-in, never while the menu or the sheet is open, never near the top",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: Explore's rows are where they were after Back",
+  "edits": [
+   {
+    "file": "public/shell.js",
+    "find": "      if (typeof left === 'number') el.scrollTo",
+    "replace": "      if (false) el.scrollTo"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "a row swiped along is where it was when Back brings Explore back",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: the footer's lists fold into sections on a phone",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .footer-desktop-only { display: none !important; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "a phone: the lists fold into sections; the banner and the contact lines stay in view",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "AS9: the inbox's time label keeps its edge when its words change",
+  "edits": [
+   {
+    "file": "src/components/messages/MessagesInbox.tsx",
+    "find": "text-xs text-[#736D62] flex-shrink-0 min-w-[4.5rem] text-right",
+    "replace": "text-xs text-[#736D62]"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "the inbox's time label keeps its edge when \"Just now\" becomes \"1m ago\" (AS9)",
+  "e2e": true
+ },
+ {
+  "what": "AS10: a saved home's price written as every card writes it",
+  "edits": [
+   {
+    "file": "src/app/dashboard/guest/wishlist/page.tsx",
+    "find": "<div className=\"text-xs text-[#736D62]\">{formatUsdCompact(listing.card.usd)}</div>",
+    "replace": "<div className=\"text-xs text-[#736D62]\">${listing.card.usd}</div>"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "a saved home's price on Wishlists is written as every card writes it (AS10)",
+  "e2e": true
+ },
+ {
+  "what": "Stage 2 polish: Pay now across the Trips card on a phone",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .trip-actions > .trip-primary { grid-column: 1 / -1; font-size: 0.875rem !important; height: 48px; }",
+    "replace": "  .trip-actions > .trip-primary { font-size: 0.875rem !important; height: 48px; }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "a booking on Trips: the title in two lines at most, the total on a line of its own, Pay now across the card",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2 polish: Refunds received in the brand's text colour on a phone",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "@media (max-width: 767px) { .refunds-received { color: var(--color-text-primary); } }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "Payment History's \"Refunds received\": the brand's text colour on a phone, blue on desktop as before",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "Stage 2: the sheet's and the bar's scripts are never downloaded on a desktop",
+  "edits": [
+   {
+    "file": "src/lib/bottomBar.ts",
+    "find": "export const BAR_LOADER_SCRIPT = `if(window.matchMedia&&matchMedia('(max-width: ${PHONE_MAX_WIDTH}px)').matches){",
+    "replace": "export const BAR_LOADER_SCRIPT = `if(true){"
+   }
+  ],
+  "testFile": "e2e/tests/perf/bundle.spec.ts",
+  "test": "every main page is within",
+  "e2e": true
  }
 ]
