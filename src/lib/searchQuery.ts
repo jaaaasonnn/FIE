@@ -59,10 +59,13 @@ export function dateQuery(f: DateFilters): Record<string, string> | null {
 }
 
 // ── Filters ──────────────────────────────────────────────────────────────────
-/** The filters a search starts with: the address's (from the home page's search box), the rest empty. */
+/**
+ * The filters a search starts with: the address's (from the home page's search box, Explore's chips and rows,
+ * the search sheet), the rest empty.
+ */
 export function startingFilters(get: (key: string) => string | null) {
   return {
-    query:        '',
+    query:        (get('q') || '').slice(0, 100),
     mode:         get('mode')   || '',
     region:       get('region') || '',
     guests:       get('guests') || '',
@@ -74,7 +77,7 @@ export function startingFilters(get: (key: string) => string | null) {
     bedrooms:     '',
     propertyType: '',
     hostIdChecked: false,
-    checked:      false,
+    checked:      get('checked') === 'true',
     superhost:    false,
     sort:         'newest',
     amenities:    [] as string[],

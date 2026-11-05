@@ -161,6 +161,10 @@ export function removalReasonText(reason: string | null | undefined, note?: stri
 
 export const CHECK_BADGE = 'Address and photos checked'
 export const CHECK_FILTER_LABEL = 'Address and photos checked by FieGH'
+/** Explore's chip for the same filter (app shell, stage 2). Approved by the owner on 2026-11-05; to go to
+ *  the lawyer with the other badge wording. Its link opens search with that filter on, whose label is the
+ *  full CHECK_FILTER_LABEL. */
+export const CHECK_CHIP_LABEL = 'Checked homes'
 /** The badge for a host whose ID FieGH has checked. About the person, not the home. */
 export const HOST_ID_BADGE = 'Host ID checked'
 /** The same badge on someone who is not a host. */

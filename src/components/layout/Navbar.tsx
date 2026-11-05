@@ -68,7 +68,7 @@ export function Navbar() {
     <>
     <div ref={sentinelRef} aria-hidden className="absolute top-0 left-0 h-8 w-px pointer-events-none" />
     <header
-      className="sticky top-0 z-50 w-full transition-[background-color,box-shadow,border-color] duration-200 ease-out"
+      className="site-header sticky top-0 z-50 w-full transition-[background-color,box-shadow,border-color] duration-200 ease-out"
       style={{
         backgroundColor: scrolled
           ? 'rgba(255,255,255,0.88)'

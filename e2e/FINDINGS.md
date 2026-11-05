@@ -69,6 +69,15 @@ fails).
 | F16 | Low | Photo uploads sent at the same moment overwrite each other. Five single-photo uploads together: all five answered 200, the listing kept three. The lost files stay in storage with nothing pointing at them. `photos` is one JSON column that each request reads, changes and writes back. The page sends one request, so a host is unlikely to meet it. | 5 concurrent `POST /api/listings/[id]/photos` | same file, "five photos uploaded at the same moment" |
 | F17 | High (needs your decision) | A payout is converted to cedis at the exchange rate on the day it is sent (`src/lib/payouts.ts`, the latest `ExchangeRate` row), not at the rate the guest was charged at. Guests are charged in cedis at booking time; hosts are paid 48 hours after check-in, which can be months later. If the cedi has weakened in between, the host is sent more cedis than 90% of what was collected. In the test a 15% move means the host is sent 103.5% of everything the guest paid: FieGH pays the commission and more out of its own pocket. If the cedi strengthens, the host gets less than 90%. Refunds do use the rate stored on the payment. This may be intended (prices are in dollars), but then FieGH carries the currency risk on every advance booking and nothing limits or reports it. | Pay a booking, change the rate by 15%, run the payout job: compare the transfer with the payment's `amountPesewas`. | `tests/chaos/crash.spec.ts` "the host is never sent more cedis than 90%" |
 
+# app-shell-2: where things stand (2026-11-05, branch `app-shell-2`)
+
+Stage 2 of the phone app shell (Explore, the search sheet, phone search). Recorded here, not fixed, as the owner
+decided.
+
+| # | Rank | Status | What | How it shows | Proposed fix |
+|---|---|---|---|---|---|
+| AS7 | Low | Open: recorded, not fixed (owner's decision, 2026-11-05) | `GET /api/listings/region-counts` (desktop home page, "Explore by region") counts every home with `isActive: true`, including the homes of a suspended host, which are out of search and 404 by their link. A home on hold is not counted: a hold sets `isActive` false. | A region tile can say "4 homes" where search shows 3, while a host with homes there is suspended. Found while planning Explore, whose rows use the full rule (`LIVE_HOME` in `src/lib/explore.ts`). | Add `host: { suspendedAt: null }` (`HOST_NOT_SUSPENDED`) to the `groupBy` where, and `moderationHold: false` to match the other public reads; a unit test with a suspended host's home. A few minutes. |
+
 # security-upgrades: where things stand (2026-11-02, branch `security-upgrades`)
 
 Next 16.4.3, maplibre 6.16 and @sentry/nextjs 10.78, one commit each, and the map's credits. Nothing below was

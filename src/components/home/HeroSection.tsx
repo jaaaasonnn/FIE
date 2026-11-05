@@ -11,6 +11,9 @@ import 'react-datepicker/dist/react-datepicker.css'
 import { GHANA_REGIONS } from '@/lib/utils'
 import { RENTAL_MODES, type RentalMode } from '@/lib/rentalModes'
 
+/** The hero photos' sizes, also used by app/page.tsx to ask for the first one early */
+export const HERO_SIZES = '(min-width: 768px) 720px, 100vw'
+
 export type ModePhoto = {
   src: string
   alt: string
@@ -357,9 +360,10 @@ export function HeroSection({ photos }: { photos: Record<RentalMode, ModePhoto> 
                     src={photo.src}
                     alt=""
                     fill
-                    sizes="(min-width: 768px) 720px, 100vw"
-                    preload={value === 'SHORT_STAY'}
-                    loading={value === 'SHORT_STAY' ? 'eager' : 'lazy'}
+                    sizes={HERO_SIZES}
+                    // Lazy, so a phone (which never shows the hero: components/home/ExplorePhone.tsx) does not
+                    // fetch it; the first one is asked for at once on wider screens by app/page.tsx (HERO_SIZES)
+                    loading="lazy"
                     fetchPriority={value === 'SHORT_STAY' ? 'high' : 'low'}
                     className="mode-panel-photo object-cover"
                     style={{ objectPosition: photo.position }}

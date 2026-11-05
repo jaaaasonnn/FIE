@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { fetchRetry } from '@/lib/clientFetch'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 // Unsplash photo ids, each geotagged to the region it stands for
 const regions = [
@@ -67,13 +68,16 @@ function RegionTile({
 
 export function RegionsSection() {
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
+  // A phone shows Explore instead of this section (components/home/ExplorePhone.tsx), so it asks for nothing
+  const wide = useMediaQuery('(min-width: 768px)')
 
   useEffect(() => {
+    if (!wide) return
     fetchRetry('/api/listings/region-counts')
       .then((r) => r.json())
       .then((data) => setCounts(data.counts ?? {}))
       .catch(() => setCounts({}))
-  }, [])
+  }, [wide])
 
   const [lead, ...rest] = regions
 

@@ -811,3 +811,214 @@ input, select, textarea, button {
   .date-field-face[data-empty="true"] { color: var(--color-text-muted); font-weight: 400; }
   .date-field-input:focus-visible + .date-field-face { outline: none; }
 }
+
+/* ── Explore on a phone (app shell, stage 2: components/home/ExplorePhone.tsx) ───────────────────────────
+   Below 768 px the home page is Explore: no header, the "Where to?" pill and the rental-type chips at the top,
+   then rows of homes per city that swipe sideways with CSS alone. From 768 px up the page is as it was
+   (.explore-desktop). Every line on a card has a fixed height, so the cards in a row match and nothing moves. */
+.explore-phone { display: none; }
+@media (max-width: 767px) {
+  .explore-desktop { display: none; }
+  .explore-phone { display: block; padding-bottom: 8px; }
+  body:has(.explore-phone) .site-header { display: none; }
+
+  .explore-top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--color-bg);
+    padding: calc(env(safe-area-inset-top, 0px) + 12px) 0 8px;
+  }
+  .explore-pill {
+    margin: 0 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 20px;
+    border-radius: 999px;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    box-shadow: 0 4px 16px rgba(31, 27, 22, 0.08);
+    color: var(--color-text-primary);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .explore-chips {
+    display: flex;
+    gap: 8px;
+    margin: 12px 0 0;
+    padding: 0 16px 4px;
+    list-style: none;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-padding-inline: 16px;
+  }
+  .explore-chips::-webkit-scrollbar { display: none; }
+  .explore-chips > li { flex: 0 0 auto; }
+  .explore-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 44px;
+    padding: 0 16px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border-strong);
+    background: var(--color-bg-card);
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  .explore-row { padding-top: 20px; }
+  .explore-row-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px;
+    margin-bottom: 8px;
+  }
+  .explore-row-head h2 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .explore-row-all {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    color: var(--color-accent-deep);
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    text-decoration-thickness: 1px;
+    border-radius: 4px;
+  }
+  .explore-strip {
+    display: flex;
+    gap: 12px;
+    margin: 0;
+    padding: 0 16px 4px;
+    list-style: none;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 16px;
+    scrollbar-width: none;
+  }
+  .explore-strip::-webkit-scrollbar { display: none; }
+  .explore-card { position: relative; flex: 0 0 clamp(240px, 74vw, 300px); scroll-snap-align: start; }
+  .explore-card-link { display: block; color: inherit; text-decoration: none; border-radius: 16px; -webkit-tap-highlight-color: transparent; }
+  .explore-card-photo {
+    position: relative;
+    display: block;
+    aspect-ratio: 4 / 3;
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--color-border);
+  }
+  .explore-card-body { display: block; padding-top: 10px; }
+  .explore-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 22px; }
+  .explore-card-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-primary);
+    font-size: 0.9375rem;
+    line-height: 22px;
+    font-weight: 600;
+  }
+  .explore-card-rating {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    color: var(--color-text-primary);
+    font-size: 0.8125rem;
+    line-height: 22px;
+  }
+  .explore-card-line {
+    display: block;
+    height: 20px;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--color-text-secondary);
+    font-size: 0.8125rem;
+    line-height: 20px;
+  }
+  .explore-card-price { margin-top: 4px; color: var(--color-text-primary); font-size: 0.875rem; }
+  .explore-card-unit { color: var(--color-text-secondary); font-size: 0.8125rem; }
+  .explore-card-badge { display: block; height: 26px; margin-top: 6px; overflow: hidden; }
+  .explore-card-heart { position: absolute; top: 4px; right: 4px; }
+
+  .explore-empty {
+    margin: 32px 16px 0;
+    padding: 28px 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-bg-card);
+    text-align: center;
+  }
+  .explore-empty-title { margin: 0; color: var(--color-text-primary); font-size: 1.0625rem; font-weight: 600; }
+  .explore-empty-text { margin: 4px 0 0; color: var(--color-text-secondary); }
+  .explore-empty-action, .explore-host-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 48px;
+    margin-top: 16px;
+    padding: 0 24px;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: var(--color-text-primary);
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-decoration: none;
+  }
+  .explore-host {
+    margin: 32px 16px 0;
+    padding: 20px;
+    border-radius: 16px;
+    background: var(--color-accent-subtle);
+  }
+  .explore-host p { margin: 6px 0 0; color: var(--color-text-primary); }
+}
+
+/* The heart on a card's photo (components/listing/HeartButton.tsx): a 44 px target around a 34 px face */
+.heart-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.heart-button-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 2px 8px rgba(31, 27, 22, 0.14);
+  color: var(--color-text-primary);
+  transition: transform 120ms var(--ease-out);
+}
+.heart-button:active .heart-button-face { transform: scale(0.88); }
+.heart-button-face .heart-on { fill: #D92D20; stroke: #D92D20; }
+@media (prefers-reduced-motion: reduce) {
+  .heart-button-face { transition: none; }
+  .heart-button:active .heart-button-face { transform: none; }
+}

@@ -12,6 +12,7 @@ import { formatUsdCompact } from '@/lib/utils'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import type { PublicCheck } from '@/lib/listingCheckRules'
 import { fetchRetry } from '@/lib/clientFetch'
+import { useMediaQuery } from '@/lib/useMediaQuery'
 
 // ── API listing shape (parsed by /api/listings) ──────────────────────────────
 type ApiListing = {
@@ -78,18 +79,22 @@ export function FeaturedListings() {
     setWishlist((prev) => ({ userId, ids: update(prev?.userId === userId ? prev.ids : new Set()) }))
   }
 
+  // A phone shows Explore instead of this section (components/home/ExplorePhone.tsx), so it asks for nothing
+  const wide = useMediaQuery('(min-width: 768px)')
+
   // ── Fetch featured listings from the real DB ─────────────────────────
   useEffect(() => {
+    if (!wide) return
     fetchRetry('/api/listings?featured=true&limit=6')
       .then((r) => r.json())
       .then((d) => setListings(d.listings ?? []))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [])
+  }, [wide])
 
   // ── Load which featured listings are already wishlisted ──────────────
   useEffect(() => {
-    if (!user) return
+    if (!user || !wide) return
     const userId = user.id
     fetch(`/api/wishlists?userId=${userId}`)
       .then((r) => r.json())
@@ -102,7 +107,7 @@ export function FeaturedListings() {
         setWishlist({ userId, ids })
       })
       .catch(() => setWishlist({ userId, ids: new Set() }))
-  }, [user])
+  }, [user, wide])
 
   async function toggleWishlist(e: React.MouseEvent, listingId: string) {
     e.preventDefault()

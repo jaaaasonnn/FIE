@@ -1,11 +1,13 @@
-import { jsonObject, unreadableBody } from '@/lib/validate'
+import { jsonObject, unreadableBody, hasNullByte, unreadableQuery } from '@/lib/validate'
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { getSessionUser } from '@/lib/session'
 import { liveChecksInclude, publicListing } from '@/lib/listingChecks'
 
-export async function GET(_req: Request) {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url)
+    if (hasNullByte(searchParams)) return unreadableQuery()
     const user = await getSessionUser()
     if (!user) {
       return NextResponse.json({ error: 'You must be signed in' }, { status: 401 })
@@ -13,6 +15,13 @@ export async function GET(_req: Request) {
     // Ignore any client-supplied userId — a wishlist is only ever the
     // session user's own, never anyone else's by request.
     const userId = user.id
+
+    // ?only=ids: which homes the person has saved, and nothing else, for the hearts on a page of cards
+    // (components/listing/wishlistStore.ts). Their own list only, read only.
+    if (searchParams.get('only') === 'ids') {
+      const saved = await db.wishlist.findMany({ where: { userId }, select: { listingId: true } })
+      return NextResponse.json({ ids: saved.map((w) => w.listingId) })
+    }
 
     const now = new Date()
     const wishlists = await db.wishlist.findMany({
