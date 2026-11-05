@@ -989,7 +989,9 @@ input, select, textarea, button {
   .explore-host p { margin: 6px 0 0; color: var(--color-text-primary); }
 }
 
-/* The heart on a card's photo (components/listing/HeartButton.tsx): a 44 px target around a 34 px face */
+/* The heart on a card's photo (components/listing/HeartButton.tsx): a 44 px target around a 34 px face. On the
+   search page it is a phone's only: from 768 px up it is not drawn (this file's display wins over md:hidden) */
+@media (min-width: 768px) { .heart-button.search-card-heart { display: none; } }
 .heart-button {
   display: inline-flex;
   align-items: center;
