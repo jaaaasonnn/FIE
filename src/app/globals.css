@@ -909,7 +909,9 @@ input, select, textarea, button {
     scrollbar-width: none;
   }
   .explore-strip::-webkit-scrollbar { display: none; }
-  .explore-card { position: relative; flex: 0 0 clamp(240px, 74vw, 300px); scroll-snap-align: start; }
+  /* A fixed width (and min-width 0, so a long one-line title cannot widen it): every card in a row the same size */
+  .explore-card { position: relative; flex: 0 0 clamp(240px, 74vw, 300px); width: clamp(240px, 74vw, 300px); min-width: 0; scroll-snap-align: start; }
+  .explore-card-body, .explore-card-top { min-width: 0; }
   .explore-card-link { display: block; color: inherit; text-decoration: none; border-radius: 16px; -webkit-tap-highlight-color: transparent; }
   .explore-card-photo {
     position: relative;

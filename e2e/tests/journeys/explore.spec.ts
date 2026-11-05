@@ -23,8 +23,8 @@ const PHOTOS = ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=
 const KEPT_PAGE_MS = 75_000
 
 /** A home at the front of its city's row: featured, rated above anything else the tests make */
-async function frontHome(world: World, host: Actor) {
-  const home = await world.listing(host, { city: 'Cape Coast' })
+async function frontHome(world: World, host: Actor, title?: string) {
+  const home = await world.listing(host, { city: 'Cape Coast', ...(title ? { title } : {}) })
   await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS), isFeatured: true, avgRating: 3_000 } })
   // An edit through the app, so the kept home page is drawn again (lib/homePage.ts)
   expect((await host.call('PATCH', `/api/listings/${home.id}`, { title: home.title })).status).toBe(200)
@@ -39,11 +39,13 @@ async function shown(page: Page, id: string): Promise<boolean> {
 
 test.describe('Explore on a phone', () => {
   test('the page: no header, the pill and chips, rows of at most eight cards, nothing from the desktop page @core', async ({ page, world }) => {
+    test.setTimeout(KEPT_PAGE_MS + 30_000)
     const host = await world.host()
-    await frontHome(world, host)
+    const long = await frontHome(world, host, `A very long title for a home that runs well past the edge of any card ${Date.now()}`)
     const asked: string[] = []
     page.on('request', (r) => asked.push(r.url()))
     await page.goto('/')
+    if (isPhone()) await expect.poll(() => shown(page, long.id), { timeout: KEPT_PAGE_MS }).toBe(true)
     if (!isPhone()) {
       await expect(page.locator('.explore-phone')).toBeHidden()
       await expect(page.locator('header.site-header')).toBeVisible()
@@ -63,6 +65,9 @@ test.describe('Explore on a phone', () => {
     expect(count).toBeGreaterThan(0)
     expect(count).toBeLessThanOrEqual(5)
     for (let i = 0; i < count; i++) expect(await rows.nth(i).locator('.explore-card').count()).toBeLessThanOrEqual(8)
+    // Every card the same size, whatever its title (a long one once widened its card and its photo)
+    const sizes = await page.locator('.explore-card').evaluateAll((cards) => cards.map((c) => { const r = c.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}` }))
+    expect(new Set(sizes).size, sizes.join(' ')).toBe(1)
     await shot(page, 'explore')
 
     // The desktop sections ask for nothing on a phone, and the hero's photos are not fetched

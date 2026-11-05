@@ -43,7 +43,8 @@ async function seed(world: World): Promise<Seeded> {
     await db.listing.update({ where: { id: home.id }, data: { title, photos: JSON.stringify([PHOTO(i), PHOTO(i + 20), PHOTO(i + 40)]), isFeatured: true, avgRating: i % 3 === 0 ? 0 : 4.6 + (i % 4) / 10, reviewCount: i % 3 === 0 ? 0 : 3 + i, neighbourhood: title.split(' ').at(-1) } })
     ids.push(home.id)
   }
-  // One with FieGH's check standing
+  // The saved one (signed in) at the front of the first row, with FieGH's check standing
+  await db.listing.update({ where: { id: ids[1] }, data: { avgRating: 4.99 } })
   await db.listingCheck.create({ data: { listingId: ids[1], checkedById: admin.id, expiresAt: new Date(Date.now() + 300 * 86_400_000), method: 'VIDEO_CALL', checks: '["ADDRESS","HOME","PHOTOS"]', note: 'Seen on a video call for the stage 2 pictures.', digitalAddress: 'GA-183-8164', photos: '[]' } })
   // An edit through the app, so the kept home page is drawn again
   expect((await host.call('PATCH', `/api/listings/${ids[0]}`, { title: homes[0][1] })).status).toBe(200)
@@ -58,13 +59,13 @@ async function explore(page: Page, first: string) {
 test.describe('stage 2 pictures', () => {
   test.skip(!LABEL, 'pictures only, with E2E_STAGE2_SHOTS=<label>')
 
-  test('Explore and the hearts', async ({ page, world, signIn }) => {
+  test('Explore and the hearts @core', async ({ page, world, signIn }) => {
     test.setTimeout(300_000)
     const project = test.info().project.name
     const { ids } = await seed(world)
     if (project === 'chromium') {
       await page.setViewportSize({ width: 1280, height: 900 })
-      await explore(page, ids[0]).catch(() => {})
+      await explore(page, ids[1]).catch(() => {})
       await page.goto('/')
       await page.waitForLoadState('networkidle')
       await save(page, 'desktop-home', true)
@@ -72,17 +73,22 @@ test.describe('stage 2 pictures', () => {
     }
     for (const width of PHONE_WIDTHS) {
       await page.setViewportSize({ width, height: 844 })
-      await explore(page, ids[0])
+      await explore(page, ids[1])
+      if (process.env.E2E_STAGE2_DEBUG) console.log(width, JSON.stringify(await page.evaluate(() => {
+        const row = document.querySelector('.explore-row')!
+        const all = [row, ...Array.from(row.querySelectorAll('*'))].map((el) => [el.tagName + '.' + (typeof el.className === 'string' ? el.className.split(' ')[0] : ''), Math.round(el.getBoundingClientRect().height)] as const)
+        return all.filter(([, h]) => h > 300)
+      })))
       await save(page, `${width}-explore-signed-out`)
       await save(page, `${width}-explore-signed-out-full`, true)
     }
     const guest = await world.guest()
-    await db.wishlist.create({ data: { userId: guest.id, listingId: ids[0] } })
+    await db.wishlist.create({ data: { userId: guest.id, listingId: ids[1] } })
     await signIn(guest)
     for (const width of PHONE_WIDTHS) {
       await page.setViewportSize({ width, height: 844 })
-      await explore(page, ids[0])
-      await expect(page.locator(`.explore-phone [data-heart="${ids[0]}"]`).first()).toHaveAttribute('aria-pressed', 'true')
+      await explore(page, ids[1])
+      await expect(page.locator(`.explore-phone [data-heart="${ids[1]}"]`).first()).toHaveAttribute('aria-pressed', 'true')
       await save(page, `${width}-explore-signed-in`)
     }
     // Swiped along the first row
