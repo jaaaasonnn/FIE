@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { getPrimaryPrice } from '@/lib/utils'
+import { PhoneEmpty } from '@/components/ui/PhoneEmpty'
 
 type WishlistItem = {
   id: string
@@ -120,7 +121,8 @@ export default function WishlistPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
+      {/* Desktop: the dark band; a phone has the plain title below (app shell, stage 2) */}
+      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4 max-md:hidden">
         <div className="max-w-5xl mx-auto">
           <div className="flex items-center gap-3">
             <Heart size={22} style={{ color: '#EF4444' }} className="fill-red-500" />
@@ -138,7 +140,12 @@ export default function WishlistPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="phone-title md:hidden">
+        <h1>Your Wishlist</h1>
+        <p>{loading || authLoading ? '\u00a0' : `${items.length} saved ${items.length === 1 ? 'property' : 'properties'}`}</p>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-4 py-8 max-md:pt-4">
         {/* Dashboard nav */}
         {/* (phones: the bottom bar is the way between these pages) */}
         <div className="hidden md:flex gap-2 mb-8 overflow-x-auto pb-1">
@@ -158,12 +165,29 @@ export default function WishlistPage() {
 
         {/* Each state has its own key: what arrives is drawn fresh, not moved from where "Loading" was */}
         {loading || authLoading ? (
-          <div key="loading" className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
-            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading wishlist…</p>
+          <div key="loading">
+            <div className="flex flex-col items-center justify-center py-20 gap-3 max-md:hidden">
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading wishlist…</p>
+            </div>
+            {/* A phone: two cards' worth of placeholder, each the size of a saved home's card */}
+            <div className="md:hidden grid grid-cols-1 gap-5" aria-busy="true" aria-label="Loading your wishlist">
+              {[0, 1].map((n) => (
+                <div key={n} className="bg-white rounded-2xl overflow-hidden">
+                  <span className="ph-block h-48" style={{ borderRadius: 0 }} />
+                  <div className="p-4">
+                    <span className="ph-block h-5 w-3/4 mb-1" />
+                    <span className="ph-block h-4 w-1/2 mb-3" />
+                    <span className="ph-block h-9 w-1/3" />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : items.length === 0 ? (
-          <div key="empty" className="text-center py-20">
+          <div key="empty">
+          <PhoneEmpty title="Nothing saved yet." text="Tap the heart on any home to keep it here." action={{ label: 'Explore homes', href: '/' }} />
+          <div className="text-center py-20 max-md:hidden">
             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Nothing saved yet</h3>
             <p className="text-[#6B645C] mb-6 max-w-sm mx-auto">
               Tap the heart on a home you love and it&apos;ll wait for you here.
@@ -172,6 +196,7 @@ export default function WishlistPage() {
               style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
               Explore homes
             </Link>
+          </div>
           </div>
         ) : (
           <div key="saved" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">

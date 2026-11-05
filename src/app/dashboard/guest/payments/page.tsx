@@ -90,7 +90,8 @@ export default function GuestPaymentsPage() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
+      {/* Desktop: the dark band; a phone has the plain title below (app shell, stage 2) */}
+      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4 max-md:hidden">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-center gap-3">
             <CreditCard size={22} style={{ color: 'var(--color-accent)' }} />
@@ -106,7 +107,12 @@ export default function GuestPaymentsPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="phone-title md:hidden">
+        <h1>Payment History</h1>
+        <p>All your transactions on FieGH</p>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-8 max-md:pt-4">
         {/* Dashboard nav */}
         {/* (phones: the bottom bar is the way between these pages) */}
         <div className="hidden md:flex gap-2 mb-8 overflow-x-auto pb-1">
@@ -124,9 +130,33 @@ export default function GuestPaymentsPage() {
         </div>
 
         {loading || authLoading ? (
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
-            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading payments…</p>
+          <div key="loading">
+            <div className="flex flex-col items-center justify-center py-20 gap-3 max-md:hidden">
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+              <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading payments…</p>
+            </div>
+            {/* A phone: the page's own panels, empty until the payments come */}
+            <div className="md:hidden" aria-busy="true" aria-label="Loading your payments">
+              <div className="grid grid-cols-1 gap-4 mb-8">
+                {[0, 1, 2].map((n) => (
+                  <div key={n} className="soft-panel p-5 flex flex-col items-center">
+                    <span className="ph-block h-4 w-24 mb-1" />
+                    <span className="ph-block h-8 w-28" />
+                  </div>
+                ))}
+              </div>
+              <div className="soft-panel overflow-hidden">
+                <div className="px-5 py-4" style={{ borderBottom: '1px solid rgba(232, 225, 214, 0.55)' }}>
+                  <span className="ph-block h-5 w-36" />
+                </div>
+                {[0, 1].map((n) => (
+                  <div key={n} className="px-5 py-4 flex items-center gap-3">
+                    <span className="ph-block w-10 h-10 flex-shrink-0" />
+                    <span className="flex-1"><span className="ph-block h-4 w-2/3 mb-1" /><span className="ph-block h-3 w-1/2" /></span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         ) : (
           <>

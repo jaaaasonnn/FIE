@@ -4,7 +4,7 @@ import { Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { useAuth } from '@/context/AuthContext'
-import { MessagesInbox } from '@/components/messages/MessagesInbox'
+import { InboxPlaceholder, MessagesInbox } from '@/components/messages/MessagesInbox'
 import { Loader2 } from 'lucide-react'
 
 function GuestMessagesContent() {
@@ -27,17 +27,25 @@ function GuestMessagesContent() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
+      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4 max-md:hidden">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>Messages</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(250,247,242,0.6)' }}>Chat with your hosts</p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 py-6">
+      {/* A phone: the plain title, in place of the dark band (app shell, stage 2) */}
+      <div className="phone-title md:hidden">
+        <h1>Messages</h1>
+        <p>Chat with your hosts</p>
+      </div>
+      <div className="max-w-6xl mx-auto px-4 py-6 max-md:pt-4">
         {authLoading ? (
-          <div className="soft-panel flex items-center justify-center" style={{ height: '600px' }}>
-            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+          <div key="loading">
+            <div className="soft-panel flex items-center justify-center max-md:hidden" style={{ height: '600px' }}>
+              <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+            </div>
+            <InboxPlaceholder />
           </div>
         ) : !user ? (
           <div className="soft-panel flex flex-col items-center justify-center gap-4" style={{ height: '600px' }}>
@@ -90,16 +98,22 @@ function GuestMessagesContent() {
 function GuestMessagesFallback() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
+      <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4 max-md:hidden">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>Messages</h1>
           <p className="text-sm mt-1" style={{ color: 'rgba(250,247,242,0.6)' }}>Chat with your hosts</p>
         </div>
       </div>
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="soft-panel flex items-center justify-center" style={{ height: '600px' }}>
+      {/* A phone: the plain title, in place of the dark band (app shell, stage 2) */}
+      <div className="phone-title md:hidden">
+        <h1>Messages</h1>
+        <p>Chat with your hosts</p>
+      </div>
+      <div className="max-w-6xl mx-auto px-4 py-6 max-md:pt-4">
+        <div className="soft-panel flex items-center justify-center max-md:hidden" style={{ height: '600px' }}>
           <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
         </div>
+        <InboxPlaceholder />
       </div>
     </div>
   )

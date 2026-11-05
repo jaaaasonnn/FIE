@@ -743,10 +743,10 @@ input, select, textarea, button {
 .account-row:focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: -2px; }
 
 @media (max-width: 767px) {
-  /* Nearly solid (98.5%) and not blurred: card text and photo colours never show through the labels or icons. A
-     backdrop blur, even with the bar at 97-98.5%, let the cards' dark text show faintly behind the tab labels in
-     WebKit and Chromium; the same bar without it shows nothing (measured at 320 px, 2026-11-05). */
-  .bottom-bar { background: rgba(255, 255, 255, 0.985); box-shadow: 0 -1px 0 rgba(31, 27, 22, 0.04); }
+  /* Solid, not blurred: card text and photo colours never show through the labels or icons. With a backdrop blur
+     at 97-98.5%, and even at 98.5% without one, the cards' dark text still showed faintly behind the tab labels
+     (2026-11-05). */
+  .bottom-bar { background: var(--color-bg-card); box-shadow: 0 -1px 0 rgba(31, 27, 22, 0.04); }
 }
 
 /* ── Phones: type scale, targets, header (app shell, stage 1 polish) ─────────────────────────────────────
@@ -1038,8 +1038,8 @@ input, select, textarea, button {
   .heart-button:active .heart-button-face { transform: none; }
 }
 
-/* ── The search sheet (app shell, stage 2: components/search/SearchSheet.tsx, public/sheet.js) ───────────────
-   Phones only. With no script it opens as the target of its pill's link (#search-sheet); with public/sheet.js it
+/* ── The search sheet (app shell, stage 2: components/search/SearchSheet.tsx, public/shell.js) ───────────────
+   Phones only. With no script it opens as the target of its pill's link (#search-sheet); with public/shell.js it
    opens on [data-open] and the address's target is ignored. It slides up, unless motion is reduced. */
 .search-sheet { display: none; }
 @media (max-width: 767px) {
@@ -1098,7 +1098,7 @@ input, select, textarea, button {
   .search-sheet-form:has(input[name="mode"][value="PERMANENT"]:checked) .sheet-checkout { display: none; }
   .search-sheet-form:has(input[name="mode"][value="TEMP_STAY"]:checked) .sheet-months { display: block; }
   .search-sheet-form:has(input[name="mode"][value="PERMANENT"]:checked) .sheet-year { display: block; align-self: center; margin: 0; color: var(--color-text-secondary); font-size: 0.8125rem; }
-  /* With no script the date is the browser's own, shown as it is; the drawn face needs public/sheet.js */
+  /* With no script the date is the browser's own, shown as it is; the drawn face needs public/shell.js */
   :root:not([data-sheet-ready]) .search-sheet .date-field-input { color: var(--color-text-primary) !important; }
   :root:not([data-sheet-ready]) .search-sheet .date-field-input::-webkit-datetime-edit { opacity: 1; }
   :root:not([data-sheet-ready]) .search-sheet .date-field-face { display: none; }
@@ -1190,3 +1190,66 @@ input, select, textarea, button {
     box-shadow: 0 6px 20px rgba(31, 27, 22, 0.25);
   }
 }
+
+/* ── The header steps aside on scroll, on a phone (public/shell.js sets data-header-hidden) ──────────────────
+   By transform only, the search page's bar under it with it, so nothing is laid out again. */
+@media (max-width: 767px) {
+  .site-header, .under-header { transition: transform 220ms var(--ease-out); }
+  :root[data-header-hidden] .site-header { transform: translateY(-100%); }
+  :root[data-header-hidden] .under-header { transform: translateY(calc(-1 * var(--site-header-height))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-header, .under-header { transition: none; }
+}
+
+/* ── An empty state on a phone (components/ui/PhoneEmpty.tsx) ─────────────────────────────────────────────── */
+@media (max-width: 767px) {
+  .phone-empty {
+    margin: 8px 0 0;
+    padding: 28px 20px;
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    background: var(--color-bg-card);
+    text-align: center;
+  }
+  .phone-empty-title { margin: 0; color: var(--color-text-primary); font-size: 1.0625rem; font-weight: 600; }
+  .phone-empty-text { margin: 4px auto 0; max-width: 22rem; color: var(--color-text-secondary); }
+  .phone-empty-action {
+    display: inline-flex; align-items: center; justify-content: center; height: 48px; margin-top: 16px; padding: 0 24px;
+    border: 0; border-radius: 999px; background: var(--color-accent); color: var(--color-text-primary);
+    font-size: 0.875rem; font-weight: 700; text-decoration: none;
+  }
+  /* A page's plain title on a phone, in place of the dark band (Wishlists, Payments, both inboxes) */
+  .phone-title { padding: 16px 16px 0; }
+  .phone-title h1 { margin: 0; color: var(--color-text-primary); }
+  .phone-title p { margin: 2px 0 0; color: var(--color-text-secondary); font-size: 0.875rem; min-height: 1.3125rem; }
+  /* Placeholders: grey blocks the size of what takes their place */
+  .ph-block { display: block; border-radius: 8px; background: #EDE8E1; }
+}
+
+/* ── The footer on a phone: each list of links folds into a section that opens on a tap (<details>, no script);
+   the "Never pay outside the app" banner and the contact lines stay in view. Desktop is as it was. */
+.footer-fold { display: none; }
+@media (max-width: 767px) {
+  .footer-fold { display: block; border-bottom: 1px solid rgba(240, 184, 78, 0.14); }
+  .footer-fold-first { border-top: 1px solid rgba(240, 184, 78, 0.14); }
+  .footer-fold > summary {
+    display: flex; align-items: center; justify-content: space-between; min-height: 48px; cursor: pointer; list-style: none;
+    color: var(--color-accent); font-size: 0.9375rem; font-weight: 600;
+  }
+  .footer-fold > summary::-webkit-details-marker { display: none; }
+  .footer-fold > summary::after {
+    content: ''; width: 9px; height: 9px; margin-right: 4px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(45deg) translateY(-3px); transition: transform 180ms var(--ease-out);
+  }
+  .footer-fold[open] > summary::after { transform: rotate(-135deg) translateY(-1px); }
+  .footer-fold > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .footer-fold ul { margin: 0 0 12px; padding: 0; list-style: none; }
+  .footer-fold li a { display: flex; align-items: center; min-height: 44px; color: rgba(250, 247, 242, 0.78); font-size: 0.9375rem; }
+  .footer-desktop-only { display: none !important; }
+}
+@media (prefers-reduced-motion: reduce) { .footer-fold > summary::after { transition: none; } }
+
+/* A full-screen panel that slides up on a phone (the search page's map) */
+@media (max-width: 767px) { .sheet-slide { animation: sheet-up 280ms var(--ease-out); } }
+@media (prefers-reduced-motion: reduce) { .sheet-slide { animation: none; } }

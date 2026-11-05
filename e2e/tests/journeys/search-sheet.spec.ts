@@ -5,7 +5,7 @@ import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import { openSheet, resultCount } from '../../pages'
 
-// App shell, stage 2: the search sheet (src/components/search/SearchSheet.tsx, public/sheet.js) and search on a
+// App shell, stage 2: the search sheet (src/components/search/SearchSheet.tsx, public/shell.js) and search on a
 // phone (src/app/search/SearchClient.tsx). @core, so it runs in every set-up: on a phone the sheet opens from
 // Explore's pill and the search page's summary pill, Back closes it, focus stays inside, it searches through
 // /search (in place on the search page), and it works with no script at all; the cards are full width with

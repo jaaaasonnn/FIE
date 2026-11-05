@@ -3,6 +3,57 @@ import { Logo } from '@/components/ui/Wordmark'
 import { Mail, Phone, MapPin, ShieldAlert, Lock } from 'lucide-react'
 import { SUPPORT_EMAIL, supportPhone } from '@/lib/contact'
 
+type FooterLink = { href: string; label: string }
+
+const EXPLORE: FooterLink[] = [
+  { href: '/search?mode=SHORT_STAY', label: 'Short Stays' },
+  { href: '/search?mode=TEMP_STAY', label: 'Monthly Rentals' },
+  { href: '/search?mode=PERMANENT', label: 'Long-Term Leases' },
+  { href: '/search?region=Greater+Accra', label: 'Accra Properties' },
+  { href: '/search?region=Ashanti', label: 'Kumasi Properties' },
+]
+const HOSTING: FooterLink[] = [
+  { href: '/login?tab=signup&role=host', label: 'Become a Host' },
+  { href: '/how-it-works#hosts', label: 'How Hosting Works' },
+  { href: '/dashboard/host', label: 'Host Dashboard' },
+  { href: '/faq#hosting', label: 'Hosting FAQ' },
+]
+const SUPPORT: FooterLink[] = [
+  { href: '/how-it-works', label: 'How it Works' },
+  { href: '/faq', label: 'FAQ' },
+  { href: '/terms', label: 'Terms of Service' },
+  { href: '/privacy', label: 'Privacy Policy' },
+]
+
+/**
+ * A list of links: from 768 px up its heading and list, as they always were; on a phone a section that opens on a
+ * tap (globals.css .footer-fold), so the footer is a few lines long until someone wants it.
+ */
+function LinkGroup({ title, links, listClass = '', first = false }: { title: string; links: FooterLink[]; listClass?: string; first?: boolean }) {
+  return (
+    <>
+      <h4 className="footer-desktop-only text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
+        {title}
+      </h4>
+      <ul className={`footer-desktop-only space-y-2 text-sm ${listClass}`} style={{ color: 'rgba(250,247,242,0.7)' }}>
+        {links.map(({ href, label }) => (
+          <li key={href}>
+            <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
+          </li>
+        ))}
+      </ul>
+      <details className={`footer-fold ${first ? 'footer-fold-first' : ''}`}>
+        <summary>{title}</summary>
+        <ul>
+          {links.map(({ href, label }) => (
+            <li key={href}><Link href={href}>{label}</Link></li>
+          ))}
+        </ul>
+      </details>
+    </>
+  )
+}
+
 export function Footer() {
   // SUPPORT_PHONE, when it is set. With none set, no phone row is shown at all.
   const phone = supportPhone()
@@ -21,9 +72,9 @@ export function Footer() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 max-md:gap-0">
           {/* Brand */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 max-md:mb-6">
             <Link href="/" aria-label="FieGH home" className="inline-flex items-center gap-3 mb-5">
               <Logo height={26} />
             </Link>
@@ -38,61 +89,18 @@ export function Footer() {
 
           {/* Explore */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
-              Explore
-            </h4>
-            <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
-              {[
-                { href: '/search?mode=SHORT_STAY', label: 'Short Stays' },
-                { href: '/search?mode=TEMP_STAY', label: 'Monthly Rentals' },
-                { href: '/search?mode=PERMANENT', label: 'Long-Term Leases' },
-                { href: '/search?region=Greater+Accra', label: 'Accra Properties' },
-                { href: '/search?region=Ashanti', label: 'Kumasi Properties' },
-              ].map(({ href, label }) => (
-                <li key={href}>
-                  <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
-                </li>
-              ))}
-            </ul>
+            <LinkGroup title="Explore" links={EXPLORE} first />
           </div>
 
           {/* Hosting */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
-              Hosting
-            </h4>
-            <ul className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.7)' }}>
-              {[
-                { href: '/login?tab=signup&role=host', label: 'Become a Host' },
-                { href: '/how-it-works#hosts', label: 'How Hosting Works' },
-                { href: '/dashboard/host', label: 'Host Dashboard' },
-                { href: '/faq#hosting', label: 'Hosting FAQ' },
-              ].map(({ href, label }) => (
-                <li key={href}>
-                  <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
-                </li>
-              ))}
-            </ul>
+            <LinkGroup title="Hosting" links={HOSTING} />
           </div>
 
-          {/* Support */}
+          {/* Support; the contact lines stay in view on a phone */}
           <div>
-            <h4 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-accent)' }}>
-              Support
-            </h4>
-            <ul className="space-y-2 text-sm mb-6" style={{ color: 'rgba(250,247,242,0.7)' }}>
-              {[
-                { href: '/how-it-works', label: 'How it Works' },
-                { href: '/faq', label: 'FAQ' },
-                { href: '/terms', label: 'Terms of Service' },
-                { href: '/privacy', label: 'Privacy Policy' },
-              ].map(({ href, label }) => (
-                <li key={href}>
-                  <Link href={href} className="hover:text-[#E8BA6E] transition-colors">{label}</Link>
-                </li>
-              ))}
-            </ul>
-            <div className="space-y-2 text-sm" style={{ color: 'rgba(250,247,242,0.5)' }}>
+            <LinkGroup title="Support" links={SUPPORT} listClass="mb-6" />
+            <div className="space-y-2 text-sm max-md:mt-5" style={{ color: 'rgba(250,247,242,0.5)' }}>
               <div className="flex items-center gap-2">
                 <MapPin size={14} style={{ color: 'var(--color-accent)' }} />
                 <span>Accra, Ghana</span>

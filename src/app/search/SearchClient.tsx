@@ -22,6 +22,7 @@ import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { dateQuery, fromSheet, getDisplayPrice, searchQuery, searchSummary, shapeResults, sheetParams, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
 import { aboutCedis, cardPriceFor, stayPrice } from '@/lib/exploreRows'
 import { HeartPlaceholder } from '@/components/listing/HeartPlaceholder'
+import { PhoneEmpty } from '@/components/ui/PhoneEmpty'
 import { CHECK_CHIP_LABEL } from '@/lib/listingCheckRules'
 import { formatDay } from '@/lib/dateText'
 
@@ -72,16 +73,14 @@ const CARD_PHOTOS = 5
 
 /**
  * A card's photos. From 768 px up, the 110 x 100 thumbnail it always was. On a phone, the card's width at 4:3,
- * swiped sideways through up to five photos ("2 / 5"); the ones after the first are lazy, and a desktop never
- * draws them, so it never fetches them.
+ * swiped sideways through up to five photos ("2 / 5", kept up to date by public/shell.js, a phone's only); the
+ * ones after the first are lazy, and a desktop never draws them, so it never fetches them.
  */
 function CardPhotos({ listing: l, eager, first }: { listing: ApiListing; eager: boolean; first: boolean }) {
   const photos = (l.photos ?? []).slice(0, CARD_PHOTOS)
-  const [at, setAt] = useState(0)
   return (
     <div className="search-card-photo relative flex-shrink-0 rounded-xl overflow-hidden">
-      <div className="search-card-strip"
-        onScroll={(e) => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }}>
+      <div className="search-card-strip">
         {photos.map((src, i) => (
           <div key={src + i} className="search-card-slide">
             <Image src={src} alt={i === 0 ? l.title : ''}
@@ -101,7 +100,7 @@ function CardPhotos({ listing: l, eager, first }: { listing: ApiListing; eager: 
         </span>
       )}
       {photos.length > 1 && (
-        <span className="search-card-count md:hidden" aria-hidden>{Math.min(at, photos.length - 1) + 1} / {photos.length}</span>
+        <span className="search-card-count md:hidden" data-count={photos.length} aria-hidden>1 / {photos.length}</span>
       )}
     </div>
   )
@@ -168,7 +167,7 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
 
   const [filters, setFilters] = useState<SearchFilters>(startFilters)
 
-  // The phone's search sheet (public/sheet.js) starts from the search shown and changes it in place
+  // The phone's search sheet (public/shell.js) starts from the search shown and changes it in place
   const shown = useRef(filters)
   useEffect(() => { shown.current = filters }, [filters])
   useEffect(() => {
@@ -183,6 +182,11 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
     return () => { document.removeEventListener('fiegh:sheet-read', read); document.removeEventListener('fiegh:sheet-apply', apply) }
   }, [])
   const summary = searchSummary(filters)
+  const clearAll = () => setFilters({
+    query: '', mode: '', region: '', guests: '', checkIn: '', checkOut: '', months: '1', minPrice: '', maxPrice: '',
+    bedrooms: '', propertyType: '', hostIdChecked: false, checked: false,
+    superhost: false, sort: 'newest', amenities: [],
+  })
   // Loading until results arrive for the current filters (derived, not toggled in the effect)
   const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(first ? startFilters : null)
   const loading = loadedFilters !== filters
@@ -299,8 +303,8 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
 
-      {/* Sticky top bar */}
-      <div className="sticky z-30"
+      {/* Sticky top bar (on a phone it moves up with the header when that steps aside: .under-header) */}
+      <div className="sticky z-30 under-header"
         style={{
           top: 'var(--site-header-height)',
           backgroundColor: 'var(--color-bg-card)',
@@ -505,20 +509,19 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
           {loadFailed ? (
             <LoadFailed className="py-10" onRetry={() => setFilters((f) => ({ ...f }))} />
           ) : !loading && listings.length === 0 ? (
-            <div className="text-center py-20">
+            <>
+            <PhoneEmpty title="No homes match all of that." text="Try fewer filters or other dates." action={{ label: 'Clear filters', onClick: clearAll }} />
+            <div className="text-center py-20 max-md:hidden">
 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
                 <Home size={26} strokeWidth={1.75} aria-hidden />
               </div>
               <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>No properties found</h3>
               <p className="mb-6" style={{ color: 'var(--color-text-secondary)' }}>Try adjusting your filters.</p>
-              <Button onClick={() => setFilters({
-                query: '', mode: '', region: '', guests: '', checkIn: '', checkOut: '', months: '1', minPrice: '', maxPrice: '',
-                bedrooms: '', propertyType: '', hostIdChecked: false, checked: false,
-                superhost: false, sort: 'newest', amenities: [],
-              })}>
+              <Button onClick={clearAll}>
                 Clear all filters
               </Button>
             </div>
+            </>
           ) : (
             <div className="search-results grid grid-cols-1 xl:grid-cols-2 gap-4">
               {(loading ? Array.from({ length: 6 }) : listings).map((item, idx) => {
@@ -671,7 +674,7 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
 
       {/* Mobile full-screen map overlay */}
       {showMapMobile && (
-        <div className="fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: 'var(--color-bg)' }}>
+        <div className="sheet-slide fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: 'var(--color-bg)' }}>
           <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
             style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }}>
             <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>

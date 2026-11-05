@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Loader2, Search, Send } from 'lucide-react'
+import { PhoneEmpty } from '@/components/ui/PhoneEmpty'
 import {
   type ApiMessage,
   type ChatMessage,
@@ -382,11 +383,14 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
 
   if (loading) {
     return (
-      <div className="soft-panel flex items-center justify-center" style={{ height: '600px' }}>
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading messages…</p>
+      <div key="loading">
+        <div className="soft-panel flex items-center justify-center max-md:hidden" style={{ height: '600px' }}>
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 size={28} className="animate-spin" style={{ color: 'var(--color-accent)' }} />
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Loading messages…</p>
+          </div>
         </div>
+        <InboxPlaceholder />
       </div>
     )
   }
@@ -398,12 +402,15 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
       {nav}
 
       {showEmpty ? (
-        <div className="soft-panel flex items-center justify-center" style={{ height: '600px' }}>
+        <>
+        {role === 'guest' && <PhoneEmpty title="No messages yet." text="Questions to a host land here." action={{ label: 'Explore homes', href: '/' }} />}
+        <div className={`soft-panel flex items-center justify-center ${role === 'guest' ? 'max-md:hidden' : ''}`} style={{ height: '600px' }}>
           <div className="text-center px-4">
             <h3 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Your inbox is quiet</h3>
             <p className="text-sm max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>{emptyCopy}</p>
           </div>
         </div>
+        </>
       ) : (
         <div className="soft-panel overflow-hidden" style={{ height: '600px', display: 'flex' }}>
           {/* Sidebar */}
@@ -450,7 +457,9 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
                       <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
                         {conv.otherName}
                       </span>
-                      <span className="text-xs text-[#736D62]">{conv.time}</span>
+                      {/* A fixed width, right-aligned: "Just now" turning into "1m ago" as the conversation loads does
+                          not move the label's edge (AS9) */}
+                      <span className="text-xs text-[#736D62] flex-shrink-0 min-w-[4.5rem] text-right">{conv.time}</span>
                     </div>
                     <p className="text-xs text-[#6B645C] truncate">{conv.listingTitle}</p>
                     <p className="text-xs text-[#736D62] truncate mt-0.5">{conv.lastMessage}</p>
@@ -588,6 +597,28 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+/**
+ * The inbox while it loads, on a phone: its own panel, search field and conversation rows, empty until the
+ * conversations come (app shell, stage 2). Desktop keeps its spinner.
+ */
+export function InboxPlaceholder() {
+  return (
+    <div className="soft-panel overflow-hidden md:hidden" style={{ height: '600px' }} aria-busy="true" aria-label="Loading messages">
+      <div className="p-4 border-b border-stone-100"><span className="ph-block h-11 w-full rounded-xl" /></div>
+      {[0, 1, 2, 3].map((n) => (
+        <div key={n} className="p-4 flex items-start gap-3 border-b border-stone-50">
+          <span className="ph-block w-10 h-10 flex-shrink-0" style={{ borderRadius: 999 }} />
+          <span className="flex-1 min-w-0">
+            <span className="ph-block h-4 w-1/2 mb-1.5" />
+            <span className="ph-block h-3 w-3/4 mb-1.5" />
+            <span className="ph-block h-3 w-2/3" />
+          </span>
+        </div>
+      ))}
     </div>
   )
 }

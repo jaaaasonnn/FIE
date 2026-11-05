@@ -139,7 +139,7 @@ export function shapeResults(data: { listings?: ApiListing[]; total?: unknown },
   return { results, total: narrowedHere || typeof data.total !== 'number' ? results.length : data.total }
 }
 
-// ── The phone's search sheet (components/search/SearchSheet.tsx, public/sheet.js) ─────────────────────────────
+// ── The phone's search sheet (components/search/SearchSheet.tsx, public/shell.js) ─────────────────────────────
 /** The search shown, as the sheet's fields are named */
 export function sheetParams(f: SearchFilters): string {
   const p = new URLSearchParams()

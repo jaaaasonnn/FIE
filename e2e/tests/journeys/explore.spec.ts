@@ -115,8 +115,10 @@ test.describe('Explore on a phone', () => {
       const solid = await sharp(await page.screenshot({ clip })).raw().toBuffer()
       await style.evaluate((el) => (el as Element).remove())
       let differ = 0
-      for (let i = 0; i < drawn.length; i++) if (Math.abs(drawn[i] - solid[i]) > 6) differ++
-      expect(differ / drawn.length, `${width} px: share of the bar's pixels that the page behind it changes`).toBeLessThan(0.002)
+      // Any change at all (more than one level in a channel, past rounding), on any pixel: a faint ghost of the text
+      // behind is a change of 2 to 4 levels
+      for (let i = 0; i < drawn.length; i++) if (Math.abs(drawn[i] - solid[i]) > 1) differ++
+      expect(differ, `${width} px: pixels of the bar that the page behind it changes`).toBe(0)
     }
   })
 

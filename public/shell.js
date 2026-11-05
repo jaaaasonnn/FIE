@@ -1,5 +1,6 @@
 /*
- * The search sheet on a phone (src/components/search/SearchSheet.tsx). Loaded only at phone widths, by the
+ * The phone's app shell (stage 2): the search sheet, the header that steps aside on scroll, and Explore's rows kept
+ * on Back. Loaded only at phone widths, by the
  * one-line check in the page's head (src/lib/bottomBar.ts), so a desktop never downloads it. Plain script,
  * outside the app's bundle. Without it the sheet still works: its pill is a link to #search-sheet, CSS shows the
  * sheet as the link's target, and its form GETs /search.
@@ -14,6 +15,7 @@
 (function () {
   if (window.__fieSheet) return
   window.__fieSheet = true
+  // ── The search sheet (src/components/search/SearchSheet.tsx) ──────────────────────────────────────────────
   var HASH = '#search-sheet'
   var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
   var DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -206,4 +208,87 @@
   new MutationObserver(function () {
     if (running(sheet())) document.documentElement.setAttribute('data-sheet-ready', '')
   }).observe(document.body, { childList: true, subtree: true })
+
+  // ── A search card's photo count ("2 / 5", app/search/SearchClient.tsx CardPhotos) as its photos are swiped ──
+  document.addEventListener('scroll', function (e) {
+    var strip = e.target
+    if (!(strip instanceof Element) || !strip.classList.contains('search-card-strip')) return
+    var count = strip.parentElement && strip.parentElement.querySelector('.search-card-count')
+    if (!count || !running(count)) return
+    var n = Number(count.getAttribute('data-count')) || 1
+    var at = Math.min(n - 1, Math.round(strip.scrollLeft / Math.max(1, strip.clientWidth)))
+    var text = (at + 1) + ' / ' + n
+    if (count.textContent !== text) count.textContent = text
+  }, true)
+
+  // ── The header steps aside on scroll (globals.css :root[data-header-hidden]) ─────────────────────────────────
+  // Scrolling down hides it, scrolling up brings it back; never near the top of the page, while its menu or the
+  // sheet is open, on checkout and log-in, or once a desktop width is reached. It moves by transform only, with
+  // the search page's bar under it (.under-header), so nothing is laid out again (no layout shift).
+  var root = document.documentElement
+  var lastY = window.scrollY
+  var headerHidden = false
+  var frame = 0
+  var wide = window.matchMedia('(min-width: 768px)')
+  function headerShown() {
+    return /^\/(checkout|login)(\/|$)/.test(location.pathname) || wide.matches || isOpen() ||
+      !!document.querySelector('.site-header button[aria-label="Close menu"]')
+  }
+  function setHeader(hidden) {
+    if (hidden === headerHidden) return
+    headerHidden = hidden
+    if (hidden) root.setAttribute('data-header-hidden', '')
+    else root.removeAttribute('data-header-hidden')
+  }
+  function onScroll() {
+    if (frame) return
+    frame = requestAnimationFrame(function () {
+      frame = 0
+      var y = window.scrollY
+      var header = document.querySelector('.site-header')
+      var tall = header ? header.getBoundingClientRect().height : 56
+      if (headerShown() || y <= tall) setHeader(false)
+      else if (y - lastY > 6) setHeader(true)
+      else if (lastY - y > 6) setHeader(false)
+      lastY = y
+    })
+  }
+  window.addEventListener('scroll', onScroll, { passive: true })
+  wide.addEventListener('change', function () { setHeader(false) })
+  // Reaching the header with the keyboard brings it back
+  document.addEventListener('focusin', function (e) { if (e.target instanceof Element && e.target.closest('.site-header')) setHeader(false) })
+  document.addEventListener('click', function (e) { if (e.target instanceof Element && e.target.closest('.site-header')) setHeader(false) }, true)
+
+  // ── Explore's rows are where they were after Back (components/home/ExplorePhone.tsx) ───────────────────────
+  // The browser puts the page back where it was, but not a row scrolled sideways: each row's place is kept when a
+  // card is opened and put back once Explore is drawn again, for half an hour.
+  var ROWS_KEY = 'fiegh-explore-rows'
+  function strips() { return document.querySelectorAll('[data-explore-strip]') }
+  document.addEventListener('click', function (e) {
+    if (!(e.target instanceof Element) || !e.target.closest('[data-explore-strip] a')) return
+    var places = {}
+    strips().forEach(function (el) { places[el.getAttribute('data-explore-strip')] = el.scrollLeft })
+    try { sessionStorage.setItem(ROWS_KEY, JSON.stringify({ path: location.pathname, places: places, at: Date.now() })) } catch { /* no storage: rows start at their first card */ }
+  }, true)
+  function restoreRows() {
+    var list = strips()
+    if (!list.length || !running(list[0])) return
+    var saved = null
+    try { saved = JSON.parse(sessionStorage.getItem(ROWS_KEY) || 'null') } catch { return }
+    if (!saved || saved.path !== location.pathname || Date.now() - saved.at > 30 * 60 * 1000) return
+    try { sessionStorage.removeItem(ROWS_KEY) } catch { /* kept: put back again next time, harmless */ }
+    list.forEach(function (el) {
+      var left = saved.places[el.getAttribute('data-explore-strip')]
+      if (typeof left === 'number') el.scrollTo({ left: left, behavior: 'instant' })
+    })
+  }
+
+  // A new page (the app moves between pages without reloading): the header comes back, rows are put back
+  var shellPath = location.pathname
+  new MutationObserver(function () {
+    if (location.pathname !== shellPath) { shellPath = location.pathname; setHeader(false); lastY = window.scrollY }
+    restoreRows()
+  }).observe(document.body, { childList: true, subtree: true })
+  window.addEventListener('pageshow', restoreRows)
+  restoreRows()
 })()

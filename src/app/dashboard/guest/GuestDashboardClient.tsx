@@ -23,6 +23,7 @@ import { problemLinkLabel } from '@/lib/disputes'
 import { rentStatus } from '@/lib/rentRules'
 import type { ScheduleInstalment } from '@/components/booking/RentSchedule'
 import { readJson } from '@/lib/clientFetch'
+import { PhoneEmpty } from '@/components/ui/PhoneEmpty'
 import { LoadFailed } from '@/components/ui/LoadFailed'
 import { useHydrated } from '@/lib/useHydrated'
 import type { AuthUser } from '@/context/AuthContext'
@@ -393,7 +394,9 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
               ))}
             </div>
           ) : bookings.length === 0 ? (
-            <div className="bg-white rounded-2xl p-10 text-center" style={{ boxShadow: '0 4px 18px rgba(31, 27, 22, 0.06)' }}>
+            <>
+            <PhoneEmpty title="No trips yet." text="Your next stay starts with a search." action={{ label: 'Find a home', href: '/' }} />
+            <div className="bg-white rounded-2xl p-10 text-center max-md:hidden" style={{ boxShadow: '0 4px 18px rgba(31, 27, 22, 0.06)' }}>
               <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>No bookings yet</p>
               <p className="text-sm mt-1 max-w-sm mx-auto" style={{ color: 'var(--color-text-secondary)' }}>
                 When you book a stay, it&apos;ll show up here.
@@ -403,6 +406,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                 Browse listings
               </Link>
             </div>
+            </>
           ) : (
             <div className="space-y-4">
               {bookings.map((b) => {

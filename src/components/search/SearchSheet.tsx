@@ -5,7 +5,7 @@ import { RENTAL_MODES } from '@/lib/rentalModes'
 // The search sheet (app shell, stage 2), on phones only: Explore's "Where to?" pill and the search page's summary
 // pill open it. Drawn on the server, a plain form that GETs /search, so it works with no script at all: the pill
 // is a link to #search-sheet and CSS opens the sheet as the link's target (globals.css .search-sheet). On a phone
-// public/sheet.js then makes it feel native: Back closes it, focus stays inside, the page behind is inert, the
+// public/shell.js then makes it feel native: Back closes it, focus stays inside, the page behind is inert, the
 // guest steppers work, the date fields show "Wed, 13 Nov", and on the search page it changes the search in place.
 // No React code of its own, so nothing is added to any page's script.
 

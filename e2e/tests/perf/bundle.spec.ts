@@ -22,7 +22,7 @@ const BUDGET_KB = 350
 // App shell: the bottom bar's unread badge (stage 1) and the search sheet (stage 2), loaded at phone widths only
 // (src/lib/bottomBar.ts)
 const BAR_SCRIPT = '/bar.js'
-const PHONE_SCRIPTS = [BAR_SCRIPT, '/sheet.js']
+const PHONE_SCRIPTS = [BAR_SCRIPT, '/shell.js']
 const PAGES_WITH_BAR = ['home', 'search', 'guest dashboard']
 const SEARCH_WITH_MAP_KB = 650
 // Markers found only in the libraries' own code, never in the app's
@@ -52,7 +52,7 @@ function collect(page: Page) {
   page.on('response', (r) => {
     // (a script file fetched by code counts too: the chunk guard once fetched the polyfills on every page)
     const type = r.request().resourceType()
-    // The phone's scripts outside the bundle (public/bar.js, public/sheet.js): they count too
+    // The phone's scripts outside the bundle (public/bar.js, public/shell.js): they count too
     const barScript = PHONE_SCRIPTS.includes(new URL(r.url()).pathname)
     if (!barScript && (!r.url().includes('/_next/') || !(type === 'script' || (type === 'fetch' && /\.js(\?|$)/.test(r.url()))))) return
     pending.push((async () => {
