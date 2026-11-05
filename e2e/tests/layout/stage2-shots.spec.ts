@@ -178,13 +178,12 @@ test.describe('stage 2 pictures', () => {
   test('Pages, the footer, the header @core', async ({ page, world, signIn }) => {
     test.setTimeout(300_000)
     const project = test.info().project.name
-    const { ids } = await seed(world)
+    const { ids, host } = await seed(world)
     const pages = ['/dashboard/guest', '/dashboard/guest/wishlist', '/dashboard/guest/messages', '/dashboard/guest/payments']
     const name = (url: string) => url === '/dashboard/guest' ? 'trips' : url.split('/').pop()!
     // A guest with nothing yet, and one with a saved home, a booking and a message
     const fresh = await world.guest()
     const busy = await world.guest()
-    const host = await world.host()
     await db.wishlist.create({ data: { userId: busy.id, listingId: ids[1] } })
     const bookingId = await world.mustBook(busy, ids[0])
     expect((await host.call('POST', '/api/messages', { receiverId: busy.id, content: 'Welcome, the key is with the caretaker', bookingId })).status).toBe(201)
@@ -192,11 +191,11 @@ test.describe('stage 2 pictures', () => {
       await page.setViewportSize({ width: 1280, height: 900 })
       for (const [who, person] of [['empty', fresh], ['full', busy]] as const) {
         await signIn(person)
-        for (const url of pages) { await page.goto(url); await page.waitForLoadState('networkidle'); await save(page, `desktop-${name(url)}-${who}`) }
+        for (const url of pages) { await page.goto(url); await page.waitForLoadState('load'); await page.waitForTimeout(1500); await save(page, `desktop-${name(url)}-${who}`) }
       }
       await signIn(host)
-      await page.goto('/dashboard/host/messages'); await page.waitForLoadState('networkidle'); await save(page, 'desktop-host-messages')
-      await page.goto('/faq'); await page.waitForLoadState('networkidle'); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await save(page, 'desktop-footer')
+      await page.goto('/dashboard/host/messages'); await page.waitForLoadState('load'); await page.waitForTimeout(1500); await save(page, 'desktop-host-messages')
+      await page.goto('/faq'); await page.waitForLoadState('load'); await page.waitForTimeout(1500); await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight)); await save(page, 'desktop-footer')
       return
     }
     for (const width of PHONE_WIDTHS) {
@@ -220,7 +219,7 @@ test.describe('stage 2 pictures', () => {
       // Signed in: empty, then with things in them
       for (const [who, person] of [['empty', fresh], ['full', busy]] as const) {
         await signIn(person)
-        for (const url of pages) { await page.goto(url); await page.waitForLoadState('networkidle'); await save(page, `${width}-${name(url)}-${who}`) }
+        for (const url of pages) { await page.goto(url); await page.waitForLoadState('load'); await page.waitForTimeout(1500); await save(page, `${width}-${name(url)}-${who}`) }
       }
       // While they wait for their answers
       let release: () => void = () => {}
@@ -230,7 +229,7 @@ test.describe('stage 2 pictures', () => {
       release()
       await page.unrouteAll({ behavior: 'ignoreErrors' })
       await signIn(host)
-      await page.goto('/dashboard/host/messages'); await page.waitForLoadState('networkidle'); await save(page, `${width}-host-messages`)
+      await page.goto('/dashboard/host/messages'); await page.waitForLoadState('load'); await page.waitForTimeout(1500); await save(page, `${width}-host-messages`)
     }
   })
 })
