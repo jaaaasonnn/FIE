@@ -3,7 +3,7 @@ import { db } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { cron } from '../../lib/world'
-import { CheckoutPage, FakePaystack, ListingPage } from '../../pages'
+import { CheckoutPage, FakePaystack, ListingPage, searchFor } from '../../pages'
 
 // Finding a home, asking for it, being accepted, paying; and the ways each step can go.
 
@@ -15,12 +15,11 @@ test.describe('search', () => {
     const here = await Promise.all([world.listing(host, { city, priceNightly: 60, lat: 5.56, lng: -0.19 }), world.listing(host, { city, priceNightly: 95, lat: 5.57, lng: -0.2 })])
     const elsewhere = await world.listing(host, { city: `Bolga${Date.now().toString(36)}` })
     await page.goto('/search')
-    await page.getByPlaceholder('Search by city, neighbourhood...').fill(city)
-    await page.keyboard.press('Enter')
-    for (const home of here) await expect(page.getByText(home.title).first()).toBeVisible()
+    await searchFor(page, city)
+    for (const home of here) await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
     await expect(page.getByText(elsewhere.title)).toHaveCount(0)
-    await expect(page.getByText('$60').first()).toBeVisible()
-    await expect(page.getByText('$95').first()).toBeVisible()
+    await expect(page.getByText('$60').filter({ visible: true }).first()).toBeVisible()
+    await expect(page.getByText('$95').filter({ visible: true }).first()).toBeVisible()
     // The map is there and shows the homes (a pin each, or one cluster for both). On a phone it is behind the Map button.
     test.skip(browserName === 'firefox', 'headless Firefox has no WebGL here, so the map does not draw: the map is not tested in Firefox')
     // (on a phone the map is not even loaded until the button is pressed: G5)
@@ -39,11 +38,11 @@ test.describe('search', () => {
     const { checkIn, checkOut } = world.dates(3)
     await world.paidBooking(guest, taken.id, { checkIn, checkOut })
     await page.goto(`/search?city=${city}&mode=SHORT_STAY&checkIn=${checkIn}&checkOut=${checkOut}`)
-    await expect(page.getByText(free.title).first()).toBeVisible()
+    await expect(page.getByText(free.title).filter({ visible: true }).first()).toBeVisible()
     await expect(page.getByText(taken.title)).toHaveCount(0)
     // Without dates both are shown
     await page.goto(`/search?city=${city}`)
-    await expect(page.getByText(taken.title).first()).toBeVisible()
+    await expect(page.getByText(taken.title).filter({ visible: true }).first()).toBeVisible()
   })
 
   test('the heart saves a home to the wishlist and takes it off again', async ({ page, world, signIn }) => {
@@ -55,7 +54,7 @@ test.describe('search', () => {
     await page.getByRole('button', { name: 'Save to wishlist' }).click()
     await expect.poll(() => db.wishlist.count({ where: { userId: guest.id, listingId: home.id } })).toBe(1)
     await page.goto('/dashboard/guest/wishlist')
-    await expect(page.getByText(home.title).first()).toBeVisible()
+    await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
     await page.goto(`/listings/${home.id}`)
     await page.getByRole('button', { name: /Remove from wishlist|Saved|Save to wishlist/ }).first().click()
     await expect.poll(() => db.wishlist.count({ where: { userId: guest.id, listingId: home.id } })).toBe(0)

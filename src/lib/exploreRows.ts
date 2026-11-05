@@ -71,6 +71,34 @@ export function cardPrice(l: CardPriceInput): CardPrice | null {
   return null
 }
 
+/**
+ * A search card's price for the rental type searched: per night for Short Stay, per month for Monthly, a long-term
+ * home's yearly price / 12 per month for Long-Term, and with no type chosen the same rule as Explore.
+ */
+export function cardPriceFor(l: CardPriceInput, mode: string): CardPrice | null {
+  const ok = (n: number | null): n is number => typeof n === 'number' && n > 0
+  if (mode === 'SHORT_STAY') return ok(l.priceNightly) ? { usd: l.priceNightly, unit: '/night' } : cardPrice(l)
+  if (mode === 'TEMP_STAY') return ok(l.priceMonthly) ? { usd: l.priceMonthly, unit: '/month' } : cardPrice(l)
+  if (mode === 'PERMANENT') return ok(l.priceAnnual) ? { usd: l.priceAnnual / 12, unit: '/month' } : cardPrice(l)
+  return cardPrice(l)
+}
+
+/**
+ * The stay price for the dates searched, as the booking box works it out (price per unit x units): nights x the
+ * nightly price for a short stay, months x the monthly price for a monthly stay. Null for anything else (a
+ * long-term rental, no dates, or a price that is not per night or per month). Never the deposit.
+ */
+export function stayPrice(price: CardPrice | null, dates: { mode: string; checkIn: string; checkOut: string; months: string }): { usd: number; units: number; unit: 'night' | 'month' } | null {
+  if (!price || !dates.checkIn) return null
+  if (price.unit === '/night' && (dates.mode === 'SHORT_STAY' || dates.mode === '') && dates.checkOut) {
+    const nights = Math.round((Date.parse(`${dates.checkOut}T12:00:00Z`) - Date.parse(`${dates.checkIn}T12:00:00Z`)) / 86_400_000)
+    return nights > 0 ? { usd: price.usd * nights, units: nights, unit: 'night' } : null
+  }
+  const months = parseInt(dates.months, 10)
+  if (price.unit === '/month' && dates.mode === 'TEMP_STAY' && months > 0) return { usd: price.usd * months, units: months, unit: 'month' }
+  return null
+}
+
 /** "About GH₵ 1,550", written as the listing page writes it */
 export function aboutCedis(usd: number, rate: number): string {
   return `About GH₵ ${(usd * rate).toLocaleString('en-US', { maximumFractionDigits: 0 })}`

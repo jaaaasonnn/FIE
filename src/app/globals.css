@@ -744,8 +744,8 @@ input, select, textarea, button {
 
 @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
   @media (max-width: 767px) {
-    /* Lightly see-through, blurred, still white enough behind the labels */
-    .bottom-bar { background: rgba(255, 255, 255, 0.94); -webkit-backdrop-filter: saturate(180%) blur(14px); backdrop-filter: saturate(180%) blur(14px); }
+    /* Nearly solid, with a light blur: card text and photo colours never show through the labels or icons */
+    .bottom-bar { background: rgba(255, 255, 255, 0.97); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
   }
 }
 
@@ -791,14 +791,12 @@ input, select, textarea, button {
   .mode-switch .mode-segment { padding-inline: 12px; }
 }
 
-/* ── Phones: the search page's date fields. The browser's own date input (its calendar opens on a tap), drawn
-   in FieGH's style: our font, height and corners, "Add date" until a date is chosen, then the date as we write
-   it; never the browser's "dd/mm/yyyy". Desktop is as it was. */
+/* ── Phones: the date fields (the search sheet's, stage 2). The browser's own date input (its calendar opens on a
+   tap), drawn in FieGH's style: our font, height and corners, "Add date" until a date is chosen, then the date as
+   we write it; never the browser's "dd/mm/yyyy". Desktop is as it was. */
 .date-field { position: relative; display: block; }
 .date-field-face { display: none; }
 @media (max-width: 767px) {
-  .search-dates { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
-  .search-dates > label, .search-dates > p { min-width: 0; }
   .date-field { min-width: 0; }
   .date-field-input { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; height: 44px; color: transparent !important; -webkit-appearance: none; appearance: none; }
   .date-field-input::-webkit-datetime-edit, .date-field-input::-webkit-date-and-time-value { opacity: 0; }
@@ -1019,8 +1017,174 @@ input, select, textarea, button {
   transition: transform 120ms var(--ease-out);
 }
 .heart-button:active .heart-button-face { transform: scale(0.88); }
-.heart-button-face .heart-on { fill: #D92D20; stroke: #D92D20; }
+/* The heart: lucide's heart outline (2 px stroke), as a mask in the text colour; filled red when saved */
+.heart-button-face::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.heart-button-face[data-on]::before {
+  background-color: #D92D20;
+  -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'/%3E%3C/svg%3E");
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 9.5a5.5 5.5 0 0 1 9.591-3.676.56.56 0 0 0 .818 0A5.49 5.49 0 0 1 22 9.5c0 2.29-1.5 4-3 5.5l-5.492 5.313a2 2 0 0 1-3 .019L5 15c-1.5-1.5-3-3.2-3-5.5'/%3E%3C/svg%3E");
+}
 @media (prefers-reduced-motion: reduce) {
   .heart-button-face { transition: none; }
   .heart-button:active .heart-button-face { transform: none; }
+}
+
+/* ── The search sheet (app shell, stage 2: components/search/SearchSheet.tsx, public/sheet.js) ───────────────
+   Phones only. With no script it opens as the target of its pill's link (#search-sheet); with public/sheet.js it
+   opens on [data-open] and the address's target is ignored. It slides up, unless motion is reduced. */
+.search-sheet { display: none; }
+@media (max-width: 767px) {
+  .search-sheet:target, .search-sheet[data-open] {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    background: rgba(31, 27, 22, 0.32);
+  }
+  :root[data-sheet-ready] .search-sheet:target:not([data-open]) { display: none; }
+  :root[data-sheet-open] body { overflow: hidden; }
+  .search-sheet-panel {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: calc(env(safe-area-inset-top, 0px) + 8px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+    background: var(--color-bg);
+    outline: none;
+    animation: sheet-up 280ms var(--ease-out);
+  }
+  .search-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; }
+  .search-sheet-close {
+    display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+    border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-bg-card);
+    color: var(--color-text-primary);
+  }
+  .search-sheet-form { display: flex; flex-direction: column; gap: 20px; flex: 1; padding-top: 8px; }
+  .sheet-group { display: block; min-width: 0; margin: 0; padding: 0; border: 0; }
+  .sheet-label { display: block; padding: 0; margin-bottom: 6px; color: var(--color-text-primary); font-size: 0.875rem; font-weight: 700; }
+  .sheet-input {
+    display: block; width: 100%; min-width: 0; height: 48px; padding: 0 14px;
+    border: 1px solid var(--color-border-strong); border-radius: 12px; background: var(--color-bg-card);
+    color: var(--color-text-primary); font-size: 1rem;
+  }
+  .sheet-modes { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sheet-mode { position: relative; display: inline-flex; }
+  .sheet-mode input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+  .sheet-mode span {
+    display: inline-flex; align-items: center; height: 44px; padding: 0 16px; border-radius: 999px;
+    border: 1px solid var(--color-border-strong); background: var(--color-bg-card); color: var(--color-text-primary);
+    font-size: 0.875rem; font-weight: 600; white-space: nowrap;
+  }
+  .sheet-mode input:checked + span { background: var(--color-text-primary); border-color: var(--color-text-primary); color: #FFFFFF; }
+  .sheet-mode input:focus-visible + span { outline: 2px solid var(--color-text-primary); outline-offset: 3px; }
+
+  .sheet-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: end; }
+  .sheet-date { display: block; min-width: 0; }
+  .sheet-when-move, .sheet-months, .sheet-year { display: none; }
+  .search-sheet-form:has(input[name="mode"][value="TEMP_STAY"]:checked, input[name="mode"][value="PERMANENT"]:checked) .sheet-when-stay { display: none; }
+  .search-sheet-form:has(input[name="mode"][value="TEMP_STAY"]:checked, input[name="mode"][value="PERMANENT"]:checked) .sheet-when-move { display: inline; }
+  .search-sheet-form:has(input[name="mode"][value="TEMP_STAY"]:checked) .sheet-checkout,
+  .search-sheet-form:has(input[name="mode"][value="PERMANENT"]:checked) .sheet-checkout { display: none; }
+  .search-sheet-form:has(input[name="mode"][value="TEMP_STAY"]:checked) .sheet-months { display: block; }
+  .search-sheet-form:has(input[name="mode"][value="PERMANENT"]:checked) .sheet-year { display: block; align-self: center; margin: 0; color: var(--color-text-secondary); font-size: 0.8125rem; }
+  /* With no script the date is the browser's own, shown as it is; the drawn face needs public/sheet.js */
+  :root:not([data-sheet-ready]) .search-sheet .date-field-input { color: var(--color-text-primary) !important; }
+  :root:not([data-sheet-ready]) .search-sheet .date-field-input::-webkit-datetime-edit { opacity: 1; }
+  :root:not([data-sheet-ready]) .search-sheet .date-field-face { display: none; }
+  .search-sheet .date-field-input { height: 48px; border-radius: 12px; padding: 0 14px; }
+  .search-sheet .date-field-face { padding: 0 14px; font-size: 1rem; }
+
+  .sheet-stepper { display: flex; align-items: center; gap: 12px; }
+  .sheet-step {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 44px; height: 44px;
+    border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-bg-card); color: var(--color-text-primary);
+  }
+  .sheet-guests { width: 96px; text-align: center; -moz-appearance: textfield; }
+  .sheet-guests::-webkit-inner-spin-button, .sheet-guests::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+  .search-sheet-foot {
+    position: sticky; bottom: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-top: auto; padding-top: 12px; background: var(--color-bg);
+  }
+  .sheet-clear { padding: 0 4px; border: 0; background: none; color: var(--color-text-primary); font-size: 0.9375rem; font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+  .sheet-submit {
+    display: inline-flex; align-items: center; justify-content: center; height: 48px; padding: 0 28px; border: 0;
+    border-radius: 999px; background: var(--color-accent); color: var(--color-text-primary); font-size: 0.9375rem; font-weight: 700;
+  }
+}
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .search-sheet-panel { animation: none; } }
+
+/* ── Search on a phone (app shell, stage 2: app/search/SearchClient.tsx) ───────────────────────────────────────
+   The search as one summary pill, the filters as a row of chips, full-width cards (photos swiped sideways, the
+   heart on them, every line a fixed height), the map as a button above the bar. From 768 px up the page is as it
+   was: the card keeps its 110 x 100 thumbnail and its own text. */
+.search-card-photo { width: 110px; height: 100px; }
+.search-card-strip { position: absolute; inset: 0; display: flex; }
+.search-card-slide { position: relative; flex: 0 0 100%; height: 100%; }
+.search-card-slide + .search-card-slide { display: none; }
+@media (max-width: 767px) {
+  .search-summary {
+    display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 18px; border-radius: 999px;
+    border: 1px solid var(--color-border); background: var(--color-bg-card); box-shadow: 0 4px 14px rgba(31, 27, 22, 0.07);
+    color: var(--color-text-primary); font-size: 0.9375rem; font-weight: 600; text-decoration: none;
+  }
+  .search-summary-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-chips {
+    display: flex; gap: 8px; margin-top: 10px; padding-bottom: 2px; overflow-x: auto; scrollbar-width: none;
+  }
+  .search-chips::-webkit-scrollbar { display: none; }
+  .search-chip {
+    display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; height: 44px; padding: 0 14px;
+    border-radius: 999px; border: 1px solid var(--color-border-strong); background: var(--color-bg-card);
+    color: var(--color-text-primary); font-size: 0.875rem; font-weight: 600; white-space: nowrap;
+  }
+  .search-chip[data-on] { background: var(--color-text-primary); border-color: var(--color-text-primary); color: #FFFFFF; }
+
+  .search-results { row-gap: 28px !important; }
+  .search-card-link.listing-card { display: block; padding: 0; background: transparent !important; box-shadow: none; }
+  .search-card-photo { width: 100%; height: auto; aspect-ratio: 4 / 3; border-radius: 16px; }
+  .search-card-strip { overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .search-card-strip::-webkit-scrollbar { display: none; }
+  .search-card-slide { scroll-snap-align: start; scroll-snap-stop: always; }
+  .search-card-slide + .search-card-slide { display: block; }
+  .search-card-count {
+    position: absolute; right: 10px; bottom: 10px; padding: 2px 8px; border-radius: 999px;
+    background: rgba(31, 27, 22, 0.62); color: #FFFFFF; font-size: 0.75rem; font-weight: 600; line-height: 1.5;
+  }
+  .search-card-heart { position: absolute; top: 6px; right: 6px; }
+  .search-card-text { display: block; padding-top: 10px; min-width: 0; }
+  .search-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 22px; min-width: 0; }
+  .search-card-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-primary); font-size: 0.9375rem; font-weight: 600; line-height: 22px; }
+  .search-card-rating { flex-shrink: 0; display: inline-flex; align-items: center; gap: 3px; color: var(--color-text-primary); font-size: 0.8125rem; line-height: 22px; }
+  .search-card-line { display: block; height: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: 0.8125rem; line-height: 20px; }
+  .search-card-price { margin-top: 4px; color: var(--color-text-primary); font-size: 0.875rem; }
+  .search-card-unit { color: var(--color-text-secondary); font-size: 0.8125rem; }
+  .search-card-badge { display: block; height: 26px; margin-top: 6px; overflow: hidden; }
+
+  /* The placeholder: exactly a card's size, with or without the stay-price line */
+  .search-card-skeleton .search-card-photo { display: block; background: #E8E2D9; }
+  .search-card-skeleton .search-card-text > span { display: block; height: 12px; margin: 5px 0 9px; border-radius: 6px; background: #EDE8E1; }
+  .search-card-skeleton .search-card-text { padding-top: 10px; height: calc(10px + 22px + 20px + 4px + 20px + 6px + 26px); }
+  .search-card-skeleton[data-dates] .search-card-text { height: calc(10px + 22px + 20px + 4px + 20px + 20px + 6px + 26px); }
+  .search-card-skeleton .search-card-text > span:nth-child(1) { width: 70%; }
+  .search-card-skeleton .search-card-text > span:nth-child(2) { width: 45%; }
+  .search-card-skeleton .search-card-text > span:nth-child(3) { width: 55%; }
+  .search-card-skeleton .search-card-text > span:nth-child(4) { width: 30%; }
+
+  .search-map-button {
+    position: fixed; left: 50%; bottom: calc(var(--bottom-bar-offset) + 16px); z-index: 35; transform: translateX(-50%);
+    display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 20px; border: 0; border-radius: 999px;
+    background: var(--color-text-primary); color: #FFFFFF; font-size: 0.875rem; font-weight: 700;
+    box-shadow: 0 6px 20px rgba(31, 27, 22, 0.25);
+  }
 }

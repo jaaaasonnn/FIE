@@ -19,8 +19,10 @@ import { test, expect } from '../../lib/test'
 // Run with no throttling: it counts bytes, not time. Lighthouse (e2e/load/lighthouse.mjs) measures time.
 
 const BUDGET_KB = 350
-// App shell, stage 1: the bottom bar's unread badge, loaded at phone widths only (src/lib/bottomBar.ts)
+// App shell: the bottom bar's unread badge (stage 1) and the search sheet (stage 2), loaded at phone widths only
+// (src/lib/bottomBar.ts)
 const BAR_SCRIPT = '/bar.js'
+const PHONE_SCRIPTS = [BAR_SCRIPT, '/sheet.js']
 const PAGES_WITH_BAR = ['home', 'search', 'guest dashboard']
 const SEARCH_WITH_MAP_KB = 650
 // Markers found only in the libraries' own code, never in the app's
@@ -50,8 +52,8 @@ function collect(page: Page) {
   page.on('response', (r) => {
     // (a script file fetched by code counts too: the chunk guard once fetched the polyfills on every page)
     const type = r.request().resourceType()
-    // The phone's bottom bar has one script outside the bundle (public/bar.js): it counts too
-    const barScript = new URL(r.url()).pathname === BAR_SCRIPT
+    // The phone's scripts outside the bundle (public/bar.js, public/sheet.js): they count too
+    const barScript = PHONE_SCRIPTS.includes(new URL(r.url()).pathname)
     if (!barScript && (!r.url().includes('/_next/') || !(type === 'script' || (type === 'fetch' && /\.js(\?|$)/.test(r.url()))))) return
     pending.push((async () => {
       try {
@@ -154,7 +156,7 @@ for (const [size, device] of [['phone', PHONE], ['desktop', DESKTOP]] as const) 
         if (mapAllowed && l.totalKB > SEARCH_WITH_MAP_KB) over.push(`${name}: ${l.totalKB} KB with the map, cap ${SEARCH_WITH_MAP_KB}`)
         if (name !== 'home' && l.pickerKB > 0) over.push(`${name}: ${l.pickerKB} KB of date-picker code before a date field was opened`)
         const bar = l.files.some((f) => f.url === BAR_SCRIPT)
-        if (size === 'desktop' && bar) over.push(`${name}: the phone's bottom-bar script was downloaded on a desktop`)
+        for (const phoneOnly of PHONE_SCRIPTS) if (size === 'desktop' && l.files.some((f) => f.url === phoneOnly)) over.push(`${name}: the phone's ${phoneOnly} was downloaded on a desktop`)
         if (size === 'phone' && PAGES_WITH_BAR.includes(name) && !bar) over.push(`${name}: the bottom bar's script was not counted on a phone`)
       }
       report(size, all)

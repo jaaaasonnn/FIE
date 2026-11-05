@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
-import { ListingPage } from '../../pages'
+import { ListingPage, searchFor } from '../../pages'
 
 // G6 (fixed): one failed request could leave a page stuck for good: a script file that did not arrive left
 // checkout on "Loading booking details…" with no way on, and a failed read of the booking said "Booking
@@ -96,7 +96,7 @@ test('a search that is not answered says "try again", not "No properties found" 
   await page.waitForLoadState('networkidle')
   let down = true
   await page.route('**/api/listings?*', (route) => (down ? route.fulfill({ status: 503, body: 'unavailable' }) : route.continue()))
-  await page.getByPlaceholder('Search by city, neighbourhood...').fill(`Nowhere${Date.now()}`)
+  await searchFor(page, `Nowhere${Date.now()}`)
   await expect(tryAgain(page)).toBeVisible({ timeout: 15_000 })
   await expect(page.getByText('No properties found')).toHaveCount(0)
   down = false

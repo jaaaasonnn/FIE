@@ -78,3 +78,32 @@ export class FakePaystack {
   async decline() { await this.page.getByRole('button', { name: 'Card declined' }).click() }
   async close() { await this.page.getByRole('button', { name: 'Close without paying' }).click() }
 }
+
+/**
+ * Searches for words on the search page, as a person would at this screen size: from 768 px up in the search
+ * box; on a phone through the search sheet (app shell, stage 2: the summary pill opens it, Search changes the
+ * search in place).
+ */
+export async function searchFor(page: Page, words: string) {
+  const phone = (page.viewportSize()?.width ?? 1280) < 768
+  if (!phone) {
+    await page.getByPlaceholder('Search by city, neighbourhood...').fill(words)
+    await page.keyboard.press('Enter')
+    return
+  }
+  const sheet = await openSheet(page)
+  await sheet.getByRole('combobox', { name: 'Where' }).fill(words)
+  await sheet.getByRole('button', { name: 'Search', exact: true }).click()
+  await expect(sheet).toBeHidden()
+}
+
+/** Opens the phone's search sheet from the page's pill, once the page is running; gives back the sheet */
+export async function openSheet(page: Page): Promise<Locator> {
+  await page.waitForFunction(() => document.documentElement.hasAttribute('data-sheet-ready'))
+  await page.locator('[data-search-pill]:visible').first().click()
+  const sheet = page.getByRole('dialog', { name: 'Search homes' })
+  await expect(sheet).toBeVisible()
+  // It slides up: measure it once it has arrived
+  await page.waitForFunction(() => (document.querySelector('[data-search-sheet] .search-sheet-panel')?.getAnimations() ?? []).every((a) => a.playState !== 'running'))
+  return sheet
+}

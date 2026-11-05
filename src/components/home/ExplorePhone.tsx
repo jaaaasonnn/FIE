@@ -5,10 +5,12 @@ import { ClipboardCheck, Search, Star } from 'lucide-react'
 import { RENTAL_MODES } from '@/lib/rentalModes'
 import { CHECK_CHIP_LABEL } from '@/lib/listingCheckRules'
 import { aboutCedis, type CardPrice } from '@/lib/exploreRows'
-import { formatUsd } from '@/lib/utils'
+import { formatUsdCompact } from '@/lib/utils'
 import type { Explore, ExploreCard, ExploreRow } from '@/lib/explore'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { HeartButton } from '@/components/listing/HeartButton'
+import { SearchSheet } from '@/components/search/SearchSheet'
+import { ghanaToday } from '@/lib/stayDates'
 
 // Explore on a phone (app shell, stage 2). Drawn on the server into the kept home page (refreshed every 60 s and
 // after changes, lib/homePage.ts), and shown below 768 px only (globals.css .explore-phone); a desktop keeps the
@@ -29,7 +31,7 @@ function Price({ price, rate }: { price: CardPrice | null; rate: number }) {
       <p className="explore-card-line explore-card-price">
         <strong>{aboutCedis(price.usd, rate)}</strong> <span className="explore-card-unit">{price.unit}</span>
       </p>
-      <p className="explore-card-line explore-card-usd">{formatUsd(price.usd)}</p>
+      <p className="explore-card-line explore-card-usd">{formatUsdCompact(price.usd)}</p>
     </>
   )
 }
@@ -89,16 +91,17 @@ function Row({ row, index, rate }: { row: ExploreRow; index: number; rate: numbe
 }
 
 export function ExplorePhone({ explore }: { explore: Explore }) {
-  const { rows, rate, failed } = explore
+  const { rows, rate, failed, places } = explore
   return (
     <div className="explore-phone">
       <h1 className="sr-only">Find your fie: homes to rent in Ghana</h1>
 
       <div className="explore-top">
-        <Link href="/search" className="explore-pill focus-ring" data-search-pill>
+        {/* Opens the search sheet (a link to it, so it opens with no script too) */}
+        <a href="#search-sheet" className="explore-pill focus-ring" data-search-pill>
           <Search size={18} strokeWidth={2.25} aria-hidden />
           <span>Where to?</span>
-        </Link>
+        </a>
         <nav aria-label="Rental types" className="explore-chips-wrap">
           <ul className="explore-chips">
             {CHIPS.map(({ href, label, icon: Icon }) => (
@@ -134,6 +137,8 @@ export function ExplorePhone({ explore }: { explore: Explore }) {
         <p>Have a home in Ghana? List it for short stays, monthly lets or long-term leases.</p>
         <Link href="/login?tab=signup&role=host" className="explore-host-action focus-ring">Start hosting</Link>
       </section>}
+
+      <SearchSheet places={places} today={ghanaToday()} />
     </div>
   )
 }

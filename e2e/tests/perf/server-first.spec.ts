@@ -31,7 +31,7 @@ test('checkout comes with its booking', async ({ page, world, signIn }) => {
   const asked = await blockApi(page, '**/api/bookings?id=*')
   await page.goto(`/checkout/${bookingId}`)
   await expect(page.getByRole('button', { name: 'Debit / Credit Card' })).toBeVisible()
-  await expect(page.getByText(home.title).first()).toBeVisible()
+  await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
   expect(asked).toEqual([])
 })
 
@@ -44,7 +44,7 @@ test('the guest dashboard comes with its bookings', async ({ page, world, signIn
   expect(await html(page, '/dashboard/guest')).toContain(home.title)
   const asked = await blockApi(page, '**/api/bookings?guestId=*')
   await page.goto('/dashboard/guest')
-  await expect(page.getByText(home.title).first()).toBeVisible()
+  await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
   await expect(page.getByText('No bookings yet')).toHaveCount(0)
   expect(asked).toEqual([])
 })
@@ -59,7 +59,7 @@ test('the host dashboard comes with its listings and bookings', async ({ page, w
   const asked = await blockApi(page, /\/api\/(listings|bookings)\?hostId=/)
   await page.goto('/dashboard/host')
   await expect(page.getByText('Active Listings')).toBeVisible()
-  await expect(page.getByText(home.title).first()).toBeVisible()
+  await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
   expect(asked).toEqual([])
 })
 
@@ -80,7 +80,7 @@ test('search comes with its first results', async ({ page, world }) => {
   expect(await html(page, `/search?region=${encodeURIComponent(region)}`)).toContain(home.title)
   const asked = await blockApi(page, '**/api/listings?*')
   await page.goto(`/search?region=${encodeURIComponent(region)}`)
-  await expect(page.getByText(home.title).first()).toBeVisible()
+  await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
   expect(asked).toEqual([])
 })
 

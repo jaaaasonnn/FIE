@@ -104,7 +104,7 @@ test.describe('guest dashboard', () => {
     })
     down = false
     await tryAgain(page).click()
-    await expect(page.getByText(home.title).first()).toBeVisible()
+    await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
   })
 })
 
@@ -124,7 +124,7 @@ test.describe('host dashboard', () => {
     })
     down = false
     await tryAgain(page).click()
-    await expect(page.getByText(home.title).first()).toBeVisible()
+    await expect(page.getByText(home.title).filter({ visible: true }).first()).toBeVisible()
   })
 })
 

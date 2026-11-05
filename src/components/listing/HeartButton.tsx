@@ -1,7 +1,6 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Heart } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useHydrated } from '@/lib/useHydrated'
 import { toggleSaved, useWishlist } from '@/components/listing/wishlistStore'
@@ -35,9 +34,8 @@ export function HeartButton({ listingId, title, className = '' }: { listingId: s
     <button type="button" onClick={onClick} disabled={!ready} aria-pressed={saved} aria-busy={busy.has(listingId) || undefined}
       aria-label={`Save ${title} to your wishlist`} data-heart={listingId}
       className={`heart-button focus-ring ${className}`}>
-      <span className="heart-button-face" aria-hidden>
-        <Heart size={18} strokeWidth={2} className={saved ? 'heart-on' : ''} />
-      </span>
+      {/* The heart is drawn by CSS (globals.css .heart-button-face), filled when saved */}
+      <span className="heart-button-face" data-on={saved || undefined} aria-hidden />
     </button>
   )
 }

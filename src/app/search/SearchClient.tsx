@@ -6,12 +6,12 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, SlidersHorizontal, MapPin, Star, Bed, Bath, X,
-  Map as MapIcon, Loader2, Home,
+  Map as MapIcon, Home,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
 import Link from 'next/link'
 import Image from 'next/image'
-import { GHANA_REGIONS, PROPERTY_TYPES, formatUsdCompact } from '@/lib/utils'
+import { formatUsdCompact } from '@/lib/utils'
 import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import type { MapListing } from '@/components/map/ListingsMap'
@@ -19,8 +19,10 @@ import { useMediaQuery } from '@/lib/useMediaQuery'
 import { useOnDemand } from '@/lib/useOnDemand'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
-import { CHECK_FILTER_LABEL, HOST_ID_BADGE } from '@/lib/listingCheckRules'
-import { dateQuery, getDisplayPrice, searchQuery, shapeResults, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
+import { dateQuery, fromSheet, getDisplayPrice, searchQuery, searchSummary, shapeResults, sheetParams, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
+import { aboutCedis, cardPriceFor, stayPrice } from '@/lib/exploreRows'
+import { HeartPlaceholder } from '@/components/listing/HeartPlaceholder'
+import { CHECK_CHIP_LABEL } from '@/lib/listingCheckRules'
 import { formatDay } from '@/lib/dateText'
 
 // ── The map, loaded only when it is shown (G5) ───────────────────────────────
@@ -42,6 +44,69 @@ function ListingsMap({ wanted, ...props }: { wanted: boolean } & React.Component
   return <mod.ListingsMap {...props} />
 }
 
+// ── The filter panel, fetched when it is first wanted ─────────────────────────────────────────────────────
+const loadPanel = () => import('./FilterPanel')
+let panelWanted = false
+/** Starts fetching the panel's code before the press, as a pointer or a finger reaches the Filters button */
+const warmPanel = () => { if (!panelWanted) { panelWanted = true; void loadPanel() } }
+
+function FilterPanel(props: { filters: SearchFilters; setFilters: React.Dispatch<React.SetStateAction<SearchFilters>> }) {
+  const { mod, failed, retry } = useOnDemand(loadPanel, true)
+  if (failed) return <LoadFailed onRetry={retry} className="mt-3" />
+  // Until it has come: the panel's own height, so the list below moves once, as it always did
+  if (!mod) return <div className="mt-3 pt-3 min-h-[3.25rem]" style={{ borderTop: '1px solid var(--color-border)' }} aria-busy="true" />
+  return <mod.FilterPanel {...props} />
+}
+
+// ── A card's heart: a phone's only (the cards' hearts on a desktop are stage 3), so its code is fetched on a phone
+// and never on a desktop; until it has come, the server's heart in its place, the same size and look
+const loadHeart = () => import('@/components/listing/HeartButton')
+function CardHeart({ listingId, title, phone }: { listingId: string; title: string; phone: boolean }) {
+  const { mod } = useOnDemand(loadHeart, phone)
+  const Heart = mod?.HeartButton ?? HeartPlaceholder
+  return <Heart listingId={listingId} title={title} className="search-card-heart md:hidden" />
+}
+
+/** Photos a phone's card can swipe through; a desktop shows the first only, as its thumbnail */
+const CARD_PHOTOS = 5
+
+/**
+ * A card's photos. From 768 px up, the 110 x 100 thumbnail it always was. On a phone, the card's width at 4:3,
+ * swiped sideways through up to five photos ("2 / 5"); the ones after the first are lazy, and a desktop never
+ * draws them, so it never fetches them.
+ */
+function CardPhotos({ listing: l, eager, first }: { listing: ApiListing; eager: boolean; first: boolean }) {
+  const photos = (l.photos ?? []).slice(0, CARD_PHOTOS)
+  const [at, setAt] = useState(0)
+  return (
+    <div className="search-card-photo relative flex-shrink-0 rounded-xl overflow-hidden">
+      <div className="search-card-strip"
+        onScroll={(e) => { const el = e.currentTarget; setAt(Math.round(el.scrollLeft / Math.max(1, el.clientWidth))) }}>
+        {photos.map((src, i) => (
+          <div key={src + i} className="search-card-slide">
+            <Image src={src} alt={i === 0 ? l.title : ''}
+              fill
+              sizes={i === 0 ? '(max-width: 767px) calc(100vw - 32px), 110px' : '(max-width: 767px) calc(100vw - 32px), 1px'}
+              // The first cards are on screen at once: loaded at once, the first one first (G9)
+              loading={i === 0 && eager ? 'eager' : 'lazy'}
+              fetchPriority={i === 0 && first ? 'high' : undefined}
+              className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
+          </div>
+        ))}
+      </div>
+      {l.rentalModes?.[0] && (
+        <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+          style={{ backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff', backdropFilter: 'blur(4px)' }}>
+          {MODE_LABELS[l.rentalModes[0]]}
+        </span>
+      )}
+      {photos.length > 1 && (
+        <span className="search-card-count md:hidden" aria-hidden>{Math.min(at, photos.length - 1) + 1} / {photos.length}</span>
+      )}
+    </div>
+  )
+}
+
 /** Rental type with its icon, for the filter pills. */
 function ModeLabel({ mode }: { mode: string }) {
   const Icon = MODE_ICONS[mode]
@@ -54,13 +119,6 @@ const MODE_LABELS: Record<string, string> = {
   PERMANENT:  'Long-Term',
 }
 
-const SORT_OPTIONS = [
-  { value: 'newest',        label: 'Newest' },
-  { value: 'price_asc',    label: 'Price: low to high' },
-  { value: 'price_desc',   label: 'Price: high to low' },
-  { value: 'top_rated',    label: 'Top Rated' },
-  { value: 'most_reviewed', label: 'Most Reviewed' },
-]
 
 const dateInputStyle = {
   border: '1px solid var(--color-border)',
@@ -70,15 +128,6 @@ const dateInputStyle = {
 
 const dayLabel = (key: string, withYear = false) =>
   formatDay(`${key}T12:00:00Z`, { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}) })
-
-/** What a phone shows in a date field (globals.css .date-field-face): "Add date", or "Wed, 13 Nov". Never read out: the input's own value is. */
-function DateFace({ value }: { value: string }) {
-  return (
-    <span className="date-field-face" data-empty={value ? 'false' : 'true'} aria-hidden>
-      {value ? formatDay(`${value}T12:00:00Z`, { weekday: 'short', day: 'numeric', month: 'short' }) : 'Add date'}
-    </span>
-  )
-}
 
 /** "13 to 16 Oct, 3 nights", "From 13 Oct, 3 months" or "From 13 Oct, one year". */
 function dateSummary(f: DateFilters): string {
@@ -101,9 +150,11 @@ const todayKey = () => new Date().toISOString().slice(0, 10)
  */
 export type SearchInitial = { listings?: ApiListing[]; total?: unknown } | null
 
-function SearchContent({ initial }: { initial: SearchInitial }) {
+function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; rate?: number }) {
   const params = useSearchParams()
-  const { rate: ghsRate } = useExchangeRate()
+  // The rate the server drew the page with, until the browser's own answer has come, so a figure never changes
+  const { rate: liveRate, loading: rateLoading } = useExchangeRate()
+  const ghsRate = rateLoading && serverRate ? serverRate : liveRate
   // The filters the page starts with, and the list the server found for them
   const [startFilters] = useState(() => startingFilters((key) => params.get(key)))
   const [first] = useState(() => (initial ? shapeResults(initial, startFilters) : null))
@@ -116,6 +167,22 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
   const [dateError,     setDateError]     = useState('')
 
   const [filters, setFilters] = useState<SearchFilters>(startFilters)
+
+  // The phone's search sheet (public/sheet.js) starts from the search shown and changes it in place
+  const shown = useRef(filters)
+  useEffect(() => { shown.current = filters }, [filters])
+  useEffect(() => {
+    const read = (e: Event) => { (e as CustomEvent<{ params: string | null }>).detail.params = sheetParams(shown.current) }
+    const apply = (e: Event) => {
+      const detail = (e as CustomEvent<{ handled: boolean; params: string }>).detail
+      detail.handled = true
+      setFilters((f) => fromSheet(f, detail.params))
+    }
+    document.addEventListener('fiegh:sheet-read', read)
+    document.addEventListener('fiegh:sheet-apply', apply)
+    return () => { document.removeEventListener('fiegh:sheet-read', read); document.removeEventListener('fiegh:sheet-apply', apply) }
+  }, [])
+  const summary = searchSummary(filters)
   // Loading until results arrive for the current filters (derived, not toggled in the effect)
   const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(first ? startFilters : null)
   const loading = loadedFilters !== filters
@@ -206,6 +273,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
 
   // The desktop map is asked for once the first results have drawn and the browser has a moment free
   const wide = useMediaQuery('(min-width: 768px)')
+  const phone = useMediaQuery('(max-width: 767px)')
   const listDrawn = loadedFilters !== null
   const [mapWanted, setMapWanted] = useState(false)
   useEffect(() => {
@@ -240,7 +308,35 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
           boxShadow: '0 1px 6px rgba(31,27,22,0.05)',
         }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3">
-          <div className="flex items-center gap-3">
+          {/* Phones: the search as one pill that opens the search sheet (components/search/SearchSheet.tsx), and the
+              filters as a row of chips. Desktop keeps the bar below. */}
+          <div className="md:hidden">
+            <a href="#search-sheet" data-search-pill className="search-summary focus-ring"
+              aria-label={`Change search: ${summary ?? 'Where to?'}`}>
+              <Search size={17} strokeWidth={2.25} aria-hidden className="flex-shrink-0" />
+              <span className="search-summary-text">{summary ?? 'Where to?'}</span>
+            </a>
+            <div className="search-chips" role="group" aria-label="Filters">
+              <button type="button" onClick={() => setShowFilters(!showFilters)} aria-expanded={showFilters}
+                onPointerDown={warmPanel} className="search-chip" data-on={showFilters || undefined}>
+                <SlidersHorizontal size={15} aria-hidden /> Filters
+              </button>
+              {(['SHORT_STAY', 'TEMP_STAY', 'PERMANENT'] as const).map((m) => (
+                <button key={m} type="button" aria-pressed={filters.mode === m}
+                  onClick={() => setFilters((f) => ({ ...f, mode: f.mode === m ? '' : m }))}
+                  className="search-chip" data-on={filters.mode === m || undefined}>
+                  <ModeLabel mode={m} />
+                </button>
+              ))}
+              <button type="button" aria-pressed={filters.checked}
+                onClick={() => setFilters((f) => ({ ...f, checked: !f.checked }))}
+                className="search-chip" data-on={filters.checked || undefined}>
+                {CHECK_CHIP_LABEL}
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 max-md:hidden">
             {/* Search input */}
             <div className="flex-1 min-w-0 flex items-center gap-2 px-4 py-2.5 rounded-xl"
               style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg)' }}>
@@ -285,6 +381,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
             {/* Filters toggle */}
             <button
               onClick={() => setShowFilters(!showFilters)}
+              onPointerEnter={warmPanel} onPointerDown={warmPanel}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
               style={{
                 border:          `1px solid ${showFilters ? 'var(--color-accent)' : 'var(--color-border)'}`,
@@ -297,17 +394,10 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
               <span className="max-md:sr-only">Filters</span>
             </button>
 
-            {/* Mobile map button */}
-            <button
-              onClick={() => setShowMapMobile(true)}
-              className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-              <MapIcon size={15} aria-hidden /> <span className="max-md:sr-only">Map</span>
-            </button>
           </div>
 
           {/* Dates: always visible, since they decide what is available */}
-          <div className="search-dates mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
+          <div className="search-dates mt-3 flex flex-wrap items-end gap-x-3 gap-y-2 max-md:hidden">
             <label className="flex flex-col text-xs font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
               {filters.mode === 'TEMP_STAY' || filters.mode === 'PERMANENT' ? 'Move-in' : 'Check-in'}
               <span className="date-field mt-1">
@@ -315,7 +405,6 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
                   onChange={(e) => setFilters((f) => ({ ...f, checkIn: e.target.value, checkOut: f.checkOut && e.target.value && f.checkOut <= e.target.value ? '' : f.checkOut }))}
                   className="date-field-input focus-ring text-sm px-3 py-2 rounded-xl font-normal"
                   style={dateInputStyle} />
-                <DateFace value={filters.checkIn} />
               </span>
             </label>
             {filters.mode === 'TEMP_STAY' ? (
@@ -338,59 +427,14 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
                     onChange={(e) => setFilters((f) => ({ ...f, checkOut: e.target.value }))}
                     className="date-field-input focus-ring text-sm px-3 py-2 rounded-xl font-normal"
                     style={dateInputStyle} />
-                  <DateFace value={filters.checkOut} />
                 </span>
               </label>
             )}
           </div>
 
-          {/* Filter panel */}
-          {showFilters && (
-            <div className="mt-3 pt-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3"
-              style={{ borderTop: '1px solid var(--color-border)' }}>
-              {[
-                { label: 'Region',   value: filters.region,       key: 'region',       options: GHANA_REGIONS.map((r) => ({ val: r, label: r })) },
-                { label: 'Type',     value: filters.propertyType, key: 'propertyType', options: PROPERTY_TYPES.map((t) => ({ val: t, label: t })) },
-                { label: 'Bedrooms', value: filters.bedrooms,     key: 'bedrooms',     options: [1,2,3,4,5].map((n) => ({ val: String(n), label: `${n}+ beds` })) },
-                { label: 'Sort',     value: filters.sort,         key: 'sort',         options: SORT_OPTIONS.map((o) => ({ val: o.value, label: o.label })) },
-              ].map(({ label, value, key, options }) => (
-                <select key={key} aria-label={label} value={value}
-                  onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.value }))}
-                  className="text-xs p-2 rounded-lg"
-                  style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)', color: 'var(--color-text-primary)' }}>
-                  <option value="">{label}</option>
-                  {options.map((o) => <option key={o.val} value={o.val}>{o.label}</option>)}
-                </select>
-              ))}
-
-              <div className="flex gap-2 items-center">
-                <input aria-label="Lowest price in dollars" type="number" placeholder="Min $" value={filters.minPrice}
-                  onChange={(e) => setFilters((f) => ({ ...f, minPrice: e.target.value }))}
-                  className="w-full text-xs p-2 rounded-lg"
-                  style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }} />
-                <span style={{ color: 'var(--color-text-muted)' }}>to</span>
-                <input aria-label="Highest price in dollars" type="number" placeholder="Max $" value={filters.maxPrice}
-                  onChange={(e) => setFilters((f) => ({ ...f, maxPrice: e.target.value }))}
-                  className="w-full text-xs p-2 rounded-lg"
-                  style={{ border: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }} />
-              </div>
-
-              <div className="flex gap-3 items-center flex-wrap">
-                {[
-                  { key: 'checked',       label: CHECK_FILTER_LABEL, checked: filters.checked },
-                  { key: 'hostIdChecked', label: HOST_ID_BADGE,      checked: filters.hostIdChecked },
-                  { key: 'superhost', label: 'Superhost', checked: filters.superhost },
-                ].map(({ key, label, checked }) => (
-                  <label key={key} className="flex items-center gap-1.5 text-xs cursor-pointer"
-                    style={{ color: 'var(--color-text-secondary)' }}>
-                    <input type="checkbox" checked={checked}
-                      onChange={(e) => setFilters((f) => ({ ...f, [key]: e.target.checked }))} />
-                    {label}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Filter panel: its code is fetched when it is first wanted (pointing at or pressing Filters), not with
+              the page (G5: desktop search is at its budget). The same panel, the same place. */}
+          {showFilters && <FilterPanel filters={filters} setFilters={setFilters} />}
         </div>
       </div>
 
@@ -411,7 +455,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
           <div className="flex items-center justify-between mb-5 flex-wrap gap-2">
             <p className="text-sm flex items-center gap-2" style={{ color: 'var(--color-text-secondary)' }}>
               {loading
-                ? <><Loader2 size={13} className="animate-spin" style={{ color: 'var(--color-accent)' }} /> Searching…</>
+                ? <>Searching…</>
                 : <span><strong style={{ color: 'var(--color-text-primary)' }}>{total}</strong> {total === 1 ? 'property' : 'properties'} found
                     {filters.region && <span> in <strong>{filters.region}</strong></span>}
                     {filters.mode   && <span> · <strong>{MODE_LABELS[filters.mode]}</strong></span>}
@@ -470,17 +514,24 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="search-results grid grid-cols-1 xl:grid-cols-2 gap-4">
               {(loading ? Array.from({ length: 6 }) : listings).map((item, idx) => {
                 if (loading || !item) {
                   return (
-                    <div key={idx} className="flex gap-3 rounded-2xl p-3 animate-pulse"
-                      style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
-                      <div className="flex-shrink-0 rounded-xl" style={{ width: 110, height: 100, backgroundColor: '#E8E2D9' }} />
-                      <div className="flex-1 space-y-2 py-1">
-                        <div className="h-3.5 rounded-full w-4/5" style={{ backgroundColor: '#E8E2D9' }} />
-                        <div className="h-3 rounded-full w-1/2"  style={{ backgroundColor: '#EDE8E1' }} />
-                        <div className="h-3 rounded-full w-1/3"  style={{ backgroundColor: '#EDE8E1' }} />
+                    <div key={idx}>
+                      <div className="flex gap-3 rounded-2xl p-3 animate-pulse max-md:hidden"
+                        style={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)' }}>
+                        <div className="flex-shrink-0 rounded-xl" style={{ width: 110, height: 100, backgroundColor: '#E8E2D9' }} />
+                        <div className="flex-1 space-y-2 py-1">
+                          <div className="h-3.5 rounded-full w-4/5" style={{ backgroundColor: '#E8E2D9' }} />
+                          <div className="h-3 rounded-full w-1/2"  style={{ backgroundColor: '#EDE8E1' }} />
+                          <div className="h-3 rounded-full w-1/3"  style={{ backgroundColor: '#EDE8E1' }} />
+                        </div>
+                      </div>
+                      {/* A phone's card, the same size as the card that takes its place (globals.css .search-card) */}
+                      <div className="search-card-skeleton md:hidden" data-dates={dq ? 'true' : undefined} aria-hidden>
+                        <span className="search-card-photo" />
+                        <span className="search-card-text"><span /><span /><span /><span /></span>
                       </div>
                     </div>
                   )
@@ -488,9 +539,13 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
 
                 const l = item as ApiListing
                 const { price, unit } = getDisplayPrice(l, filters.mode)
+                // A phone's card: cedis first, as the listing page writes them, and the stay price for the dates
+                const phonePrice = cardPriceFor(l, filters.mode)
+                const stay = stayPrice(phonePrice, filters)
 
                 return (
-                  <Link key={l.id} href={`/listings/${l.id}${listingQuery}`}
+                  <div key={l.id} className="search-card relative" data-dates={dq ? 'true' : undefined}>
+                  <Link href={`/listings/${l.id}${listingQuery}`}
                     ref={(el) => {
                       if (el) cardRefs.current.set(l.id, el)
                       else cardRefs.current.delete(l.id)
@@ -500,7 +555,7 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
                     // Real pointers only: a tap fires no mouse pointer events
                     onPointerEnter={(e) => { if (e.pointerType === 'mouse') setHoveredCardId(l.id) }}
                     onPointerLeave={(e) => { if (e.pointerType === 'mouse') setHoveredCardId(null) }}
-                    className="listing-card group flex gap-3 rounded-2xl p-3"
+                    className="listing-card search-card-link group flex gap-3 rounded-2xl p-3"
                     style={{
                       backgroundColor: 'var(--color-bg-card)',
                       textDecoration:  'none',
@@ -508,28 +563,11 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
                       scrollMarginTop: 'calc(4.25rem + 121px + 12px)',
                       scrollMarginBottom: 12,
                     }}>
-                    {/* Thumbnail */}
-                    <div className="relative flex-shrink-0 rounded-xl overflow-hidden"
-                      style={{ width: 110, height: 100 }}>
-                      {l.photos?.[0] && (
-                        <Image src={l.photos[0]} alt={l.title}
-                          fill
-                          sizes="110px"
-                          // The first cards are on screen at once: loaded at once, the first one first (G9)
-                          loading={idx < EAGER_CARDS ? 'eager' : 'lazy'}
-                          fetchPriority={idx === 0 ? 'high' : undefined}
-                          className="object-cover transition-transform duration-500 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100" />
-                      )}
-                      {l.rentalModes?.[0] && (
-                        <span className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                          style={{ backgroundColor: 'rgba(0,0,0,0.55)', color: '#fff', backdropFilter: 'blur(4px)' }}>
-                          {MODE_LABELS[l.rentalModes[0]]}
-                        </span>
-                      )}
-                    </div>
+                    {/* Thumbnail; on a phone, the card's photos, swiped sideways */}
+                    <CardPhotos listing={l} eager={idx < EAGER_CARDS} first={idx === 0} />
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0 py-0.5">
+                    <div className="flex-1 min-w-0 py-0.5 max-md:hidden">
                       <div className="flex items-start justify-between gap-1 mb-0.5">
                         <h3 className="font-semibold text-sm leading-snug line-clamp-2 flex-1"
                           style={{ color: 'var(--color-text-primary)' }}>
@@ -581,7 +619,29 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
                         )}
                       </div>
                     </div>
+
+                    {/* A phone's card text: every line a fixed height (globals.css .search-card-text) */}
+                    <span className="search-card-text md:hidden">
+                      <span className="search-card-top">
+                        <span className="search-card-title">{l.title}</span>
+                        <span className="search-card-rating">
+                          {l.reviewCount > 0 ? <><Star size={12} className="fill-current" aria-hidden />{l.avgRating.toFixed(1)}<span className="sr-only"> out of 5</span></> : 'New'}
+                        </span>
+                      </span>
+                      <span className="search-card-line">{[l.neighbourhood, l.city].filter(Boolean).join(', ')}</span>
+                      <span className="search-card-line search-card-price">
+                        {phonePrice && <><strong>{aboutCedis(phonePrice.usd, ghsRate)}</strong> <span className="search-card-unit">{phonePrice.unit}</span> · {formatUsdCompact(phonePrice.usd)}</>}
+                      </span>
+                      {dq && (
+                        <span className="search-card-line search-card-stay">
+                          {stay && <>{aboutCedis(stay.usd, ghsRate)} for {stay.units} {stay.units === 1 ? stay.unit : `${stay.unit}s`} · {formatUsdCompact(stay.usd)}</>}
+                        </span>
+                      )}
+                      <span className="search-card-badge">{l.check && <CheckedBadge check={l.check} />}</span>
+                    </span>
                   </Link>
+                  <CardHeart listingId={l.id} title={l.title} phone={phone} />
+                  </div>
                 )
               })}
             </div>
@@ -595,6 +655,13 @@ function SearchContent({ initial }: { initial: SearchInitial }) {
             listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />}
         </div>
       </div>
+
+      {/* Phones: the map, as a button floating above the bottom bar */}
+      {!showMapMobile && (
+        <button type="button" onClick={() => setShowMapMobile(true)} className="search-map-button focus-ring md:hidden">
+          <MapIcon size={16} aria-hidden /> Map
+        </button>
+      )}
 
       {/* Mobile full-screen map overlay */}
       {showMapMobile && (
@@ -628,7 +695,7 @@ const SCROLL_KEEP_MS = 30 * 60 * 1000
 /** Search cards whose photo is loaded at once: the ones on screen before any scrolling. */
 const EAGER_CARDS = 4
 
-export function SearchClient({ initial = null }: { initial?: SearchInitial }) {
+export function SearchClient({ initial = null, rate }: { initial?: SearchInitial; rate?: number }) {
   // (no Suspense boundary of its own: see app/dashboard/host/HostDashboardClient.tsx)
-  return <SearchContent initial={initial} />
+  return <SearchContent initial={initial} rate={rate} />
 }

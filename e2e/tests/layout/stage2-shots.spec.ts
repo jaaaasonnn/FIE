@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import type { Actor, World } from '../../lib/world'
+import { openSheet } from '../../pages'
 
 // App shell, stage 2: pictures for the owner's review, not a check. Runs only with E2E_STAGE2_SHOTS=<label>,
 // and saves to e2e/.reports/stage2-shots/<label>/: phones at 320, 390 and 430 px (iPhone and Android set-ups),
@@ -108,5 +109,55 @@ test.describe('stage 2 pictures', () => {
     await page.locator('.explore-strip').first().evaluate((el) => el.scrollBy({ left: 600, behavior: 'instant' }))
     await page.waitForTimeout(300)
     await save(page, '430-explore-row-swiped')
+  })
+  test('Search, the sheet and the bar @core', async ({ page, world, signIn }) => {
+    test.setTimeout(300_000)
+    const project = test.info().project.name
+    const { ids } = await seed(world)
+    const [checkIn, checkOut] = [new Date(Date.now() + 20 * 86_400_000).toISOString().slice(0, 10), new Date(Date.now() + 23 * 86_400_000).toISOString().slice(0, 10)]
+    if (project === 'chromium') {
+      await page.setViewportSize({ width: 1280, height: 900 })
+      await page.goto('/search?q=Accra')
+      await page.waitForLoadState('networkidle')
+      await save(page, 'desktop-search')
+      await page.goto(`/search?q=Accra&checkIn=${checkIn}&checkOut=${checkOut}`)
+      await page.waitForLoadState('networkidle')
+      await save(page, 'desktop-search-dates')
+      return
+    }
+    const guest = await world.guest()
+    await db.wishlist.create({ data: { userId: guest.id, listingId: ids[1] } })
+    for (const signedIn of [false, true]) {
+      if (signedIn) await signIn(guest)
+      const who = signedIn ? 'signed-in' : 'signed-out'
+      for (const width of PHONE_WIDTHS) {
+        await page.setViewportSize({ width, height: 844 })
+        await page.goto('/search?q=Accra')
+        await page.waitForLoadState('networkidle')
+        await save(page, `${width}-search-${who}`)
+        if (signedIn) continue
+        await page.goto(`/search?q=Accra&mode=SHORT_STAY&checkIn=${checkIn}&checkOut=${checkOut}&guests=2`)
+        await page.waitForLoadState('networkidle')
+        await save(page, `${width}-search-dates`)
+        // The bar over a photo, and over card text
+        await page.evaluate(() => { const photo = document.querySelector('.search-card-photo')!; const bar = document.querySelector('[data-bottom-bar]')!.getBoundingClientRect(); window.scrollBy(0, photo.getBoundingClientRect().bottom - bar.top - 40) })
+        await save(page, `${width}-bar-over-photo`)
+        await page.evaluate(() => { const text = document.querySelector('.search-card-text')!; const bar = document.querySelector('[data-bottom-bar]')!.getBoundingClientRect(); window.scrollBy(0, text.getBoundingClientRect().top - bar.top + 20) })
+        await save(page, `${width}-bar-over-text`)
+        // and over the footer
+        await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+        await page.waitForTimeout(300)
+        await save(page, `${width}-bar-over-footer`)
+        // The sheet: from Explore, empty; on the search page, with the search shown
+        await page.goto('/')
+        await openSheet(page)
+        await save(page, `${width}-sheet-explore`)
+        await page.goto(`/search?q=Accra&mode=SHORT_STAY&checkIn=${checkIn}&checkOut=${checkOut}&guests=2`)
+        await openSheet(page)
+        await save(page, `${width}-sheet-search`)
+        await page.getByRole('dialog', { name: 'Search homes' }).getByRole('radio', { name: 'Monthly' }).check()
+        await save(page, `${width}-sheet-monthly`)
+      }
+    }
   })
 })

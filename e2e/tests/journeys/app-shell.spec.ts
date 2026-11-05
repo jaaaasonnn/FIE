@@ -3,7 +3,7 @@ import path from 'path'
 import type { Page } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
-import { AuthPage } from '../../pages'
+import { AuthPage, openSheet } from '../../pages'
 import { type Actor, type World } from '../../lib/world'
 
 // App shell, stage 1: the phone's bottom bar (src/components/layout/BottomBar.tsx). @core, so it runs in every
@@ -186,9 +186,12 @@ test.describe('the phone\'s bottom bar (app shell, stage 1)', () => {
 
   test('the bar steps aside while the keyboard is up, and comes back after @core', async ({ page }) => {
     test.skip(!isPhone(), 'the bar is for phones')
-    await page.goto('/search')
+    await page.goto('/')
     await expect(bar(page)).toBeVisible()
-    const field = page.getByPlaceholder('Search by city, neighbourhood...')
+    // The search sheet's field (the search box is in the sheet on a phone): the bar steps aside while it is focused,
+    // as it does for any text field
+    const sheet = await openSheet(page)
+    const field = sheet.getByRole('combobox', { name: 'Where' })
     await field.focus()
     await expect(bar(page)).toBeHidden()
     await field.fill('Accra')
@@ -258,16 +261,18 @@ test.describe('stage 1 polish, on a phone', () => {
 
   test('the search dates read "Add date" in FieGH\'s style, side by side, never the browser\'s pattern @core', async ({ page }) => {
     test.skip(!isPhone(), 'phones only')
+    // In the search sheet on a phone (app shell, stage 2)
     await page.goto('/search')
-    const faces = page.locator('.search-dates .date-field-face')
+    const sheet = await openSheet(page)
+    const faces = sheet.locator('.date-field-face').filter({ visible: true })
     await expect(faces).toHaveCount(2)
     for (const face of await faces.all()) await expect(face).toHaveText('Add date')
     await expect(faces.first()).toBeVisible()
-    const inputs = page.locator('.search-dates input[type="date"]')
+    const inputs = sheet.locator('input[type="date"]').filter({ visible: true })
     expect(await inputs.first().evaluate((el) => getComputedStyle(el).color)).toBe('rgba(0, 0, 0, 0)')
     const [a, b] = [await inputs.nth(0).boundingBox(), await inputs.nth(1).boundingBox()]
     expect(Math.round(a!.y), 'check-in and check-out in one row').toBe(Math.round(b!.y))
-    expect(Math.round(a!.height)).toBe(44)
+    expect(Math.round(a!.height)).toBe(48)
     // Picking a date shows it in our words
     await inputs.first().fill('2027-03-10')
     await expect(faces.first()).toHaveText('Wed, 10 Mar')

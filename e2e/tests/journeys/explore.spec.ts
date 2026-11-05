@@ -77,6 +77,21 @@ test.describe('Explore on a phone', () => {
     expect(asked.filter((u) => decodeURIComponent(u).includes('w=1600'))).toEqual([])
   })
 
+  test('each chip\'s words fit inside its pill at 320 to 430 px (the strip may run past the screen) @core', async ({ page }) => {
+    test.skip(!isPhone(), 'Explore is the phone\'s page')
+    for (const width of [320, 360, 390, 430]) {
+      await page.setViewportSize({ width, height: 800 })
+      await page.goto('/')
+      const chips = await page.locator('.explore-chip').evaluateAll((els) => els.map((el) => {
+        const words = Array.from(el.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => { const r = document.createRange(); r.selectNodeContents(n); return r.getBoundingClientRect() })
+        const box = el.getBoundingClientRect()
+        return { text: (el.textContent ?? '').trim(), fits: el.scrollWidth <= el.clientWidth && words.every((w) => w.left >= box.left && w.right <= box.right && w.height <= box.height), lines: new Set(words.map((w) => Math.round(w.top))).size }
+      }))
+      expect(chips.map((c) => c.text)).toEqual(['Short Stay', 'Monthly', 'Long-Term', 'Checked homes'])
+      for (const c of chips) expect(c, `${width}px "${c.text}"`).toMatchObject({ fits: true, lines: 1 })
+    }
+  })
+
   test('the chips open search with their filter on @core', async ({ page }) => {
     test.skip(!isPhone(), 'Explore is the phone\'s page')
     await page.goto('/')

@@ -113,7 +113,19 @@ async function readExplore(now: Date): Promise<Omit<Explore, 'failed'>> {
     if (cards.length > 0) rows.push({ kind: 'more', homes: cards })
   }
 
-  // Every place with a live home, the most homes first, one spelling each
+  return { rows, rate, places: placesOf(homes) }
+}
+
+/**
+ * Places to suggest in the search sheet (components/search/SearchSheet.tsx): every city with a live home, the
+ * most homes first, one spelling each. Kept for a few seconds (lib/shortCache.ts): the search page asks on
+ * every visit.
+ */
+export function livePlaces(): Promise<string[]> {
+  return cached('live-places', async () => placesOf(await db.listing.findMany({ where: LIVE_HOME, select: { city: true } })))
+}
+
+function placesOf(homes: { city: string }[]): string[] {
   const counts = new Map<string, { label: string; n: number }>()
   for (const { city } of homes) {
     const key = cityKey(city)
@@ -121,9 +133,7 @@ async function readExplore(now: Date): Promise<Omit<Explore, 'failed'>> {
     const seen = counts.get(key)
     counts.set(key, { label: seen?.label ?? city.trim().replace(/\s+/g, ' '), n: (seen?.n ?? 0) + 1 })
   }
-  const places = [...counts.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'en')).map((p) => p.label)
-
-  return { rows, rate, places }
+  return [...counts.values()].sort((a, b) => b.n - a.n || a.label.localeCompare(b.label, 'en')).map((p) => p.label)
 }
 
 /**
