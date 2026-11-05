@@ -15,9 +15,20 @@ const OUT = path.join(__dirname, '..', '..', '.reports', 'stage2-shots', LABEL ?
 const PHONE_WIDTHS = [320, 390, 430]
 const PHOTO = (n: number) => `https://images.unsplash.com/photo-15026722602${String(n).padStart(2, '0')}-1c1ef2d93688?w=1200&q=80`
 
+/** Settled pictures, so before and after can be compared: every photo in view loaded, no animation running */
 async function save(page: Page, name: string, fullPage = false) {
   fs.mkdirSync(OUT, { recursive: true })
-  await page.screenshot({ path: path.join(OUT, `${test.info().project.name}-${name}.png`), fullPage })
+  if (fullPage) {
+    // Lazy photos load only once scrolled to
+    await page.evaluate(async () => { for (let y = 0; y < document.body.scrollHeight; y += 400) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 60)) } window.scrollTo(0, 0) })
+  }
+  await page.waitForFunction(() => Array.from(document.images).every((img) => {
+    const r = img.getBoundingClientRect()
+    const shown = r.width > 0 && r.height > 0 && getComputedStyle(img).visibility !== 'hidden'
+    return !shown || (img.complete && img.naturalWidth > 0)
+  }), undefined, { timeout: 15_000 }).catch(() => {})
+  await page.waitForTimeout(400)
+  await page.screenshot({ path: path.join(OUT, `${test.info().project.name}-${name}.png`), fullPage, animations: 'disabled' })
 }
 
 type Seeded = { host: Actor; ids: string[] }
@@ -68,6 +79,8 @@ test.describe('stage 2 pictures', () => {
       await explore(page, ids[1]).catch(() => {})
       await page.goto('/')
       await page.waitForLoadState('networkidle')
+      // The hero's entrance (hero-enter) has run its course
+      await page.waitForTimeout(1500)
       await save(page, 'desktop-home', true)
       return
     }
