@@ -117,6 +117,10 @@ test.describe('the phone\'s bottom bar (app shell, stage 1)', () => {
       await page.goto('/')
       await tab(page, name).click()
       await expect(page, name).toHaveURL(new RegExp(`/login\\?redirect=${encodeURIComponent(target).replace(/%2F/g, '(%2F|/)')}$`))
+      // The tab reaches log-in through a redirect, and WebKit may still be loading the log-in page in full after the
+      // address has changed: wait for it, or that load lands on the next page this test opens
+      await page.waitForLoadState('load')
+      await expect(page.getByPlaceholder('Your password')).toBeVisible()
     }
     // Logging in from the last of them comes back to it (opened as a page of its own, so it is running when
     // the form is filled in; the click above landed on it through a redirect)

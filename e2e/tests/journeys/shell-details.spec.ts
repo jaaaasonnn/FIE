@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import type { Page } from '@playwright/test'
+import sharp from 'sharp'
 import { test, expect } from '../../lib/test'
 import { db } from '../../lib/db'
 import { openSheet } from '../../pages'
@@ -104,6 +105,32 @@ test.describe('the header steps aside on scroll', () => {
     await page.waitForTimeout(300)
     expect(await headerHidden(page)).toBe(false)
     expect(Math.round((await page.locator('header.site-header').boundingBox())!.y)).toBe(0)
+  })
+})
+
+test.describe('the header is solid', () => {
+  test('coming back over the page, no text shows through it, at 320 to 430 px @core', async ({ page }) => {
+    phonesOnly()
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 700 })
+      await page.goto('/how-it-works')
+      await shellLoaded(page)
+      await scrollBy(page, 700)
+      expect(await headerHidden(page)).toBe(true)
+      await scrollBy(page, -120)
+      expect(await headerHidden(page)).toBe(false)
+      await page.waitForTimeout(400)
+      const box = (await page.locator('header.site-header').boundingBox())!
+      const clip = { x: 0, y: Math.max(0, box.y), width, height: Math.min(box.height, 56) }
+      const drawn = await sharp(await page.screenshot({ clip })).raw().toBuffer()
+      const style = await page.addStyleTag({ content: '.site-header { background-color: #FAF7F2 !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }' })
+      const solid = await sharp(await page.screenshot({ clip })).raw().toBuffer()
+      await style.evaluate((el) => (el as Element).remove())
+      let differ = 0
+      for (let i = 0; i < drawn.length; i++) if (Math.abs(drawn[i] - solid[i]) > 1) differ++
+      expect(differ, `${width} px: pixels of the header that the page behind it changes`).toBe(0)
+      await shot(page, `${width}-header-returning`)
+    }
   })
 })
 
@@ -265,5 +292,72 @@ test.describe('empty pages, placeholders and titles on a phone', () => {
       return [a, left()]
     })
     expect(edges[1]).toBe(edges[0])
+  })
+
+  test('a saved home\'s price on Wishlists is written as every card writes it (AS10) @core', async ({ page, world, signIn }) => {
+    const host = await world.host()
+    const guest = await world.guest()
+    const odd = await world.listing(host, { priceNightly: 1250.5 })
+    const round = await world.listing(host, { priceNightly: 80 })
+    await db.wishlist.createMany({ data: [{ userId: guest.id, listingId: odd.id }, { userId: guest.id, listingId: round.id }] })
+    const rate = (await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' } }))!.usdToGhs
+    const cedis = (usd: number) => `About GH₵ ${(usd * rate).toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+    await signIn(guest)
+    await page.goto('/dashboard/guest/wishlist')
+    const card = (title: string) => page.locator('.listing-card').filter({ hasText: title })
+    // Cedis first, as Explore's cards: "About GH₵ 19,383 /night", then "$1,250.50"
+    await expect(card(odd.title)).toContainText(`${cedis(1250.5)} /night`)
+    await expect(card(odd.title)).toContainText('$1,250.50')
+    await expect(card(round.title)).toContainText(`${cedis(80)} /night`)
+    await expect(card(round.title)).toContainText('$80')
+    await expect(card(round.title)).not.toContainText('$80.00')
+    // No stray decimals anywhere in the cedis
+    for (const text of await page.locator('.listing-card').allInnerTexts()) expect(text).not.toMatch(/GH₵ [\d,]+\.\d/)
+  })
+
+  test('a booking on Trips: the title in two lines at most, the total on a line of its own, Pay now across the card @core', async ({ page, world, signIn }) => {
+    phonesOnly()
+    const host = await world.host()
+    const guest = await world.guest()
+    const home = await world.listing(host, { title: `Bright two-bedroom flat near Oxford Street with a balcony and a view over the rooftops ${Date.now()}` })
+    await world.mustBook(guest, home.id)
+    await signIn(guest)
+    for (const width of [320, 390, 430]) {
+      await page.setViewportSize({ width, height: 844 })
+      await page.goto('/dashboard/guest')
+      const card = page.locator('.soft-panel').filter({ has: page.getByRole('link', { name: 'Pay now' }) }).first()
+      await expect(card).toBeVisible()
+      const title = card.locator('h3')
+      const lines = await title.evaluate((el) => Math.round(el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight)))
+      expect(lines, `${width} px: title lines`).toBeLessThanOrEqual(2)
+      // "Total due now" alone, then "$170.00 · About GH₵ 2,661" on one line
+      const total = card.getByText(/^\$[\d,.]+ · About GH₵ [\d,]+$/)
+      await expect(total).toBeVisible()
+      // (one line: every piece within half a line of the others; the bold amount and the smaller cedis sit at
+      // slightly different heights on the same line)
+      const spread = await total.evaluate((el) => {
+        const r = document.createRange(); r.selectNodeContents(el)
+        const tops = Array.from(r.getClientRects()).filter((x) => x.width > 1).map((x) => x.top + x.height / 2)
+        return (Math.max(...tops) - Math.min(...tops)) / parseFloat(getComputedStyle(el).fontSize)
+      })
+      expect(spread, `${width} px: the amounts on one line`).toBeLessThan(0.6)
+      // Pay now across the card; the rest the same width as each other, none wider than its words need
+      const actions = card.locator('.trip-actions')
+      const pay = (await card.getByRole('link', { name: 'Pay now' }).boundingBox())!
+      const row = (await actions.boundingBox())!
+      expect(Math.round(pay.width), `${width} px: Pay now across the card`).toBeGreaterThanOrEqual(Math.round(row.width - 32 - 1))
+      const others = await actions.locator(':scope > :not(.trip-primary)').evaluateAll((els) => els.map((el) => ({ w: Math.round(el.getBoundingClientRect().width), fits: el.scrollWidth <= el.clientWidth })))
+      expect(new Set(others.map((o) => o.w)).size, `${width} px: even columns ${JSON.stringify(others)}`).toBe(1)
+      for (const o of others) expect(o.fits).toBe(true)
+      await shot(page, `${width}-trips-card`)
+    }
+  })
+
+  test('Payment History\'s "Refunds received": the brand\'s text colour on a phone, blue on desktop as before @core', async ({ page, world, signIn }) => {
+    await signIn(await world.guest())
+    await page.goto('/dashboard/guest/payments')
+    const amount = page.locator('.refunds-received')
+    await expect(amount).toBeVisible()
+    expect(await amount.evaluate((el) => getComputedStyle(el).color)).toBe(isPhone() ? 'rgb(31, 27, 22)' : 'rgb(37, 99, 235)')
   })
 })

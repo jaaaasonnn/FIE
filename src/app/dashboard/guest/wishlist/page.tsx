@@ -5,7 +5,8 @@ import { Heart, MapPin, Star, Trash2, Loader2 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
-import { getPrimaryPrice } from '@/lib/utils'
+import { formatUsdCompact, getPrimaryPrice } from '@/lib/utils'
+import { aboutCedis, cardPrice, type CardPrice } from '@/lib/exploreRows'
 import { PhoneEmpty } from '@/components/ui/PhoneEmpty'
 
 type WishlistItem = {
@@ -16,6 +17,8 @@ type WishlistItem = {
   neighbourhood: string | null
   price: number | null
   priceUnit: string
+  /** The price as Explore's cards write it: per night for a home with short stays, otherwise per month */
+  card: CardPrice | null
   rating: number
   reviews: number
   photo: string
@@ -92,6 +95,7 @@ export default function WishlistPage() {
             neighbourhood: w.listing.neighbourhood,
             price,
             priceUnit:     unit,
+            card:          cardPrice({ rentalModes: modes, priceNightly: w.listing.priceNightly, priceMonthly: w.listing.priceMonthly, priceAnnual: w.listing.priceAnnual }),
             rating:        w.listing.avgRating ?? 0,
             reviews:       w.listing.reviewCount ?? 0,
             photo:         firstPhoto(w.listing.photos),
@@ -242,11 +246,17 @@ export default function WishlistPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                          ${listing.price ?? '-'}<span className="text-xs font-normal text-[#6B645C]">{listing.priceUnit}</span>
-                        </span>
-                        {listing.price != null && (
-                          <div className="text-xs text-[#736D62]">≈ GH₵ {(listing.price * ghsRate).toLocaleString('en-GH')}</div>
+                        {/* As Explore's cards write a price (AS10): cedis first, "About GH₵ 19,577 /night", then "$1,250.50" */}
+                        {listing.card ? (
+                          <>
+                            <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                              <strong>{aboutCedis(listing.card.usd, ghsRate)}</strong>{' '}
+                              <span className="text-xs font-normal text-[#6B645C]">{listing.card.unit}</span>
+                            </span>
+                            <div className="text-xs text-[#736D62]">{formatUsdCompact(listing.card.usd)}</div>
+                          </>
+                        ) : (
+                          <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>-</span>
                         )}
                       </div>
                       {listing.superhost && (

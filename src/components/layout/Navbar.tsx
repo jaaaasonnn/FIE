@@ -276,7 +276,7 @@ export function Navbar() {
       {/* Mobile menu */}
       {menuOpen && (
         <div
-          className="lg:hidden"
+          className="site-header-menu lg:hidden"
           style={{
             backgroundColor: 'rgba(255,255,255,0.96)',
             backdropFilter: 'blur(12px)',

@@ -419,15 +419,15 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                   <div key={b.id} className="soft-panel overflow-hidden">
                     <div className="flex gap-4 p-4">
                       {photo ? (
-                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden flex-shrink-0">
+                        <div className="relative w-20 h-20 sm:w-24 sm:h-24 max-md:w-16 max-md:h-16 rounded-xl overflow-hidden flex-shrink-0">
                           <Image src={photo} alt={b.listing?.title ?? ''} fill sizes="96px" className="object-cover" />
                         </div>
                       ) : (
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-stone-100 flex-shrink-0" />
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 max-md:w-16 max-md:h-16 rounded-xl bg-stone-100 flex-shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-                          <h3 className="font-semibold text-sm leading-snug min-w-0" style={{ color: 'var(--color-text-primary)' }}>
+                          <h3 className="font-semibold text-sm leading-snug min-w-0 max-md:line-clamp-2" style={{ color: 'var(--color-text-primary)' }}>
                             {b.listing?.title}
                           </h3>
                           <span className="px-2 py-1 rounded-full text-xs font-medium flex-shrink-0"
@@ -446,19 +446,27 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                             <p className="text-xs mt-2 text-[#6B645C]">All rent is paid.</p>
                           ) : (
                             <p className="text-sm font-bold mt-2" style={{ color: rent.kind === 'NEXT' && rent.overdue ? '#991B1B' : 'var(--color-text-primary)' }}>
-                              <span className="font-normal text-xs text-[#6B645C] mr-1.5">
+                              <span className="font-normal text-xs text-[#6B645C] mr-1.5 max-md:block max-md:mb-0.5">
                                 {rent.kind === 'FIRST' ? 'First payment, due now'
                                   : `${rent.overdue ? 'Rent late, was due' : 'Next rent, due'} ${formatStayDate(rent.instalment.dueDate, { day: 'numeric', month: 'short' })}`}
                               </span>
-                              {formatUsd(rent.amount)}
-                              <span className="font-normal text-xs text-[#736D62] ml-1">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                              {/* A phone: the amounts on a line of their own; each phrase kept whole, so a very large amount
+                                wraps between them, never inside one */}
+                              <span>
+                                <span className="max-md:whitespace-nowrap">{formatUsd(rent.amount)}</span>
+                                <span className="font-normal text-xs text-[#736D62] ml-1 max-md:ml-0"><span className="md:hidden"> · </span><span className="max-md:whitespace-nowrap">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span></span>
+                              </span>
                             </p>
                           )
                         ) : (
                           <p className="text-sm font-bold mt-2" style={{ color: 'var(--color-text-primary)' }}>
-                            <span className="font-normal text-xs text-[#6B645C] mr-1.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
-                            {formatUsd(b.totalPrice)}
-                            <span className="font-normal text-xs text-[#736D62] ml-1">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                            <span className="font-normal text-xs text-[#6B645C] mr-1.5 max-md:block max-md:mb-0.5">{b.paymentStatus === 'PAID' ? 'Total paid' : 'Total due now'}</span>
+                            {/* A phone: the amounts on a line of their own; each phrase kept whole, so a very large amount
+                                wraps between them, never inside one */}
+                            <span>
+                              <span className="max-md:whitespace-nowrap">{formatUsd(b.totalPrice)}</span>
+                              <span className="font-normal text-xs text-[#736D62] ml-1 max-md:ml-0"><span className="md:hidden"> · </span><span className="max-md:whitespace-nowrap">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span></span>
+                            </span>
                           </p>
                         )}
                         {b.damageDeposit > 0 && (!rent || rent.kind === 'FIRST') && (
@@ -481,17 +489,18 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                         )}
                       </div>
                     </div>
-                    <div className="px-4 pb-4 flex gap-2 flex-wrap">
+                    {/* A phone: Pay now (or Pay rent) across the card, the rest in even columns under it (globals.css .trip-actions) */}
+                    <div className="trip-actions px-4 pb-4 flex gap-2 flex-wrap">
                       {pay === 'AWAITING_PAYMENT' && (
                         <Link href={`/checkout/${b.id}`}
-                          className="focus-ring text-xs px-4 py-2 rounded-full font-semibold"
+                          className="trip-primary focus-ring text-xs px-4 py-2 rounded-full font-semibold"
                           style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                           Pay now
                         </Link>
                       )}
                       {rent?.kind === 'NEXT' && rent.payable && (
                         <Link href={`/checkout/${b.id}?instalment=${rent.instalment.id}`}
-                          className="focus-ring text-xs px-4 py-2 rounded-full font-semibold"
+                          className="trip-primary focus-ring text-xs px-4 py-2 rounded-full font-semibold"
                           style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
                           Pay rent
                         </Link>

@@ -173,7 +173,8 @@ export default function GuestPaymentsPage() {
               </div>
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Refunds received</p>
-                <p className="text-2xl font-bold" style={{ color: '#2563EB' }}>
+                {/* Blue on desktop as before; a phone writes it in the brand's text colour (globals.css .refunds-received) */}
+                <p className="refunds-received text-2xl font-bold">
                   {formatUsd(refunds)}
                 </p>
               </div>

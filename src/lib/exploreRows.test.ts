@@ -105,3 +105,23 @@ describe('getExplore', () => {
     expect((await getExplore(NOW)).rows).toEqual([])
   })
 })
+
+// AS10: a card's price is written the same way everywhere (Explore, search, Wishlists): whole dollars when there are
+// no cents, cents when there are, never a stray decimal; cedis rounded to whole cedis with thousands marked.
+describe('prices as cards write them', async () => {
+  const { formatUsdCompact } = await import('@/lib/utils')
+  it('dollars', () => {
+    expect(formatUsdCompact(80)).toBe('$80')
+    expect(formatUsdCompact(1250.5)).toBe('$1,250.50')
+    expect(formatUsdCompact(0.1 + 0.2)).toBe('$0.30')
+    expect(formatUsdCompact(1234567.891)).toBe('$1,234,567.89')
+    expect(formatUsdCompact(18000 / 12)).toBe('$1,500')
+    expect(formatUsdCompact(10000 / 12)).toBe('$833.33')
+  })
+  it('cedis', () => {
+    expect(aboutCedis(1250.5, 15.655)).toBe('About GH₵ 19,577')
+    expect(aboutCedis(80, 15.5)).toBe('About GH₵ 1,240')
+    expect(aboutCedis(0.1 + 0.2, 15.5)).toBe('About GH₵ 5')
+    expect(aboutCedis(1234567.891, 15.5)).toBe('About GH₵ 19,135,802')
+  })
+})

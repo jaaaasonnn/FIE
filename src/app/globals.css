@@ -1253,3 +1253,22 @@ input, select, textarea, button {
 /* A full-screen panel that slides up on a phone (the search page's map) */
 @media (max-width: 767px) { .sheet-slide { animation: sheet-up 280ms var(--ease-out); } }
 @media (prefers-reduced-motion: reduce) { .sheet-slide { animation: none; } }
+
+/* ── Phones: the header and its menu are solid. When the header slides back in over the page (public/shell.js), no
+   text behind it may show through, so no see-through colour and no blur below 768 px. Desktop is as it was. */
+@media (max-width: 767px) {
+  .site-header { background-color: var(--color-bg) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+  .site-header-menu { background-color: var(--color-bg-card) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+}
+
+/* ── Payment History's "Refunds received": blue on desktop as before, the brand's text colour on a phone */
+.refunds-received { color: #2563EB; }
+@media (max-width: 767px) { .refunds-received { color: var(--color-text-primary); } }
+
+/* ── Trips' booking card on a phone: Pay now (or Pay rent) across the card, the other buttons in even columns
+   under it: two to a row on a small phone, three from about 400 px (app/dashboard/guest/GuestDashboardClient.tsx) */
+@media (max-width: 767px) {
+  .trip-actions { display: grid !important; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: 8px; }
+  .trip-actions > * { justify-content: center; text-align: center; padding-inline: 10px !important; white-space: nowrap; }
+  .trip-actions > .trip-primary { grid-column: 1 / -1; font-size: 0.875rem !important; height: 48px; }
+}
