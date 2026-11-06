@@ -164,6 +164,19 @@ test.describe('the search sheet', () => {
 })
 
 test.describe('search on a phone', () => {
+  test('a long search stays inside the summary pill at 320 px, cut with an ellipsis @core', async ({ page }) => {
+    phonesOnly()
+    await page.setViewportSize({ width: 320, height: 700 })
+    await page.goto(`/search?q=Sekondi-Takoradi Beach Road Harbour Front&mode=SHORT_STAY&checkIn=${day(20)}&checkOut=${day(48)}&guests=12`)
+    const pill = page.locator('[data-search-pill]:visible')
+    const text = pill.locator('.search-summary-text')
+    const [p, t] = [(await pill.boundingBox())!, (await text.boundingBox())!]
+    expect(Math.round(p.height)).toBe(48)
+    expect(t.x + t.width, 'the words end inside the pill').toBeLessThanOrEqual(p.x + p.width + 0.5)
+    expect(p.x + p.width, 'the pill inside the screen').toBeLessThanOrEqual(320)
+    expect(await text.evaluate((el) => getComputedStyle(el).textOverflow)).toBe('ellipsis')
+  })
+
   test('full-width cards: photos swiped sideways with a count, lines of a fixed height, the stay price for the dates @core', async ({ page, world }) => {
     phonesOnly()
     const host = await world.host()

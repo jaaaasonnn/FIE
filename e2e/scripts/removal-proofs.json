@@ -3097,8 +3097,8 @@
   "edits": [
    {
     "file": "src/app/search/page.tsx",
-    "find": "return <SearchClient initial={initial} />",
-    "replace": "return <SearchClient initial={null} />"
+    "find": "<SearchClient initial={initial} rate={rate} />",
+    "replace": "<SearchClient initial={null} rate={rate} />"
    }
   ],
   "testFile": "e2e/tests/perf/server-first.spec.ts",
@@ -3462,17 +3462,18 @@
   "project": "android"
  },
  {
-  "what": "App shell polish: the search field stays inside its box on a phone",
+  "what": "App shell polish: the phone's search stays inside its box (since stage 2 the summary pill, which took the search field's place on a phone)",
   "edits": [
    {
-    "file": "src/app/search/SearchClient.tsx",
-    "find": "flex-1 min-w-0 w-full text-sm bg-transparent",
-    "replace": "flex-1 text-sm bg-transparent"
+    "file": "src/app/globals.css",
+    "find": "  .search-summary-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }",
+    "replace": "  .search-summary-text { white-space: nowrap; }"
    }
   ],
-  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
-  "test": "signed out: no text outside its box",
-  "e2e": true
+  "testFile": "e2e/tests/journeys/search-sheet.spec.ts",
+  "test": "a long search stays inside the summary pill at 320 px, cut with an ellipsis",
+  "e2e": true,
+  "project": "android"
  },
  {
   "what": "App shell polish: a booking page whose answer arrives late is drawn fresh, not moved from its loading screen",
@@ -3601,7 +3602,7 @@
    }
   ],
   "testFile": "src/lib/exploreRows.test.ts",
-  "test": "needs three homes for a row, the most homes first, at most four rows"
+  "test": "gives no rows with fewer than three homes anywhere, and none with no homes"
  },
  {
   "what": "Stage 2: GET /api/wishlists?only=ids gives the person's own ids only",
@@ -3628,12 +3629,17 @@
   "test": "the address's q and checked start the search"
  },
  {
-  "what": "Stage 2: every Explore card in a row the same size, whatever its title",
+  "what": "Stage 2: every Explore card in a row the same size, whatever its title (the width, and the min-width guards inside it)",
   "edits": [
    {
     "file": "src/app/globals.css",
     "find": "flex: 0 0 clamp(240px, 74vw, 300px); width: clamp(240px, 74vw, 300px); min-width: 0;",
     "replace": "flex: 0 0 clamp(240px, 74vw, 300px);"
+   },
+   {
+    "file": "src/app/globals.css",
+    "find": "  .explore-card-body, .explore-card-top { min-width: 0; }\n",
+    "replace": ""
    }
   ],
   "testFile": "e2e/tests/journeys/explore.spec.ts",
