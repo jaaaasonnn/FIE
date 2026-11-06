@@ -69,6 +69,10 @@ test.describe('Explore on a phone', () => {
     // Every card the same size, whatever its title (a long one once widened its card and its photo)
     const sizes = await page.locator('.explore-card').evaluateAll((cards) => cards.map((c) => { const r = c.getBoundingClientRect(); return `${Math.round(r.width)}x${Math.round(r.height)}` }))
     expect(new Set(sizes).size, sizes.join(' ')).toBe(1)
+    // ...and the width a card should have, clamp(240px, 74vw, 300px): with one card on the page, equal sizes alone
+    // would not show a card widened by its title
+    const want = await page.evaluate(() => Math.round(Math.min(300, Math.max(240, window.innerWidth * 0.74))))
+    expect(Math.abs(Number(sizes[0].split('x')[0]) - want), `card ${sizes[0]}, want ${want} wide`).toBeLessThanOrEqual(1)
     await shot(page, 'explore')
 
     // The desktop sections ask for nothing on a phone, and the hero's photos are not fetched
