@@ -161,6 +161,6 @@ test.describe('search', () => {
     down = false
     await tryAgain(page).click()
     await expect(tryAgain(page)).toBeHidden()
-    await expect(page.locator('a[href^="/listings/"]').first()).toBeVisible()
+    await expect(page.locator('a[href^="/listings/"]:visible').first()).toBeVisible()
   })
 })

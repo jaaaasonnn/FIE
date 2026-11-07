@@ -33,7 +33,7 @@ test.describe('a home switched off while a guest still has an old page', () => {
     await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS), isFeatured: true, avgRating: 2_000 } })
     expect((await host.call('PATCH', `/api/listings/${home.id}`, { title: home.title })).status).toBe(200)
     await signIn(guest)
-    const card = page.locator(`a[href="/listings/${home.id}"]`).first()
+    const card = page.locator(`a[href="/listings/${home.id}"]:visible`).first()
     await expect.poll(async () => { await page.goto('/'); return card.count() }, { timeout: 10_000 }).toBeGreaterThan(0)
 
     // The host switches it off; the guest's home page is the old one, and they press its card

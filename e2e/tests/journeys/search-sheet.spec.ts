@@ -37,7 +37,7 @@ test.describe('the search sheet', () => {
     const home = await world.listing(host, { city })
     await db.listing.update({ where: { id: home.id }, data: { photos: JSON.stringify(PHOTOS('3')) } })
     await page.goto(`/search?q=${city}`)
-    await expect(page.locator(`a[href^="/listings/${home.id}"]`).first()).toBeVisible()
+    await expect(page.locator(`a[href^="/listings/${home.id}"]:visible`).first()).toBeVisible()
     // The cards' hearts are a phone's (the stylesheet's display once won over md:hidden)
     await expect(page.locator('.heart-button').filter({ visible: true })).toHaveCount(0)
     await expect(page.locator('.search-card-count').filter({ visible: true })).toHaveCount(0)

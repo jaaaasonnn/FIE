@@ -169,14 +169,37 @@ test.describe('the payout and what holds it', () => {
     const admin = await world.admin()
     const host = await world.host()
     const { id } = await paidStay(world, host)
-    await makeDue(id)
+    // Suspended before the stay falls due: every run of the job, this test's or another test's, finds the
+    // account suspended. The other way round, another test's run could pay the stay in between (shown below).
     expect((await admin.call('POST', '/api/admin/users', { userId: host.id, action: 'suspend', reason: 'Held by the end-to-end payout test.' })).status).toBe(200)
+    await makeDue(id)
     const run = await cron('process-payouts')
     expect(run.json.results.find((r: { bookingId: string }) => r.bookingId === id)?.action).toBe('waiting-for-suspension')
     expect(await db.payout.count({ where: { bookingId: id } })).toBe(0)
     expect((await admin.call('POST', '/api/admin/users', { userId: host.id, action: 'restore', reason: 'Released by the end-to-end payout test.' })).status).toBe(200)
     await cron('process-payouts')
     await expect.poll(async () => (await transfersFor(id)).length).toBe(1)
+    await expectInvariants()
+  })
+
+  // The order the test above used to have (stay made due, then the host suspended), with another run of the job
+  // placed in the gap on purpose: that run pays the stay before the suspension, so the test's own run has
+  // nothing to list for it. This is what made the test above fail under load; it is not a hole in the rule.
+  test('a stay paid before its host is suspended stays paid: the job lists nothing for it and pays nothing more', async ({ world }) => {
+    const admin = await world.admin()
+    const host = await world.host()
+    const { id } = await paidStay(world, host)
+    await makeDue(id)
+    // Another actor's run of the job, in the gap. Which run took the stay is not checked (AS2): only that it was paid
+    expect((await cron('process-payouts', { server: 1 })).status).toBe(200)
+    await expect.poll(async () => (await transfersFor(id)).length).toBe(1)
+    expect((await admin.call('POST', '/api/admin/users', { userId: host.id, action: 'suspend', reason: 'Held by the end-to-end payout test.' })).status).toBe(200)
+    const run = await cron('process-payouts')
+    expect(run.json.results.find((r: { bookingId: string }) => r.bookingId === id)?.action).toBeUndefined()
+    expect(await db.payout.count({ where: { bookingId: id } })).toBe(1)
+    expect((await admin.call('POST', '/api/admin/users', { userId: host.id, action: 'restore', reason: 'Released by the end-to-end payout test.' })).status).toBe(200)
+    await cron('process-payouts')
+    expect((await transfersFor(id)).length).toBe(1)
     await expectInvariants()
   })
 
