@@ -126,7 +126,7 @@ export function PhoneMap({ total, map }: { total: number; map: React.ReactNode }
   }
   return (
     <div className="sheet-slide fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: 'var(--color-bg)' }}>
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
+      <div className="app-top-bar flex items-center justify-between px-4 py-3 flex-shrink-0"
         style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }}>
         <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
           Map view · {total} {total === 1 ? 'property' : 'properties'}

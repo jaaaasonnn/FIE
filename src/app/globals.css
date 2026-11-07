@@ -1209,6 +1209,20 @@ input, select, textarea, button {
   .site-header, .under-header { transition: none; }
 }
 
+/* ── The installed app (app shell stage 4): room at the top for the status bar, notch or Dynamic Island ──────────
+   Only when FieGH runs from the home screen (display-mode: standalone), so the browser's layout is exactly as it
+   was. On an iPhone the status bar is "default" (app/layout.tsx), drawn above the page, so the inset should be 0
+   there; these rules are for any phone that draws the page under it. Explore's top and the search sheet's panel
+   always had the inset. The header keeps a strip the inset's height when it steps aside, so the page never scrolls
+   under the status bar; the search bar under it moves by the header's own height, as before, and stops under that
+   strip. */
+@media (display-mode: standalone) {
+  .site-header { padding-top: env(safe-area-inset-top, 0px); }
+  :root[data-header-hidden] .site-header { transform: translateY(calc(-100% + env(safe-area-inset-top, 0px))); }
+  .under-header { top: calc(var(--site-header-height) + env(safe-area-inset-top, 0px)) !important; }
+  .app-top-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important; }
+}
+
 /* ── An empty state on a phone (components/ui/PhoneEmpty.tsx) ─────────────────────────────────────────────── */
 @media (max-width: 767px) {
   .phone-empty {
