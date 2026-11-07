@@ -3894,5 +3894,37 @@
   "testFile": "e2e/tests/perf/bundle.spec.ts",
   "test": "every main page is within",
   "e2e": true
+ },
+ {
+  "what": "Suspension, payouts: a suspended host is not paid, end to end (the test suspends before the stay falls due)",
+  "edits": [
+   {
+    "file": "src/lib/cronRuns.ts",
+    "find": "    if (item.hostSuspended) {\n      results.push({ ...base, action: 'waiting-for-suspension' })\n      continue\n    }\n",
+    "replace": ""
+   },
+   {
+    "file": "src/lib/payouts.ts",
+    "find": "  if (isSuspended(host)) {\n    throw new HostSuspendedError(hostId)\n  }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/money.spec.ts",
+  "test": "a suspended host is not paid; the payout waits and goes out when the account is restored",
+  "e2e": true
+ },
+ {
+  "what": "Stage 2: the styled scrollbar is for devices with a mouse only (a touch tablet header starts on the screen)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "@media (hover: hover) and (pointer: fine) {\n  ::-webkit-scrollbar { width: 6px; }",
+    "replace": "@media all {\n  ::-webkit-scrollbar { width: 6px; }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/shell-details.spec.ts",
+  "test": "desktop: the header never moves",
+  "e2e": true,
+  "project": "tablet"
  }
 ]
