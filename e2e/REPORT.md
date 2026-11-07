@@ -1,5 +1,71 @@
 # End-to-end test report
 
+## app-shell, stage 3: AS8 and the listing page's heart (2026-11-07, `50b6f9a`, branch `app-shell-3`, not merged)
+
+Run on `50b6f9a` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium
+run), under `caffeinate -dims` on mains power, `next dev` off. Each suite in its own folder,
+`e2e/.reports/as3-full2/`. Nothing was re-run. **Not a clean set: 3 flaky tests in Chromium (AS15-AS17), causes
+not proven.**
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (0 errors, 38 warnings, none new) |
+| `npm run test:tz` | pass in each of the six zones |
+| Money rules | clean before and after (2 of 2 each time) |
+| Chromium suite, races at 50, run 1 | 255 passed, 44 skipped, 0 failed, **1 flaky** (AS15) |
+| Chromium suite, races at 50, run 2 (fresh stack) | 254 passed, 44 skipped, 0 failed, **2 flaky** (AS16, AS17) |
+| Contention, alone | **5 passed** |
+| Chaos | **17 passed** |
+| Other five set-ups | **387 passed, 143 skipped, 0 failed, 0 flaky** |
+| Removal proofs | **all 327 hold** (315-322 the listing heart, 323-327 AS8) |
+
+**Bundle, exact (sum of each file's compressed size; the guard now sums to the byte, no rounding):**
+
+| Point | Desktop search | Phone search | Listing (desktop / phone) |
+|---|---|---|---|
+| Before 1a (`d5103bf`) | 650.007 KB | 209.551 KB | 218.494 / 224.542 KB |
+| After 1a (`a021fe8`) | 649.086 KB | 211.562 KB | |
+| After Job 2 (`703ed49`) | 649.084 KB | 211.769 KB | 219.270 / 225.317 KB |
+| Full set (`50b6f9a`) | **649.100 KB** | **211.815 KB** | 219.273 / 225.321 KB |
+
+Every phone page is under 350 KB (largest: guest dashboard 226.488 KB). Desktop search has 0.9 KB of room, so
+desktop search-card hearts (about 1.3 KB) wait for a branch that slims the map; the desktop card heart stays hidden
+and proof 302 stands. AS8 saved 0.92 KB, not the 2.5-4 KB first estimated.
+
+**What was built.** 1a: a phone's search parts in `app/search/phoneParts.tsx`, fetched at a phone's width only
+(`lib/phoneOnly.ts`), the server's HTML kept until then. A Suspense boundary was tried first and dropped: React
+19.2 sends a finished boundary's HTML after the page and swaps it in with a script, so with no script the pill was
+missing. Job 2: the listing page's heart is the cards' `HeartButton` and store (no `?userId=`), and a heart
+pressed while signed out saves that home once after logging in (sessionStorage, 10 minutes, one use).
+
+### What failed in the first full set (`098933c`, `e2e/.reports/as3-full/`), and what was done
+
+Each cause was proven before anything was changed.
+
+1. **A tap on a phone's chip or Clear filters was lost** (iPhone: one failure, one flaky). The trace: the phone's
+   code was asked for at 753 ms and arrived at 970 ms; the tap came at 780 ms, on the server's copy, which has
+   nothing behind it. A regression from 1a. Fix: the server's copy of those buttons is drawn disabled, and they
+   work once the code has come (the existing rule: a form drawn by the server is disabled until the page runs).
+   Same look. The pill is a link and works anyway. New tests hold the code back (proofs 326, 327).
+2. **Proof 301 was stale**: the line it removes moved to `phoneParts.tsx` in 1a. It points there now.
+3. **Proof 319 did not hold.** The mutant passed 2 runs in 10. A first explanation (checked too early) was wrong.
+   Proven from a trace of a passing mutant: the page being left by the reload got its saved ids at 6207 ms, read
+   the waiting save, and its request (6208 ms) was cancelled by the navigation, so the next page found nothing to
+   read. The test now leaves the waiting save only once the first page knows the saved homes; the mutant fails
+   10 runs in 10.
+
+### Flaky in the second full set: causes NOT proven (AS15-AS17)
+
+Each failed once and passed on its retry. None is in code stage 3 changed. **No cause below is proven.**
+
+- **AS15, `races/rent.spec.ts:44`** (cover from deposit three times at once): a Postgres deadlock (`40P01`) in
+  the test's own clean-up, `prisma.user.deleteMany()`. Which statements clashed was not found.
+- **AS16, `races/bookings.spec.ts:302`** (SU7, switched off as Pay is pressed), round 11: 409 **without a code**.
+  Guess only: another test's `expire-bookings` run ended the booking first. The body was not kept.
+- **AS17, `races/payout-retry.spec.ts:66`** (a2), round 11: `initiatedAt` set on a retry claim only moments old.
+  Guess only: a run working from an older list of due stays (the AS2 kind). One probe did not reproduce it. To
+  decide before `PAYOUTS_ENABLED`, with AS6 and AS11. No payout code was changed.
+
 ## app-shell, stage 2: Explore, the search sheet, phone search (2026-11-07, `deca1e6`, branch `app-shell-2`, not merged)
 
 Run on `deca1e6` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium
