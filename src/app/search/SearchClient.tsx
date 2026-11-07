@@ -2,11 +2,11 @@
 
 import { NotAnswered, fetchRetry, isLoadFailure } from '@/lib/clientFetch'
 import { LoadFailed } from '@/components/ui/LoadFailed'
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { useSearchParams } from 'next/navigation'
 import {
   Search, SlidersHorizontal, MapPin, Star, Bed, Bath, X,
-  Map as MapIcon, Home,
+  Home,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
 import Link from 'next/link'
@@ -19,11 +19,11 @@ import { useMediaQuery } from '@/lib/useMediaQuery'
 import { useOnDemand } from '@/lib/useOnDemand'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
-import { dateQuery, fromSheet, getDisplayPrice, searchQuery, searchSummary, shapeResults, sheetParams, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
-import { aboutCedis, cardPriceFor, stayPrice } from '@/lib/exploreRows'
+import { dateQuery, getDisplayPrice, searchQuery, shapeResults, startingFilters, type ApiListing, type DateFilters, type SearchFilters } from '@/lib/searchQuery'
 import { HeartPlaceholder } from '@/components/listing/HeartPlaceholder'
-import { PhoneEmpty } from '@/components/ui/PhoneEmpty'
-import { CHECK_CHIP_LABEL } from '@/lib/listingCheckRules'
+import { KEEP_SERVER_HTML, phoneModule } from '@/lib/phoneOnly'
+import { useHydrated } from '@/lib/useHydrated'
+import type { PhoneBarProps, PhoneCardTextProps } from './phoneParts'
 import { formatDay } from '@/lib/dateText'
 
 // ── The map, loaded only when it is shown (G5) ───────────────────────────────
@@ -67,6 +67,62 @@ function CardHeart({ listingId, title, phone }: { listingId: string; title: stri
   const Heart = mod?.HeartButton ?? HeartPlaceholder
   return <Heart listingId={listingId} title={title} className="search-card-heart md:hidden" />
 }
+
+// ── A phone's own parts (AS8): their code is fetched at a phone's width only ────────────────────────────────
+// The server draws them into the page with its own copy of phoneParts.tsx (below; the browser's build leaves it
+// out). In the browser a part is kept as the server drew it (lib/phoneOnly.ts) until its code has come, which on a
+// wider screen is never: there it is hidden by CSS. No Suspense boundary: React 19.2 sends a finished boundary's
+// HTML after the page and puts it in place with a script, and the phone's bar must work with no script.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const serverParts: typeof import('./phoneParts') | null = typeof window === 'undefined' ? require('./phoneParts') : null
+const usePhoneParts = phoneModule(() => import('./phoneParts'), serverParts)
+
+/**
+ * Whether a part keeps the server's HTML: a part drawn as the page is taken over, for as long as it would show
+ * what the server drew. Once it would show something else, a placeholder its size takes its place until the code
+ * has come (on a wider screen it is hidden anyway). A part drawn later, in the browser, has no HTML to keep.
+ */
+function useKept(shows: string) {
+  const hydrated = useHydrated()
+  const [first] = useState(() => (hydrated ? null : shows))
+  return first === shows
+}
+
+const PhoneBarSlot = memo(function PhoneBarSlot(props: PhoneBarProps) {
+  const parts = usePhoneParts()
+  const shows = JSON.stringify([props.filters, props.showFilters])
+  const kept = useKept(shows)
+  if (parts) return <parts.PhoneBar key="live" {...props} />
+  if (kept) return <div key="kept" className="md:hidden" dangerouslySetInnerHTML={KEEP_SERVER_HTML} suppressHydrationWarning />
+  // The bar's own height, so nothing below it moves
+  return <div key={shows} className="search-phone-bar-wait md:hidden" aria-hidden />
+})
+
+const PhoneCardTextSlot = memo(function PhoneCardTextSlot(props: PhoneCardTextProps) {
+  const parts = usePhoneParts()
+  const { listing: l, filters: f } = props
+  const shows = JSON.stringify([l, f.mode, f.checkIn, f.checkOut, f.months, props.dated, props.rate])
+  const kept = useKept(shows)
+  if (parts) return <parts.PhoneCardText key="live" {...props} />
+  if (kept) return <span key="kept" className="search-card-text md:hidden" dangerouslySetInnerHTML={KEEP_SERVER_HTML} suppressHydrationWarning />
+  // The card's own lines, the same height as its text
+  return <span key={shows} className="search-card-text search-card-wait md:hidden" data-dates={props.dated || undefined} aria-hidden><span /><span /><span /><span /></span>
+})
+
+/** Drawn in the browser only (on the server and the browser's first draw, nothing), so the two draws agree */
+function PhoneMapSlot(props: { total: number; map: React.ReactNode }) {
+  const parts = usePhoneParts()
+  const hydrated = useHydrated()
+  return parts && hydrated ? <parts.PhoneMap {...props} /> : null
+}
+
+const PhoneNoResultsSlot = memo(function PhoneNoResultsSlot({ clearAll }: { clearAll: () => void }) {
+  const parts = usePhoneParts()
+  const kept = useKept('empty')
+  if (parts) return <parts.PhoneNoResults key="live" clearAll={clearAll} />
+  if (kept) return <div key="kept" className="phone-empty md:hidden " dangerouslySetInnerHTML={KEEP_SERVER_HTML} suppressHydrationWarning />
+  return null
+})
 
 /** Photos a phone's card can swipe through; a desktop shows the first only, as its thumbnail */
 const CARD_PHOTOS = 5
@@ -159,7 +215,6 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
   const [first] = useState(() => (initial ? shapeResults(initial, startFilters) : null))
 
   const [showFilters,   setShowFilters]   = useState(false)
-  const [showMapMobile, setShowMapMobile] = useState(false)
   const [listings,      setListings]      = useState<ApiListing[]>(first?.results ?? [])
   const [total,         setTotal]         = useState(first?.total ?? 0)
   // Set when the server refuses the chosen dates (for example a past check-in)
@@ -167,26 +222,13 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
 
   const [filters, setFilters] = useState<SearchFilters>(startFilters)
 
-  // The phone's search sheet (public/shell.js) starts from the search shown and changes it in place
-  const shown = useRef(filters)
-  useEffect(() => { shown.current = filters }, [filters])
-  useEffect(() => {
-    const read = (e: Event) => { (e as CustomEvent<{ params: string | null }>).detail.params = sheetParams(shown.current) }
-    const apply = (e: Event) => {
-      const detail = (e as CustomEvent<{ handled: boolean; params: string }>).detail
-      detail.handled = true
-      setFilters((f) => fromSheet(f, detail.params))
-    }
-    document.addEventListener('fiegh:sheet-read', read)
-    document.addEventListener('fiegh:sheet-apply', apply)
-    return () => { document.removeEventListener('fiegh:sheet-read', read); document.removeEventListener('fiegh:sheet-apply', apply) }
-  }, [])
-  const summary = searchSummary(filters)
-  const clearAll = () => setFilters({
+  // The phone's search sheet (public/shell.js) reads and changes the search through the phone's bar (phoneParts.tsx)
+  const clearAll = useCallback(() => setFilters({
     query: '', mode: '', region: '', guests: '', checkIn: '', checkOut: '', months: '1', minPrice: '', maxPrice: '',
     bedrooms: '', propertyType: '', hostIdChecked: false, checked: false,
     superhost: false, sort: 'newest', amenities: [],
-  })
+  }), [])
+  const toggleFilters = useCallback(() => setShowFilters((on) => !on), [])
   // Loading until results arrive for the current filters (derived, not toggled in the effect)
   const [loadedFilters, setLoadedFilters] = useState<typeof filters | null>(first ? startFilters : null)
   const loading = loadedFilters !== filters
@@ -312,33 +354,9 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
           boxShadow: '0 1px 6px rgba(31,27,22,0.05)',
         }}>
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-3">
-          {/* Phones: the search as one pill that opens the search sheet (components/search/SearchSheet.tsx), and the
-              filters as a row of chips. Desktop keeps the bar below. */}
-          <div className="md:hidden">
-            <a href="#search-sheet" data-search-pill className="search-summary focus-ring"
-              aria-label={`Change search: ${summary ?? 'Where to?'}`}>
-              <Search size={17} strokeWidth={2.25} aria-hidden className="flex-shrink-0" />
-              <span className="search-summary-text">{summary ?? 'Where to?'}</span>
-            </a>
-            <div className="search-chips" role="group" aria-label="Filters">
-              <button type="button" onClick={() => setShowFilters(!showFilters)} aria-expanded={showFilters}
-                onPointerDown={warmPanel} className="search-chip" data-on={showFilters || undefined}>
-                <SlidersHorizontal size={15} aria-hidden /> Filters
-              </button>
-              {(['SHORT_STAY', 'TEMP_STAY', 'PERMANENT'] as const).map((m) => (
-                <button key={m} type="button" aria-pressed={filters.mode === m}
-                  onClick={() => setFilters((f) => ({ ...f, mode: f.mode === m ? '' : m }))}
-                  className="search-chip" data-on={filters.mode === m || undefined}>
-                  <ModeLabel mode={m} />
-                </button>
-              ))}
-              <button type="button" aria-pressed={filters.checked}
-                onClick={() => setFilters((f) => ({ ...f, checked: !f.checked }))}
-                className="search-chip" data-on={filters.checked || undefined}>
-                {CHECK_CHIP_LABEL}
-              </button>
-            </div>
-          </div>
+          {/* Phones: the search as one pill that opens the search sheet, and the filters as a row of chips
+              (phoneParts.tsx). Desktop keeps the bar below. */}
+          <PhoneBarSlot filters={filters} setFilters={setFilters} showFilters={showFilters} toggleFilters={toggleFilters} warmPanel={warmPanel} />
 
           <div className="flex items-center gap-3 max-md:hidden">
             {/* Search input */}
@@ -510,7 +528,7 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
             <LoadFailed className="py-10" onRetry={() => setFilters((f) => ({ ...f }))} />
           ) : !loading && listings.length === 0 ? (
             <>
-            <PhoneEmpty title="No homes match all of that." text="Try fewer filters or other dates." action={{ label: 'Clear filters', onClick: clearAll }} />
+            <PhoneNoResultsSlot clearAll={clearAll} />
             <div className="text-center py-20 max-md:hidden">
 <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
                 <Home size={26} strokeWidth={1.75} aria-hidden />
@@ -548,9 +566,6 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
 
                 const l = item as ApiListing
                 const { price, unit } = getDisplayPrice(l, filters.mode)
-                // A phone's card: cedis first, as the listing page writes them, and the stay price for the dates
-                const phonePrice = cardPriceFor(l, filters.mode)
-                const stay = stayPrice(phonePrice, filters)
 
                 return (
                   <div key={l.id} className="search-card relative" data-dates={dq ? 'true' : undefined}>
@@ -629,25 +644,8 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
                       </div>
                     </div>
 
-                    {/* A phone's card text: every line a fixed height (globals.css .search-card-text) */}
-                    <span className="search-card-text md:hidden">
-                      <span className="search-card-top">
-                        <span className="search-card-title">{l.title}</span>
-                        <span className="search-card-rating">
-                          {l.reviewCount > 0 ? <><Star size={12} className="fill-current" aria-hidden />{l.avgRating.toFixed(1)}<span className="sr-only"> out of 5</span></> : 'New'}
-                        </span>
-                      </span>
-                      <span className="search-card-line">{[l.neighbourhood, l.city].filter(Boolean).join(', ')}</span>
-                      <span className="search-card-line search-card-price">
-                        {phonePrice && <><strong>{aboutCedis(phonePrice.usd, ghsRate)}</strong> <span className="search-card-unit">{phonePrice.unit}</span> · {formatUsdCompact(phonePrice.usd)}</>}
-                      </span>
-                      {dq && (
-                        <span className="search-card-line search-card-stay">
-                          {stay && <>{aboutCedis(stay.usd, ghsRate)} for {stay.units} {stay.units === 1 ? stay.unit : `${stay.unit}s`} · {formatUsdCompact(stay.usd)}</>}
-                        </span>
-                      )}
-                      <span className="search-card-badge">{l.check && <CheckedBadge check={l.check} />}</span>
-                    </span>
+                    {/* A phone's card text (phoneParts.tsx) */}
+                    <PhoneCardTextSlot listing={l} filters={filters} dated={!!dq} rate={ghsRate} />
                   </Link>
                   <CardHeart listingId={l.id} title={l.title} phone={phone} />
                   </div>
@@ -665,33 +663,11 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
         </div>
       </div>
 
-      {/* Phones: the map, as a button floating above the bottom bar */}
-      {!showMapMobile && (
-        <button type="button" onClick={() => setShowMapMobile(true)} className="search-map-button focus-ring md:hidden">
-          <MapIcon size={16} aria-hidden /> Map
-        </button>
-      )}
-
-      {/* Mobile full-screen map overlay */}
-      {showMapMobile && (
-        <div className="sheet-slide fixed inset-0 z-50 flex flex-col" style={{ backgroundColor: 'var(--color-bg)' }}>
-          <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
-            style={{ borderBottom: '1px solid var(--color-border)', backgroundColor: 'var(--color-bg-card)' }}>
-            <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
-              Map view · {total} {total === 1 ? 'property' : 'properties'}
-            </span>
-            <button onClick={() => setShowMapMobile(false)}
-              className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
-              style={{ backgroundColor: 'var(--color-accent)', color: 'var(--color-text-primary)' }}>
-              <X size={14} /> Close
-            </button>
-          </div>
-          <div className="flex-1">
-            <ListingsMap wanted listings={mapListings} initialRegion={filters.region || undefined}
-            listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />
-          </div>
-        </div>
-      )}
+      {/* Phones: the map, as a button floating above the bottom bar, and full screen when pressed (phoneParts.tsx).
+          Fixed to the screen, so drawing it once the phone's code has come moves nothing. */}
+      <PhoneMapSlot total={total}
+        map={<ListingsMap wanted listings={mapListings} initialRegion={filters.region || undefined}
+          listingQuery={listingQuery} highlightId={hoveredCardId} onSelect={handleMapSelect} />} />
     </div>
   )
 }

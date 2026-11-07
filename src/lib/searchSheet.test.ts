@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { fromSheet, searchSummary, sheetParams, startingFilters } from '@/lib/searchQuery'
+import { startingFilters } from '@/lib/searchQuery'
+import { fromSheet, searchSummary, sheetParams } from '@/lib/searchSheet'
 import { cardPriceFor, stayPrice } from '@/lib/exploreRows'
 
 // App shell, stage 2: the phone's search sheet and summary pill, and the search card's prices.

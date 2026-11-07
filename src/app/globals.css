@@ -1178,15 +1178,17 @@ input, select, textarea, button {
   .search-card-unit { color: var(--color-text-secondary); font-size: 0.8125rem; }
   .search-card-badge { display: block; height: 26px; margin-top: 6px; overflow: hidden; }
 
-  /* The placeholder: exactly a card's size, with or without the stay-price line */
+  /* The placeholder: exactly a card's size, with or without the stay-price line. The same lines stand in for a
+     card's text while a phone's code is on its way (.search-card-wait, AS8), and the bar's own height for the bar */
   .search-card-skeleton .search-card-photo { display: block; background: #E8E2D9; }
-  .search-card-skeleton .search-card-text > span { display: block; height: 12px; margin: 5px 0 9px; border-radius: 6px; background: #EDE8E1; }
-  .search-card-skeleton .search-card-text { padding-top: 10px; height: calc(10px + 22px + 20px + 4px + 20px + 6px + 26px); }
-  .search-card-skeleton[data-dates] .search-card-text { height: calc(10px + 22px + 20px + 4px + 20px + 20px + 6px + 26px); }
-  .search-card-skeleton .search-card-text > span:nth-child(1) { width: 70%; }
-  .search-card-skeleton .search-card-text > span:nth-child(2) { width: 45%; }
-  .search-card-skeleton .search-card-text > span:nth-child(3) { width: 55%; }
-  .search-card-skeleton .search-card-text > span:nth-child(4) { width: 30%; }
+  .search-card-skeleton .search-card-text > span, .search-card-wait > span { display: block; height: 12px; margin: 5px 0 9px; border-radius: 6px; background: #EDE8E1; }
+  .search-card-skeleton .search-card-text, .search-card-wait { padding-top: 10px; height: calc(10px + 22px + 20px + 4px + 20px + 6px + 26px); }
+  .search-card-skeleton[data-dates] .search-card-text, .search-card-wait[data-dates] { height: calc(10px + 22px + 20px + 4px + 20px + 20px + 6px + 26px); }
+  .search-card-skeleton .search-card-text > span:nth-child(1), .search-card-wait > span:nth-child(1) { width: 70%; }
+  .search-card-skeleton .search-card-text > span:nth-child(2), .search-card-wait > span:nth-child(2) { width: 45%; }
+  .search-card-skeleton .search-card-text > span:nth-child(3), .search-card-wait > span:nth-child(3) { width: 55%; }
+  .search-card-skeleton .search-card-text > span:nth-child(4), .search-card-wait > span:nth-child(4) { width: 30%; }
+  .search-phone-bar-wait { height: calc(48px + 10px + 44px + 2px); }
 
   .search-map-button {
     position: fixed; left: 50%; bottom: calc(var(--bottom-bar-offset) + 16px); z-index: 35; transform: translateX(-50%);

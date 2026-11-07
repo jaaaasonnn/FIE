@@ -28,8 +28,11 @@ const SEARCH_WITH_MAP_KB = 650
 // Markers found only in the libraries' own code, never in the app's
 const MAP_CODE = /maplibregl|maplibre-gl/
 const PICKER_CODE = /react-datepicker__month-container/
+// A phone's own parts of the search page (src/app/search/phoneParts.tsx, AS8): fetched at a phone's width only.
+// Words found only in that file's code
+const PHONE_PARTS_CODE = /No homes match all of that/
 
-type Loaded = { totalKB: number; mapKB: number; pickerKB: number; files: { url: string; kb: number; map: boolean; picker: boolean }[] }
+type Loaded = { totalKB: number; mapKB: number; pickerKB: number; files: { url: string; kb: number; map: boolean; picker: boolean; phoneParts: boolean }[] }
 
 /** A file's size as the server sends it (gzip, as to a browser), and its text */
 function overTheWire(url: string): Promise<{ bytes: number; text: string }> {
@@ -62,9 +65,9 @@ function collect(page: Page) {
         // bytes: those are counted from the file itself, compressed as the server sends it
         if (sizes.responseBodySize === 0 && /\.m?js(\?|$)/.test(r.url())) {
           const wire = await overTheWire(r.url())
-          return { url: r.url().replace(/^https?:\/\/[^/]+/, ''), kb: wire.bytes / 1024, map: MAP_CODE.test(wire.text), picker: PICKER_CODE.test(wire.text) }
+          return { url: r.url().replace(/^https?:\/\/[^/]+/, ''), kb: wire.bytes / 1024, map: MAP_CODE.test(wire.text), picker: PICKER_CODE.test(wire.text), phoneParts: PHONE_PARTS_CODE.test(wire.text) }
         }
-        return { url: r.url().replace(/^https?:\/\/[^/]+/, ''), kb: sizes.responseBodySize / 1024, map: MAP_CODE.test(body), picker: PICKER_CODE.test(body) }
+        return { url: r.url().replace(/^https?:\/\/[^/]+/, ''), kb: sizes.responseBodySize / 1024, map: MAP_CODE.test(body), picker: PICKER_CODE.test(body), phoneParts: PHONE_PARTS_CODE.test(body) }
       } catch { return null }
     })())
   })
@@ -73,7 +76,8 @@ function collect(page: Page) {
     const byUrl = new Map<string, Loaded['files'][number]>()
     for (const f of await Promise.all(pending)) if (f && f.kb >= (byUrl.get(f.url)?.kb ?? 0)) byUrl.set(f.url, f)
     const files = [...byUrl.values()]
-    const sum = (fs: typeof files) => Math.round(fs.reduce((s, f) => s + f.kb, 0))
+    // To the byte (three decimals of a KB), never rounded to a whole KB: desktop search once passed at 650.007 as "650"
+    const sum = (fs: typeof files) => Math.round(fs.reduce((s, f) => s + f.kb, 0) * 1000) / 1000
     return { totalKB: sum(files), mapKB: sum(files.filter((f) => f.map)), pickerKB: sum(files.filter((f) => f.picker)), files }
   }
 }
@@ -158,6 +162,9 @@ for (const [size, device] of [['phone', PHONE], ['desktop', DESKTOP]] as const) 
         const bar = l.files.some((f) => f.url === BAR_SCRIPT)
         for (const phoneOnly of PHONE_SCRIPTS) if (size === 'desktop' && l.files.some((f) => f.url === phoneOnly)) over.push(`${name}: the phone's ${phoneOnly} was downloaded on a desktop`)
         if (size === 'phone' && PAGES_WITH_BAR.includes(name) && !bar) over.push(`${name}: the bottom bar's script was not counted on a phone`)
+        const phoneParts = l.files.some((f) => f.phoneParts)
+        if (size === 'desktop' && phoneParts) over.push(`${name}: the phone's search parts (phoneParts.tsx) were downloaded on a desktop`)
+        if (size === 'phone' && name === 'search' && !phoneParts) over.push(`${name}: the phone's search parts were not counted on a phone`)
       }
       report(size, all)
       expect(over).toEqual([])
