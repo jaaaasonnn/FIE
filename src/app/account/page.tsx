@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { ChevronRight, CreditCard, FileText, HelpCircle, Home, IdCard, Mail, Shield, ShieldCheck, UserCircle, UserPen } from 'lucide-react'
+import { ChevronDown, ChevronRight, CreditCard, FileText, HelpCircle, Home, IdCard, Mail, Shield, ShieldCheck, Smartphone, UserCircle, UserPen } from 'lucide-react'
 import { getSessionUser } from '@/lib/session'
 import { SUPPORT_EMAIL } from '@/lib/contact'
 import { BottomBar } from '@/components/layout/BottomBar'
@@ -67,11 +67,48 @@ export default async function AccountPage() {
             </ul>
           </section>
         ))}
+        <InstallHint />
         <ul className="account-list mt-8">
           <li><SignOutButton /></li>
         </ul>
       </div>
       <BottomBar active="profile" />
     </>
+  )
+}
+
+/**
+ * How to add FieGH to a phone's home screen (app shell stage 4): one folded row, opened by a tap, no script, nothing
+ * that pops up. CSS hides it at desktop widths and inside the installed app (globals.css, .account-install), so it
+ * is drawn by the server once and never moves anything. An iPhone has no install prompt, so the steps are written out.
+ */
+function InstallHint() {
+  return (
+    <section className="account-install mt-8" aria-labelledby="account-install">
+      <h2 id="account-install" className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--color-text-muted)' }}>FieGH on your phone</h2>
+      <div className="account-list">
+        <details>
+          <summary className="account-row">
+            <Smartphone size={20} strokeWidth={1.75} aria-hidden /><span>Add FieGH to your home screen</span>
+            <ChevronDown size={18} aria-hidden className="account-install-chevron ml-auto" />
+          </summary>
+          <div className="account-install-steps">
+            <p>FieGH then opens from its own icon, without the browser&apos;s bars. It is the same FieGH: nothing to download from a store.</p>
+            <h3>iPhone (Safari)</h3>
+            <ol>
+              <li>Tap the Share button (the square with an arrow).</li>
+              <li>Tap <strong>Add to Home Screen</strong>. You may need to scroll down or tap <strong>More</strong> to find it.</li>
+              <li>Tap <strong>Add</strong>.</li>
+            </ol>
+            <h3>Android (Chrome)</h3>
+            <ol>
+              <li>Tap the menu (the three dots).</li>
+              <li>Tap <strong>Add to Home screen</strong> or <strong>Install app</strong>.</li>
+              <li>Tap <strong>Install</strong>.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+    </section>
   )
 }

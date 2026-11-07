@@ -747,6 +747,18 @@ input, select, textarea, button {
 .account-row:hover { background: var(--color-bg); }
 .account-row:focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: -2px; }
 
+/* "Add FieGH to your home screen" on /account (stage 4): a folded row, phones only, and never inside the installed app.
+   CSS alone, so it is drawn once and nothing moves. */
+.account-install summary { list-style: none; }
+.account-install summary::-webkit-details-marker { display: none; }
+.account-install details[open] .account-install-chevron { transform: rotate(180deg); }
+.account-install-steps { padding: 0 16px 16px 48px; color: var(--color-text-secondary); font-size: 15px; line-height: 1.5; }
+.account-install-steps h3 { margin: 16px 0 4px; color: var(--color-text-primary); font-size: 15px !important; }
+.account-install-steps ol { margin: 0; padding-left: 20px; list-style: decimal; }
+.account-install-steps li + li { margin-top: 4px; }
+@media (min-width: 768px) { .account-install { display: none; } }
+@media (display-mode: standalone) { .account-install { display: none; } }
+
 @media (max-width: 767px) {
   /* Solid, not blurred: card text and photo colours never show through the labels or icons. With a backdrop blur
      at 97-98.5%, and even at 98.5% without one, the cards' dark text still showed faintly behind the tab labels
