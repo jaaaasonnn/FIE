@@ -29,6 +29,7 @@ import { LazyDatePicker } from '@/components/ui/LazyDatePicker'
 import { useAuth, type AuthUser } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
+import { HeartButton } from '@/components/listing/HeartButton'
 import { DIGITAL_ADDRESS_PUBLIC, checkExplanation, type PublicCheck } from '@/lib/listingCheckRules'
 import { formatDay } from '@/lib/dateText'
 
@@ -146,10 +147,9 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
   const router = useRouter()
   const { user: authUser, loading: authLoading } = useAuth()
   // The page can be used before the browser's session check has answered: until then the person the
-  // server found is the one signed in, so a tap on the heart, Book or Message Host does not send a
-  // signed-in guest to log in
+  // server found is the one signed in, so a tap on Book or Message Host does not send a signed-in guest to
+  // log in (the heart, components/listing/HeartButton.tsx, waits for the check itself)
   const user = authUser ?? (authLoading ? initial?.user ?? null : null)
-  const userId = user?.id ?? null
   const { rate: ghsRate } = useExchangeRate()
   // What the server sent with the page, for the booking box's starting choice
   const [first] = useState(() => (initial?.listing ? startingChoice(initial.listing, initial.prefill) : null))
@@ -167,9 +167,7 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
   // UI state
   const [photoIdx,     setPhotoIdx]     = useState(0)
   const [selectedMode, setSelectedMode] = useState(first?.mode ?? '')
-  const [savedHeart,   setWishlisted]   = useState(false)
   const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
-  const [wishBusy,     setWishBusy]     = useState(false)
   const [months,       setMonths]       = useState(first?.months ?? 1)
 
   // Date state
@@ -243,49 +241,6 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
     } catch { /* non-fatal */ }
     finally  { setAvailLoading(false) }
   }, [listingId])
-
-  // ── Sync heart with real wishlist status ───────────────────────────────
-  // Signed out always shows an empty heart, derived rather than reset
-  const wishlisted = !!user && savedHeart
-
-  useEffect(() => {
-    if (!userId || !listingId) return
-    let active = true
-    fetch(`/api/wishlists?userId=${userId}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (!active) return
-        const rows = Array.isArray(data.wishlists) ? data.wishlists : []
-        setWishlisted(rows.some((w: { listingId: string }) => w.listingId === listingId))
-      })
-      .catch(() => { if (active) setWishlisted(false) })
-    return () => { active = false }
-  }, [userId, listingId])
-
-  async function toggleWishlist() {
-    if (!user) {
-      router.push(`/login?redirect=/listings/${listingId}`)
-      return
-    }
-    if (wishBusy) return
-    setWishBusy(true)
-    const prev = wishlisted
-    setWishlisted(!prev)
-    try {
-      const res  = await fetch('/api/wishlists', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ userId: user.id, listingId }),
-      })
-      const data = await res.json()
-      if (!res.ok) setWishlisted(prev)
-      else setWishlisted(!!data.wishlisted)
-    } catch {
-      setWishlisted(prev)
-    } finally {
-      setWishBusy(false)
-    }
-  }
 
   // ── Date picker rules ─────────────────────────────────────────────────
   // The pickers work in calendar days. A stay takes the nights from check-in
@@ -480,12 +435,11 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
           </div>
           <div className="flex items-center gap-0 sm:gap-2 flex-shrink-0 max-sm:self-end">
             <button aria-label="Share this home" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} aria-hidden /></button>
-            <button onClick={toggleWishlist} disabled={wishBusy}
-              className="p-2 rounded-full hover:bg-stone-100 transition-all"
-              style={{ color: wishlisted ? '#EF4444' : '#6B7280' }}
-              aria-label={wishlisted ? 'Remove from wishlist' : 'Save to wishlist'}>
-              <Heart size={18} className={wishlisted ? 'fill-red-500' : ''} />
-            </button>
+            {/* The same heart as the cards' (one answer of saved homes per page, the save after logging in), in this
+                row's look */}
+            <HeartButton listingId={listing.id} title={listing.title} className="p-2 rounded-full hover:bg-stone-100 transition-all">
+              {(saved) => <Heart size={18} aria-hidden className={saved ? 'fill-red-500' : ''} style={{ color: saved ? '#EF4444' : '#6B7280' }} />}
+            </HeartButton>
             <button aria-label="Report this listing" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Flag size={16} aria-hidden /></button>
           </div>
         </div>

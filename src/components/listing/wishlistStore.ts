@@ -61,8 +61,36 @@ export function useWishlist(userId: string | null) {
     if (userId) load(userId)
   }, [userId])
 
-  const ids = userId && s.userId === userId ? s.ids : EMPTY
-  return { ids, busy: s.busy }
+  const loaded = !!userId && s.userId === userId
+  return { ids: loaded ? s.ids : EMPTY, busy: s.busy, loaded }
+}
+
+// ── A save asked for while signed out (app shell stage 3) ───────────────────────────────────────────────────
+// A heart pressed by someone signed out sends them to log in and back. The home it was for is kept in this tab's
+// sessionStorage (never the address, so a link cannot save anything for anyone), for 10 minutes, and saved once
+// when that home's heart is on the page again and the person's saved homes are known. Only its id is kept.
+const PENDING_KEY = 'fiegh-save-after-login'
+const PENDING_MS = 10 * 60 * 1000
+
+/** Keeps the home a signed-out person asked to save */
+export function rememberSave(listingId: string) {
+  try { sessionStorage.setItem(PENDING_KEY, JSON.stringify({ id: listingId, at: Date.now() })) } catch { /* no storage: nothing is saved later */ }
+}
+
+/** Whether a save waits for this home; if so it is used up. A save past its 10 minutes, or unreadable, is dropped. */
+export function takeSave(listingId: string): boolean {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY)
+    if (!raw) return false
+    const p = JSON.parse(raw) as { id?: unknown; at?: unknown } | null
+    const age = typeof p?.at === 'number' ? Date.now() - p.at : NaN
+    if (typeof p?.id !== 'string' || !(age >= 0 && age <= PENDING_MS)) { sessionStorage.removeItem(PENDING_KEY); return false }
+    if (p.id !== listingId) return false
+    sessionStorage.removeItem(PENDING_KEY)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /** Saves or unsaves a home for the signed-in person. Resolves to whether it is saved now. */
