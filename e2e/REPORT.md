@@ -88,6 +88,15 @@ both branches: the three Resend tests (`resilience/services.spec.ts:23`, `:39`, 
 `races/bookings.spec.ts:173`, and a 0.0002 layout shift on the inbox's time label (`perf/layout-shift.spec.ts:49`).
 Not investigated.
 
+**AS17 fixed in the test, and AS19** (2026-11-07, `46af71d`, `e2e/.reports/as17-verify/`). Under the same heavy
+load, retries off: removal proof 328 holds (all 328 hold), "(a2) on demand" 12 of 12, and every one of 201 (a2)
+rounds that reached its payout passed. But one (a2) run failed before its payout existed: the set-up booking was
+answered 503 "We are busy right now" (`world.ts:169`, `mustBook`). The rent race (1 of 250) and SU7 (1 of 5)
+failed the same way in their set-up. About 3 of ~700 set-ups at 2 to 3 times the normal load (AS19). Test set-up
+now tries that 503 again (at most 3 attempts, 1 s then 2 s, each retry logged as `[e2e] AS19`); every assertion
+as strict, the app unchanged. The booking locking option is revisited only if Sentry shows
+`SERIAL_RETRY_EXHAUSTED` in production, or before a marketing push.
+
 ## app-shell, stage 2: Explore, the search sheet, phone search (2026-11-07, `deca1e6`, branch `app-shell-2`, not merged)
 
 Run on `deca1e6` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium

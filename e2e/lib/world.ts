@@ -3,6 +3,7 @@
 // set-up (an admin role, an ID already approved, a payout method a day old).
 // Everything made here is removed by id when the test ends.
 import crypto from 'crypto'
+import { test } from '@playwright/test'
 import { db, purge } from './db'
 import { fakes, until } from './fakes'
 import { runEmail } from './runId'
@@ -18,7 +19,13 @@ const unique = () => `${RUN}${process.pid.toString(36)}${(++counter).toString(36
 /** A client address nobody else in this run uses, sent in the header the app reads first (x-vercel-forwarded-for). */
 export const freshIp = () => `10.${crypto.randomInt(1, 254)}.${crypto.randomInt(1, 254)}.${crypto.randomInt(1, 254)}`
 
-export type Reply<T = any> = { status: number; json: T; text: string; headers: Headers }
+/** Set-up bookings only (`mustBook`, AS19): the app's 503 when every serial retry was aborted */
+const BUSY_ATTEMPTS = 3
+const BUSY_WAIT_MS = 1_000
+const isBusy = (r: Reply) => r.status === 503 && r.text.includes('We are busy right now')
+const testName = () => { try { return test.info().titlePath.join(' › ') } catch { return '(outside a test)' } }
+
+export type Reply<T = any> ={ status: number; json: T; text: string; headers: Headers }
 export type CallOptions = { server?: Server; form?: FormData; headers?: Record<string, string>; raw?: string; /** Give up after this long: the answer then has status 0 */ timeoutMs?: number }
 
 export async function call(method: string, path: string, body?: unknown, o: CallOptions & { cookie?: string | null; ip?: string } = {}): Promise<Reply> {
@@ -157,13 +164,23 @@ export class World {
    * "no longer available" when its Serializable transaction is aborted by
    * unrelated bookings elsewhere (finding F3), so this tries again as a guest
    * would. Tests about the booking step itself use `book` and see every answer.
+   * A 503 "We are busy right now" (every serial retry aborted, AS19: about 3 in
+   * ~700 set-ups under 2 to 3 times the normal load) is tried again too, at most
+   * BUSY_ATTEMPTS in all, after a growing wait, and each retry is logged.
    */
   async mustBook(guest: Actor, listingId: string, o: { checkIn?: string; checkOut?: string; rentalMode?: string; nights?: number } = {}): Promise<string> {
     const dates = o.checkIn ? { checkIn: o.checkIn, checkOut: o.checkOut! } : this.dates(o.nights ?? 2)
     let last: Reply | undefined
+    let busy = 0
     for (let attempt = 0; attempt < 8; attempt++) {
       last = await this.book(guest, listingId, { ...o, ...dates })
       if (last.status === 201) return last.json.booking.id
+      if (isBusy(last) && ++busy < BUSY_ATTEMPTS) {
+        console.log(`[e2e] AS19 set-up booking busy (503), retry ${busy} of ${BUSY_ATTEMPTS - 1}: ${testName()}`)
+        await new Promise((r) => setTimeout(r, BUSY_WAIT_MS * 2 ** (busy - 1)))
+        attempt--
+        continue
+      }
       if (last.status !== 409) break
     }
     throw new Error(`booking failed: ${last?.status} ${last?.text}`)
