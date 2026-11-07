@@ -3735,7 +3735,7 @@
   "what": "Stage 2: on the search page the sheet changes the search in place",
   "edits": [
    {
-    "file": "src/app/search/SearchClient.tsx",
+    "file": "src/app/search/phoneParts.tsx",
     "find": "      detail.handled = true\n",
     "replace": ""
    }
@@ -4073,5 +4073,33 @@
   "testFile": "e2e/tests/journeys/phone-code.spec.ts",
   "test": "a desktop window narrowed to a phone",
   "e2e": true
+ },
+ {
+  "what": "AS8: until the phone's code has come, the server's copy of its chips is disabled (a tap on the kept copy was lost; iPhone, full set as3-full)",
+  "edits": [
+   {
+    "file": "src/app/search/SearchClient.tsx",
+    "find": "<parts.PhoneBar key=\"live\" {...props} waiting={parts === serverParts} />",
+    "replace": "<parts.PhoneBar key=\"live\" {...props} />"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/phone-code.spec.ts",
+  "test": "until the phone's code has come its buttons are disabled, so no tap is lost, and then they work",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "what": "AS8: until the phone's code has come, the server's copy of Clear filters is disabled",
+  "edits": [
+   {
+    "file": "src/app/search/SearchClient.tsx",
+    "find": "<parts.PhoneNoResults key=\"live\" clearAll={clearAll} waiting={parts === serverParts} />",
+    "replace": "<parts.PhoneNoResults key=\"live\" clearAll={clearAll} />"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/phone-code.spec.ts",
+  "test": "nothing found: Clear filters is disabled until the phone's code has come, and then clears them",
+  "e2e": true,
+  "project": "android"
  }
 ]

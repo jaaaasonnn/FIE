@@ -89,11 +89,15 @@ test.describe('the listing page\'s heart', () => {
     await signIn(guest)
     const wait = (page: Page, id: string, ageMs: number) => page.evaluate(([k, v]) => sessionStorage.setItem(k, v), [PENDING_KEY, JSON.stringify({ id, at: Date.now() - ageMs })] as const)
 
-    // Already saved: it stays saved (a press toggles, so a blind press would have taken it off)
+    // Already saved: it stays saved (a press toggles, so a blind press would have taken it off). Checked once the
+    // waiting save has been read, which happens only once the saved homes are known: a blind press would by then
+    // have drawn the heart unfilled, and a check before it could see the heart and the row as they were
     await page.goto(`/listings/${kept.id}`)
     await wait(page, kept.id, 0)
     await page.reload()
+    await expect.poll(() => page.evaluate((k) => sessionStorage.getItem(k), PENDING_KEY)).toBeNull()
     await expect(heartOf(page, kept.id)).toHaveAttribute('aria-pressed', 'true')
+    await expect(heartOf(page, kept.id)).not.toHaveAttribute('aria-busy', 'true')
     await page.waitForLoadState('networkidle')
     expect(await saved(guest.id, kept.id)).toBe(1)
 

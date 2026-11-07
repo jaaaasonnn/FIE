@@ -26,6 +26,24 @@ function watchScripts(page: Page) {
   return scripts
 }
 
+/** Holds the phone's code back until `release` (a slow network: the page is running, its phone's code is not) */
+async function holdPhoneCode(page: Page) {
+  let release!: () => void
+  const released = new Promise<void>((r) => { release = r })
+  let held = false
+  await page.route('**/_next/static/chunks/*.js', async (route) => {
+    const response = await route.fetch()
+    const body = await response.text()
+    if (body.includes(PHONE_CODE)) { held = true; await released }
+    await route.fulfill({ response, body })
+  })
+  return {
+    held: () => held,
+    release,
+    done: async () => { release(); await page.unrouteAll({ behavior: 'ignoreErrors' }) },
+  }
+}
+
 async function homesIn(world: Parameters<Parameters<typeof test>[2]>[0]['world'], n: number) {
   const host = await world.host()
   const city = `Pc${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
@@ -94,6 +112,46 @@ test.describe('a phone\'s parts of the search page (AS8)', () => {
       if (isPhone()) await expect(page.locator('[data-search-pill]')).toHaveText(city)
     } finally {
       await context.close()
+    }
+  })
+
+  test('until the phone\'s code has come its buttons are disabled, so no tap is lost, and then they work @core', async ({ page, world }) => {
+    test.skip(!isPhone(), 'a phone\'s case')
+    const { city } = await homesIn(world, 1)
+    const code = await holdPhoneCode(page)
+    try {
+      // Not to the load event: it waits for the code held back
+      await page.goto(`/search?q=${city}`, { waitUntil: 'commit' })
+      await expect.poll(code.held, { message: 'the phone\'s code was asked for' }).toBe(true)
+      const chip = page.locator('.search-chips').getByRole('button', { name: 'Monthly' })
+      // The server's copy, kept: nothing behind it yet. The pill is a link and works without it
+      await expect(chip).toBeDisabled()
+      await expect(page.locator('.search-chips button:enabled')).toHaveCount(0)
+      await expect(page.locator('[data-search-pill]')).toHaveAttribute('href', '#search-sheet')
+      code.release()
+      await expect(chip).toBeEnabled()
+      await chip.click()
+      await expect(chip).toHaveAttribute('aria-pressed', 'true')
+      await expect(page.getByRole('button', { name: 'Clear rental type: Monthly' })).toBeVisible()
+    } finally {
+      await code.done()
+    }
+  })
+
+  test('nothing found: Clear filters is disabled until the phone\'s code has come, and then clears them @core', async ({ page }) => {
+    test.skip(!isPhone(), 'a phone\'s case')
+    const code = await holdPhoneCode(page)
+    try {
+      await page.goto(`/search?q=Nowhere${Date.now()}`, { waitUntil: 'commit' })
+      await expect.poll(code.held, { message: 'the phone\'s code was asked for' }).toBe(true)
+      const clear = page.locator('.phone-empty').getByRole('button', { name: 'Clear filters' })
+      await expect(clear).toBeDisabled()
+      code.release()
+      await expect(clear).toBeEnabled()
+      await clear.click()
+      await expect(page.locator('[data-search-pill]:visible')).toHaveText('Where to?')
+    } finally {
+      await code.done()
     }
   })
 

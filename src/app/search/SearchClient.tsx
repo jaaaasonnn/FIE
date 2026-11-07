@@ -81,6 +81,8 @@ const usePhoneParts = phoneModule(() => import('./phoneParts'), serverParts)
  * Whether a part keeps the server's HTML: a part drawn as the page is taken over, for as long as it would show
  * what the server drew. Once it would show something else, a placeholder its size takes its place until the code
  * has come (on a wider screen it is hidden anyway). A part drawn later, in the browser, has no HTML to keep.
+ * The server's copy has its buttons disabled (`waiting`): a kept part has nothing behind them until its code has
+ * come, so a tap in between would be lost.
  */
 function useKept(shows: string) {
   const hydrated = useHydrated()
@@ -92,7 +94,7 @@ const PhoneBarSlot = memo(function PhoneBarSlot(props: PhoneBarProps) {
   const parts = usePhoneParts()
   const shows = JSON.stringify([props.filters, props.showFilters])
   const kept = useKept(shows)
-  if (parts) return <parts.PhoneBar key="live" {...props} />
+  if (parts) return <parts.PhoneBar key="live" {...props} waiting={parts === serverParts} />
   if (kept) return <div key="kept" className="md:hidden" dangerouslySetInnerHTML={KEEP_SERVER_HTML} suppressHydrationWarning />
   // The bar's own height, so nothing below it moves
   return <div key={shows} className="search-phone-bar-wait md:hidden" aria-hidden />
@@ -119,7 +121,7 @@ function PhoneMapSlot(props: { total: number; map: React.ReactNode }) {
 const PhoneNoResultsSlot = memo(function PhoneNoResultsSlot({ clearAll }: { clearAll: () => void }) {
   const parts = usePhoneParts()
   const kept = useKept('empty')
-  if (parts) return <parts.PhoneNoResults key="live" clearAll={clearAll} />
+  if (parts) return <parts.PhoneNoResults key="live" clearAll={clearAll} waiting={parts === serverParts} />
   if (kept) return <div key="kept" className="phone-empty md:hidden " dangerouslySetInnerHTML={KEEP_SERVER_HTML} suppressHydrationWarning />
   return null
 })

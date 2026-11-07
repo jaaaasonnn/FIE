@@ -24,11 +24,14 @@ export type PhoneBarProps = {
   showFilters: boolean
   toggleFilters: () => void
   warmPanel: () => void
+  /** The server's copy: its buttons are disabled, since in the browser it is kept as drawn, with nothing behind
+   * them, until this file has come (a tap before then would be lost); the pill is a link and works anyway */
+  waiting?: boolean
 }
 
 /** The search as one pill that opens the search sheet (components/search/SearchSheet.tsx), and the filters as a
  * row of chips. The sheet (public/shell.js) reads the search shown from here and changes it in place. */
-export function PhoneBar({ filters, setFilters, showFilters, toggleFilters, warmPanel }: PhoneBarProps) {
+export function PhoneBar({ filters, setFilters, showFilters, toggleFilters, warmPanel, waiting }: PhoneBarProps) {
   const shown = useRef(filters)
   useEffect(() => { shown.current = filters }, [filters])
   useEffect(() => {
@@ -52,21 +55,21 @@ export function PhoneBar({ filters, setFilters, showFilters, toggleFilters, warm
         <span className="search-summary-text">{summary ?? 'Where to?'}</span>
       </a>
       <div className="search-chips" role="group" aria-label="Filters">
-        <button type="button" onClick={toggleFilters} aria-expanded={showFilters}
+        <button type="button" onClick={toggleFilters} aria-expanded={showFilters} disabled={waiting}
           onPointerDown={warmPanel} className="search-chip" data-on={showFilters || undefined}>
           <SlidersHorizontal size={15} aria-hidden /> Filters
         </button>
         {MODES.map((m) => {
           const Icon = MODE_ICONS[m]
           return (
-            <button key={m} type="button" aria-pressed={filters.mode === m}
+            <button key={m} type="button" aria-pressed={filters.mode === m} disabled={waiting}
               onClick={() => setFilters((f) => ({ ...f, mode: f.mode === m ? '' : m }))}
               className="search-chip" data-on={filters.mode === m || undefined}>
               {Icon && <Icon size={13} strokeWidth={1.75} aria-hidden />}{MODE_LABELS[m]}
             </button>
           )
         })}
-        <button type="button" aria-pressed={filters.checked}
+        <button type="button" aria-pressed={filters.checked} disabled={waiting}
           onClick={() => setFilters((f) => ({ ...f, checked: !f.checked }))}
           className="search-chip" data-on={filters.checked || undefined}>
           {CHECK_CHIP_LABEL}
@@ -105,9 +108,9 @@ export function PhoneCardText({ listing: l, filters, dated, rate }: PhoneCardTex
   )
 }
 
-/** A phone's "nothing found", in the owner's words */
-export function PhoneNoResults({ clearAll }: { clearAll: () => void }) {
-  return <PhoneEmpty title="No homes match all of that." text="Try fewer filters or other dates." action={{ label: 'Clear filters', onClick: clearAll }} />
+/** A phone's "nothing found", in the owner's words (`waiting`: the server's copy, as PhoneBar's) */
+export function PhoneNoResults({ clearAll, waiting }: { clearAll: () => void; waiting?: boolean }) {
+  return <PhoneEmpty title="No homes match all of that." text="Try fewer filters or other dates." action={{ label: 'Clear filters', onClick: clearAll, disabled: waiting }} />
 }
 
 /** The map on a phone: a button floating above the bottom bar, and the map full screen when it is pressed. Only
