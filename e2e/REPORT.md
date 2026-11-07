@@ -1,5 +1,129 @@
 # End-to-end test report
 
+## app-shell, stage 4: the installed app (2026-11-07, `b79bfb5` then `443c158`, branch `app-shell-4`, not merged)
+
+Run on `b79bfb5` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium
+run), under `caffeinate -dims` on mains power, `next dev` off. Each suite in its own folder, `e2e/.reports/s4-full/`.
+Contention alone. Nothing was re-run inside the set.
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (0 errors, 38 warnings, none new) |
+| `npm run test:tz` | 1713 of 1713 in each of the six zones |
+| Proof runner's own test | 4 of 4 |
+| Money rules | clean before and after (2 of 2 each time) |
+| Chromium suite, races at 50, run 1 | **270 passed**, 45 skipped, 0 failed, **0 flaky** |
+| Chromium suite, races at 50, run 2 (fresh stack) | **270 passed**, 45 skipped, 0 failed, **0 flaky** |
+| Contention, alone | **5 passed** (realistic: nobody told busy; stress: 42% busy, nothing booked twice) |
+| Chaos | **17 passed** |
+| Other five set-ups | **387 passed**, 148 skipped, 0 failed, **0 flaky** |
+| Removal proofs | 342 of 343 held; **341 did not** (below). After the fix, 340 and 341 hold (`443c158`): **all 343 hold** |
+
+No AS19 retry was logged anywhere in the set. None of the AS18 items failed.
+
+**Proof 341, proven and fixed in the test (`443c158`).** The proof removes the rule that moves the phone map's top
+bar below the status bar, and the test still passed. A probe in the app window, Close's top edge from the moment it
+shows: with the rule 524 px, then 78, then 71 from 274 ms on; without it 856, 218, 68, 19, then 12 from 298 ms on.
+The map slides up over 280 ms, and the test measured straight after Close appeared, far down the screen, so "below
+59 px" passed with or without the rule. The test now waits for the slide's animation to finish before measuring.
+Nothing in `src/` changed. Afterwards: proofs 340 and 341 hold, the whole installed-app spec 39 of 39 (3 runs), the
+changed test 179 of 180 in repeats (below, AS23).
+
+**AS23, not proven.** In the first 20 repeats of the changed test, one run reached the 2-minute limit inside the
+app window and passed on its retry. Playwright's trace does not record the app window (it is launched outside the
+test's own context), and the trace shows the test never reached its browser-tab half. Then: 80 timed probes of the
+same steps (20 and 60 at once, every step logged; the slide's wait never above 300 ms, closing the window never
+above 0.6 s), 40 repeats of the real test, and 120 of a copy that logs every step: no hang. One in 180 repeats,
+outside the full set, step not known. Recorded in FINDINGS; nothing changed for it.
+
+### The spike (display-mode and safe areas)
+
+- Playwright's bundled headless shell has no `display-mode: standalone` and reports no install problems, even with
+  an icon missing. Full Chromium (Playwright's `chromium` channel) opened with `--app=<address>` is a real app
+  window: `display-mode: standalone` matches on every page it navigates to. That is what the tests use.
+- CDP `PWA.install` installs for real and writes app shims to `~/Applications/Chromium Apps.localized` on this Mac
+  (removed after the spike; the tests never install). `isMobile` in that window opens it blank, so it is not used.
+- CDP `Emulation.setSafeAreaInsetsOverride` sets `env(safe-area-inset-*)` per page and keeps it across navigations:
+  the iPhone set-up's insets (top 59, bottom 34).
+- `Page.getInstallabilityErrors` works in full Chromium with a profile of its own (in incognito it always reports
+  `in-incognito`).
+
+### What was built (separate commits)
+
+1. Manifest and icons (`4c38d14`): `/manifest.webmanifest`, standalone, start and scope `/`, `#FAF7F2`; icons drawn
+   from `icon.png` (`scripts/app-icons.mjs`): 192 and 512 "any", 192 and 512 maskable (mark within 36% of the
+   middle, inside Android's 40% circle), a solid 180 px Apple icon; iPhone title FieGH, status bar `default`. No
+   `theme-color` tag. Preview of every icon, plain, maskable in the circle and rounded-square masks, and as an
+   iPhone shows it: **`e2e/.reports/stage4-icons/preview.png`**.
+2. Top spacing in the installed app only (`305bbd0`, revised `5c3efef`): under `@media (display-mode: standalone)`
+   in `globals.css`, the header, the search bar under it, the header's strip when it steps aside and the phone map's
+   top bar clear `env(safe-area-inset-top)`. A browser tab is unchanged.
+3. Service worker and offline page (`ce20110`): `/sw.js` (`no-cache`), one cache `fiegh-offline-v1` holding only
+   `/offline.html`, GET page loads only, the offline page only when the network fails outright (never on an HTTP
+   error), nothing else touched, `skipWaiting`, `clients.claim`, other caches deleted, registered by `shell.js` only
+   in standalone. Kill switch in CLAUDE.md.
+4. Install hint (`9d027c9`): a folded row on `/account` only, server-drawn, no script; hidden on desktop and in the
+   installed app.
+
+Tests and proofs (`9b3518b`, `4ba1b02`, `443c158`): `installed-app.spec.ts` (13 tests), `offlineWorker.test.ts`
+(7), removal proofs 329-343, `serviceWorkers: 'block'` in the config.
+
+### Guards
+
+**Bundle, exact** (`e2e/.reports/s4-full/bundle-exact.txt`, against stage 3's full set `as3-full2`):
+
+| Page | Phone | Desktop |
+|---|---|---|
+| Home | 250.294 -> 250.627 KB | 244.246 -> 244.244 KB |
+| Search | 211.815 -> **212.148 KB** | 649.100 -> **649.098 KB** |
+| Listing | 225.321 -> 225.654 KB | 219.273 -> 219.271 KB |
+| Checkout | 208.211 -> 208.544 KB | 202.163 -> 202.161 KB |
+| Guest dashboard | 226.488 -> 226.821 KB | 220.440 -> 220.438 KB |
+| Host dashboard | 221.698 -> 222.031 KB | 215.650 -> 215.648 KB |
+| Admin | 214.016 -> 214.349 KB | 207.968 -> 207.966 KB |
+
+- Phones: +0.333 KB on every page, the worker's registration in `shell.js`. Largest 250.627 KB, under 350.
+- **Desktop search is 649.098 KB, not 649.100.** No new script on a desktop: every desktop page loads the same
+  files as at stage 3, with the same names and sizes, except one: the shared 94 KB chunk carrying the commit hash as
+  Sentry's release (AS21), 93,953 bytes compressed at `50b6f9a`, 93,951 at `b79bfb5`. `grep` of the build finds the
+  commit's hash in that one browser file only. Exactly 649.100 is reachable only on a commit whose hash compresses
+  as `dfc51fa`'s did; compare files, not totals.
+- Layout shift 0, accessibility 0 (no baseline), text fit at 320, 360, 390 and 430 px: in the Chromium runs, and in
+  the installed app's own tests (shift and fit in the app window; the hint and the offline page fit and pass axe).
+- No payment, payout, booking or `src/proxy.ts` change (`git diff dfc51fa -- src/proxy.ts src/lib/pay* src/lib/payout*
+  src/lib/booking* src/app/api` is empty).
+
+**A browser tab is pixel-identical to `main`**: 12 pages (9 signed out, 3 signed in) at 320, 390, 430 and 1280 px
+in Chromium and in the iPhone and Android set-ups, 72 pictures, every one to the pixel (0 within one colour level)
+against a build of `main` with the same font files (`e2e/.reports/stage4-compare/final-summary.txt`). `/account` on
+a phone is compared down to the end of Help (the hint is below it, on purpose). Two of `main`'s own runs differed
+from each other (a photo's rasterising), the branch matched one of them in each case. The first comparison differed
+in every letter: proven to be different Manrope files between the two builds (AS20), not the branch.
+
+### Proven in emulation, and what still needs a real phone
+
+Proven here (Chromium app window, iPhone and Android set-ups):
+- the manifest, the icons pixel by pixel (sizes, solid, maskable mark inside the circle), Chromium's own install
+  check passing; every page links them;
+- in the app window: the header, the search bar, the header's strip, the map's top bar, Explore and the search sheet
+  clear a 59 px status bar drawn over the page; zero layout shift and the fit at 320-430 px;
+- the worker: registered only in the app window, never in a tab at phone or desktop width (no request for `/sw.js`);
+  stores only `/offline.html`; offline shows "You are offline" and Try again comes back once online; a changed price
+  shows at once; a 404 is passed on as it came; other caches are deleted;
+- the hint folds open, fits and passes axe on a phone, hidden on desktop and in the app;
+- a browser tab is exactly as on `main`.
+
+Needs a real phone (`e2e/REAL-PHONE-CHECKLIST.md`: iPhone 17 Pro and an Android phone with Chrome):
+- the real status bar, Dynamic Island and home indicator; whether iOS's "default" bar really gives an inset of 0;
+- Safari's floating toolbar over the bottom bar, and the strip under the bottom bar (AS13, emulated only);
+- the install screens and the icon each phone draws (its own mask shape);
+- edge-swipe back in the installed iPhone app (no: stage 4b, a back arrow);
+- how Paystack's page opens from the installed app and how the guest gets back; sign-in inside the app; signing
+  out; aeroplane mode with a real network stack; iOS clearing an unused app's storage.
+
+It needs this branch on the internet over https, with Paystack test keys and a database that is not the live one.
+Vercel's deployments have failed since August.
+
 ## app-shell, stage 3: AS8 and the listing page's heart (2026-11-07, `50b6f9a`, branch `app-shell-3`, not merged)
 
 Run on `50b6f9a` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium

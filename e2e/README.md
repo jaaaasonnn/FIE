@@ -59,6 +59,9 @@ E2E_STAGE4_SHOTS=<label> [E2E_STAGE4_BASE=<label>] node e2e/run.mjs test --proje
   with `--app=<address>` (`lib/installedApp.ts`). There `display-mode` is really `standalone`, on every page it goes to.
   Nothing is installed: installing through the browser (CDP `PWA.install`) writes an app to `~/Applications` on the Mac.
   Phone emulation (`isMobile`) is not used there: with it the app window opens blank.
+- The app window is its own browser, outside the test's context: Playwright's trace does not record it (AS23). To see
+  where such a test stalls, log each step with its time. Measure anything that slides in (the map, the sheet) only
+  once its animation has finished (`el.getAnimations()`): mid-slide it is far down the screen (proof 341).
 - An iPhone's safe areas: CDP `Emulation.setSafeAreaInsetsOverride` (top 59, bottom 34, `ISLAND`). In a normal tab
   the same insets must change nothing (the rules are under `display-mode: standalone`).
 - Chromium's install check (`Page.getInstallabilityErrors`) needs full Chromium in a profile of its own: in an
