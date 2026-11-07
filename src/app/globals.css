@@ -1232,7 +1232,9 @@ input, select, textarea, button {
   .site-header { padding-top: env(safe-area-inset-top, 0px); }
   :root[data-header-hidden] .site-header { transform: translateY(calc(-100% + env(safe-area-inset-top, 0px))); }
   .under-header { top: calc(var(--site-header-height) + env(safe-area-inset-top, 0px)) !important; }
-  .app-top-bar { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important; }
+  /* The phone map's full-screen top bar (PhoneMap in app/search/phoneParts.tsx, the only .sheet-slide), from here so
+     the phone's code, and the desktop's file that names it, stay byte for byte as they were */
+  .sheet-slide.fixed > :first-child { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important; }
 }
 
 /* ── An empty state on a phone (components/ui/PhoneEmpty.tsx) ─────────────────────────────────────────────── */
