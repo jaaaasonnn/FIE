@@ -11,6 +11,8 @@
  * not apply are left out of the address. On the search page the sheet reads the search shown and changes it in
  * place (app/search/SearchClient.tsx answers 'fiegh:sheet-read' and 'fiegh:sheet-apply'). It changes the page
  * only once React has taken it over, as bar.js does, so the server's copy and the browser's never differ.
+ *
+ * In the installed app only (display-mode: standalone, stage 4) it also registers the offline page's service worker.
  */
 (function () {
   if (window.__fieSheet) return
@@ -291,4 +293,17 @@
   }).observe(document.body, { childList: true, subtree: true })
   window.addEventListener('pageshow', restoreRows)
   restoreRows()
+
+  // ── The installed app's offline page (stage 4, src/lib/offlineWorker.ts) ────────────────────────────────────────
+  // Only when FieGH runs from the home screen: a browser tab never registers the worker. updateViaCache 'none': the
+  // browser asks for /sw.js itself whenever it checks for a new version.
+  function installed() {
+    return (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true
+  }
+  function registerWorker() {
+    if (!installed() || !('serviceWorker' in navigator)) return
+    navigator.serviceWorker.register('/sw.js', { scope: '/', updateViaCache: 'none' }).catch(function () { /* no offline page: the phone's own error is shown */ })
+  }
+  if (document.readyState === 'complete') registerWorker()
+  else window.addEventListener('load', registerWorker)
 })()
