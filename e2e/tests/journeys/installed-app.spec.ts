@@ -253,6 +253,8 @@ test.describe('the installed app: the top of the screen', () => {
       await app.evaluate(() => window.scrollTo(0, 0))
       await app.getByRole('button', { name: 'Map', exact: true }).click()
       await expect(app.getByRole('button', { name: 'Close' })).toBeVisible()
+      // Measured once it has slid up (280 ms): mid-slide it is far down the screen, rule or no rule (proof 341, full set s4-full)
+      await app.locator('.sheet-slide').evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
       expect(await app.getByRole('button', { name: 'Close' }).evaluate((el) => el.getBoundingClientRect().top), 'the map\'s Close below the status bar').toBeGreaterThanOrEqual(top)
       await app.getByRole('button', { name: 'Close' }).click()
 
