@@ -50,7 +50,8 @@ async function shoot(page: Page, name: string, clipToBottomOf?: string) {
   let shot: Buffer
   if (clipToBottomOf) {
     const bottom = await page.locator(clipToBottomOf).evaluate((el) => el.getBoundingClientRect().bottom + window.scrollY)
-    shot = await page.screenshot({ ...options, clip: { x: 0, y: 0, width: page.viewportSize()!.width, height: Math.ceil(bottom) } })
+    // Down to the last whole pixel above that edge: the row the edge cuts through is drawn with what lies below it
+    shot = await page.screenshot({ ...options, clip: { x: 0, y: 0, width: page.viewportSize()!.width, height: Math.floor(bottom) - 1 } })
   } else shot = await page.screenshot(options)
   fs.writeFileSync(path.join(dir, file), shot)
   if (!BASE) return
