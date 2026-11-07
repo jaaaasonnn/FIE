@@ -47,6 +47,32 @@ E2E_LH_THROTTLING=devtools node e2e/run.mjs exec node e2e/load/lighthouse.mjs <l
 - A removal proof marked `"e2e": true` names an end-to-end test: the runner rebuilds the app from the changed
   source (`scripts/e2e-proof.mjs`) and rebuilds it from the committed source at the end. It needs the stack up.
 
+## The installed app (stage 4)
+
+```bash
+node e2e/run.mjs test --project=chromium tests/journeys/installed-app.spec.ts      # manifest, icons, worker, offline, top of the screen, hint
+node scripts/app-icons.mjs --preview                                              # redraw the icons; preview sheet in .reports/stage4-icons/
+E2E_STAGE4_SHOTS=<label> [E2E_STAGE4_BASE=<label>] node e2e/run.mjs test --project=chromium --project=iphone --project=android tests/layout/stage4-shots.spec.ts --workers=1
+```
+
+- The installed app is a real app window: full Chromium (Playwright's `chromium` channel, not the headless shell) opened
+  with `--app=<address>` (`lib/installedApp.ts`). There `display-mode` is really `standalone`, on every page it goes to.
+  Nothing is installed: installing through the browser (CDP `PWA.install`) writes an app to `~/Applications` on the Mac.
+  Phone emulation (`isMobile`) is not used there: with it the app window opens blank.
+- An iPhone's safe areas: CDP `Emulation.setSafeAreaInsetsOverride` (top 59, bottom 34, `ISLAND`). In a normal tab
+  the same insets must change nothing (the rules are under `display-mode: standalone`).
+- Chromium's install check (`Page.getInstallabilityErrors`) needs full Chromium in a profile of its own: in an
+  incognito context it always reports `in-incognito`, and the headless shell reports nothing even with an icon missing.
+- Service workers are blocked in every test (`serviceWorkers: 'block'` in the config); a test that needs one allows it
+  (`test.use({ serviceWorkers: 'allow' })`, or its own context). A worker answers requests before `page.route` sees them.
+- The pixel comparison: run it on a build of `main` (copy the spec and `lib/png.ts` in, untracked) with one label, then
+  on the branch with `E2E_STAGE4_BASE` set to it. Check first that the two builds have the same font files
+  (`md5 .next/static/media/*.woff2`): each build downloads Manrope from Google, and the files differ between builds
+  (FINDINGS AS20), which changes every letter's pixels. Two shots of one build can differ by one colour level at a few
+  edges in Chromium, and at the logo's mark and listing photos in WebKit: one level is allowed and counted, the logo
+  marks are covered in the iPhone set-up.
+- What emulation cannot show is in `REAL-PHONE-CHECKLIST.md`, for the owner's phones.
+
 ## Guards
 
 Every process is started by `run.mjs` with the environment from `env.e2e`. It never reads `.env`.
