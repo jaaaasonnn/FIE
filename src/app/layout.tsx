@@ -8,6 +8,7 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ExchangeRateProvider } from '@/context/ExchangeRateContext'
 import { CHUNK_GUARD_SCRIPT } from '@/lib/chunkGuard'
 import { BAR_LOADER_SCRIPT } from '@/lib/bottomBar'
+import { APP_DESCRIPTION, APP_NAME } from '@/lib/appManifest'
 
 const manrope = Manrope({
   subsets: ['latin'],
@@ -26,14 +27,17 @@ const unbounded = Unbounded({
 
 export const metadata: Metadata = {
   title: 'FieGH | Find your fie',
-  description: 'Short stays, monthly lets, and long-term leases, with Ghanaian roots and warm hospitality. Find your perfect home or start hosting on FieGH.',
+  description: APP_DESCRIPTION,
   keywords: 'FieGH, rental, Accra apartments, short stay, monthly rental, Kumasi, fie means home Twi, Ghanaian hospitality',
   openGraph: {
     title: 'FieGH | Find your fie',
     description: 'Premium short stays, monthly lets, and long-term leases. Homes with Ghanaian roots.',
     type: 'website',
     locale: 'en_GH'
-  }
+  },
+  // The installed app on an iPhone (stage 4): its name under the icon, and the status bar drawn above the page, not
+  // over it ("default"), so nothing sits under the Dynamic Island. The manifest (src/lib/appManifest.ts) has the rest.
+  appleWebApp: { capable: true, title: APP_NAME, statusBarStyle: 'default' },
 }
 
 // viewport-fit=cover: the phone's bottom bar reaches the bottom edge and keeps clear of the iPhone's home bar
