@@ -95,10 +95,15 @@ input, select, textarea, button {
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--color-bg); }
-::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
+/* The slim scrollbar is for devices with a mouse only. On a touch screen WebKit gave the styled bars room of their
+   own (6 px across, 16 px down), and after a scroll the page under the header sat 16 px off (an iPad's header
+   started above the screen). Touch devices keep their own scrollbars. */
+@media (hover: hover) and (pointer: fine) {
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--color-bg); }
+  ::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-accent); }
+}
 
 /* ─── Utilities ─────────────────────────────────────────────────── */
 .bg-primary   { background-color: var(--color-surface-dark); }
