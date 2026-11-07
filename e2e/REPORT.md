@@ -1,5 +1,94 @@
 # End-to-end test report
 
+## app-shell, stage 2: Explore, the search sheet, phone search (2026-11-07, `deca1e6`, branch `app-shell-2`, not merged)
+
+Run on `deca1e6` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium
+run), under `caffeinate -dims` on mains power. Each suite in its own folder, `e2e/.reports/as2-full2/`. Nothing was
+re-run.
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (0 errors, 38 warnings, none new) |
+| `npm run test:tz` | 1,706 passed in each of the six zones |
+| Money rules | clean before and after (2 of 2 each time) |
+| Chromium suite, races at 50, run 1 | **249 passed, 42 skipped, 0 failed, 0 flaky** |
+| Chromium suite, races at 50, run 2 (fresh stack) | **249 passed, 42 skipped, 0 failed, 0 flaky** |
+| Contention, alone | **5 passed** |
+| Chaos | **17 passed** |
+| Other five set-ups | **355 passed, 135 skipped, 0 failed, 0 flaky** |
+| Removal proofs | **all 314 hold** (290-312 for stage 2, 313 and 314 new) |
+| Layout shift at phone width | 0.0000 on every page measured |
+| Phone fit, chip fit, accessibility at phone width | all passed |
+
+The two "expected to fail" lines in each Chromium run are the SU10 harness tests that are meant to fail; they count
+as passes.
+
+**Bundle, exact (sum of each file's compressed size, `bundle-exact.txt`):**
+
+| Page | Phone (limit 350 KB) | Desktop |
+|---|---|---|
+| Home | 250.095 KB | 244.047 KB |
+| Search | 209.551 KB | **650.007 KB** (cap 650, map included) |
+| Listing | 224.542 KB | 218.494 KB |
+| Checkout | 208.211 KB | 202.163 KB |
+| Guest dashboard | 226.477 KB | 220.429 KB |
+| Host dashboard | 221.698 KB | 215.650 KB |
+| Admin | 214.016 KB | 207.968 KB |
+
+**Desktop search is 665,607 bytes: 7 bytes over the 650 KB cap.** The guard rounds the total to whole kilobytes
+(`Math.round`, `tests/perf/bundle.spec.ts`), so it passes as 650. It was 648.5 at the end of stage 1 and 649.8 at
+stage 2's step runs. The growth is in the search page's own file (15.0 KB at stage 1, 16.3 KB now), which carries
+the phone-only search card code: AS8, the first job of stage 3. Which later commit added the last 0.2 KB was not
+measured (no build of older commits while the set was running). Neither the guard nor the cap was changed: the
+owner's call.
+
+### What failed in the first full set (`2499335`), and what was done
+
+The first full set (`e2e/.reports/as2-full/`) had three failing tests. None was re-run until fixed.
+
+1. **"A stale card on the home page opens 'not available'"** (Chromium, Firefox, WebKit, tablet). Stage 2 put
+   Explore's phone cards in the home page on desktop too, hidden; `.first()` found the hidden one and could not click
+   it. Test fix: the visible link (`:visible`). The two other tests that click or see the first listing link were
+   changed the same way (`search-sheet.spec.ts:40`, `chaos/server-first.spec.ts:164`). `pages.spec.ts` (a home
+   leaves the home page) counts every link, hidden too, which is stricter, and was left as it was.
+2. **"Desktop: the header never moves"** (tablet: the header's top at -8 px). First put down to the header
+   shrinking once scrolled; keeping it one height on touch tablets made it -16, so that fix was undone. The cause
+   (AS13): the site's styled scrollbar (`::-webkit-scrollbar { width: 6px }`, older than stage 2). In WebKit on a
+   touch screen it took room of its own (6 px across, 16 px down), and after a scroll the visible area sat 16 px
+   down the page. A bare page with only a sticky header and that rule gives -16; without it, 0. Fix (owner's
+   choice): the styled scrollbar is for devices with a mouse only (`@media (hover: hover) and (pointer: fine)`);
+   desktop unchanged, the header's own behaviour as before, the test as strict as before. Removal proof 314. **Not
+   checked on a real iPad.** The same change ended the "strip under the bar" in the iPhone set-ups at 390 and
+   430 px: the visible area now matches the page at 320, 390 and 430 px. Not checked on a real iPhone either.
+3. **"A suspended host is not paid"** (Chromium: 3 of 4 tries). Not changed until the cause was proved (AS12).
+   - The four failures left nothing to go on: the app log has no times or booking ids, and the end-of-run clean-up
+     had removed the people, bookings and payouts.
+   - A probe on the test side only (every run of the payout job by any test: its test, start, end and what it
+     listed; and the test's own steps with the database's `suspendedAt` and any payout row) over 25 repeats of "the
+     payout and what holds it", retries off: **5 of 25 failed**. In each, another test's run of the job started 3 to
+     17 ms after the stay was made due and paid it (`paid`, with its payout id): "ID not approved" three times, "home
+     switched off" once, "over the transfer limit" once. The test's own run then found a payout and listed nothing:
+     `Received: undefined`, as in the full set. In the 20 passes no payout existed before the suspension.
+   - On demand: a new test puts another run of the job in the gap on purpose and gets the old result every time
+     (25 of 25).
+   - Fix: the test suspends the host first, then makes the stay due; its checks are unchanged. 200 of 200 passed
+     (the group of tests, 25 repeats, retries off). Unit tests `cronRuns.test.ts`, `payouts.test.ts` (113) and
+     `security/suspension.test.ts` (21) and the money-invariant checker passed. Removal proof 313 takes out both
+     suspension checks (the job's and `initiateHostPayout`'s) and the test fails. Payout code not touched.
+   - **Found on the way (AS11, open):** in 4 of the 5 caught races the payout row was written 1 to 440 ms after
+     `suspendedAt`: the run had read the host just before the suspension and went on. A suspension that lands while a
+     run is already paying a stay does not stop that one payout. Every run that starts afterwards waits. The owner's
+     call before payouts are switched on.
+
+### Polish in this stage (Part A)
+
+Phone header solid (compared with a solid copy over text at 320, 390 and 430 px); the Trips booking card (two-line
+title, "Total due now" then "$170.00 · About GH₵ 2,661" each kept whole, Pay now across the card, the rest in even
+columns); "Refunds received" in the brand's text colour on phones (blue on desktop as before); **AS10 fixed, desktop
+too**: Wishlists write prices as Explore does, cedis first ("About GH₵ 19,577 /night", then "$1,250.50"), whole
+dollars without cents, no stray decimals; display only, nothing stored or worked out changed. Pictures:
+`e2e/.reports/stage2-shots/after-partA/`.
+
 ## AS3 fixed: bursts of bookings (2026-11-04, branch `booking-contention`)
 
 **Cause.** While the tables are small Postgres reads them whole, so a booking's Serializable transaction
