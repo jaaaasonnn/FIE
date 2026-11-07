@@ -36,6 +36,9 @@ export default defineConfig({
     navigationTimeout: 30_000,
     locale: 'en-GH',
     timezoneId: 'Africa/Accra',
+    // No service worker in any test unless it asks for one (stage 4): a worker handles requests before
+    // page.route sees them. The installed app's worker is tested in its own contexts (tests/journeys/installed-app.spec.ts).
+    serviceWorkers: 'block',
   },
   projects: [
     // Everything, in Chromium. Tests that stop the database or a server are kept apart and run alone.

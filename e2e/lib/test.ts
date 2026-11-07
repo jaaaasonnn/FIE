@@ -13,7 +13,7 @@ const LOCAL = /^(https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/|data:|blob:|about:
 const STORAGE = 'http://127.0.0.1:4011'
 const MAP_STYLE = { version: 8, name: 'e2e', sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#eef0f2' } }] }
 
-async function fence(context: BrowserContext, problems: Problems) {
+export async function fence(context: BrowserContext, problems: Problems) {
   await context.route(/^https:\/\/api\.maptiler\.com\//, (route) => {
     const url = route.request().url()
     if (url.includes('style.json')) return route.fulfill({ json: MAP_STYLE })
@@ -40,7 +40,7 @@ async function fence(context: BrowserContext, problems: Problems) {
 const FAKE_SENTRY_ENVELOPE = /Refused to connect to http:\/\/127\.0\.0\.1:4010\/api\/\d+\/envelope\//
 const FAKE_SENTRY_REPORT = /^https:\/\/127\.0\.0\.1:4010\/api\/\d+\/security\//
 
-function watch(page: Page, problems: Problems) {
+export function watch(page: Page, problems: Problems) {
   let sentryEnvelopes = 0
   page.on('console', (m) => {
     const text = m.text()

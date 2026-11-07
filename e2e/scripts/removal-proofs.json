@@ -4115,5 +4115,215 @@
   "test": "(a2) on demand: a run holding the stay in an older list of due stays never reaches its payout (AS17)",
   "e2e": true,
   "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the manifest names the app (without a name Chromium will not install it)",
+  "edits": [
+   {
+    "file": "src/lib/appManifest.ts",
+    "find": "  name: APP_NAME,\n  short_name: APP_NAME,\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "Chromium's own install check finds nothing missing",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the manifest opens the app standalone",
+  "edits": [
+   {
+    "file": "src/lib/appManifest.ts",
+    "find": "  display: 'standalone',",
+    "replace": "  display: 'browser',"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "the manifest is as decided, every icon is there at its size and solid, the maskable mark is inside Android's circle, and every page links them",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the iPhone's status bar is drawn above the page (default), not over it",
+  "edits": [
+   {
+    "file": "src/app/layout.tsx",
+    "find": "statusBarStyle: 'default'",
+    "replace": "statusBarStyle: 'black-translucent'"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "the manifest is as decided, every icon is there at its size and solid, the maskable mark is inside Android's circle, and every page links them",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the maskable icons have the mark inside Android's circle (the plain icon's mark reaches past it)",
+  "edits": [
+   {
+    "file": "src/lib/appManifest.ts",
+    "find": "{ src: '/icons/maskable-512.png'",
+    "replace": "{ src: '/icons/icon-512.png'"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "the manifest is as decided, every icon is there at its size and solid, the maskable mark is inside Android's circle, and every page links them",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the worker never stores a page it fetched",
+  "edits": [
+   {
+    "file": "src/lib/offlineWorker.ts",
+    "find": "        return preloaded || await sw.fetch(request)\n",
+    "replace": "        const answer = preloaded || await sw.fetch(request)\n        await sw.caches.open(cacheName).then((cache) => cache.put(request, answer.clone()))\n        return answer\n"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "installed: the worker keeps only /offline.html, and browsing pages, the API and a listing stores nothing else",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the worker never answers a page from storage (no stale price)",
+  "edits": [
+   {
+    "file": "src/lib/offlineWorker.ts",
+    "find": "        const preloaded = await e.preloadResponse\n        return preloaded || await sw.fetch(request)\n",
+    "replace": "        const hit = await sw.caches.open(cacheName).then((cache) => cache.match(request))\n        if (hit) return hit\n        const preloaded = await e.preloadResponse\n        const answer = preloaded || await sw.fetch(request)\n        await sw.caches.open(cacheName).then((cache) => cache.put(request, answer.clone()))\n        return answer\n"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "installed: a price changed is shown at once (nothing is kept)",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: with no network the worker shows the offline page",
+  "edits": [
+   {
+    "file": "src/lib/offlineWorker.ts",
+    "find": "        return kept || sw.Response.error()",
+    "replace": "        return sw.Response.error()"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "installed, with no network: a page shows \"You are offline\", and Try again brings the page back once the network is there",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the worker passes an HTTP error on as it came (only no answer at all is offline)",
+  "edits": [
+   {
+    "file": "src/lib/offlineWorker.ts",
+    "find": "        return preloaded || await sw.fetch(request)\n",
+    "replace": "        const answer = preloaded || await sw.fetch(request)\n        if (!answer.ok) throw new Error('an HTTP error')\n        return answer\n"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "installed: an HTTP error is passed on as it came (the site's own 404, not the offline page)",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the worker is registered only in the installed app (display-mode: standalone), never in a browser tab",
+  "edits": [
+   {
+    "file": "public/shell.js",
+    "find": "    if (!installed() || !('serviceWorker' in navigator)) return",
+    "replace": "    if (!('serviceWorker' in navigator)) return"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "never registers the worker, at a phone's width or a desktop's, and never asks for /sw.js",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: /sw.js is sent with Cache-Control: no-cache, so a new version or the kill switch reaches every phone",
+  "edits": [
+   {
+    "file": "src/app/sw.js/route.ts",
+    "find": "headers: { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-cache' },",
+    "replace": "headers: { 'Content-Type': 'text/javascript; charset=utf-8' },"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "/sw.js is sent with no-cache, as JavaScript, from this origin only, and the offline page has no script and no data",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the worker deletes every other cache when it takes over",
+  "edits": [
+   {
+    "file": "src/lib/offlineWorker.ts",
+    "find": "keys.filter((k) => k !== cacheName)",
+    "replace": "keys.filter(() => false)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "installed: the worker deletes every other cache when it takes over",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: in the installed app the header clears a status bar drawn over the page",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .site-header { padding-top: env(safe-area-inset-top, 0px); }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "room for a status bar drawn over the page: the header, the search bar under it, the map's top bar, Explore and the search sheet clear it; in a browser tab nothing moved",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: in the installed app the phone map's top bar clears a status bar drawn over the page",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .sheet-slide.fixed > :first-child { padding-top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "room for a status bar drawn over the page: the header, the search bar under it, the map's top bar, Explore and the search sheet clear it; in a browser tab nothing moved",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: the install hint is hidden inside the installed app",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "@media (display-mode: standalone) { .account-install { display: none; } }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "a phone: a folded row that opens to the steps, fits at every width and passes the accessibility scan; hidden on a desktop and in the installed app",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 4: no desktop page (nor any browser tab) asks for /sw.js",
+  "edits": [
+   {
+    "file": "src/lib/bottomBar.ts",
+    "find": "export const BAR_LOADER_SCRIPT = `",
+    "replace": "export const BAR_LOADER_SCRIPT = `navigator.serviceWorker&&navigator.serviceWorker.register('/sw.js');"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/installed-app.spec.ts",
+  "test": "never registers the worker, at a phone's width or a desktop's, and never asks for /sw.js",
+  "e2e": true,
+  "project": "chromium"
  }
 ]

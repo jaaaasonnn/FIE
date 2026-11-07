@@ -1,6 +1,7 @@
 import { devices } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { measured } from '../../lib/race'
+import { recordShifts, shiftOf } from '../../lib/layoutShift'
 
 // App shell, stage 1: zero layout shift on the pages that have the phone's bottom bar, at phone width.
 // Chromium reports every shift (PerformanceObserver, "layout-shift"); a shift right after someone's input is
@@ -11,32 +12,7 @@ import { measured } from '../../lib/race'
 const PHONE = Object.fromEntries(Object.entries(devices['Pixel 7']).filter(([key]) => key !== 'defaultBrowserType'))
 test.use(PHONE)
 
-async function shiftOf(page: import('@playwright/test').Page, url: string) {
-  // (the message inbox asks for new messages every few seconds, so a page is never idle: wait for it to
-  // load, then three seconds more)
-  await page.goto(url, { waitUntil: 'load' })
-  await page.waitForTimeout(3000)
-  return page.evaluate(() => (window as unknown as { __shift: { total: number; worst: string[] } }).__shift)
-}
-
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    const record = { total: 0, worst: [] as string[] }
-    ;(window as unknown as { __shift: typeof record }).__shift = record
-    new PerformanceObserver((list) => {
-      type Rect = { y: number; height: number }
-      for (const entry of list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean; sources?: { node?: Node; previousRect: Rect; currentRect: Rect }[] })[]) {
-        if (entry.hadRecentInput) continue
-        record.total += entry.value
-        for (const source of entry.sources ?? []) {
-          const node = source.node as Element | undefined
-          // What moved, when, and from where to where (top and height, px)
-          record.worst.push(`${entry.value.toFixed(4)} at ${Math.round(entry.startTime)} ms ${node?.nodeName ?? '?'}.${String(node && 'className' in node ? node.className : '').slice(0, 50)} ${Math.round(source.previousRect.y)}/${Math.round(source.previousRect.height)} -> ${Math.round(source.currentRect.y)}/${Math.round(source.currentRect.height)}`)
-        }
-      }
-    }).observe({ type: 'layout-shift', buffered: true })
-  })
-})
+test.beforeEach(async ({ page }) => { await recordShifts(page) })
 
 test('no layout shift at phone width on the pages with the bar, signed out', async ({ page }) => {
   for (const url of ['/', '/search', '/how-it-works', '/faq']) {
