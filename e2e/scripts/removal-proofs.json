@@ -3926,5 +3926,152 @@
   "test": "desktop: the header never moves",
   "e2e": true,
   "project": "tablet"
+ },
+ {
+  "what": "Stage 3: the listing page asks for saved homes as ids only, never ?userId=",
+  "edits": [
+   {
+    "file": "src/components/listing/wishlistStore.ts",
+    "find": "fetchRetry('/api/wishlists?only=ids')",
+    "replace": "fetchRetry(`/api/wishlists?only=ids&userId=${userId}`)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "saves the home and takes it off again, asking for ids only and sending only the home",
+  "e2e": true
+ },
+ {
+  "what": "Stage 3: a heart sends only the home's id",
+  "edits": [
+   {
+    "file": "src/components/listing/wishlistStore.ts",
+    "find": "      body: JSON.stringify({ listingId }),",
+    "replace": "      body: JSON.stringify({ listingId, userId }),"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "saves the home and takes it off again, asking for ids only and sending only the home",
+  "e2e": true
+ },
+ {
+  "what": "Stage 3: a heart pressed while signed out is remembered for after logging in",
+  "edits": [
+   {
+    "file": "src/components/listing/HeartButton.tsx",
+    "find": "      rememberSave(listingId)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "signed out: the heart goes to log in and back, and the home is saved once",
+  "e2e": true
+ },
+ {
+  "what": "Stage 3: the save after logging in is used once",
+  "edits": [
+   {
+    "file": "src/components/listing/wishlistStore.ts",
+    "find": "    if (p.id !== listingId) return false\n    sessionStorage.removeItem(PENDING_KEY)\n    return true",
+    "replace": "    if (p.id !== listingId) return false\n    return true"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "signed out: the heart goes to log in and back, and the home is saved once",
+  "e2e": true
+ },
+ {
+  "what": "Stage 3: the save after logging in never takes off a home already saved",
+  "edits": [
+   {
+    "file": "src/components/listing/HeartButton.tsx",
+    "find": "    if (takeSave(listingId) && !ids.has(listingId)) void toggleSaved(userId, listingId)",
+    "replace": "    if (takeSave(listingId)) void toggleSaved(userId, listingId)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "a waiting save never takes off a home already saved",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 3: the save after logging in waits until the saved homes are known",
+  "edits": [
+   {
+    "file": "src/components/listing/HeartButton.tsx",
+    "find": "    if (!userId || !loaded) return",
+    "replace": "    if (!userId) return"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "a waiting save never takes off a home already saved",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 3: the save after logging in is dropped after 10 minutes",
+  "edits": [
+   {
+    "file": "src/components/listing/wishlistStore.ts",
+    "find": "age <= PENDING_MS",
+    "replace": "age <= PENDING_MS * 100"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "a waiting save never takes off a home already saved",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Stage 3: the save after logging in is only for its own home",
+  "edits": [
+   {
+    "file": "src/components/listing/wishlistStore.ts",
+    "find": "    if (p.id !== listingId) return false\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/hearts.spec.ts",
+  "test": "a waiting save never takes off a home already saved",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "AS8: a phone's search parts are fetched at a phone's width only",
+  "edits": [
+   {
+    "file": "src/lib/phoneOnly.ts",
+    "find": "    if (list.matches) start()",
+    "replace": "    if (true) start()"
+   }
+  ],
+  "testFile": "e2e/tests/perf/bundle.spec.ts",
+  "test": "every main page is within",
+  "e2e": true
+ },
+ {
+  "what": "AS8: a part is kept as the server drew it until its code has come (no hydration error)",
+  "edits": [
+   {
+    "file": "src/app/search/SearchClient.tsx",
+    "find": "  if (kept) return <div key=\"kept\" className=\"md:hidden\" dangerouslySetInnerHTML={KEEP_SERVER_HTML} suppressHydrationWarning />",
+    "replace": "  if (false) return null"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/phone-code.spec.ts",
+  "test": "React takes the page over with no error",
+  "e2e": true
+ },
+ {
+  "what": "AS8: a desktop window narrowed to a phone's width fetches the phone's parts",
+  "edits": [
+   {
+    "file": "src/lib/phoneOnly.ts",
+    "find": "      list.addEventListener('change', onChange)",
+    "replace": "      void onChange"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/phone-code.spec.ts",
+  "test": "a desktop window narrowed to a phone",
+  "e2e": true
  }
 ]
