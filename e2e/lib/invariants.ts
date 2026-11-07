@@ -7,7 +7,7 @@ import { db } from './db'
 import { fakes } from './fakes'
 
 const CENT = 0.005
-const COMMISSION = 0.10 // src/lib/utils.ts PLATFORM_COMMISSION; a test checks the two agree
+export const COMMISSION = 0.10 // src/lib/utils.ts PLATFORM_COMMISSION; a test checks the two agree
 
 export type Violation = { rule: string; detail: string }
 

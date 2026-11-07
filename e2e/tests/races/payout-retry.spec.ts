@@ -1,9 +1,9 @@
 import { test, expect } from '../../lib/test'
-import { db } from '../../lib/db'
+import { db, ageBooking } from '../../lib/db'
 import { fakes } from '../../lib/fakes'
 import { expectInvariants } from '../../lib/invariants'
 import { allowForRounds, ROUNDS, measured, serverErrors, together } from '../../lib/race'
-import { cron } from '../../lib/world'
+import { cron, type Reply } from '../../lib/world'
 import { claimedRetryNobodyIsSending, failedPayout, listedBy, paystackAsked, saidAbout, settledPayout } from '../../lib/payoutRetry'
 
 test.beforeEach(allowForRounds)
@@ -19,6 +19,7 @@ test.beforeEach(allowForRounds)
 const SINGLE = Math.max(1, Math.ceil(ROUNDS / 3))
 const MANY = Math.max(20, ROUNDS)
 const MIN = 60_000
+const DAY = 86_400_000
 const three = () => together(() => cron('process-payouts', { server: 0 }), () => cron('process-payouts', { server: 1 }), () => cron('process-payouts', { server: 1 }))
 
 test.describe('payout retries: a run another test started can take the retry', () => {
@@ -66,8 +67,9 @@ test.describe('payout retries: a run another test started can take the retry', (
   test('(a2) the run that claimed the retry dies before calling Paystack: nothing happens until the 15-minute limit, then the next run sends it exactly once', async ({ world }) => {
     const host = await world.host()
     for (let round = 0; round < SINGLE; round++) {
-      // The failure is fresh, so no run (this test's or another's) retries it on its own
-      const { bookingId, payoutId, reference } = await failedPayout(world, host, { due: false })
+      // The failure is fresh, so no run (this test's or another's) retries it on its own; and its payout exists
+      // before the stay falls due, so no run holds the stay in an older list of due stays (AS17)
+      const { bookingId, payoutId, reference } = await failedPayout(world, host, { due: false, rowFirst: true })
       // Claimed a moment after the payout was made, then the claiming run died
       await claimedRetryNobodyIsSending(payoutId, 0)
       const started = Date.now()
@@ -89,6 +91,37 @@ test.describe('payout retries: a run another test started can take the retry', (
       expect(await fakes.transfers(`booking ${bookingId}`), `round ${round}`).toHaveLength(1)
     }
     await expectInvariants()
+  })
+
+  test('(a2) on demand: a run holding the stay in an older list of due stays never reaches its payout (AS17)', async ({ world }) => {
+    const host = await world.host()
+    // Run R is held at another stay's transfer, with its list of due stays read once this stay has fallen due
+    const guest = await world.guest()
+    const other = await world.listing(host, { priceNightly: 100 })
+    const { id: earlier } = await world.paidBooking(guest, other.id, { nights: 2 })
+    const b = await db.booking.findUniqueOrThrow({ where: { id: earlier } })
+    await ageBooking(earlier, Math.ceil((b.checkIn.getTime() - Date.now()) / DAY) + 3)
+    const hold = await fakes.rule('transfer', 'delay', { match: `booking ${earlier}`, delayMs: 15_000, times: 1 })
+    let r: Promise<Reply> | undefined
+    try {
+      const { bookingId, payoutId, reference } = await failedPayout(world, host, {
+        due: false, rowFirst: true,
+        onDue: async () => {
+          r = cron('process-payouts', { server: 0 })
+          await expect.poll(async () => (await db.payout.findFirst({ where: { bookingId: earlier } }))?.initiatedAt ?? null, { intervals: [20], timeout: 10_000 }).not.toBeNull()
+        },
+      })
+      await claimedRetryNobodyIsSending(payoutId, 0)
+      const started = Date.now()
+      const done = await r!
+      expect(serverErrors([done])).toEqual([])
+      expect(saidAbout(done, bookingId, payoutId)).toEqual([])
+      expect(await db.payout.findUniqueOrThrow({ where: { id: payoutId } })).toMatchObject({ status: 'PENDING', retryCount: 1, initiatedAt: null })
+      expect(await paystackAsked(started, bookingId, reference), 'Paystack was asked before the limit').toEqual([])
+    } finally {
+      await r?.catch(() => undefined)
+      await hold()
+    }
   })
 
   test('(c) three runs at once find a retry due, the payout made long ago: exactly one transfer each round', async ({ world }) => {

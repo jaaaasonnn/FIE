@@ -54,17 +54,39 @@ Each cause was proven before anything was changed.
    read. The test now leaves the waiting save only once the first page knows the saved homes; the mutant fails
    10 runs in 10.
 
-### Flaky in the second full set: causes NOT proven (AS15-AS17)
+### Flaky in the second full set (AS15-AS17), and the check that followed
 
-Each failed once and passed on its retry. None is in code stage 3 changed. **No cause below is proven.**
+Each failed once and passed on its retry. None is in code stage 3 changed (it changed search, listing and heart
+code only; the test harness and these tests are the same on `main`).
 
-- **AS15, `races/rent.spec.ts:44`** (cover from deposit three times at once): a Postgres deadlock (`40P01`) in
-  the test's own clean-up, `prisma.user.deleteMany()`. Which statements clashed was not found.
-- **AS16, `races/bookings.spec.ts:302`** (SU7, switched off as Pay is pressed), round 11: 409 **without a code**.
-  Guess only: another test's `expire-bookings` run ended the booking first. The body was not kept.
-- **AS17, `races/payout-retry.spec.ts:66`** (a2), round 11: `initiatedAt` set on a retry claim only moments old.
-  Guess only: a run working from an older list of due stays (the AS2 kind). One probe did not reproduce it. To
-  decide before `PAYOUTS_ENABLED`, with AS6 and AS11. No payout code was changed.
+**The check (2026-11-07):** each test repeated beside the full Chromium suite and two other test processes, no
+retries, on `main` at `d5103bf` and on `app-shell-3` at `d799dde`, each from a clean stack, mains power,
+`caffeinate -dims`, `next dev` off (`e2e/.reports/flake-main/`, `flake-shell3/`).
+
+| Test | `main` | `app-shell-3` | Cause |
+|---|---|---|---|
+| AS15, `races/rent.spec.ts:44`, 250 runs each | 0 | 0 deadlocks (1 run failed in its set-up with 503 "busy", AS18) | **NOT proven**: a Postgres deadlock (`40P01`) in the test's own `user.deleteMany()` clean-up; did not recur in 500 runs |
+| AS16, `races/bookings.spec.ts:302`, 250 rounds each | 0 | 0 | **NOT proven**: a 409 without a code; did not recur in 500 rounds. Every 409 was kept with its body (a logging file preloaded into the test process, outside the repo): all 106 were `HOME_UNAVAILABLE` |
+| AS17, `races/payout-retry.spec.ts` (a2), 204 rounds each | 0 | 0 (its copy in the load suite: flaky at round 9) | **Proven**, below |
+
+**AS17, proven.** In the round 9 flake the payout reached `PROCESSING`. Paystack's log for it: the planned 500,
+then 456 ms later a lookup (404) and one transfer (200). A run that read its list of due stays before the payout
+existed reached the stay after its retry had been claimed (the claimer "dead"), took the claim through
+`initiateHostPayout`, asked Paystack first and sent once under the same reference. A probe holding a run at an
+earlier stay reproduced it each time its set-up worked (2 of 2). Money is safe (one transfer); in production a
+retry whose claimer died can go out at once instead of after 15 minutes. The AS2 kind. No payout code changed; it
+stays on the list to decide before `PAYOUTS_ENABLED`, with AS6 and AS11.
+
+**AS17, the test fixed** (as the suspended-host test was, AS12: the order of the set-up closes the window). The
+(a2) test makes its failed payout as the job writes it before the stay falls due (`failedPayout(..., { rowFirst:
+true })`), so no run, this test's or another's, can hold the stay in a list without a payout. Every assertion is
+as strict as before. A new test, "(a2) on demand", starts such a run on purpose (held at another stay while the
+stay is in its list): it passes with the order and fails every time without it (5 of 5; removal proof 328).
+
+**AS18, noted only.** Under that heavy extra load (the suite took 25 minutes instead of 15) these timed out on
+both branches: the three Resend tests (`resilience/services.spec.ts:23`, `:39`, `:51`), `races/accounts.spec.ts:63`,
+`races/bookings.spec.ts:173`, and a 0.0002 layout shift on the inbox's time label (`perf/layout-shift.spec.ts:49`).
+Not investigated.
 
 ## app-shell, stage 2: Explore, the search sheet, phone search (2026-11-07, `deca1e6`, branch `app-shell-2`, not merged)
 

@@ -4101,5 +4101,19 @@
   "test": "nothing found: Clear filters is disabled until the phone's code has come, and then clears them",
   "e2e": true,
   "project": "android"
+ },
+ {
+  "what": "AS17: the (a2) payout is written before its stay falls due, so no run holds the stay in an older list of due stays (without it, a run held at another stay takes the retry claimed meanwhile and sends it)",
+  "edits": [
+   {
+    "file": "e2e/lib/payoutRetry.ts",
+    "find": "  if (o.rowFirst) {",
+    "replace": "  if (o.rowFirst && false) {"
+   }
+  ],
+  "testFile": "e2e/tests/races/payout-retry.spec.ts",
+  "test": "(a2) on demand: a run holding the stay in an older list of due stays never reaches its payout (AS17)",
+  "e2e": true,
+  "project": "chromium"
  }
 ]
