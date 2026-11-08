@@ -12,6 +12,9 @@ export default defineConfig({
   engine: "classic",
   datasource: {
     url: env("DATABASE_URL"),
-    directUrl: env("DIRECT_URL"),
+    // Optional: `prisma generate` runs in the Vercel build, where DIRECT_URL is
+    // deliberately not set (the app never reads it); env() would throw there.
+    // Migrations and the CLI still get it from .env.
+    directUrl: process.env.DIRECT_URL,
   },
 });
