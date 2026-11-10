@@ -4325,5 +4325,19 @@
   "test": "never registers the worker, at a phone's width or a desktop's, and never asks for /sw.js",
   "e2e": true,
   "project": "chromium"
+ },
+ {
+  "what": "Phones: every field 16 px or larger, so iOS never zooms in on focus (the listing's dates were 12 px)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "    font-size: max(1rem, 16px) !important;\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/layout/field-zoom.spec.ts",
+  "test": "signed out: home, search and its sheet, a listing with its date picker open, sign-in and sign-up @core",
+  "e2e": true,
+  "project": "chromium"
  }
 ]
