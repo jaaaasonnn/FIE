@@ -1,4 +1,5 @@
 import crypto from 'crypto'
+import { cache } from 'react'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'
 import { isSuspended } from '@/lib/suspension'
@@ -87,7 +88,14 @@ export async function getSessionUser(): Promise<SessionUser | null> {
  * For middleware, just check cookie existence — full DB validation isn't
  * possible on the Edge runtime.
  */
-export async function getUserFromToken(token: string): Promise<SessionUser | null> {
+export const getUserFromToken = cache(readUserFromToken)
+
+// One read per page drawn, however many of its parts ask (React's cache lasts one server render, and does nothing
+// in a route handler, where every call reads again). A server-first page (lib/serverRead.ts) runs its own session
+// check and then each route's GET, every one of which checks the session again before its own read: on Trips the
+// six checks (batched into one query by Prisma) stood after the page's own and before any data was read, a second
+// session read one after the other. The answer is never changed by a caller.
+async function readUserFromToken(token: string): Promise<SessionUser | null> {
   // Tokens are 64 hex characters; anything else is not one of ours
   if (typeof token !== 'string' || !/^[0-9a-f]{64}$/.test(token)) return null
   const session = await db.session.findUnique({
