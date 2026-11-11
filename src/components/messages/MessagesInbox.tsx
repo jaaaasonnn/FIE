@@ -17,6 +17,11 @@ import {
 
 const POLL_MS = 8000
 
+/** Below 640 px the list and a thread are never on screen together. There nothing is opened, so nothing is marked
+ *  read, until the person taps a conversation (AS27); wider, the first conversation opens beside the list as before. */
+const THREAD_BESIDE_LIST = '(min-width: 640px)'
+const threadBesideList = () => window.matchMedia(THREAD_BESIDE_LIST).matches
+
 type SeedPeer = {
   otherUserId: string
   otherName?: string
@@ -239,7 +244,7 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
           listingId: seed.listingId,
         })
       }
-      return grouped[0]?.id ?? null
+      return threadBesideList() ? grouped[0]?.id ?? null : null
     })
   }, [ensureSeedConversation, seed])
 
@@ -459,7 +464,9 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
                       </span>
                       {/* A fixed width, right-aligned: "Just now" turning into "1m ago" as the conversation loads does
                           not move the label's edge (AS9) */}
-                      <span className="text-xs text-[#736D62] flex-shrink-0 min-w-[4.5rem] text-right">{conv.time}</span>
+                      {/* Drawn fresh when its words change ("Just now" to "1m ago" at a poll), so the words are not
+                          moved inside the box (AS27) */}
+                      <span key={conv.time} className="text-xs text-[#736D62] flex-shrink-0 min-w-[4.5rem] text-right">{conv.time}</span>
                     </div>
                     <p className="text-xs text-[#6B645C] truncate">{conv.listingTitle}</p>
                     <p className="text-xs text-[#736D62] truncate mt-0.5">{conv.lastMessage}</p>

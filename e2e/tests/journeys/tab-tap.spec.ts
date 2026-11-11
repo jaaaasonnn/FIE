@@ -133,10 +133,6 @@ test.describe('a tap on a bottom-bar tab, with a slow server (390 px)', () => {
   for (const { tab, from, to, title } of TABS) {
     test(`${tab}: the tab is marked and a placeholder in the page's shape is on screen within ${WITHIN_MS} ms; no layout shift when the page arrives @core`, async ({ page, world, signIn, browserName }) => {
       test.setTimeout(90_000)
-      // AS27 (open, the owner's decision): the inbox selects its first conversation by itself and marks it read, and
-      // when that answer comes the unread count beside it goes and the time label moves 32 px (layout shift 0.0002).
-      // Only Chromium reports layout shift, so only there is this known to fail.
-      test.fail(tab === 'messages' && browserName === 'chromium', 'AS27: the inbox marks its first conversation read by itself and the row moves')
       const guest = await guestWithTrips(world)
       await signIn(guest)
       await slowServer(page)

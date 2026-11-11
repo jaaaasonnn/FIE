@@ -4426,5 +4426,47 @@
   ],
   "testFile": "src/lib/security/sessionOnce.test.ts",
   "test": "inside one render: the page's check and every route's check share one read, with the same answer"
+ },
+ {
+  "what": "AS27: on a phone the inbox opens no conversation (so marks nothing read) until one is tapped",
+  "edits": [
+   {
+    "file": "src/components/messages/MessagesInbox.tsx",
+    "find": "return threadBesideList() ? grouped[0]?.id ?? null : null",
+    "replace": "return grouped[0]?.id ?? null"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/inbox-phone.spec.ts",
+  "test": "at 390 px opening Messages selects nothing and marks nothing read",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "AS27: a row's time label is drawn fresh when its words change, so they do not move inside its box",
+  "edits": [
+   {
+    "file": "src/components/messages/MessagesInbox.tsx",
+    "find": "<span key={conv.time} className=",
+    "replace": "<span className="
+   }
+  ],
+  "testFile": "e2e/tests/journeys/inbox-phone.spec.ts",
+  "test": "turning into \"1m ago\" moves nothing",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "AS27: the Messages tab arrives with no layout shift (the inbox marks nothing read by itself on a phone)",
+  "edits": [
+   {
+    "file": "src/components/messages/MessagesInbox.tsx",
+    "find": "return threadBesideList() ? grouped[0]?.id ?? null : null",
+    "replace": "return grouped[0]?.id ?? null"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/tab-tap.spec.ts",
+  "test": "messages: the tab is marked and a placeholder",
+  "e2e": true,
+  "project": "chromium"
  }
 ]
