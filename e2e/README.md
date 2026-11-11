@@ -34,6 +34,10 @@ E2E_LH_THROTTLING=devtools node e2e/run.mjs exec node e2e/load/lighthouse.mjs <l
   search with its map 650 KB), and the map and date picker only when asked for. Each page's files: `.reports/bundle/`.
   The map's worker file (maplibre 6) is fetched by the worker, so the page sees the request but not its bytes: the
   guard counts it from the file as the server sends it (gzip). Desktop search with the map is at 649.8 of 650 KB (app shell stage 2): the first job of stage 3 is to keep the phone-only search code off desktop (`FINDINGS.md`, AS8).
+- `tests/perf/tab-timing.spec.ts` (only with `E2E_TAB_TIMING=<label>`, stack started with `up --perf`): how long each
+  bottom-bar tab takes on the contention lane at 0 and 5-15 ms from the database, a tap in the browser and a full
+  load, the API routes behind them, and each tap's queries (pg_stat_statements in a schema of its own, dropped after).
+  Written to `load/results/tab-timing-<label>.md`. `tests/journeys/tab-tap.spec.ts` is the guard (AS25).
 - `tests/journeys/map.spec.ts`: pins, the popup and its link, clusters that zoom apart or list homes that share a
   spot, Enter and Escape, the map's credits, and no map or worker error. `E2E_MAP_SHOTS=<label>` saves screenshots
   to `.reports/map-shots/`. The harness's map style is a plain background: no streets, real pins and popups.
