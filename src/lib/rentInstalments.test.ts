@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   bookings: [] as Row[], instalments: [] as Row[], payments: [] as Row[], payouts: [] as Row[],
   refunds: [] as Row[], blockedDates: [] as Row[], users: [] as Row[], listings: [] as Row[],
   user: null as { id: string; role: string; email: string | null } | null, writes: 0,
+  rate: { usdToGhs: 15 } as { usdToGhs: number } | null,
 }))
 const sentry = vi.hoisted(() => ({
   captureException: vi.fn(), captureMessage: vi.fn(),
@@ -279,7 +280,7 @@ vi.mock('@/lib/db', async () => {
         return { ...row }
       },
     },
-    exchangeRate: { findFirst: async () => ({ usdToGhs: 15 }) },
+    exchangeRate: { findFirst: async () => state.rate },
     user: {
       findUnique: async ({ where }: { where: Row }) => state.users.find((u) => u.id === where.id) ?? null,
       findMany: async () => [],
@@ -319,6 +320,7 @@ import { coverFromDeposit } from '@/lib/depositCover'
 import { payoutLimitPesewas, rentDepositCoverEnabled, rentRemindersEnabled } from '@/lib/payoutSwitches'
 import { buildSchedule, RENT_AFTER_MOVE_IN, RENT_ALREADY_SETTLED, RENT_PAY_IN_ORDER } from '@/lib/rentRules'
 import { hostShare } from '@/lib/disputes'
+import { NO_RATE_TO_CHARGE } from '@/lib/exchangeRateShared'
 import { PLATFORM_COMMISSION } from '@/lib/utils'
 import { POST as paystackWebhook } from '@/app/api/webhooks/paystack/route'
 import { GET as verifyRoute } from '@/app/api/payments/verify/route'
@@ -438,6 +440,7 @@ beforeEach(() => {
   state.users.push({ id: 'host_1', role: 'HOST', isVerified: true, verification: { status: 'APPROVED', reviewedById: 'admin_1' }, paystackRecipientCode: 'RCP_host', payoutMethodVerifiedAt: new Date('2026-12-01T00:00:00Z'), payoutMethod: 'MOMO', payoutMomoNetwork: 'MTN', payoutMomoNumber: '0240000000' })
   as('guest_1', 'GUEST')
   state.writes = 0
+  state.rate = { usdToGhs: 15 }
   sentry.captureMessage.mockReset()
   sentry.captureException.mockReset()
   sentry.withMonitor.mockClear()
@@ -561,6 +564,45 @@ describe('the first payment', () => {
     expect((await settlePayment(charge(p))).outcome).toBe('refunded')
     expect(state.refunds[0]).toMatchObject({ reason: 'LATE_PAYMENT', amount: 3500, stayRefund: 3000, depositRefund: 500, serviceFeeRefund: 0 })
     expect(inst(1).status).toBe('CANCELLED')
+  })
+})
+
+describe('no usable exchange rate', () => {
+  const started = () => fetchMock.mockResolvedValue(json({ status: true, data: { authorization_url: 'https://paystack.test/pay', reference: 'r' } }))
+
+  it('starts no payment: refused with a clear message, nothing written, Paystack not asked, Sentry told once (ids only)', async () => {
+    tenancy({ paid: false, over: { payBy: new Date('2027-01-03T10:00:00Z') } })
+    started()
+    state.rate = null
+    const writesBefore = state.writes
+    for (const env of [undefined, '', '   ', 'your_rate_here', 'abc', '0', '-15.5', 'NaN', 'Infinity', '15.5 cedis']) {
+      vi.stubEnv('INITIAL_USD_TO_GHS', env)
+      const res = await pay()
+      expect(res.status, String(env)).toBe(503)
+      expect(await res.json()).toEqual({ error: NO_RATE_TO_CHARGE, code: 'NO_EXCHANGE_RATE' })
+    }
+    // A stored rate that is not usable is not swapped for the environment's: refused too
+    state.rate = { usdToGhs: Number.NaN }
+    vi.stubEnv('INITIAL_USD_TO_GHS', '15.5')
+    expect((await pay()).status).toBe(503)
+    expect(state.payments).toHaveLength(0)
+    expect(state.writes).toBe(writesBefore)
+    expect(booking().paymentReference).toBeUndefined()
+    expect(fetchMock).not.toHaveBeenCalled()
+    // Once for the process, not once a guest
+    const alerts = sentry.captureMessage.mock.calls.filter(([, o]) => o?.tags?.payment_issue === 'NO_EXCHANGE_RATE')
+    expect(alerts).toHaveLength(1)
+    expect(JSON.stringify(alerts[0])).not.toMatch(/@|guest@|233/)
+    expect(alerts[0][1].contexts.payment).toEqual({ bookingId: 'booking_1', instalmentId: 'inst_1' })
+  })
+
+  it('with no stored rate, a usable INITIAL_USD_TO_GHS is used exactly as before', async () => {
+    tenancy({ paid: false, over: { payBy: new Date('2027-01-03T10:00:00Z') } })
+    started()
+    state.rate = null
+    vi.stubEnv('INITIAL_USD_TO_GHS', ' 15.5 ')
+    expect((await pay()).status).toBe(200)
+    expect(state.payments[0]).toMatchObject({ amount: 3500, amountPesewas: 5_425_000, usdToGhs: 15.5 })
   })
 })
 

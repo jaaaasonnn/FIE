@@ -61,7 +61,7 @@ type AdminStats = {
   payoutsWaitingForId?: number
 }
 
-type RateAnswer = { rate?: number; updatedAt?: string | null; updatedBy?: string | null; autoFetchStatus?: AutoFetchStatus | null }
+type RateAnswer = { rate?: number | null; updatedAt?: string | null; updatedBy?: string | null; autoFetchStatus?: AutoFetchStatus | null }
 
 /**
  * Read on the server with the page (page.tsx): the admin from GET /api/auth/session and the Overview's
@@ -79,7 +79,9 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
   const hydrated = useHydrated()
   const adminId = user?.role === 'ADMIN' ? user.id : null
   const [activeTab, setActiveTab] = useState('Overview')
-  const [exchangeRate, setExchangeRate] = useState(initial?.rate.rate != null ? String(initial.rate.rate) : '15.5')
+  const [exchangeRate, setExchangeRate] = useState(initial?.rate.rate != null ? String(initial.rate.rate) : '')
+  // Whether a usable rate is in force: without one pages show dollars only and payments are refused
+  const [rateSet, setRateSet] = useState(initial ? initial.rate.rate != null : true)
   const [rateUpdatedAt, setRateUpdatedAt] = useState<string | null>(initial?.rate.updatedAt ?? null)
   const [rateUpdatedBy, setRateUpdatedBy] = useState<string | null>(initial?.rate.updatedBy ?? null)
   const [rateAutoFetchStatus, setRateAutoFetchStatus] = useState<AutoFetchStatus | null>(initial?.rate.autoFetchStatus ?? null)
@@ -108,6 +110,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
 
   function applyRateResponse(r: RateAnswer) {
     if (r.rate != null) setExchangeRate(String(r.rate))
+    setRateSet(r.rate != null)
     setRateUpdatedAt(r.updatedAt ?? null)
     setRateUpdatedBy(r.updatedBy ?? null)
     setRateAutoFetchStatus(r.autoFetchStatus ?? null)
@@ -342,7 +345,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                         <Star size={16} style={{ color: '#F59E0B' }} />
                         <h3 className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>Exchange Rate</h3>
                       </div>
-                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>GH₵ {exchangeRate}</p>
+                      <p className="text-3xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{rateSet ? `GH₵ ${exchangeRate}` : 'Not set'}</p>
                       <p className="text-xs text-[#6B645C] mt-1">Per 1 USD</p>
                     </div>
                   </div>
@@ -520,7 +523,7 @@ export function AdminClient({ initial = null }: { initial?: AdminInitial }) {
                       </button>
                     </div>
                     <p className="text-xs text-[#736D62] mt-2">
-                      Current: $1 = GH₵ {exchangeRate}
+                      {rateSet ? <>Current: $1 = GH₵ {exchangeRate}</> : <>No rate is set: pages show dollars only and payments are refused until one is saved.</>}
                       {rateUpdatedAt && (
                         <>
                           {' · '}

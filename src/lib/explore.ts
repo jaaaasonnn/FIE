@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { cached } from '@/lib/shortCache'
+import { envRate, rateInForce } from '@/lib/exchangeRateShared'
 import { HOST_NOT_SUSPENDED } from '@/lib/suspension'
 import { liveChecksInclude } from '@/lib/listingChecks'
 import { liveCheck, publicCheck, type PublicCheck } from '@/lib/listingCheckRules'
@@ -37,8 +38,8 @@ export type ExploreRow = { kind: 'city'; city: string; homes: ExploreCard[] } | 
 
 export type Explore = {
   rows: ExploreRow[]
-  /** USD to GHS, as guests are shown it (GET /api/exchange-rate) */
-  rate: number
+  /** USD to GHS, as guests are shown it (GET /api/exchange-rate); null when there is no usable rate (dollars only) */
+  rate: number | null
   /** Places to suggest in the search sheet: the cities with live homes, the most homes first */
   places: string[]
   /** The database could not be read while the site was being built: the rows say so and link to search */
@@ -78,11 +79,12 @@ function toCard(l: Row, now: Date): ExploreCard | null {
   }
 }
 
-/** The rate guests are shown: the same read, and the same short-kept answer, as GET /api/exchange-rate */
-export function shownRate(): Promise<number> {
+/** The rate guests are shown: the same read, and the same short-kept answer, as GET /api/exchange-rate. Null: there is
+ *  no usable rate, and cards show dollars only. */
+export function shownRate(): Promise<number | null> {
   return cached('exchange-rate', async () => {
     const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' }, select: { usdToGhs: true } })
-    return rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
+    return rateInForce(rateRow, process.env.INITIAL_USD_TO_GHS)
   })
 }
 
@@ -147,6 +149,6 @@ export async function getExplore(now: Date = new Date()): Promise<Explore> {
   } catch (error) {
     if (process.env.NEXT_PHASE !== 'phase-production-build') throw error
     console.error('[Explore] could not read the homes while building:', error instanceof Error ? error.message : 'unknown')
-    return { rows: [], rate: Number(process.env.INITIAL_USD_TO_GHS ?? 15.5), places: [], failed: true }
+    return { rows: [], rate: envRate(process.env.INITIAL_USD_TO_GHS), places: [], failed: true }
   }
 }

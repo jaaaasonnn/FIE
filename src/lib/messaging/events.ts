@@ -5,6 +5,7 @@
 
 import { payoutCedis } from '@/lib/payoutCedis'
 import { db } from '@/lib/db'
+import { usableRate } from '@/lib/exchangeRateShared'
 import { HOST_CANCEL_REASONS } from '@/lib/cancellationPolicy'
 import { hostShare, outcomeLabel, reasonLabel } from '@/lib/disputes'
 import { OVERDUE_REMINDER_DAYS, daysPastDue, depositLeft, isOpen, outstanding, tenancyStands } from '@/lib/rentRules'
@@ -137,7 +138,8 @@ async function booking(bookingId: string): Promise<Loaded | null> {
       hostName: b.host.name,
       totalUsd: dueNow,
       rentPlan,
-      usdToGhs: rate?.usdToGhs,
+      // Only a usable stored rate: with none the amount is written in dollars only
+      usdToGhs: usableRate(rate?.usdToGhs) ?? undefined,
       paidPesewas: b.payments[0]?.amountPesewas ?? null,
       payBy: b.payBy,
       hostHasPayoutMethod: !!b.host.paystackRecipientCode && !!b.host.payoutMethodVerifiedAt,

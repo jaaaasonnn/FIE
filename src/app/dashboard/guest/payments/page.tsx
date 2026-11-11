@@ -165,7 +165,7 @@ export default function GuestPaymentsPage() {
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Total Spent</p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{formatUsd(total)}</p>
-                <p className="text-xs text-[#736D62] mt-0.5">About GH₵ {(total * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>
+                {ghsRate && <p className="text-xs text-[#736D62] mt-0.5">About GH₵ {(total * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</p>}
               </div>
               <div className="soft-panel p-5 text-center">
                 <p className="text-xs text-[#6B645C] mb-1">Transactions</p>

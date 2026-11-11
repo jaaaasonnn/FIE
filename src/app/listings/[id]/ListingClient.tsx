@@ -742,13 +742,15 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
                     </p>
                   </>
                 )}
-                <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
-                  About GH₵ {(
-                    (selectedMode === 'SHORT_STAY' ? listing.priceNightly ?? 0
-                     : selectedMode === 'TEMP_STAY' ? listing.priceMonthly ?? 0
-                     : (listing.priceAnnual ?? 0) / 12) * ghsRate
-                  ).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                </p>
+                {ghsRate && (
+                  <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
+                    About GH₵ {(
+                      (selectedMode === 'SHORT_STAY' ? listing.priceNightly ?? 0
+                       : selectedMode === 'TEMP_STAY' ? listing.priceMonthly ?? 0
+                       : (listing.priceAnnual ?? 0) / 12) * ghsRate
+                    ).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                )}
               </div>
 
               {/* Availability loading indicator */}

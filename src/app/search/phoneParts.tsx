@@ -79,7 +79,7 @@ export function PhoneBar({ filters, setFilters, showFilters, toggleFilters, warm
   )
 }
 
-export type PhoneCardTextProps = { listing: ApiListing; filters: SearchFilters; dated: boolean; rate: number }
+export type PhoneCardTextProps = { listing: ApiListing; filters: SearchFilters; dated: boolean; rate: number | null }
 
 /** A phone's card text: cedis first, as the listing page writes them, and the stay price for the dates; every
  * line a fixed height (globals.css .search-card-text) */
@@ -96,11 +96,14 @@ export function PhoneCardText({ listing: l, filters, dated, rate }: PhoneCardTex
       </span>
       <span className="search-card-line">{[l.neighbourhood, l.city].filter(Boolean).join(', ')}</span>
       <span className="search-card-line search-card-price">
-        {price && <><strong>{aboutCedis(price.usd, rate)}</strong> <span className="search-card-unit">{price.unit}</span> · {formatUsdCompact(price.usd)}</>}
+        {/* No usable rate: dollars only */}
+        {price && (rate
+          ? <><strong>{aboutCedis(price.usd, rate)}</strong> <span className="search-card-unit">{price.unit}</span> · {formatUsdCompact(price.usd)}</>
+          : <><strong>{formatUsdCompact(price.usd)}</strong> <span className="search-card-unit">{price.unit}</span></>)}
       </span>
       {dated && (
         <span className="search-card-line search-card-stay">
-          {stay && <>{aboutCedis(stay.usd, rate)} for {stay.units} {stay.units === 1 ? stay.unit : `${stay.unit}s`} · {formatUsdCompact(stay.usd)}</>}
+          {stay && <>{rate ? aboutCedis(stay.usd, rate) : formatUsdCompact(stay.usd)} for {stay.units} {stay.units === 1 ? stay.unit : `${stay.unit}s`}{rate ? ` · ${formatUsdCompact(stay.usd)}` : ''}</>}
         </span>
       )}
       <span className="search-card-badge">{l.check && <CheckedBadge check={l.check} />}</span>

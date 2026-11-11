@@ -454,7 +454,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                                 wraps between them, never inside one */}
                               <span>
                                 <span className="max-md:whitespace-nowrap">{formatUsd(rent.amount)}</span>
-                                <span className="font-normal text-xs text-[#736D62] ml-1 max-md:ml-0"><span className="md:hidden"> · </span><span className="max-md:whitespace-nowrap">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span></span>
+                                {ghsRate && <span className="font-normal text-xs text-[#736D62] ml-1 max-md:ml-0"><span className="md:hidden"> · </span><span className="max-md:whitespace-nowrap">About GH₵ {(rent.amount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span></span>}
                               </span>
                             </p>
                           )
@@ -465,7 +465,7 @@ export function GuestDashboardClient({ initial = null }: { initial?: GuestDashbo
                                 wraps between them, never inside one */}
                             <span>
                               <span className="max-md:whitespace-nowrap">{formatUsd(b.totalPrice)}</span>
-                              <span className="font-normal text-xs text-[#736D62] ml-1 max-md:ml-0"><span className="md:hidden"> · </span><span className="max-md:whitespace-nowrap">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span></span>
+                              {ghsRate && <span className="font-normal text-xs text-[#736D62] ml-1 max-md:ml-0"><span className="md:hidden"> · </span><span className="max-md:whitespace-nowrap">About GH₵ {(b.totalPrice * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span></span>}
                             </span>
                           </p>
                         )}

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireAdmin } from '@/lib/roles'
 import { getAutoFetchStatus, manualRateRefusal } from '@/lib/exchangeRate'
+import { rateInForce } from '@/lib/exchangeRateShared'
 import { notify } from '@/lib/messaging/notify'
 import { hostCommission } from '@/lib/disputes'
 import { rentReceived } from '@/lib/rentRules'
@@ -70,7 +71,8 @@ export async function GET(req: Request) {
         getAutoFetchStatus(),
       ])
       return NextResponse.json({
-        rate:            rate?.usdToGhs || 15.5,
+        // The rate in force, as pages and payments use it; null when there is none (dollars only, no payments)
+        rate:            rateInForce(rate, process.env.INITIAL_USD_TO_GHS),
         updatedAt:       rate?.updatedAt ?? null,
         updatedBy:       rate?.updatedBy ?? null,
         autoFetchStatus,

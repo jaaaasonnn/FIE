@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { cached } from '@/lib/shortCache'
+import { rateInForce } from '@/lib/exchangeRateShared'
 
 /**
  * GET /api/exchange-rate — public, unauthenticated read of the current
@@ -14,7 +15,8 @@ export async function GET() {
   // charge never reads it from here: /api/payments reads the database.
   const rate = await cached('exchange-rate', async () => {
     const rateRow = await db.exchangeRate.findFirst({ orderBy: { updatedAt: 'desc' }, select: { usdToGhs: true } })
-    return rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
+    return rateInForce(rateRow, process.env.INITIAL_USD_TO_GHS)
   })
+  // null: there is no usable rate, and pages show dollars only
   return NextResponse.json({ rate })
 }

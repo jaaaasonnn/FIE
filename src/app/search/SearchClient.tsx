@@ -207,11 +207,12 @@ const todayKey = () => new Date().toISOString().slice(0, 10)
  */
 export type SearchInitial = { listings?: ApiListing[]; total?: unknown } | null
 
-function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; rate?: number }) {
+function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; rate?: number | null }) {
   const params = useSearchParams()
   // The rate the server drew the page with, until the browser's own answer has come, so a figure never changes
   const { rate: liveRate, loading: rateLoading } = useExchangeRate()
-  const ghsRate = rateLoading && serverRate ? serverRate : liveRate
+  // (null from the server: there is no usable rate, so dollars only from the first draw)
+  const ghsRate = rateLoading && serverRate !== undefined ? serverRate : liveRate
   // The filters the page starts with, and the list the server found for them
   const [startFilters] = useState(() => startingFilters((key) => params.get(key)))
   const [first] = useState(() => (initial ? shapeResults(initial, startFilters) : null))
@@ -632,9 +633,11 @@ function SearchContent({ initial, rate: serverRate }: { initial: SearchInitial; 
                               About {formatUsdCompact(price / 12)} a month
                             </div>
                           )}
-                          <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
-                            About GH₵ {(price * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                          </div>
+                          {ghsRate && (
+                            <div className="text-[10px] mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                              About GH₵ {(price * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            </div>
+                          )}
                         </div>
                         {(l.host?.isVerified || l.host?.isSuperhost || l.check) && (
                           <div className="flex gap-1 flex-wrap justify-end ml-auto">
@@ -682,7 +685,7 @@ const SCROLL_KEEP_MS = 30 * 60 * 1000
 /** Search cards whose photo is loaded at once: the ones on screen before any scrolling. */
 const EAGER_CARDS = 4
 
-export function SearchClient({ initial = null, rate }: { initial?: SearchInitial; rate?: number }) {
+export function SearchClient({ initial = null, rate }: { initial?: SearchInitial; rate?: number | null }) {
   // (no Suspense boundary of its own: see app/dashboard/host/HostDashboardClient.tsx)
   return <SearchContent initial={initial} rate={rate} />
 }

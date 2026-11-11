@@ -250,10 +250,11 @@ export default function WishlistPage() {
                         {listing.card ? (
                           <>
                             <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>
-                              <strong>{aboutCedis(listing.card.usd, ghsRate)}</strong>{' '}
+                              {/* No usable rate: dollars only */}
+                              <strong>{ghsRate ? aboutCedis(listing.card.usd, ghsRate) : formatUsdCompact(listing.card.usd)}</strong>{' '}
                               <span className="text-xs font-normal text-[#6B645C]">{listing.card.unit}</span>
                             </span>
-                            <div className="text-xs text-[#736D62]">{formatUsdCompact(listing.card.usd)}</div>
+                            {ghsRate && <div className="text-xs text-[#736D62]">{formatUsdCompact(listing.card.usd)}</div>}
                           </>
                         ) : (
                           <span className="font-bold text-sm" style={{ color: 'var(--color-text-primary)' }}>-</span>

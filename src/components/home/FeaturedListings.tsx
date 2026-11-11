@@ -201,7 +201,7 @@ export function FeaturedListings() {
                 const yearly   = l.rentalModes?.length === 1 && l.rentalModes[0] === 'PERMANENT' && l.priceAnnual ? l.priceAnnual : null
                 const price    = yearly ?? l.priceNightly ?? l.priceMonthly ?? 0
                 const unit     = yearly ? 'year' : l.priceNightly ? 'night' : 'month'
-                const ghsPrice = Math.round(price * ghsRate).toLocaleString('en-GH')
+                const ghsPrice = ghsRate ? Math.round(price * ghsRate).toLocaleString('en-GH') : null
                 const photo    = l.photos?.[0] ?? ''
                 const mode     = MODE_LABELS[l.rentalModes?.[0]]
                 const place    = [l.neighbourhood, l.city].filter(Boolean).join(', ')
@@ -262,7 +262,7 @@ export function FeaturedListings() {
                         <p className="text-sm mt-1.5" style={{ color: 'var(--color-text-primary)' }}>
                           <span className="font-bold">{formatUsdCompact(price)}</span> per {unit}
                           <span style={{ color: 'var(--color-text-secondary)' }}>
-                            {yearly ? ` (about ${formatUsdCompact(yearly / 12)} a month)` : ` (about GH₵ ${ghsPrice})`}
+                            {yearly ? ` (about ${formatUsdCompact(yearly / 12)} a month)` : ghsPrice ? ` (about GH₵ ${ghsPrice})` : ''}
                           </span>
                         </p>
                         {l.check && <div className="mt-2"><CheckedBadge check={l.check} /></div>}

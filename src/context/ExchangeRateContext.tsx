@@ -3,9 +3,11 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { GHS_RATE } from '@/lib/utils'
 import { fetchRetry } from '@/lib/clientFetch'
+import { usableRate } from '@/lib/exchangeRateShared'
 
 type ExchangeRateContextType = {
-  rate:    number
+  /** Null once the server has said there is no usable rate: pages then show dollars only, with no cedi line */
+  rate:    number | null
   loading: boolean
 }
 
@@ -15,13 +17,14 @@ type ExchangeRateContextType = {
 const ExchangeRateContext = createContext<ExchangeRateContextType>({ rate: GHS_RATE, loading: true })
 
 export function ExchangeRateProvider({ children }: { children: ReactNode }) {
-  const [rate,    setRate]    = useState(GHS_RATE)
+  const [rate,    setRate]    = useState<number | null>(GHS_RATE)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchRetry('/api/exchange-rate')
-      .then((r) => r.json())
-      .then((data) => { if (typeof data.rate === 'number' && data.rate > 0) setRate(data.rate) })
+      .then(async (r) => ({ ok: r.ok, data: await r.json() }))
+      // An answer from the server decides; a failed request keeps the GHS_RATE fallback, as before
+      .then(({ ok, data }) => { if (ok && data && 'rate' in data) setRate(usableRate(data.rate)) })
       .catch(() => { /* keep the GHS_RATE fallback */ })
       .finally(() => setLoading(false))
   }, [])

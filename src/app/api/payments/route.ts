@@ -13,6 +13,8 @@ import { awaitPage, claimPaymentSlot, closeOpenPayment, reusable } from '@/lib/o
 import { fetchCharge, settlePayment } from '@/lib/paymentSettle'
 import { OutboundTimeoutError, PAYSTACK_NOT_ANSWERING, READ_TIMEOUT_MS, sendOnce } from '@/lib/outbound'
 import { HOME_NO_LONGER_AVAILABLE, HOME_UNAVAILABLE, homeUnavailable } from '@/lib/homeAvailability'
+import { NO_EXCHANGE_RATE, NO_RATE_TO_CHARGE, rateInForce } from '@/lib/exchangeRateShared'
+import { reportNoRate } from '@/lib/noRateAlert'
 
 /** What the guest is told when Paystack could not be asked to start the payment. Paystack's own wording stays in the server log. */
 const PAYMENT_NOT_STARTED = 'The payment could not be started. Please try again in a moment.'
@@ -220,8 +222,13 @@ export async function POST(req: Request) {
       )
     }
 
-    // Convert USD → GHS (Paystack Ghana settles in GHS / pesewas)
-    const usdToGhs = rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)
+    // Convert USD → GHS (Paystack Ghana settles in GHS / pesewas). With no usable rate nothing is started and
+    // nothing is written: the guest is told, and Sentry once (lib/noRateAlert.ts)
+    const usdToGhs = rateInForce(rateRow, process.env.INITIAL_USD_TO_GHS)
+    if (usdToGhs === null) {
+      reportNoRate(bookingId, instalment?.id ?? null)
+      return NextResponse.json({ error: NO_RATE_TO_CHARGE, code: NO_EXCHANGE_RATE }, { status: 503 })
+    }
     const amountGhs = amountUsd * usdToGhs
     const amountPesewas = Math.round(amountGhs * 100)
 

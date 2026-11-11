@@ -24,19 +24,20 @@ const CHIPS: { href: string; label: string; icon: typeof Search }[] = [
   { href: '/search?checked=true', label: CHECK_CHIP_LABEL, icon: ClipboardCheck },
 ]
 
-function Price({ price, rate }: { price: CardPrice | null; rate: number }) {
+function Price({ price, rate }: { price: CardPrice | null; rate: number | null }) {
   if (!price) return <><p className="explore-card-line explore-card-price">&nbsp;</p><p className="explore-card-line">&nbsp;</p></>
   return (
     <>
       <p className="explore-card-line explore-card-price">
-        <strong>{aboutCedis(price.usd, rate)}</strong> <span className="explore-card-unit">{price.unit}</span>
+        {/* No usable rate: dollars only, the line under it kept empty so the card keeps its height */}
+        <strong>{rate ? aboutCedis(price.usd, rate) : formatUsdCompact(price.usd)}</strong> <span className="explore-card-unit">{price.unit}</span>
       </p>
-      <p className="explore-card-line explore-card-usd">{formatUsdCompact(price.usd)}</p>
+      <p className="explore-card-line explore-card-usd">{rate ? formatUsdCompact(price.usd) : '\u00a0'}</p>
     </>
   )
 }
 
-function Card({ home, rate, first }: { home: ExploreCard; rate: number; first: boolean }) {
+function Card({ home, rate, first }: { home: ExploreCard; rate: number | null; first: boolean }) {
   const place = [home.neighbourhood, home.city].filter(Boolean).join(', ')
   if (first) {
     // The first photo on a phone is the largest thing on its first screen: asked for at once, on phones only (a
@@ -73,7 +74,7 @@ function Card({ home, rate, first }: { home: ExploreCard; rate: number; first: b
   )
 }
 
-function Row({ row, index, rate }: { row: ExploreRow; index: number; rate: number }) {
+function Row({ row, index, rate }: { row: ExploreRow; index: number; rate: number | null }) {
   const id = `explore-row-${index}`
   const title = row.kind === 'city' ? `Homes in ${row.city}` : 'More homes on FieGH'
   const all = row.kind === 'city' ? `/search?q=${encodeURIComponent(row.city)}` : '/search'

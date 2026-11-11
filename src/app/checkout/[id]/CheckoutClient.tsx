@@ -636,7 +636,7 @@ function CheckoutPageInner({ initial }: { initial: CheckoutInitial }) {
                       <span>Total due now</span><span>{formatUsd(payAmount)}</span>
                     </div>
                     <p className="text-xs mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                      About GH₵ {(payAmount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}. Charged in cedis at today&apos;s rate. Due {dayText(rent.dueDate)}.
+                      {ghsRate && <>About GH₵ {(payAmount * ghsRate).toLocaleString('en-US', { maximumFractionDigits: 0 })}. Charged in cedis at today&apos;s rate. </>}Due {dayText(rent.dueDate)}.
                     </p>
                   </div>
                 ) : (

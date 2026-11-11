@@ -4496,5 +4496,93 @@
   "test": "switched off, on hold, or its host suspended: 200 as before",
   "e2e": true,
   "project": "chromium"
+ },
+ {
+  "what": "No usable rate: Explore's server-drawn cards show dollars only, never \"GH₵ NaN\"",
+  "edits": [
+   {
+    "file": "src/components/home/ExplorePhone.tsx",
+    "find": "{rate ? aboutCedis(price.usd, rate) : formatUsdCompact(price.usd)}",
+    "replace": "{aboutCedis(price.usd, rate ?? Number.NaN)}"
+   }
+  ],
+  "testFile": "e2e/tests/chaos/no-rate.spec.ts",
+  "test": "every page shows dollars only, never NaN",
+  "e2e": true,
+  "project": "chaos"
+ },
+ {
+  "what": "No usable rate: the pages' shared rate becomes null when the server says there is none (dollars only), not the 15.5 it starts with",
+  "edits": [
+   {
+    "file": "src/context/ExchangeRateContext.tsx",
+    "find": "setRate(usableRate(data.rate))",
+    "replace": "{ const r = usableRate(data.rate); if (r) setRate(r) }"
+   }
+  ],
+  "testFile": "e2e/tests/chaos/no-rate.spec.ts",
+  "test": "every page shows dollars only, never NaN",
+  "e2e": true,
+  "project": "chaos"
+ },
+ {
+  "what": "No usable rate: POST /api/payments refuses before anything is written or Paystack is asked",
+  "edits": [
+   {
+    "file": "src/app/api/payments/route.ts",
+    "find": "    if (usdToGhs === null) {\n      reportNoRate",
+    "replace": "    if (usdToGhs === undefined) {\n      reportNoRate"
+   }
+  ],
+  "testFile": "src/lib/rentInstalments.test.ts",
+  "test": "starts no payment: refused with a clear message"
+ },
+ {
+  "what": "No usable rate: one Sentry alert per process, not one per guest",
+  "edits": [
+   {
+    "file": "src/lib/noRateAlert.ts",
+    "find": "  if (reported) return\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/rentInstalments.test.ts",
+  "test": "starts no payment: refused with a clear message"
+ },
+ {
+  "what": "INITIAL_USD_TO_GHS is read only as a plain decimal number above zero",
+  "edits": [
+   {
+    "file": "src/lib/exchangeRateShared.ts",
+    "find": "return /^\\d+(\\.\\d+)?$/.test(text) ? usableRate(Number(text)) : null",
+    "replace": "return usableRate(Number(text))"
+   }
+  ],
+  "testFile": "src/lib/exchangeRateShared.test.ts",
+  "test": "is null when missing, empty, placeholder text"
+ },
+ {
+  "what": "A stored rate that is not usable is never swapped for INITIAL_USD_TO_GHS",
+  "edits": [
+   {
+    "file": "src/lib/exchangeRateShared.ts",
+    "find": "return stored ? usableRate(stored.usdToGhs) : envRate(raw)",
+    "replace": "return usableRate(stored?.usdToGhs) ?? envRate(raw)"
+   }
+  ],
+  "testFile": "src/lib/exchangeRateShared.test.ts",
+  "test": "never swaps a stored rate that is not usable"
+ },
+ {
+  "what": "INITIAL_USD_TO_GHS is read only through envRate or rateInForce (a bare Number() is how GH₵ NaN reached the pages)",
+  "edits": [
+   {
+    "file": "src/lib/explore.ts",
+    "find": "return rateInForce(rateRow, process.env.INITIAL_USD_TO_GHS)",
+    "replace": "return rateRow?.usdToGhs ?? Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)"
+   }
+  ],
+  "testFile": "src/lib/exchangeRateShared.test.ts",
+  "test": "reads INITIAL_USD_TO_GHS only through envRate or rateInForce"
  }
 ]
