@@ -7,7 +7,7 @@ import { useParams, useRouter } from 'next/navigation'
 import {
   Star, MapPin, Bed, Bath, Users, Wifi, Shield, Zap, Wind, Car, Camera,
   Share2, Heart, Flag, ChevronLeft, ChevronRight, CheckCircle, Loader2,
-  AlertCircle, Home, X,
+  AlertCircle, X,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
 import { calculateFees, formatUsd } from '@/lib/utils'
@@ -23,7 +23,7 @@ import { CancellationPolicy, heldNote } from '@/components/booking/CancellationP
 import Link from 'next/link'
 import Image from 'next/image'
 import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { ListingNotFound } from './ListingNotFound'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
 import { LazyDatePicker } from '@/components/ui/LazyDatePicker'
 import { useAuth, type AuthUser } from '@/context/AuthContext'
@@ -276,20 +276,8 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
     return <LoadFailed onRetry={() => { setLoadFailed(false); setLoadedId(null); setLoadTry((n) => n + 1) }} />
   }
 
-  if (notFound || !listing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--color-bg)' }}>
-        <div className="text-center">
-<div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-accent-subtle)', color: 'var(--color-accent-deep)' }}>
-            <Home size={26} strokeWidth={1.75} aria-hidden />
-          </div>
-          <h2 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>Listing not found</h2>
-          <p className="mb-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>This listing may have been removed or is no longer active.</p>
-          <Button onClick={() => router.push('/search')}>Browse all listings</Button>
-        </div>
-      </div>
-    )
-  }
+  if (notFound || !listing) return <ListingNotFound />
+
 
   // Hosts cannot book their own home; they get a link to manage it instead
   const isOwner = !!user && user.id === listing.host.id

@@ -4468,5 +4468,33 @@
   "test": "messages: the tab is marked and a placeholder",
   "e2e": true,
   "project": "chromium"
+ },
+ {
+  "what": "AS22: a listing id that does not exist at all answers HTTP 404",
+  "edits": [
+   {
+    "file": "src/app/listings/[id]/page.tsx",
+    "find": "  if (!listing && !(await listingExists(id))) notFound()\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/listing-404.spec.ts",
+  "test": "no such listing: HTTP 404",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "AS22: only a listing that does not exist is a 404; one that is switched off, on hold or its host suspended answers as before and its host, an admin and a guest who booked it see it",
+  "edits": [
+   {
+    "file": "src/app/listings/[id]/page.tsx",
+    "find": "  if (!listing && !(await listingExists(id))) notFound()",
+    "replace": "  if (!listing) notFound()"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/listing-404.spec.ts",
+  "test": "switched off, on hold, or its host suspended: 200 as before",
+  "e2e": true,
+  "project": "chromium"
  }
 ]
