@@ -63,8 +63,10 @@ E2E_STAGE4_SHOTS=<label> [E2E_STAGE4_BASE=<label>] node e2e/run.mjs test --proje
   with `--app=<address>` (`lib/installedApp.ts`). There `display-mode` is really `standalone`, on every page it goes to.
   Nothing is installed: installing through the browser (CDP `PWA.install`) writes an app to `~/Applications` on the Mac.
   Phone emulation (`isMobile`) is not used there: with it the app window opens blank.
-- The app window is its own browser, outside the test's context: Playwright's trace does not record it (AS23). To see
-  where such a test stalls, log each step with its time. Measure anything that slides in (the map, the sheet) only
+- The app window is its own browser, outside the test's context: Playwright's trace does not record it. To see
+  where such a test stalls, log each step with its time. About one window in 300 stops answering Playwright as it
+  starts (AS23, proven): `installedApp()` gives the start-up 20 s, then ends that Chromium and starts the window again
+  once, logged `[e2e] AS23`. `E2E_AS23_DRILL=1` makes every first start give up at 200 ms, to try the second start. Measure anything that slides in (the map, the sheet) only
   once its animation has finished (`el.getAnimations()`): mid-slide it is far down the screen (proof 341).
 - An iPhone's safe areas: CDP `Emulation.setSafeAreaInsetsOverride` (top 59, bottom 34, `ISLAND`). In a normal tab
   the same insets must change nothing (the rules are under `display-mode: standalone`).
