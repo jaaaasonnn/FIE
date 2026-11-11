@@ -1,5 +1,143 @@
 # End-to-end test report
 
+## app-shell, stage 4: finished (2026-11-11, `75cbaaf`, branch `app-shell-4`, not merged)
+
+Stage 4 is finished: built, proven in emulation, checked by the owner on a real iPhone 17 Pro and a real Android phone
+with Chrome, and the one problem the phones found (AS25, a tap on a bottom-bar tab showed nothing for a second or two)
+fixed and proven. **Not merged**: `main` is still at `dfc51fa`.
+
+### The final verification
+
+Run on `75cbaaf` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium
+run), under `caffeinate -dims` on mains power, `next dev` off. Each suite in its own folder, `e2e/.reports/s4-final/`
+(`done.txt` has one line per suite with its exit code, the commit and the time). Contention alone. Nothing was re-run
+inside the set. The owner's uncommitted `AGENTS.md` was stashed under its own name for the proofs only and popped
+afterwards; its SHA-256 before and after are in `agents-before.txt` and `agents-after.txt`, and `stash.txt` ends with
+the byte-for-byte check. (AGENTS.md has been committed twice in the repository's history, both long before stage 4 and
+both Next's own generated block (`384e0a0`, `0240b77`); the owner's heading change was never committed.)
+
+| Check | Result |
+|---|---|
+| Lint, type check | pass (0 errors, 38 warnings, none new) |
+| `npm run test:tz` | 1718 of 1718 in each of the six zones |
+| Proof runner's own test | 4 of 4 |
+| Money rules | clean before and after (2 of 2 each time) |
+| Chromium suite, races at 50, run 1 | **282 passed**, 46 skipped, 0 failed, **0 flaky** |
+| Chromium suite, races at 50, run 2 (fresh stack) | **282 passed**, 46 skipped, 0 failed, **0 flaky** |
+| Contention, alone | **5 passed** (realistic: 300 of 300 booked, nobody told busy; stress: nothing booked twice, 6% and 39% busy) |
+| Chaos | **17 passed** |
+| Other five set-ups (Firefox, WebKit, tablet, iPhone, Android) | **430 passed**, 160 skipped, 0 failed, **0 flaky** |
+| `installed-app.spec.ts` x 100 (AS23), no retries | 1,297 passed, **3 timed out** (AS23, below) -> after the harness fix **1,300 of 1,300** (2 stalls recovered, `installed-app-x100-final`) |
+| `tab-tap.spec.ts` x 20 in Chromium, iPhone and Android, no retries | 437 passed, **3 failed** (Messages, Chromium; AS27, below) -> after the test waits for every answer, with Messages marked `test.fail('AS27')` in Chromium and Android: **440 of 440 as expected**: 400 passed, and the 40 Messages runs in Chromium and Android failed as marked, every one for the AS27 shift (`tab-tap-x20-final`) |
+| Removal proofs | **all 350 hold** (`proofs.log`: 350 held, 0 did not; git status clean at the end) |
+
+So the set as run had 6 failures outside the suites, all in the repeats, each proven before anything changed (below), and both changes are in the tests only. No AS19 retry was logged anywhere in the set. None of the AS18 items failed. The 46 skipped in Chromium are the
+picture and measurement specs that run only when asked (shots, `tab-timing`), and the tests for other set-ups.
+
+### Bundle, exact
+
+`e2e/.reports/s4-final/bundle-exact.txt`, and file by file against the stage 4 full set in `bundle-vs-s4-full.txt`.
+
+| Page | Phone (limit 350 KB) | Desktop |
+|---|---|---|
+| Home | 250.627 -> 253.042 KB | 244.244 -> 244.242 KB |
+| Search | 212.148 -> **214.563 KB** | 649.098 -> **649.096 KB** (limit 650) |
+| Listing | 225.654 -> 228.069 KB | 219.271 -> 219.270 KB |
+| Checkout | 208.544 -> 210.959 KB | 202.161 -> 202.159 KB |
+| Guest dashboard | 226.821 -> 229.236 KB | 220.438 -> 220.437 KB |
+| Host dashboard | 222.031 -> 224.446 KB | 215.648 -> 215.646 KB |
+| Admin | 214.349 -> 216.764 KB | 207.966 -> 207.964 KB |
+
+- Phones: +2.415 KB on every page, all of it `bar.js` (1.189 -> 3.606 KB: the tab taps, AS25). Largest 253.042 KB.
+- Desktop: the same files as the stage 4 full set except the one carrying the commit hash as Sentry's release (AS21),
+  2 bytes smaller at `75cbaaf`. No new script on a desktop.
+- Layout shift 0, accessibility 0 (no baseline), text fit at 320, 360, 390 and 430 px, in both Chromium runs and the
+  phone set-ups; the tab placeholders also pass the phone fit check at those widths.
+
+### What the repeats found, proven before anything changed
+
+Two reruns in between, with my first attempts, are in the same folder and count against the work, not the app:
+`installed-app-x100-after` 1,299 of 1,300 (the "Tracing has been already started" failure of the first AS23 fix, below);
+`tab-tap-x20-after` 400 passed, 40 failed, every one Messages in Chromium and Android, where my new wait never ended
+(a redirect hop and the mark-read answer, whose body the inbox never reads, were counted as still open). Both fixed in
+the tests, then the `-final` runs.
+
+**AS23: an app window that stops answering Playwright at start-up (cause proven, fixed in the harness).** The three
+timeouts left their profiles behind; Chromium's own history in each (and in the two from 2026-11-07) holds one visit,
+the first `/offline.html`, never the test's next page. A probe timing every step of `installedApp()` over 600 windows:
+2 stuck in `launchPersistentContext` (normally 0.6 s, at most 1.2 s), Chromium already showing the page; Playwright's
+launch `timeout` did not end it. With the trace off (1,200 windows) 8 stuck, 6 in `setExtraHTTPHeaders` and 2 in the
+launch: the first DevTools calls after the window starts, whichever they are. It is not tracing (that was my first
+guess; it was wrong) and not the app (no request of the test's had been made). A first fix that bounded only the
+launch left the stuck window known to the runner, and the next test failed with "Tracing has been already started" (1
+of 1,300). The fix (`startApp`, `e2e/lib/installedApp.ts`): the whole start-up has 20 s; then that Chromium is ended by
+its profile folder, its start-up let fail, and the window started again once, logged `[e2e] AS23`. Drill
+(`E2E_AS23_DRILL=1`, every first start gives up at 200 ms): 40 of 40. The real helper, 1,200 windows: 1,200 passed, 4
+stalls recovered. Why Chromium's `--app` window stops answering is not known.
+
+**AS27: the inbox marks its first conversation read by itself, and its row moves (cause proven, recorded, not
+changed).** The three tab-tap failures were all Messages in Chromium, layout shift 0.0002 on the inbox's time label. The
+inbox selects its first conversation when it loads and marks it read; when that answer comes, the unread count beside
+the row goes and the label moves 32 px (probe: x 252 -> 284). On a phone the thread is not shown, so opening Messages
+marks the newest conversation read unseen. Separately the 8 s poll's "Just now" -> "1m ago" moves the right-aligned
+words 11.9 px. All older than this branch (`19f6ebb`). The test raced the answer (3 of 20); it now waits for every
+answer (the mark-read's body is never read, so a request counts as done when its answer arrives), and fails every run
+for exactly this reason in Chromium and Android, marked `test.fail('AS27')`. Options for the owner in FINDINGS.
+
+### AS25: a tap on a bottom-bar tab (found on the real phones, fixed)
+
+Measured first on the contention lane at 5-15 ms from the database (`e2e/load/results/tab-timing-before.md` and
+`-after.md`): tap to page Trips 274 ms (its server answer 196 ms, about 18 database round trips one after another),
+Profile 117, Messages 147 (a redirect, then the inbox: AS26), Wishlists 52, Explore 56. The slowest step was Trips'
+server render: a session read, then six reads that each checked the session again before reading their data. Locally
+no tab is near a second; on the phones the rest is the network and the preview's servers. Nothing on screen changed
+during the wait: there is no `loading.tsx`, so Next keeps the old page until the server's whole answer is in.
+
+What changed (`dbca6fb`, `a204723`; proofs 345-350):
+- `public/bar.js` (phones only, once React has the page): the tapped tab is marked at once and its placeholder drawn
+  over the old page in the new page's shape, until the new address is in place; a second tap on the tab being opened
+  does nothing (before: three taps, three requests to the server). Explore's placeholder takes the header's place at
+  the tap. Not `loading.tsx`: it would stream its fallback on every full load, against the server-first rule.
+- One session read per page drawn (React's `cache` on `getUserFromToken`; route handlers unchanged): Trips 274 -> 191
+  ms tap to page, 203 -> 140 ms full load, 18 -> 10 round trips one after another. Same data.
+- Guard: `tests/journeys/tab-tap.spec.ts`, every move and API answer 1.5 s late with prefetches refused: marked and a
+  placeholder on screen within 150 ms at 390 px in Chromium, iPhone and Android, layout shift 0 (WebKit reports none),
+  the placeholders' titles where the pages' are, the second tap one move, and the phone fit check.
+- Not yet checked on the real phones. The Vercel preview of `75cbaaf` built ("success", 2026-11-11), so it is there.
+
+### What was proven in emulation
+
+Chromium app window (`--app`, `display-mode: standalone` really matching), the iPhone and Android set-ups:
+- the manifest and icons, pixel by pixel; Chromium's own install check passing;
+- the top of the screen in the app (header, search bar, the header's strip, the map's top bar, Explore, the sheet)
+  clear of a 59 px status bar, zero layout shift and the fit at 320-430 px, and a browser tab exactly as on `main`
+  (72 pictures, to the pixel);
+- the service worker: only in the app window, only `/offline.html`, offline and back, prices never stale, HTTP errors
+  passed on, other caches deleted;
+- the install hint; no zoom on any field (16 px on phones); the tab taps (AS25).
+
+### What the owner verified on the real phones
+
+**iPhone 17 Pro** (Safari and the installed app), from `e2e/REAL-PHONE-CHECKLIST.md`:
+- the browser pass (step 1), the install (step 2), the top spacing in the app (step 3), edge-swipe back from the
+  left edge (step 4: it goes back, so stage 4b's back arrow is not needed), signing in inside the app (step 5), the
+  offline page (step 7), and a Paystack test payment from the installed app (step 6);
+- the date-zoom fix (`71dc75e`: iOS no longer zooms in when a field takes focus; the cause was found on this phone).
+
+**Android phone with Chrome**: every step of the checklist passed. Found there and on the iPhone: Trips slow to answer
+a tap (AS25), now fixed in emulation.
+
+### Still unverified
+
+- The AS25 fix on either real phone (the preview of `75cbaaf` has it).
+- iPhone: signing out inside the app and "sign out everywhere" (step 8), and uninstalling (step 9); iOS clearing an
+  unused app's storage after a while (only time can show it).
+- AS26 on a real phone: whether Messages still feels slower than the other tabs (one more round trip); AS27 on a
+  phone (the newest conversation marked read on opening Messages).
+- Anything on other phones: one iPhone and one Android phone were checked.
+- Production: the real-phone checks ran on the Vercel preview with its own test database and Paystack test keys; the
+  live site, live payments and the live database were not part of stage 4.
+
 ## app-shell, stage 4: the installed app (2026-11-07, `b79bfb5` then `443c158`, branch `app-shell-4`, not merged)
 
 Run on `b79bfb5` from a clean stack (`down`, `.next` removed, `up --build`, and again before the second Chromium
