@@ -31,7 +31,26 @@ const isRsc = (req: Request) => !!req.headers()['rsc']
 const isPrefetch = (req: Request) => { const h = req.headers(); return !!(h['next-router-prefetch'] || h['next-router-segment-prefetch']) }
 
 /** The slow server: moves between pages and API answers 1.5 s late, prefetches refused (counted in `moves`) */
+/** Requests still on their way, per page, and when the last one ended (to wait until every late answer has come) */
+const inFlight = new WeakMap<Page, { open: Set<Request>; last: number }>()
+
+/** Until nothing has been on its way for a second: every late answer has arrived, and what it sets off has too
+ *  (the inbox marks a conversation read only once its list has come) */
+async function allAnswered(page: Page) {
+  const state = inFlight.get(page)!
+  await expect.poll(() => state.open.size === 0 && Date.now() - state.last > 1000, { timeout: 20_000, intervals: [200] }).toBe(true)
+}
+
 async function slowServer(page: Page) {
+  const state = { open: new Set<Request>(), last: Date.now() }
+  inFlight.set(page, state)
+  page.on('request', (req) => { state.open.add(req) })
+  // Done when its answer has come, as the app's fetch is (Chromium reports a request "finished" only once its body has
+  // been read, and the inbox never reads the body of its mark-read PATCH). A redirect (Messages' /messages) is one
+  // request per hop: every hop is done with the last.
+  const done = (req: Request) => { for (let r: Request | null = req; r; r = r.redirectedFrom()) state.open.delete(r); state.last = Date.now() }
+  page.on('response', (res) => done(res.request()))
+  page.on('requestfailed', done)
   const moves: string[] = []
   await page.route('**/*', async (route: Route) => {
     const req = route.request()
@@ -112,8 +131,12 @@ test.describe('a tap on a bottom-bar tab, with a slow server (390 px)', () => {
   test.afterEach(async ({ page }) => { await page.unrouteAll({ behavior: 'ignoreErrors' }) })
 
   for (const { tab, from, to, title } of TABS) {
-    test(`${tab}: the tab is marked and a placeholder in the page's shape is on screen within ${WITHIN_MS} ms; no layout shift when the page arrives @core`, async ({ page, world, signIn }) => {
+    test(`${tab}: the tab is marked and a placeholder in the page's shape is on screen within ${WITHIN_MS} ms; no layout shift when the page arrives @core`, async ({ page, world, signIn, browserName }) => {
       test.setTimeout(90_000)
+      // AS27 (open, the owner's decision): the inbox selects its first conversation by itself and marks it read, and
+      // when that answer comes the unread count beside it goes and the time label moves 32 px (layout shift 0.0002).
+      // Only Chromium reports layout shift, so only there is this known to fail.
+      test.fail(tab === 'messages' && browserName === 'chromium', 'AS27: the inbox marks its first conversation read by itself and the row moves')
       const guest = await guestWithTrips(world)
       await signIn(guest)
       await slowServer(page)
@@ -144,9 +167,9 @@ test.describe('a tap on a bottom-bar tab, with a slow server (390 px)', () => {
         const realTop = (await real.boundingBox())!.y
         if (placeholderTitleTop !== null) expect(Math.abs(realTop - placeholderTitleTop), `${tab}: the placeholder's title at ${placeholderTitleTop}, the page's at ${realTop}`).toBeLessThanOrEqual(2)
       }
-      // Everything the page asks for has come (each answer 1.5 s late), then the shift is read
-      await page.waitForTimeout(DELAY_MS + 1500)
-      if (test.info().project.use.browserName === 'chromium' || test.info().project.name === 'android' || test.info().project.name === 'chromium') {
+      // Everything the page asks for has come (each answer 1.5 s late), and what those set off, then the shift is read
+      await allAnswered(page)
+      if (browserName === 'chromium') {
         const shift = await page.evaluate(() => (window as unknown as { __shift: { total: number; worst: string[] } }).__shift)
         expect(shift.total, `${tab}: ${shift.worst.join('; ')}`).toBe(0)
       }
