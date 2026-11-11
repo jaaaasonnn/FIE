@@ -4339,5 +4339,92 @@
   "test": "signed out: home, search and its sheet, a listing with its date picker open, sign-in and sign-up @core",
   "e2e": true,
   "project": "chromium"
+ },
+ {
+  "what": "Bottom-bar taps: the tapped tab is marked at once (public/bar.js, data-going)",
+  "edits": [
+   {
+    "file": "public/bar.js",
+    "find": "    link.setAttribute('data-going', '')\n",
+    "replace": ""
+   },
+   {
+    "file": "public/bar.js",
+    "find": "    document.documentElement.setAttribute('data-tab-going', tab)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/tab-tap.spec.ts",
+  "test": "trips: the tab is marked and a placeholder in the page's shape is on screen within 150 ms; no layout shift when the page arrives @core",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Bottom-bar taps: the tab's placeholder is drawn at once, in the page's shape (public/bar.js, #tab-loading)",
+  "edits": [
+   {
+    "file": "public/bar.js",
+    "find": "    if (PLACEHOLDERS[tab]) {\n",
+    "replace": "    if (false) {\n"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/tab-tap.spec.ts",
+  "test": "trips: the tab is marked and a placeholder in the page's shape is on screen within 150 ms; no layout shift when the page arrives @core",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Bottom-bar taps: a second tap on the tab being opened does nothing (one move to the server, not one per tap)",
+  "edits": [
+   {
+    "file": "public/bar.js",
+    "find": "    if (going === tab) { e.preventDefault(); e.stopPropagation(); return }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/tab-tap.spec.ts",
+  "test": "a second tap on the tab being opened does nothing: one move to the server, one new history entry @core",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Bottom-bar taps: the mark and the placeholder go once the new page is in place (its own bar has the real state)",
+  "edits": [
+   {
+    "file": "public/bar.js",
+    "find": "path = location.pathname; settle(); ask()",
+    "replace": "path = location.pathname; ask()"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/tab-tap.spec.ts",
+  "test": "wishlists: the tab is marked and a placeholder in the page's shape is on screen within 150 ms; no layout shift when the page arrives @core",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "Bottom-bar taps: Explore's placeholder takes the header's place at the tap, so nothing moves when Explore arrives",
+  "edits": [
+   {
+    "file": "public/bar.js",
+    "find": "explore: '<div class=\"explore-phone\">",
+    "replace": "explore: '<div>"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/tab-tap.spec.ts",
+  "test": "explore: the tab is marked and a placeholder in the page's shape is on screen within 150 ms; no layout shift when the page arrives @core",
+  "e2e": true,
+  "project": "chromium"
+ },
+ {
+  "what": "One session read per page drawn: a server-first page and the routes it calls share it (lib/session.ts, React cache)",
+  "edits": [
+   {
+    "file": "src/lib/session.ts",
+    "find": "export const getUserFromToken = cache(readUserFromToken)",
+    "replace": "export const getUserFromToken = readUserFromToken"
+   }
+  ],
+  "testFile": "src/lib/security/sessionOnce.test.ts",
+  "test": "inside one render: the page's check and every route's check share one read, with the same answer"
  }
 ]
