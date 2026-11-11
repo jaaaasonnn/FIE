@@ -685,7 +685,7 @@ input, select, textarea, button {
   mask: url('/logo-mark.png') center / contain no-repeat;
 }
 .bottom-bar-tab[aria-current="page"] .bottom-bar-mark { background-color: var(--color-logo); }
-.bottom-bar-tab[aria-current="page"]::before {
+.bottom-bar-tab:is([aria-current="page"], [data-going])::before {
   content: '';
   position: absolute;
   top: 0;
@@ -695,6 +695,34 @@ input, select, textarea, button {
   border-radius: 0 0 2px 2px;
   background: var(--color-accent);
 }
+/* A tap on a tab (public/bar.js, phones only): the tapped tab looks chosen at once and the page being left no longer
+   does, until the new page's own bar takes over. Colour and weight only, as the page's own tab changes them. */
+.bottom-bar-tab[data-going] { color: var(--color-accent-deep); font-weight: 600; }
+.bottom-bar-tab[data-going] .bottom-bar-mark { background-color: var(--color-logo); }
+.bottom-bar-tab[data-going] svg { stroke-width: 2.25; }
+:root[data-tab-going] .bottom-bar-tab[aria-current="page"] { color: var(--color-text-muted); font-weight: 500; }
+:root[data-tab-going] .bottom-bar-tab[aria-current="page"] .bottom-bar-mark { background-color: currentColor; }
+:root[data-tab-going] .bottom-bar-tab[aria-current="page"] svg { stroke-width: 1.75; }
+:root[data-tab-going] .bottom-bar-tab[aria-current="page"]::before { content: none; }
+/* ...and the page area shows that tab's placeholder, in the new page's shape, over the old page: under the header
+   (z-index 50) and the bar (40), from where the new page's content starts, until the new page is in place */
+.tab-loading { display: none; }
+@media (max-width: 767px) {
+  .tab-loading {
+    display: block;
+    position: fixed;
+    inset: 0 0 var(--bottom-bar-offset);
+    z-index: 39;
+    overflow: hidden;
+    padding-top: var(--site-header-height);
+    background-color: var(--color-bg);
+  }
+}
+@media (max-width: 767px) and (display-mode: standalone) {
+  .tab-loading { padding-top: calc(var(--site-header-height) + env(safe-area-inset-top, 0px)); }
+}
+/* Explore has no header on a phone, and its placeholder takes the header's place (its top pads for the status bar) */
+.tab-loading:has(.explore-phone) { padding-top: 0; }
 .bottom-bar-tab:focus-visible { outline: 2px solid var(--color-accent-deep); outline-offset: -4px; border-radius: 10px; }
 .bottom-bar-icon { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 24px; height: 24px; }
 .bottom-bar-badge {
