@@ -3,6 +3,7 @@ import path from 'path'
 import { test, expect } from '../../lib/test'
 import { ADMIN_TABS, buildSite, type Visitor } from '../../lib/sitemap'
 import { call } from '../../lib/world'
+import { db } from '../../lib/db'
 
 // Every page, as every kind of visitor: it loads, nothing errors in the
 // console, no request fails, and every link on it leads somewhere.
@@ -70,12 +71,17 @@ for (const visitor of ['signed out', 'guest', 'host', 'admin'] as Visitor[]) {
 
     // Every link found, asked for as this visitor
     const broken: string[] = []
+    const gone: string[] = []
     for (const [href, from] of links) {
       const reply = await call('GET', href, undefined, { cookie: who?.cookie ?? null })
       const ok = reply.status === 200 || ([307, 308].includes(reply.status) && !!reply.headers.get('location'))
+      // A home another test made and has since cleaned away was on search when the page was drawn: since AS22 its
+      // link is a real 404, which is right. Broken only if the listing is still there.
+      const listing = /^\/listings\/([^/?]+)$/.exec(href)?.[1]
+      if (!ok && reply.status === 404 && listing && !(await db.listing.findUnique({ where: { id: decodeURIComponent(listing) }, select: { id: true } }))) { gone.push(href); continue }
       if (!ok) broken.push(`${reply.status} ${href} (linked from "${from}")`)
     }
-    report.push({ visitor, linksChecked: links.size, broken })
+    report.push({ visitor, linksChecked: links.size, broken, goneSinceDrawn: gone })
     const dir = path.join(__dirname, '../../.reports'); fs.mkdirSync(dir, { recursive: true })
     fs.writeFileSync(path.join(dir, `crawl-${visitor.replace(' ', '-')}-${test.info().project.name}.json`), JSON.stringify(report, null, 1))
     expect(broken, 'links that lead nowhere').toEqual([])
