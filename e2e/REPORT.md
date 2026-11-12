@@ -1,5 +1,92 @@
 # End-to-end test report
 
+## polish-1 (2026-11-12, branch `polish-1` from `main` at `20d11e6`, not merged)
+
+Four small fixes, one commit each, each with tests and removal proofs (351-362), then the full set.
+
+| Fix | Commit | What changed |
+|---|---|---|
+| AS27, Messages on phones | `2804b1f` | Below 640 px the inbox opens no conversation by itself: nothing is marked read and the bar's badge does not drop until one is tapped; the row's time label is drawn fresh when its words change. Desktop as before. The tab-tap Messages case runs as a normal test (mark removed). Proofs 351-353. |
+| AS26, Messages tab redirect | `c4a59e4` | Looked at, **not changed**: no small, safe fix (the bar is drawn without knowing the person, Next's Link moves to the `href` it was drawn with, and every alternative adds script to desktop or touches sign-in and roles). Reasoning in FINDINGS. |
+| AS22, missing listing answered 200 | `2a5db30` | An id no listing has answers **404** with the same "Listing not found" (drawn by the browser: no Suspense boundary on these pages, so Next sends its error document for `notFound()`; status and `noindex` are in the answer). A listing that exists but is not shown (switched off, on hold, host suspended) is unchanged: 200, so its host, an admin and a guest who booked it still see it. Proofs 354-355. |
+| AS29, never "NaN" | `a272e86` | With no usable rate, every page shows dollars only, admin says "Not set", and `POST /api/payments` refuses before anything is written or Paystack is asked (one Sentry alert per process, IDs only). No sum changed. Proofs 356-362. |
+| AS30, crawl test | `9d40680` | Test only, cause proven (below). |
+
+### The rate review (fix 4), place by place, before anything changed
+
+With no stored rate, as the code read before `a272e86` (`Number(process.env.INITIAL_USD_TO_GHS ?? 15.5)`):
+
+| Place | Env missing | Env empty | Env placeholder text (the preview) | Env 0 or negative |
+|---|---|---|---|---|
+| Explore cards (server) | 15.5, made up | "About GH₵ 0" | **"About GH₵ NaN"** | "GH₵ 0" / negative |
+| Search cards, phone and desktop | 15.5 | 15.5 | 15.5 | negative while loading, then 15.5 |
+| Listing, checkout (and rent line), Trips, booking page, payments, wishlist, desktop Featured (the pages' shared rate) | 15.5 | 15.5 | 15.5, made up (`/api/exchange-rate` said `null`, which was ignored) | 15.5 |
+| Admin | "GH₵ 15.5" shown as the rate whatever was set | | | |
+| Starting a payment | **charged at 15.5** | refused "Amount too small" | carried on: NaN pesewas (written as null), Paystack sent `amount: NaN` | refused "Amount too small" |
+| Payouts, refunds, disputes, deposit cover, host dashboard and payouts page | never read a rate: each payment's stored pesewas | | | |
+| Emails and SMS | stored rate only: dollars only with none | | | |
+
+After: one rule in `lib/exchangeRateShared.ts`; every place above shows dollars only, never NaN; payments refuse
+(503 `NO_EXCHANGE_RATE`). Left as it was: the pages' shared rate starts at its provisional 15.5 while its answer is on
+its way, so with no rate a page drawn in the browser can show a cedi line for a moment (Explore and search never do).
+
+### The full set
+
+`e2e/.reports/p1-final/` on `a272e86` (the four fixes), then `e2e/.reports/p1-final-2/` on `9d40680` (after the
+crawl test fix), each from a clean stack (`down`, `.next` removed, `up --build`, again before Chromium run 2), under
+`caffeinate -dims` on mains power, `next dev` off, each suite in its own folder, `done.txt` one line per suite. The
+owner's `AGENTS.md` was stashed under its own name for the proofs only; SHA-256 the same before and after
+(`agents-*.txt`, `stash.txt`).
+
+| Check | `p1-final` (`a272e86`) | `p1-final-2` (`9d40680`) |
+|---|---|---|
+| Lint, type check | pass (0 errors, 38 warnings, none new) | pass (same) |
+| `npm run test:tz` | 1729 of 1729 in each of the six zones | 1729 of 1729 in each |
+| Proof runner's own test | 4 of 4 | 4 of 4 |
+| Money rules | clean before and after | clean before and after |
+| Chromium, races at 50, run 1 | 286 passed, **1 failed** (crawl, signed out: AS30) | **287 passed**, 0 failed, 0 flaky |
+| Chromium, races at 50, run 2 (fresh stack) | 286 passed, **1 failed** (the same) | 286 passed, **1 flaky** (AS31, below), 0 failed |
+| Contention, alone | 5 passed | 5 passed (realistic: 100 and 200 booked, 0 busy; stress: 7% busy, nothing booked twice) |
+| Chaos | 18 passed (17 and the new no-rate test) | 18 passed |
+| Other five set-ups | 450 passed, **5 failed** (crawl, signed out, each: AS30) | **455 passed**, 0 failed, 0 flaky |
+| Removal proofs | **all 362 hold** | not run again: the only change is `crawl.spec.ts`, which no proof names |
+
+No AS19 retry was logged in either set.
+
+**AS30 (proven, fixed in the test).** After AS22 the signed-out crawl failed in every set-up on 404s for listing
+links it collected from search. Each such listing was made by another test seconds before or during the crawl and
+was gone when the crawl checked its links at the end (cuid times against the crawl's start; retries hit different
+ids). Alone: 5 of 5 passed (`crawl-alone`); beside explore, search-sheet and hearts: 3 of 3 failed (`crawl-beside`);
+with the fix: 30 of 30 (`crawl-beside-fixed`). A 404 on a listing link is now broken only while the listing exists.
+
+**AS31 (not proven, nothing changed).** `races/bookings.spec.ts:204` ("the expiry job runs at the moment a late
+payment lands") was flaky once: a round's set-up booking got 409 `DATE_CONFLICT` eight times, then the retry passed.
+The failed try ran across midnight UTC (23:59:10 to 00:00:08). The midnight theory (day offsets in `World.dates()`)
+was checked and ruled out: `dates()` reserves each check-out day, so a one-day shift never reaches a booked night (0
+clashes in 200 fake-clock calls). Not reproduced in 600 rounds alone or in the whole Chromium suite again (287 of 287,
+`as31-suite`), with a probe that would have logged the clash. So the requirement of zero flaky is **not met** for
+`p1-final-2` Chromium run 2; details and the next step in FINDINGS AS31.
+
+### Bundle, exact (`p1-final-2/bundle-exact.txt`, file by file in `bundle-vs-s4-final.txt`)
+
+| Page | Phone (limit 350 KB) | Desktop |
+|---|---|---|
+| Home | 253.042 -> 253.154 KB | 244.242 -> 244.354 KB |
+| Search | 214.563 -> 214.702 KB | 649.096 -> **649.206 KB** (limit 650) |
+| Listing | 228.069 -> 228.937 KB | 219.270 -> 220.137 KB |
+| Checkout | 210.959 -> 211.075 KB | 202.159 -> 202.275 KB |
+| Guest dashboard | 229.236 -> 229.342 KB | 220.437 -> 220.542 KB |
+| Host dashboard | 224.446 -> 224.551 KB | 215.646 -> 215.751 KB |
+| Admin | 216.764 -> 216.949 KB | 207.964 -> 208.149 KB |
+
+- Desktop search: the same 17 files as `s4-final` (renamed by hash), +113 bytes: the chunk carrying the commit hash
+  +105 (AS21), the shared chunk holding the rate context +2, the search page's chunk +6 (the no-rate branch of the
+  card line). No new script file. 0.794 KB of room left.
+- Listing +888 bytes and one more file on both widths: "Listing not found" in its own file (`ListingNotFound.tsx`),
+  shared with the 404 page.
+- Layout shift 0, accessibility 0, text fit at 320/360/390/430 px, field size, tab-tap (Messages now a normal test),
+  installed app and offline: all passed in both Chromium runs and the phone set-ups.
+
 ## app-shell, stage 4: finished (2026-11-11, `75cbaaf`, branch `app-shell-4`, not merged)
 
 Stage 4 is finished: built, proven in emulation, checked by the owner on a real iPhone 17 Pro and a real Android phone
