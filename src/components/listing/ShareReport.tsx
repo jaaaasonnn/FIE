@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Share2, Flag } from 'lucide-react'
 import { showToast } from '@/components/ui/Toaster'
 import { useOnDemand } from '@/lib/useOnDemand'
+import { SUPPORT_EMAIL } from '@/lib/contact'
 
 // The listing page's Share and Report buttons. Share is a few lines here, not fetched on the tap: the phone's share
 // sheet and the clipboard both need the tap itself (Safari refuses them once the page has waited for a download).
@@ -63,7 +64,7 @@ export function ReportButton({ id, title }: { id: string; title: string }) {
         onPointerEnter={() => setWanted(true)} onFocus={() => setWanted(true)} className={BUTTON} style={COLOUR}>
         <Flag size={16} aria-hidden />
       </button>
-      {Dialog && <Dialog open={open} onOpenChange={setOpen} id={id} title={title} returnFocus={flag} />}
+      {Dialog && <Dialog open={open} onOpenChange={setOpen} id={id} title={title} url={listingUrl(id)} to={SUPPORT_EMAIL} returnFocus={flag} />}
     </>
   )
 }

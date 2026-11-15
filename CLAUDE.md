@@ -357,7 +357,7 @@ Owner's decisions (2026-11-07): icons from `icon.png`; iPhone status bar "defaul
 ## Sharing and reporting a listing (branch `tester-fixes-1`)
 
 - **Share** (`src/components/listing/ShareReport.tsx`): the phone's share sheet where the browser has `navigator.share`, otherwise the link is copied and "Link copied" is shown. The address is the home's own (`/listings/<id>`), never the search or dates in the address bar. The share call is in the page's own script, not fetched on the tap: Safari refuses the share sheet and the clipboard once the page has waited for a download.
-- **Report**: the flag opens a dialog (`ReportDialog.tsx`, fetched on the first tap or hover) with a reason (wording in `src/lib/listingReport.ts`, owner-approved), an optional note, and "Email support": a `mailto:` link to `SUPPORT_EMAIL` with the listing id, title, link and reason filled in. Nothing is stored.
+- **Report**: the flag opens the browser's own modal `<dialog>` (`ReportDialog.tsx`, fetched on the first tap or hover; it imports nothing the listing page uses, or the bundler splits the shared code into a file of its own: +2 KB with Radix, +0.94 KB without) with a reason (wording in `src/lib/listingReport.ts`, owner-approved), an optional note, and "Email support": a `mailto:` link to `SUPPORT_EMAIL` with the listing id, title, link and reason filled in. Nothing is stored.
 - **Needed before any app store submission (not built):** a real reports system, a `Report` table and an admin tab, because Apple expects a way to report user content and to act on it. FINDINGS AS36.
 
 ## Key Technical Decisions & Why

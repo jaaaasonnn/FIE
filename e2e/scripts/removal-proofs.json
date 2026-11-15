@@ -4811,13 +4811,14 @@
   "edits": [
    {
     "file": "src/components/listing/ReportDialog.tsx",
-    "find": "          onCloseAutoFocus={(e) => { e.preventDefault(); returnFocus.current?.focus() }}\n",
-    "replace": ""
+    "find": "      onClose={() => { onOpenChange(false); returnFocus.current?.focus() }}",
+    "replace": "      onClose={() => onOpenChange(false)}"
    }
   ],
   "testFile": "e2e/tests/journeys/share-report.spec.ts",
   "test": "Report opens a dialog: a reason, an optional note, and an email to support with the listing filled in @core",
-  "e2e": true
+  "e2e": true,
+  "project": "iphone"
  },
  {
   "n": 397,

@@ -83,7 +83,7 @@ test.describe('Share and Report on a listing (tester-fixes-1)', () => {
     expect(q.get('body')).toContain('Reason: Scam or suspicious')
     expect(q.get('body')).toContain('Asked me to pay outside the app.')
     // Accessible: no axe failures with it open, Escape closes it and the flag has the focus again
-    const axe = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    const axe = await new AxeBuilder({ page }).include('dialog').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([])
     await page.keyboard.press('Escape')
     await expect(dialog).toBeHidden()
