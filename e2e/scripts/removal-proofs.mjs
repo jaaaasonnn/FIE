@@ -19,6 +19,9 @@
 // of vitest; it gets the test file and name as $PROOF_TEST_FILE and $PROOF_TEST, and fails the proof
 // by exiting non-zero).
 //
+// A proof's number is its place in the list, unless it gives its own as "n" (a branch made beside another that also
+// adds proofs takes numbers after the other's, so they do not clash when both are merged). Numbers must be unique.
+//
 // A proof marked "e2e": true names an end-to-end test (e2e/tests/...); "project" names the browser set-up it runs
 // in (default chromium; "android" or "iphone" for a phone-only test). It needs the test stack up: the app
 // is rebuilt from the changed source and the test run in Chromium (e2e/scripts/e2e-proof.mjs), and once the
@@ -85,6 +88,15 @@ process.on('exit', () => { try { restore() } catch {} })
 // --- start-up checks ----------------------------------------------------------------------------
 fs.mkdirSync(outDir, { recursive: true })
 const P = JSON.parse(fs.readFileSync(listFile, 'utf8'))
+const num = (p, i) => (Number.isInteger(p.n) && p.n > 0 ? p.n : i + 1)
+{
+  const seen = new Map()
+  for (const [i, p] of P.entries()) {
+    const n = num(p, i)
+    if (seen.has(n)) { console.error(`Refusing to start: proof number ${n} is used twice (places ${seen.get(n) + 1} and ${i + 1})`); process.exit(2) }
+    seen.set(n, i)
+  }
+}
 
 if (fs.existsSync(journalFile)) {
   const j = JSON.parse(fs.readFileSync(journalFile, 'utf8'))
@@ -100,7 +112,7 @@ for (const [i, { edits }] of P.entries()) {
     const f = path.join(root, file)
     if (!fs.existsSync(f)) continue
     const text = fs.readFileSync(f, 'utf8')
-    if (!text.includes(find) && replace && text.includes(replace)) leftovers.push(`proof ${i + 1} in ${file}`)
+    if (!text.includes(find) && replace && text.includes(replace)) leftovers.push(`proof ${num(P[i], i)} in ${file}`)
   }
 }
 if (leftovers.length) log(`LEFTOVER mutation suspected: ${leftovers.join('; ')}`)
@@ -146,7 +158,7 @@ async function proof(i, { what, edits, testFile, test, e2e, project }) {
   let problem = ''
   let failed = false
   let ran = 0
-  current = { n: i + 1, files: {} }
+  current = { n: num(P[i], i), files: {} }
   try {
     for (const { file } of edits) {
       if (!(file in current.files)) current.files[file] = fs.readFileSync(path.join(root, file), 'utf8')
@@ -189,7 +201,7 @@ async function proof(i, { what, edits, testFile, test, e2e, project }) {
 let held = 0
 let notHeld = 0
 for (const [i, p] of P.entries()) {
-  const n = i + 1
+  const n = num(p, i)
   if (only && !only.includes(n)) continue
   if (done.has(n)) continue
   const result = await proof(i, p)

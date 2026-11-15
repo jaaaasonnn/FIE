@@ -80,3 +80,23 @@ test('refuses to start on a dirty tree, and names a mutation left with no journa
   assert.match(r.stdout, /LEFTOVER mutation suspected: proof 1 in rule.js/)
   assert.match(r.stderr, /Refusing to start: the working tree is not clean/)
 })
+
+test('a proof may carry its own number, and a number used twice is refused', () => {
+  const dir = repo()
+  const list = (ns) => fs.writeFileSync(path.join(dir, 'proofs.json'), JSON.stringify([
+    { what: 'limit', edits: [{ file: 'rule.js', find: '  if (x > 10) return "too big"', replace: '  if (false) return "too big"' }], testFile: 'rule.test.js', test: 'limit' },
+    { n: ns, what: 'limit again', edits: [{ file: 'rule.js', find: '  return null', replace: '  return "x"' }], testFile: 'rule.test.js', test: 'limit again' },
+  ]))
+  const cmd = 'grep -q "if (false)\\|return \\"x\\"" rule.js && exit 1 || exit 0'
+  list(381)
+  const r = spawnSync('node', [runner, '381'], { env: env(dir, cmd), encoding: 'utf8' })
+  assert.equal(r.status, 0, r.stdout + r.stderr)
+  assert.match(r.stdout, /381\. test FAILED as it should/)
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dir, 'out/results.jsonl'), 'utf8').trim()).n, 381)
+  assert.equal(read(dir), ORIGINAL)
+  list(1)
+  const dup = spawnSync('node', [runner], { env: env(dir, cmd), encoding: 'utf8' })
+  assert.equal(dup.status, 2)
+  assert.match(dup.stderr, /proof number 1 is used twice/)
+  assert.ok(clean(dir))
+})
