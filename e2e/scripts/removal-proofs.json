@@ -2014,7 +2014,7 @@
   "edits": [
    {
     "file": "src/app/login/page.tsx",
-    "find": "    mountedWithUser.current = true\n    const result = await signIn(loginId, loginPw)",
+    "find": "    formBusy.current = true\n    const result = await signIn(loginId, loginPw)",
     "replace": "    const result = await signIn(loginId, loginPw)"
    }
   ],

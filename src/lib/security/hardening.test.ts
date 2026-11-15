@@ -354,7 +354,7 @@ describe('logging in from a link that says where to go next', () => {
   it('the form says it will choose the destination before it signs in, so the "already logged in" redirect stands down', () => {
     for (const [name, call] of [['handleLogin', 'await signIn('], ['handleSignup', 'await signUp(']] as const) {
       const body = handler(name)
-      const said = body.indexOf('mountedWithUser.current = true')
+      const said = body.indexOf('formBusy.current = true')
       expect(said, name).toBeGreaterThan(-1)
       expect(said, name).toBeLessThan(body.indexOf(call))
     }
