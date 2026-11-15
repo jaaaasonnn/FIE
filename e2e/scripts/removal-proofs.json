@@ -4748,5 +4748,101 @@
   "testFile": "e2e/tests/layout/phone-fit.spec.ts",
   "test": "a quick second tap is a tap, never the browser's double-tap zoom: touch-action manipulation on buttons and links, phones only @core",
   "e2e": true
+ },
+ {
+  "n": 392,
+  "what": "Share uses the phone's share sheet when navigator.share exists",
+  "edits": [
+   {
+    "file": "src/components/listing/ShareReport.tsx",
+    "find": "    if (typeof navigator.share === 'function') { navigator.share({ title, url }).catch(() => {}); return }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/share-report.spec.ts",
+  "test": "Share opens the phone's share sheet with the home's address @core",
+  "e2e": true
+ },
+ {
+  "n": 393,
+  "what": "Without a share sheet, Share copies the link and says \"Link copied\"",
+  "edits": [
+   {
+    "file": "src/components/listing/ShareReport.tsx",
+    "find": "copy(url).then((done) => { if (done) showToast('Link copied', 'success') })",
+    "replace": "void copy"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/share-report.spec.ts",
+  "test": "without a share sheet, Share copies the link and says \"Link copied\" @core",
+  "e2e": true
+ },
+ {
+  "n": 394,
+  "what": "What is shared is the home's own address, not the search or dates in the address bar",
+  "edits": [
+   {
+    "file": "src/components/listing/ShareReport.tsx",
+    "find": "  return `${window.location.origin}/listings/${encodeURIComponent(id)}`",
+    "replace": "  return window.location.href"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/share-report.spec.ts",
+  "test": "Share opens the phone's share sheet with the home's address @core",
+  "e2e": true
+ },
+ {
+  "n": 395,
+  "what": "The flag opens the Report dialog",
+  "edits": [
+   {
+    "file": "src/components/listing/ShareReport.tsx",
+    "find": "  const press = () => { if (failed) retry(); setWanted(true); setOpen(true) }",
+    "replace": "  const press = () => { if (failed) retry(); setWanted(true) }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/share-report.spec.ts",
+  "test": "Report opens a dialog: a reason, an optional note, and an email to support with the listing filled in @core",
+  "e2e": true
+ },
+ {
+  "n": 396,
+  "what": "Closing the Report dialog gives the focus back to the flag",
+  "edits": [
+   {
+    "file": "src/components/listing/ReportDialog.tsx",
+    "find": "          onCloseAutoFocus={(e) => { e.preventDefault(); returnFocus.current?.focus() }}\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/share-report.spec.ts",
+  "test": "Report opens a dialog: a reason, an optional note, and an email to support with the listing filled in @core",
+  "e2e": true
+ },
+ {
+  "n": 397,
+  "what": "The report email carries the reason",
+  "edits": [
+   {
+    "file": "src/lib/listingReport.ts",
+    "find": "    `Reason: ${line(o.reason)}`,\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "src/lib/listingReport.test.ts",
+  "test": "writes the listing id, title, link and reason into the email, and the note after them"
+ },
+ {
+  "n": 398,
+  "what": "A title or note cannot add fields to the mailto: address (everything is encoded)",
+  "edits": [
+   {
+    "file": "src/lib/listingReport.ts",
+    "find": "  return `mailto:${o.to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`",
+    "replace": "  return `mailto:${o.to}?subject=${subject}&body=${body}`"
+   }
+  ],
+  "testFile": "src/lib/listingReport.test.ts",
+  "test": "encodes everything, so a title cannot add fields to the address"
  }
 ]

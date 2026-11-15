@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   Star, MapPin, Bed, Bath, Users, Wifi, Shield, Zap, Wind, Car, Camera,
-  Share2, Heart, Flag, ChevronLeft, ChevronRight, CheckCircle, Loader2,
+  Heart, ChevronLeft, ChevronRight, CheckCircle, Loader2,
   AlertCircle, X,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
@@ -30,6 +30,7 @@ import { useAuth, type AuthUser } from '@/context/AuthContext'
 import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { HeartButton } from '@/components/listing/HeartButton'
+import { ShareButton, ReportButton } from '@/components/listing/ShareReport'
 import { DIGITAL_ADDRESS_PUBLIC, checkExplanation, type PublicCheck } from '@/lib/listingCheckRules'
 import { formatDay } from '@/lib/dateText'
 
@@ -422,13 +423,13 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
             )}
           </div>
           <div className="flex items-center gap-0 sm:gap-2 flex-shrink-0 max-sm:self-end">
-            <button aria-label="Share this home" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Share2 size={18} aria-hidden /></button>
+            <ShareButton id={listing.id} title={listing.title} />
             {/* The same heart as the cards' (one answer of saved homes per page, the save after logging in), in this
                 row's look */}
             <HeartButton listingId={listing.id} title={listing.title} className="p-2 rounded-full hover:bg-stone-100 transition-all">
               {(saved) => <Heart size={18} aria-hidden className={saved ? 'fill-red-500' : ''} style={{ color: saved ? '#EF4444' : '#6B7280' }} />}
             </HeartButton>
-            <button aria-label="Report this listing" className="p-2 rounded-full hover:bg-stone-100 transition-all" style={{ color: 'var(--color-text-secondary)' }}><Flag size={16} aria-hidden /></button>
+            <ReportButton id={listing.id} title={listing.title} />
           </div>
         </div>
 
