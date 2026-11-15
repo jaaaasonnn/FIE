@@ -6,6 +6,7 @@ import { Logo } from '@/components/ui/Wordmark'
 import Link from 'next/link'
 import { Eye, EyeOff, Loader2, Search, Home } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
+import { showToast } from '@/components/ui/Toaster'
 
 type Tab = 'login' | 'signup'
 
@@ -13,6 +14,23 @@ type Tab = 'login' | 'signup'
 // browsers treat them as protocol-relative URLs to another site.
 function isSafeRedirect(path: string): boolean {
   return path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\')
+}
+
+// "Signed in as ...", said once the form has handed the person on. Kept in this tab's sessionStorage for a minute, so
+// it is still said if signing in loads this page again (Next's refresh after signing in does that when log-in was
+// reached through a protected page's redirect), and said by this page as it is left, wherever it goes.
+const SIGNED_IN_KEY = 'fiegh:signed-in-as'
+function keepSignedIn(who: string) {
+  try { sessionStorage.setItem(SIGNED_IN_KEY, JSON.stringify({ who, at: Date.now() })) } catch { /* not said */ }
+}
+function sayIfSignedIn() {
+  try {
+    const kept = JSON.parse(sessionStorage.getItem(SIGNED_IN_KEY) ?? 'null') as { who?: unknown; at?: unknown } | null
+    sessionStorage.removeItem(SIGNED_IN_KEY)
+    if (kept && typeof kept.who === 'string' && typeof kept.at === 'number' && Date.now() - kept.at < 60_000) {
+      showToast(`Signed in as ${kept.who}`, 'success')
+    }
+  } catch { /* nothing to say */ }
 }
 
 function LoginContent() {
@@ -61,6 +79,9 @@ function LoginContent() {
     router.replace(back ?? (user.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'))
   }, [authLoading, user, router, redirect, moving])
 
+  // Leaving this page (wherever to): say who signed in, if the form here just did it
+  useEffect(() => sayIfSignedIn, [])
+
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   async function handleLogin(e: React.FormEvent) {
@@ -78,6 +99,10 @@ function LoginContent() {
     // For sign-in, honour the redirect param so users land back where they came from.
     // Only follow internal paths to prevent open-redirect.
     const dest = isSafeRedirect(redirect) ? redirect : (result.user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
+    // Said where every page can hear it (the toasts are a status region in the root layout, so it stays on screen
+    // across the move to the next page), as this page is left
+    const who = result.user?.name || result.user?.email || result.user?.phone
+    if (who) keepSignedIn(who)
     startMove(() => router.replace(dest))
     formBusy.current = false
   }

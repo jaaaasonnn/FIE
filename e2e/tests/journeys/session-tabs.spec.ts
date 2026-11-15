@@ -66,6 +66,8 @@ async function logInHere(page: Page, guest: { email: string; password: string; n
   await new AuthPage(page).logIn(guest.email, guest.password)
   await expect(page).toHaveURL(to)
   await expect(page.locator('#login-identifier')).toHaveCount(0)
+  // Who is signed in, said once
+  await expect(page.locator('#toast-root').getByText(`Signed in as ${guest.name}`)).toHaveCount(1)
   await running(page)
   await markLoaded(page)
 }
@@ -156,5 +158,16 @@ test.describe('signing in and out, then the tabs, with no page loads (tester-fix
     await expect(page).toHaveURL(/\/account$/)
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
     await page.unrouteAll({ behavior: 'ignoreErrors' })
+  })
+
+  test('signing in says who you are signed in as, to a screen reader too @core', async ({ page, world }) => {
+    const guest = await world.guest()
+    await page.goto('/login')
+    await page.waitForLoadState('load')
+    await new AuthPage(page).logIn(guest.email, guest.password)
+    await expect(page).toHaveURL(/\/dashboard\/guest$/)
+    const toast = page.locator('#toast-root').getByText(`Signed in as ${guest.name}`)
+    await expect(toast).toBeVisible()
+    await expect(page.locator('#toast-root')).toHaveAttribute('role', 'status')
   })
 })

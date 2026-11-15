@@ -4626,5 +4626,52 @@
   "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
   "test": "a signed-in person who reaches /login right after its form signed them in is sent on @core",
   "e2e": true
+ },
+ {
+  "n": 384,
+  "what": "\"Signed in as {name}\" is said after a form sign-in, even when signing in loads /login again (AS35)",
+  "edits": [
+   {
+    "file": "src/app/login/page.tsx",
+    "find": "    if (who) keepSignedIn(who)",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
+  "test": "signing in says who you are signed in as, to a screen reader too @core",
+  "e2e": true
+ },
+ {
+  "n": 385,
+  "what": "The toasts are a status region, so a screen reader says them",
+  "edits": [
+   {
+    "file": "src/components/ui/Toaster.tsx",
+    "find": "<div id=\"toast-root\" role=\"status\" aria-live=\"polite\" className",
+    "replace": "<div id=\"toast-root\" className"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
+  "test": "signing in says who you are signed in as, to a screen reader too @core",
+  "e2e": true
+ },
+ {
+  "n": 386,
+  "what": "The sign-in toast survives the load of /login that Next's refresh makes after signing in from a tab (AS35): it is said as the page is left, from this tab's sessionStorage",
+  "edits": [
+   {
+    "file": "src/app/login/page.tsx",
+    "find": "  useEffect(() => sayIfSignedIn, [])",
+    "replace": "  useEffect(() => {}, [])"
+   },
+   {
+    "file": "src/app/login/page.tsx",
+    "find": "    if (who) keepSignedIn(who)",
+    "replace": "    if (who) showToast(`Signed in as ${who}`, 'success')"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
+  "test": "sign in from a tab, use every tab, sign out, sign in again, every tab again @core",
+  "e2e": true
  }
 ]
