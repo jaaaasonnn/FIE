@@ -8,6 +8,7 @@ import {
   useCallback,
   type ReactNode,
 } from 'react'
+import { useRouter } from 'next/navigation'
 import { checkSession } from '@/lib/clientFetch'
 import { LoadFailedBar } from '@/components/ui/LoadFailed'
 
@@ -58,6 +59,7 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user,    setUser]    = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   // True when the session check got no answer to go on, even after its tries
   // (lib/clientFetch.ts). The person is then neither signed in nor out:
@@ -97,8 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const data = await res.json()
     if (!res.ok) return { error: data.error ?? 'Sign in failed' }
     setUser(data.user)
+    // Pages the router kept from before signing in (the bottom bar's tabs are prefetched while signed out, and
+    // the server answered those with a move to /login) must not be used now: drop them all. Sign-up signs in
+    // through here too.
+    router.refresh()
     return { user: data.user as AuthUser }
-  }, [])
+  }, [router])
 
   const signUp = useCallback(async (signUpData: SignUpData): Promise<SignUpResult> => {
     const res  = await fetch('/api/auth/signup', {
@@ -118,7 +124,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     await fetch('/api/auth/signout', { method: 'POST' })
     setUser(null)
-  }, [])
+    // The same the other way: pages kept while signed in must not be shown once signed out
+    router.refresh()
+  }, [router])
 
   // Merge a partial update into the current user — used after a successful
   // profile edit so the navbar/session state reflects changes immediately.

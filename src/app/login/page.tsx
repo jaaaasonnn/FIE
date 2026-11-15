@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState, useEffect, useRef } from 'react'
+import { Suspense, useState, useEffect, useRef, useTransition } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Logo } from '@/components/ui/Wordmark'
 import Link from 'next/link'
@@ -24,9 +24,15 @@ function LoginContent() {
   // Lets links land directly on the signup tab (and pre-pick Host), e.g.
   // "Become a Host" CTAs — /login?tab=signup&role=host
   const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'signup' ? 'signup' : 'login')
-  // Track whether the page load found an already-authenticated user
-  // so the useEffect doesn't fight with our post-form navigation
-  const mountedWithUser = useRef(false)
+  // True only while a form here is signing in and choosing where to go next, so the "already signed in" effect
+  // below does not race it. Cleared once the form has sent the person on: if they come back to /login while
+  // signed in (a link, Back, a page the router kept from before), they are sent on again.
+  const formBusy = useRef(false)
+  // The form's move to the next page. If it ends on /login again, even at the very address the form was on (so
+  // nothing here is drawn afresh), the effect below sends the person on once it is over.
+  const [moving, startMove] = useTransition()
+  // At most a few sends from one log-in page, so a server that keeps answering with log-in cannot loop
+  const sends = useRef(0)
 
   // ── Login state ──────────────────────────────────────────────────────────
   const [loginId,  setLoginId]  = useState('')
@@ -45,17 +51,15 @@ function LoginContent() {
   const [signupErr, setSignupErr] = useState('')
   const [signupBusy, setSignupBusy] = useState(false)
 
-  // If the user was ALREADY logged in when this page loaded, redirect away.
-  // We deliberately do NOT use the `redirect` param here for form submissions —
-  // each handler (handleLogin / handleSignup) manages its own destination so
-  // that sign-up always lands on the dashboard, never on a stale redirect URL.
+  // Signed in already: send the person on, to the page they were going to (internal paths only, never back to
+  // /login) or else their dashboard. Runs again whenever the address changes, so it also holds for a person who
+  // signed in with the form here and then lands on /login again.
   useEffect(() => {
-    if (authLoading) return
-    if (user && !mountedWithUser.current) {
-      mountedWithUser.current = true
-      router.replace(user.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
-    }
-  }, [authLoading, user, router])
+    if (authLoading || !user || formBusy.current || moving || sends.current >= 3) return
+    sends.current++
+    const back = isSafeRedirect(redirect) && !/^\/login(?:[/?#]|$)/.test(redirect) ? redirect : null
+    router.replace(back ?? (user.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'))
+  }, [authLoading, user, router, redirect, moving])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -67,14 +71,15 @@ function LoginContent() {
     // This form decides where to go next. Said before signing in, because
     // signing in sets the user, and the "already logged in" effect above
     // would otherwise send them to their dashboard first and win.
-    mountedWithUser.current = true
+    formBusy.current = true
     const result = await signIn(loginId, loginPw)
     setLoginBusy(false)
-    if (result.error) { mountedWithUser.current = false; setLoginErr(result.error); return }
+    if (result.error) { formBusy.current = false; setLoginErr(result.error); return }
     // For sign-in, honour the redirect param so users land back where they came from.
     // Only follow internal paths to prevent open-redirect.
     const dest = isSafeRedirect(redirect) ? redirect : (result.user?.role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
-    router.replace(dest)
+    startMove(() => router.replace(dest))
+    formBusy.current = false
   }
 
   async function handleSignup(e: React.FormEvent) {
@@ -86,13 +91,14 @@ function LoginContent() {
     if (password !== confirmPw) { setSignupErr('Passwords do not match.'); return }
     setSignupBusy(true)
     // As in handleLogin: this form decides where to go next
-    mountedWithUser.current = true
+    formBusy.current = true
     const result = await signUp({ name: name.trim(), email: email.trim(), password, role })
     setSignupBusy(false)
-    if (result.error) { mountedWithUser.current = false; setSignupErr(result.error); return }
+    if (result.error) { formBusy.current = false; setSignupErr(result.error); return }
     // For sign-up, ALWAYS go to the role-based dashboard — never follow the redirect
     // param, because a new user has no prior destination to return to.
-    router.replace(role === 'HOST' ? '/dashboard/host' : '/dashboard/guest')
+    startMove(() => router.replace(role === 'HOST' ? '/dashboard/host' : '/dashboard/guest'))
+    formBusy.current = false
   }
 
   if (authLoading) return <LoginFallback /> // Avoid flashing the form before the session check completes

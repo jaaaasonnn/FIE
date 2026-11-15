@@ -4584,5 +4584,47 @@
   ],
   "testFile": "src/lib/exchangeRateShared.test.ts",
   "test": "reads INITIAL_USD_TO_GHS only through envRate or rateInForce"
+ },
+ {
+  "n": 381,
+  "what": "router.refresh() after signing in drops the pages Next kept from before (the bar's tabs, prefetched while signed out, answered with a move to /login)",
+  "edits": [
+   {
+    "file": "src/context/AuthContext.tsx",
+    "find": "    router.refresh()\n    return { user: data.user as AuthUser }",
+    "replace": "    return { user: data.user as AuthUser }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
+  "test": "sign in from a tab, use every tab, sign out, sign in again, every tab again @core",
+  "e2e": true
+ },
+ {
+  "n": 382,
+  "what": "router.refresh() after signing out drops the pages Next kept while signed in",
+  "edits": [
+   {
+    "file": "src/context/AuthContext.tsx",
+    "find": "    setUser(null)\n    // The same the other way: pages kept while signed in must not be shown once signed out\n    router.refresh()",
+    "replace": "    setUser(null)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
+  "test": "sign in from a tab, use every tab, sign out, sign in again, every tab again @core",
+  "e2e": true
+ },
+ {
+  "n": 383,
+  "what": "/login sends a signed-in person on when the form's own move ends on /login again (at the very address it was on)",
+  "edits": [
+   {
+    "file": "src/app/login/page.tsx",
+    "find": "    startMove(() => router.replace(dest))",
+    "replace": "    router.replace(dest)"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
+  "test": "a signed-in person who reaches /login right after its form signed them in is sent on @core",
+  "e2e": true
  }
 ]
