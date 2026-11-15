@@ -245,16 +245,17 @@ export default function EditListingPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-8 px-4">
-        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4">
-          <div>
+        {/* On a phone the links go under the title and wrap, so the row is never wider than the screen */}
+        <div className="max-w-3xl mx-auto flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
+          <div className="min-w-0 max-md:w-full">
             <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
               Edit Listing
             </h1>
-            <p className="text-sm mt-0.5" style={{ color: 'rgba(250,247,242,0.6)' }}>
+            <p className="text-sm mt-0.5 break-words" style={{ color: 'rgba(250,247,242,0.6)' }}>
               {form.title}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 max-md:flex-wrap">
             <Link href={`/listings/${params.id}`}
               className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-full"
               style={{ backgroundColor: 'rgba(245,192,106,0.2)', color: 'var(--color-accent)', border: '1px solid rgba(245,192,106,0.3)' }}>
@@ -339,10 +340,10 @@ export default function EditListingPage() {
             <div className="space-y-4">
               <Select label="Region" value={form.region} onChange={(e) => setForm({ ...form, region: e.target.value })}
                 options={GHANA_REGIONS.map((r) => ({ value: r, label: r }))} />
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 max-[359px]:grid-cols-1">
                 <Input label="City / Town" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
                 <Input label="Neighbourhood" value={form.neighbourhood} onChange={(e) => setForm({ ...form, neighbourhood: e.target.value })} />
-                <div className="col-span-2">
+                <div className="col-span-2 max-[359px]:col-span-1">
                   <Input label="Ghana Post digital address (optional)" placeholder={`e.g. ${DIGITAL_ADDRESS_EXAMPLE}`} autoCapitalize="characters"
                     value={form.digitalAddress} onChange={(e) => setForm({ ...form, digitalAddress: e.target.value })}
                     error={parseDigitalAddress(form.digitalAddress).ok ? undefined : DIGITAL_ADDRESS_ERROR}
@@ -411,7 +412,7 @@ export default function EditListingPage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {AMENITIES_LIST.map((a) => (
                 <button key={a} type="button" onClick={() => toggleAmenity(a)}
-                  className="flex items-center gap-2 p-2.5 rounded-xl border text-xs text-left transition-all"
+                  className="flex items-center gap-2 p-2.5 rounded-xl border text-xs text-left transition-all max-md:min-w-0 max-md:[overflow-wrap:anywhere]"
                   style={{
                     borderColor:     form.amenities.includes(a) ? 'var(--amber)' : '#E5E7EB',
                     backgroundColor: form.amenities.includes(a) ? '#FFF8EE'      : '#fff',
@@ -437,7 +438,7 @@ export default function EditListingPage() {
                 </div>
                 <button type="button" onClick={() => setForm({ ...form, instantBook: !form.instantBook })}
                   aria-pressed={form.instantBook} aria-label="Instant Book"
-                  className="w-12 h-6 rounded-full transition-all relative"
+                  className="w-12 h-6 rounded-full transition-all relative flex-shrink-0"
                   style={{ backgroundColor: form.instantBook ? 'var(--amber)' : '#D1D5DB' }}>
                   <span className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
                     style={{ left: form.instantBook ? '28px' : '4px' }} />
@@ -452,7 +453,7 @@ export default function EditListingPage() {
                 </div>
                 <button type="button" onClick={() => setForm({ ...form, isActive: !form.isActive })}
                   disabled={onHold} aria-pressed={form.isActive} aria-label="Listing active"
-                  className="w-12 h-6 rounded-full transition-all relative disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-12 h-6 rounded-full transition-all relative flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ backgroundColor: form.isActive ? '#059669' : '#D1D5DB' }}>
                   <span className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
                     style={{ left: form.isActive ? '28px' : '4px' }} />
@@ -461,7 +462,7 @@ export default function EditListingPage() {
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 max-md:flex-wrap">
             <Button type="submit" size="lg" loading={loading} className="flex-1">
               Save Changes
             </Button>

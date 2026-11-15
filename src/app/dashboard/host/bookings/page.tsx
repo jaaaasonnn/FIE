@@ -164,7 +164,7 @@ export default function HostBookingsPage() {
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4 max-md:flex-wrap">
           <div className="flex items-center gap-3">
             <Calendar size={22} style={{ color: 'var(--color-accent)' }} />
             <div>

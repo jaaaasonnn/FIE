@@ -644,6 +644,11 @@ input, select, textarea, button {
   #toast-root, .load-failed-bar { bottom: var(--bottom-bar-offset) !important; }
   #toast-root { margin-bottom: 1rem; }
 }
+/* Phones: a quick second tap on a button or link is two taps, never the browser's double-tap zoom (which also
+   holds every tap back while it waits to see if a second one is coming). Pinch-zoom is untouched. */
+@media (max-width: 767px) {
+  a, button, [role="button"], summary { touch-action: manipulation; }
+}
 .bottom-bar ul {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));

@@ -233,7 +233,7 @@ export default function ListingCalendarPage() {
                   aria-pressed={selected}
                   title={block?.note ?? undefined}
                   onClick={() => pick(key)}
-                  className="focus-ring relative aspect-square rounded-xl text-sm font-semibold flex items-center justify-center disabled:cursor-not-allowed"
+                  className="focus-ring relative aspect-square max-md:w-full rounded-xl text-sm font-semibold flex items-center justify-center disabled:cursor-not-allowed"
                   style={{
                     backgroundColor:
                       state === 'booked' ? 'var(--color-text-primary)'

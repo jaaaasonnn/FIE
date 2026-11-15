@@ -4673,5 +4673,80 @@
   "testFile": "e2e/tests/journeys/session-tabs.spec.ts",
   "test": "sign in from a tab, use every tab, sign out, sign in again, every tab again @core",
   "e2e": true
+ },
+ {
+  "n": 387,
+  "what": "The edit page's header row puts its links under the title on a phone, wrapping, so it is no wider than the screen",
+  "edits": [
+   {
+    "file": "src/app/dashboard/host/listings/[id]/edit/page.tsx",
+    "find": "<div className=\"flex gap-2 max-md:flex-wrap\">\n            <Link href={`/listings/${params.id}`}",
+    "replace": "<div className=\"flex gap-2\">\n            <Link href={`/listings/${params.id}`}"
+   },
+   {
+    "file": "src/app/dashboard/host/listings/[id]/edit/page.tsx",
+    "find": "justify-between gap-4 max-md:flex-col max-md:items-start\">",
+    "replace": "justify-between gap-4\">"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "host pages: dashboard, bookings, payouts, inbox, edit and calendar fit at every phone width @core",
+  "e2e": true
+ },
+ {
+  "n": 388,
+  "what": "The host dashboard's header lets List Property go under the name on a phone (it made the page 371-377 px wide at 320-375)",
+  "edits": [
+   {
+    "file": "src/app/dashboard/host/HostDashboardClient.tsx",
+    "find": "<div className=\"flex items-start justify-between gap-4 max-md:flex-wrap\">",
+    "replace": "<div className=\"flex items-start justify-between gap-4\">"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "host pages: dashboard, bookings, payouts, inbox, edit and calendar fit at every phone width @core",
+  "e2e": true
+ },
+ {
+  "n": 389,
+  "what": "The host calendar's days take their column's width on a phone (aspect-square with the 44 px height made each 44 px wide)",
+  "edits": [
+   {
+    "file": "src/app/dashboard/host/listings/[id]/calendar/page.tsx",
+    "find": "aspect-square max-md:w-full rounded-xl",
+    "replace": "aspect-square rounded-xl"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "host pages: dashboard, bookings, payouts, inbox, edit and calendar fit at every phone width @core",
+  "e2e": true
+ },
+ {
+  "n": 390,
+  "what": "New listing: amenities and house rules wrap a long word on a phone (Generator/Inverter ran out of its button)",
+  "edits": [
+   {
+    "file": "src/app/dashboard/host/listings/new/page.tsx",
+    "find": "className=\"flex items-center gap-2 p-3 rounded-xl border text-xs text-left transition-all max-md:min-w-0 max-md:[overflow-wrap:anywhere]\"\n              style",
+    "replace": "className=\"flex items-center gap-2 p-3 rounded-xl border text-xs text-left transition-all\"\n              style"
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "host pages: every step of a new listing fits at every phone width @core",
+  "e2e": true
+ },
+ {
+  "n": 391,
+  "what": "touch-action: manipulation on buttons and links, phones only (no double-tap zoom)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  a, button, [role=\"button\"], summary { touch-action: manipulation; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/layout/phone-fit.spec.ts",
+  "test": "a quick second tap is a tap, never the browser's double-tap zoom: touch-action manipulation on buttons and links, phones only @core",
+  "e2e": true
  }
 ]

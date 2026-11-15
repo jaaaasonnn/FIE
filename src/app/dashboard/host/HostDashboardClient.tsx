@@ -169,8 +169,9 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
       {/* Header */}
       <div style={{ backgroundColor: 'var(--brown-dark)' }} className="py-10 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-4">
+          {/* On a phone the List Property button goes under the name when they do not fit side by side */}
+          <div className="flex items-start justify-between gap-4 max-md:flex-wrap">
+            <div className="flex items-center gap-4 min-w-0">
               <div className="w-14 h-14 rounded-full overflow-hidden flex-shrink-0 flex items-center justify-center"
                 style={{ backgroundColor: 'var(--gold-light)' }}>
                 {user?.profilePhoto ? (
@@ -187,11 +188,11 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
                   </span>
                 )}
               </div>
-              <div>
-                <h1 className="text-2xl font-bold" style={{ color: 'var(--cream)' }}>
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold max-md:[overflow-wrap:anywhere]" style={{ color: 'var(--cream)' }}>
                   {firstName}&apos;s Dashboard
                 </h1>
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1 max-md:flex-wrap">
                   {user?.isVerified && <HostIdBadge />}
                   {user?.isSuperhost && <SuperhostBadge />}
                   <span className="text-xs" style={{ color: 'rgba(250,247,242,0.5)' }}>
@@ -248,7 +249,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
         ) : (
           <>
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 max-[359px]:grid-cols-1">
               <StatCard
                 icon={<DollarSign size={18} style={{ color: 'var(--color-accent)' }} />}
                 label="This Month"
@@ -391,7 +392,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
                         )}
                         <div className="p-4 flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-2">
-                            <h4 className="font-semibold text-sm leading-snug" style={{ color: 'var(--color-text-primary)' }}>{l.title}</h4>
+                            <h4 className="font-semibold text-sm leading-snug min-w-0 max-md:[overflow-wrap:anywhere]" style={{ color: 'var(--color-text-primary)' }}>{l.title}</h4>
                             <span className="px-2 py-0.5 text-xs rounded-full flex-shrink-0"
                               style={{
                                 backgroundColor: l.isActive ? '#D1FAE5' : l.moderationHold ? '#FEE2E2' : '#F3F4F6',
@@ -405,7 +406,7 @@ function HostDashboardContent({ initial }: { initial: HostDashboardInitial }) {
                             <span>·</span>
                             <span>{l.reviewCount ?? 0} reviews</span>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 max-md:flex-wrap">
                             <Link href={`/listings/${l.id}`}
                               className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-all hover:bg-stone-50"
                               style={{ borderColor: '#E5E7EB', color: '#374151' }}>

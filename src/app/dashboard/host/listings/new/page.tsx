@@ -378,7 +378,7 @@ export default function NewListingPage() {
           type="button"
           onClick={() => setForm({ ...form, instantBook: !form.instantBook })}
           aria-pressed={form.instantBook} aria-label="Instant Book"
-          className="w-12 h-6 rounded-full transition-all relative"
+          className="w-12 h-6 rounded-full transition-all relative flex-shrink-0"
           style={{ backgroundColor: form.instantBook ? 'var(--amber)' : '#D1D5DB' }}
         >
           <span className="absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm"
@@ -395,7 +395,7 @@ export default function NewListingPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {AMENITIES_LIST.map((a) => (
             <button key={a} type="button" onClick={() => toggleAmenity(a)}
-              className="flex items-center gap-2 p-3 rounded-xl border text-xs text-left transition-all"
+              className="flex items-center gap-2 p-3 rounded-xl border text-xs text-left transition-all max-md:min-w-0 max-md:[overflow-wrap:anywhere]"
               style={{
                 borderColor: form.amenities.includes(a) ? 'var(--amber)' : '#E5E7EB',
                 backgroundColor: form.amenities.includes(a) ? '#FFF8EE' : '#fff',
@@ -416,7 +416,7 @@ export default function NewListingPage() {
             return (
               <button key={r} type="button"
                 onClick={() => setForm((f) => ({ ...f, rules: active ? f.rules.filter((x) => x !== r) : [...f.rules, r] }))}
-                className="flex items-center gap-2 p-3 rounded-xl border text-xs text-left transition-all"
+                className="flex items-center gap-2 p-3 rounded-xl border text-xs text-left transition-all max-md:min-w-0 max-md:[overflow-wrap:anywhere]"
                 style={{
                   borderColor: active ? '#FCA5A5' : '#E5E7EB',
                   backgroundColor: active ? '#FEE2E2' : '#fff',
