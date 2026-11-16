@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import {
   Star, MapPin, Bed, Bath, Users, Wifi, Shield, Zap, Wind, Car, Camera,
-  Heart, ChevronLeft, ChevronRight, CheckCircle, Loader2,
+  Heart, CheckCircle, Loader2,
   AlertCircle, X,
 } from 'lucide-react'
 import { MODE_ICONS } from '@/lib/rentalModes'
@@ -21,7 +21,6 @@ import { PriceBreakdown } from '@/components/booking/PriceBreakdown'
 import { OwnListingNote } from '@/components/booking/OwnListingNote'
 import { CancellationPolicy, heldNote } from '@/components/booking/CancellationPolicy'
 import Link from 'next/link'
-import Image from 'next/image'
 import { HostIdBadge, SuperhostBadge } from '@/components/ui/Badge'
 import { ListingNotFound } from './ListingNotFound'
 import { PhotoLightbox } from '@/components/ui/PhotoLightbox'
@@ -31,6 +30,7 @@ import { useExchangeRate } from '@/context/ExchangeRateContext'
 import { CheckedBadge } from '@/components/listing/CheckedBadge'
 import { HeartButton } from '@/components/listing/HeartButton'
 import { ShareButton, ReportButton } from '@/components/listing/ShareReport'
+import { ListingGallery } from '@/components/listing/ListingGallery'
 import { DIGITAL_ADDRESS_PUBLIC, checkExplanation, type PublicCheck } from '@/lib/listingCheckRules'
 import { formatDay } from '@/lib/dateText'
 
@@ -166,7 +166,6 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
   const [loadTry,     setLoadTry]    = useState(0)
 
   // UI state
-  const [photoIdx,     setPhotoIdx]     = useState(0)
   const [selectedMode, setSelectedMode] = useState(first?.mode ?? '')
   const [hostPhotoOpen, setHostPhotoOpen] = useState(false)
   const [months,       setMonths]       = useState(first?.months ?? 1)
@@ -433,52 +432,8 @@ export function ListingClient({ initial = null }: { initial?: ListingInitial | n
           </div>
         </div>
 
-        {/* Photo gallery */}
-        {photos.length > 0 && (
-          <>
-            <div
-              className="relative rounded-2xl overflow-hidden mb-8 aspect-[16/9] sm:aspect-[21/9] bg-stone-200"
-              style={{ boxShadow: '0 8px 28px rgba(31, 27, 22, 0.1)' }}
-            >
-              <Image src={photos[photoIdx]} alt={listing.title} fill preload
-                sizes="(min-width: 1280px) 1216px, 100vw" className="object-cover" />
-              {photos.length > 1 && (
-                <>
-                  <button onClick={() => setPhotoIdx((p) => (p - 1 + photos.length) % photos.length)}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-all"
-                    style={{ boxShadow: '0 4px 14px rgba(31, 27, 22, 0.12)' }}>
-                    <ChevronLeft size={20} />
-                  </button>
-                  <button onClick={() => setPhotoIdx((p) => (p + 1) % photos.length)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/90 rounded-full flex items-center justify-center hover:bg-white transition-all"
-                    style={{ boxShadow: '0 4px 14px rgba(31, 27, 22, 0.12)' }}>
-                    <ChevronRight size={20} />
-                  </button>
-                </>
-              )}
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {photos.map((_, i) => (
-                  <button key={i} onClick={() => setPhotoIdx(i)}
-                    className="w-2 h-2 rounded-full transition-all"
-                    style={{ backgroundColor: i === photoIdx ? '#fff' : 'rgba(255,255,255,0.5)' }} />
-                ))}
-              </div>
-              <div className="absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium"
-                style={{ backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff' }}>
-                {photoIdx + 1} / {photos.length}
-              </div>
-            </div>
-            <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
-              {photos.map((p, i) => (
-                <button key={i} onClick={() => setPhotoIdx(i)}
-                  className="flex-shrink-0 w-20 h-16 rounded-xl overflow-hidden border-2 transition-all"
-                  style={{ borderColor: i === photoIdx ? 'var(--color-accent)' : 'transparent' }}>
-                  <Image src={p} alt="" width={80} height={64} className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {/* Photo gallery: swiped, and opened full screen on a tap (ListingGallery.tsx) */}
+        {photos.length > 0 && <ListingGallery photos={photos} title={listing.title} />}
 
         {/* Main content grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">

@@ -1351,3 +1351,59 @@ input, select, textarea, button {
   .trip-actions > * { justify-content: center; text-align: center; padding-inline: 10px !important; white-space: nowrap; }
   .trip-actions > .trip-primary { grid-column: 1 / -1; font-size: 0.875rem !important; height: 48px; }
 }
+
+/* ── The listing page's photos (components/listing/ListingGallery.tsx, tester-fixes-2). The big photo is a strip that
+   scrolls sideways and snaps to each photo, so a finger swipes it with no script. */
+.listing-gallery-strip {
+  position: absolute; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;
+}
+.listing-gallery-strip::-webkit-scrollbar { display: none; }
+.listing-gallery-slide {
+  position: relative; display: block; flex: 0 0 100%; height: 100%; padding: 0; border: 0; background: none;
+  scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in;
+}
+.listing-gallery-slide:focus-visible { outline: 3px solid #FFFFFF; outline-offset: -6px; box-shadow: inset 0 0 0 6px rgba(31, 27, 22, 0.55); }
+
+/* ── The full-screen photo viewer (components/listing/PhotoViewer.tsx): the browser's own modal dialog over the whole
+   screen, the photos a strip that snaps to each one. The Close button and the counter keep clear of the notch, the
+   Dynamic Island and the home bar (safe areas; the page has viewport-fit=cover). Nothing here sets touch-action, so
+   a pinch zooms as anywhere else. The page behind does not scroll while it is open. */
+:root:has(.photo-viewer[open]), :root:has(.photo-viewer[open]) body { overflow: hidden; }
+.photo-viewer {
+  position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; padding: 0;
+  border: 0; background: #000000; color: #FFFFFF; overflow: hidden; overscroll-behavior: contain;
+}
+.photo-viewer::backdrop { background: #000000; }
+.photo-viewer:focus { outline: none; }
+.photo-viewer-strip {
+  position: absolute; inset: 0; display: flex; overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; overscroll-behavior: contain; scrollbar-width: none;
+}
+.photo-viewer-strip::-webkit-scrollbar { display: none; }
+.photo-viewer-strip:focus { outline: none; }
+.photo-viewer-strip:focus-visible { outline: 3px solid #FFFFFF; outline-offset: -3px; }
+.photo-viewer-slide {
+  flex: 0 0 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+  scroll-snap-align: center; scroll-snap-stop: always;
+}
+.photo-viewer-slide img { width: 100%; height: 100%; object-fit: contain; user-select: none; -webkit-user-select: none; }
+.photo-viewer-close, .photo-viewer-arrow {
+  position: absolute; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  padding: 0; border: 0; border-radius: 999px; background: rgba(31, 27, 22, 0.72); color: #FFFFFF; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.28);
+}
+.photo-viewer-close {
+  top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(env(safe-area-inset-right, 0px) + 12px);
+}
+.photo-viewer-close:focus-visible, .photo-viewer-arrow:focus-visible { outline: 3px solid #FFFFFF; outline-offset: 2px; }
+.photo-viewer-arrow { top: 50%; transform: translateY(-50%); }
+.photo-viewer-arrow:disabled { opacity: 0.35; cursor: default; }
+.photo-viewer-prev { left: calc(env(safe-area-inset-left, 0px) + 16px); }
+.photo-viewer-next { right: calc(env(safe-area-inset-right, 0px) + 16px); }
+@media (hover: none) { .photo-viewer-arrow { display: none; } }
+.photo-viewer-count {
+  position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); transform: translateX(-50%);
+  margin: 0; padding: 4px 12px; border-radius: 999px; background: rgba(31, 27, 22, 0.72); color: #FFFFFF;
+  font-size: 0.875rem; font-weight: 600; line-height: 1.4; white-space: nowrap; pointer-events: none;
+}

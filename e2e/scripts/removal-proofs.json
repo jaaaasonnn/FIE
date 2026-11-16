@@ -4845,5 +4845,336 @@
   ],
   "testFile": "src/lib/listingReport.test.ts",
   "test": "encodes everything, so a title cannot add fields to the address"
+ },
+ {
+  "n": 399,
+  "what": "The gallery strip snaps to each photo (CSS scroll-snap): a real swipe comes to rest on the next photo",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  scroll-snap-type: x mandatory; overscroll-behavior-x: contain; scrollbar-width: none;\n}\n.listing-gallery-strip::-webkit",
+    "replace": "  scrollbar-width: none;\n}\n.listing-gallery-strip::-webkit"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) swiping moves the gallery and the viewer one photo, and each comes to rest on a photo @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 400,
+  "what": "The gallery's counter follows the strip as it is swiped",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "<div ref={strip} className=\"listing-gallery-strip\" onScroll={onScroll}>",
+    "replace": "<div ref={strip} className=\"listing-gallery-strip\">"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) swiping moves the gallery and the viewer one photo, and each comes to rest on a photo @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 401,
+  "what": "A tap on a photo opens the viewer at that photo, not the first",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "const open = (i: number, from: HTMLElement) => { opener.current = from; want(); setViewing(i) }",
+    "replace": "const open = (i: number, from: HTMLElement) => { opener.current = from; want(); setViewing(0 * i) }"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a tap on a photo opens the viewer at that photo; Escape closes it and the focus goes back @core",
+  "e2e": true,
+  "project": "iphone"
+ },
+ {
+  "n": 402,
+  "what": "The viewer's strip is put on the photo it opens at",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "    s.scrollLeft = start * s.clientWidth\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a thumbnail opens the viewer at its photo, and Close gives the focus back to it @core",
+  "e2e": true
+ },
+ {
+  "n": 403,
+  "what": "Closing the viewer gives the focus back to what opened it (a tap in Safari focuses nothing)",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "    opener.current?.focus({ preventScroll: true })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a thumbnail opens the viewer at its photo, and Close gives the focus back to it @core",
+  "e2e": true,
+  "project": "iphone"
+ },
+ {
+  "n": 404,
+  "what": "Opening the viewer moves the focus into it, onto Close",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "    closeButton.current?.focus({ preventScroll: true })\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a tap on a photo opens the viewer at that photo; Escape closes it and the focus goes back @core",
+  "e2e": true
+ },
+ {
+  "n": 405,
+  "what": "The arrow keys move between photos in the viewer",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": " onClose={closed} onKeyDown={onKey}>",
+    "replace": " onClose={closed}>"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) the arrow keys move between photos in the viewer, and a screen reader hears each one @core",
+  "e2e": true
+ },
+ {
+  "n": 406,
+  "what": "A second key press goes on from the photo the first is heading for, not from where the smooth scroll has got to",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "    if (h && i !== h.to && Date.now() < h.until) return\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) the arrow keys move between photos in the viewer, and a screen reader hears each one @core",
+  "e2e": true
+ },
+ {
+  "n": 407,
+  "what": "A screen reader hears \"Photo 2 of 6\" as the viewer moves",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "        <span className=\"sr-only\">Photo {at + 1} of {n}</span>\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) the arrow keys move between photos in the viewer, and a screen reader hears each one @core",
+  "e2e": true
+ },
+ {
+  "n": 408,
+  "what": "Close sits below the status bar and the Dynamic Island (top safe area)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  top: calc(env(safe-area-inset-top, 0px) + 12px); right: calc(env(safe-area-inset-right, 0px) + 12px);",
+    "replace": "  top: 12px; right: 12px;"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) Close is 44 px and inside the safe areas; the counter is above the home bar @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 409,
+  "what": "The viewer's counter sits above the home bar (bottom safe area)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "bottom: calc(env(safe-area-inset-bottom, 0px) + 16px); transform: translateX(-50%);",
+    "replace": "bottom: 16px; transform: translateX(-50%);"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) Close is 44 px and inside the safe areas; the counter is above the home bar @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 410,
+  "what": "The page behind does not scroll while the viewer is open",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": ":root:has(.photo-viewer[open]), :root:has(.photo-viewer[open]) body { overflow: hidden; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) the page behind does not scroll while the viewer is open, and nothing blocks a pinch @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 411,
+  "what": "Nothing in the viewer blocks a pinch (a guard: touch-action none on the photo would)",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": ".photo-viewer-slide img { width: 100%;",
+    "replace": ".photo-viewer-slide img { touch-action: none; width: 100%;"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) the page behind does not scroll while the viewer is open, and nothing blocks a pinch @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 412,
+  "what": "Back closes the viewer and the listing stays",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "    window.addEventListener('popstate', onPop)\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) Back closes the viewer and the listing stays; closing it leaves no extra step in the history @core",
+  "e2e": true,
+  "project": "iphone"
+ },
+ {
+  "n": 413,
+  "what": "Closing the viewer with its own button takes its history entry away, so Back then leaves the listing",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "      if (location.hash === HASH && history.state?.fieghPhotos) history.back()\n",
+    "replace": "      history.replaceState(history.state, '', location.pathname + location.search)\n"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) Back closes the viewer and the listing stays; closing it leaves no extra step in the history @core",
+  "e2e": true
+ },
+ {
+  "n": 418,
+  "what": "The viewer's code is fetched on the first press, not with the page",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "  const [wanted, setWanted] = useState(false)\n",
+    "replace": "  const [wanted, setWanted] = useState(true)\n"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) the viewer's code is fetched on the first press on a photo, not with the page or a scroll @core",
+  "e2e": true
+ },
+ {
+  "n": 419,
+  "what": "The viewer is a dialog named \"Photos of <home>\"",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": " className=\"photo-viewer\" aria-label={`Photos of ${title}`} onClose",
+    "replace": " className=\"photo-viewer\" onClose"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a tap on a photo opens the viewer at that photo; Escape closes it and the focus goes back @core",
+  "e2e": true
+ },
+ {
+  "n": 420,
+  "what": "Each thumbnail is named \"Photo 3 of 6\"",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "aria-label={`Photo ${i + 1} of ${n}`} aria-haspopup=\"dialog\"",
+    "replace": "aria-haspopup=\"dialog\""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a thumbnail opens the viewer at its photo, and Close gives the focus back to it @core",
+  "e2e": true
+ },
+ {
+  "n": 421,
+  "what": "A thumbnail opens the viewer at its photo",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "onPointerDown={want} onClick={(e) => { go(i); open(i, e.currentTarget) }}",
+    "replace": "onPointerDown={want} onClick={() => go(i)}"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a thumbnail opens the viewer at its photo, and Close gives the focus back to it @core",
+  "e2e": true
+ },
+ {
+  "n": 422,
+  "what": "The viewer's strip swipes and snaps to each photo",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  scroll-snap-type: x mandatory; overscroll-behavior: contain; scrollbar-width: none;\n}\n.photo-viewer-strip::-webkit",
+    "replace": "  scrollbar-width: none;\n}\n.photo-viewer-strip::-webkit"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) swiping moves the gallery and the viewer one photo, and each comes to rest on a photo @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 423,
+  "what": "The viewer's strip can be reached by the keyboard (axe: scrollable region)",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": " onScroll={onScroll} tabIndex={0} role=\"region\" aria-label=\"Photos\">",
+    "replace": " onScroll={onScroll}>"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) no accessibility failures on the gallery or with the viewer open @core",
+  "e2e": true
+ },
+ {
+  "n": 424,
+  "what": "The viewer's photo addresses ask the optimiser for a quality it was told about",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "&w=${w}&q=75`",
+    "replace": "&w=${w}&q=80`"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) a tap on a photo opens the viewer at that photo; Escape closes it and the focus goes back @core",
+  "e2e": true
+ },
+ {
+  "n": 425,
+  "what": "The viewer's image widths are next/image's own (a width the optimiser was not told about is refused)",
+  "edits": [
+   {
+    "file": "src/components/listing/PhotoViewer.tsx",
+    "find": "export const WIDTHS = [640, 750, 828, 1080, 1200, 1920, 2048, 3840]",
+    "replace": "export const WIDTHS = [640, 1080, 1920]"
+   }
+  ],
+  "testFile": "src/lib/photoViewer.test.ts",
+  "test": "the photo viewer's image addresses ask for next/image's own widths, at its own quality, through its own path"
  }
 ]
