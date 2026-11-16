@@ -1,5 +1,46 @@
 # End-to-end test report
 
+## tester-fixes-1 (2026-11-16, branch `tester-fixes-1` from `main` at `4eb42a3`, not merged)
+
+Four fixes from the testers' report (#381 onwards), each its own commit with tests and removal proofs (381-398), then the full set.
+
+| Item | Commit | What changed |
+|---|---|---|
+| Proof runner | `5b2b4f4` | A proof may carry its own number (`"n"`); a number used twice is refused. The explore-rows branch already uses 363-380, so this branch's proofs are 381-398 and its findings AS35-AS36. |
+| 1. Session | `e2c172d`, `a81e1ed`, `94e6fc4` | `router.refresh()` after signing in, signing up and signing out, in one place (`AuthContext.tsx`). `/login` sends a signed-in person on whenever they reach it, also right after its own form: the form's move is tracked (`useTransition`), and if it ends on `/login` the page sends them on (at most 3 times). Bottom-bar prefetching left on. Test `journeys/session-tabs.spec.ts` (@core, Chromium at 390 px, iPhone, Android, no page loads): sign in from a tab, every tab, sign out, Back, signed-out tabs, sign in again, twice over; sign in from the header's Log in link; a signed-in person bounced back to `/login` is sent on. Proofs 381-383. AS35 (one full load of `/login` when signing in from a tab) recorded. |
+| 2. Signed-in message | `9ecf624` | After a form sign-in the existing toast says "Signed in as {name}"; the toast area is `role="status"` (screen readers say it). Kept through AS35's load in this tab's sessionStorage. No new script on desktop beyond the login page's. Profile tab unchanged. Proofs 384-386. |
+| 3. Width and zoom | `f7ef1c5` | Host edit page: header row wraps under the title on phones. Host dashboard: no longer wider than the screen at 320-375 px (was 371, 371, 377 px wide at 320, 360, 375), stat cards one per row under 360 px. Calendar days, new-listing amenities and rules, payouts and bookings headers fixed too. `touch-action: manipulation` on buttons and links below 768 px. Every host page (dashboard, bookings, payouts, inbox, edit, calendar, every new-listing step) in `phone-fit.spec.ts` at 320, 360, 375, 390 and 430 px. Proofs 387-391. All phone-only classes: desktop pixel-identical. |
+| 4. Share and Report | `c4811e5`, `35b6868` | Share: the phone's share sheet when `navigator.share` exists, otherwise the link is copied and "Link copied" is shown (the share code is in the page: Safari refuses the share sheet after a download). Report: the browser's own modal `<dialog>`, fetched on the first tap, with the approved reasons, an optional note, and "Email support" (a `mailto:` to the support address with listing id, title, link and reason). Test `journeys/share-report.spec.ts` (@core, axe on the dialog). Proofs 392-398. AS36 (a real reports system before app store submission) recorded, not built. |
+
+### Figures
+
+- **Desktop search: 649.596 KB** (main 649.204 at its own build; +0.392 KB, AuthContext's refresh; **0.404 KB of room** under 650). Listing page desktop 220.135 -> 221.075 (+0.940), phone 228.935 -> 229.875. Phone search 214.700 -> 215.092. Every other page +0.39 to +0.44 KB (the shared AuthContext). Largest phone page home about 253.5 KB: all under 350. The Report dialog first used Radix: +2.013 KB on the listing page (the bundler split the code it shared with the photo viewer into a file of its own); the native `<dialog>` importing nothing the page uses brought it to +0.940.
+- **Width**: the edit page and the dashboard are no wider than the screen at 320, 360, 375, 390 and 430 px (phone-fit, Chromium, iPhone and Android).
+- **Desktop pixels**: stage4-shots (72 pictures at 320, 390, 430 and 1280 px in three set-ups) identical to `main` (one 430 px home picture with 107 pixels one level apart, font noise, AS20); host pages at 1280 px (dashboard, bookings, payouts, edit, calendar, new listing, a listing) 0 pixels different. Taken before `35b6868`; the dialog is closed in all of them and that commit changed nothing drawn closed.
+
+### Full set (`e2e/.reports/tf1-final/`, `done.txt`, at `35b6868`, 2026-11-15/16, on mains power under `caffeinate -dims`)
+
+| Suite | Result |
+|---|---|
+| Lint | 0 errors (38 warnings, as before) |
+| Type check | passes |
+| Unit tests, six time zones | 1,733 of 1,733 in each |
+| Proof runner test | 5 of 5 |
+| Money rules before / after | 2 passed / 2 passed |
+| Chromium 1 (clean stack: down, `rm -rf .next`, `up --build`; `E2E_ROUNDS=50`) | 298 passed, 46 skipped, 0 failed, 0 flaky |
+| Chromium 2 (clean stack again) | 298 passed, 46 skipped, 0 failed, 0 flaky |
+| Contention (alone) | 5 passed |
+| Chaos | 18 passed |
+| Firefox, WebKit, tablet, iPhone, Android | 488 passed, 182 skipped, 0 failed, 0 flaky |
+| Removal proofs (AGENTS.md stashed and put back byte for byte, SHA-256 compared) | 378 of 380 held; **382 and 383 did not** (below) |
+
+**Proofs 382 and 383, causes proven before anything changed.** With the fix removed (the app rebuilt without both), a probe showed:
+- 382 (refresh after signing out): the test only tapped tabs after signing out, and Next fetches those pages afresh anyway (it keeps no signed-in dynamic page for a new tap), so it could not tell. What the refresh does prevent: **Back after "Log out" drew the signed-in Profile page from the router's memory** (Chromium and Android, `/account`, "Profile"); with the refresh Back reaches log-in. The test now presses Back after every sign-out.
+- 383 (the tracked move): without it, the login page's effect sent the person a second time while the form's move was still on its way (two moves to `/account` 5 ms apart); the test bounced only the first, so the second got through. A page kept from before signing in would bounce both. The test now bounces every move to `/account` (300 ms late) until log-in is on screen again.
+- Both new tests fail without the fixes (Chromium, iPhone and Android for 382; Chromium and Android for 383, which WebKit cannot run: Playwright cannot answer with a redirect there) and pass with them: session-tabs x 3 in three set-ups 33 passed, 3 skipped (that iPhone case), 0 failed. Commit `94e6fc4` (tests only). Proofs 381-386 run again (`e2e/.reports/tf1-final/proofs-session/`): **6 of 6 held**; so **all 380 hold**. AGENTS.md byte for byte as before both times.
+
+**Still to check on a real iPhone and Android phone**: sign out, sign in, then each tab (and Back after signing out); Share (the share sheet) and Report (the dialog, then the mail app opening with the listing filled in); the host edit listing page's width and that a quick second tap never zooms; signing in from the header's Log in link (the "Signed in as" message). AS35's one load of `/login` when signing in from a tab may show as a brief flash.
+
 ## polish-1 (2026-11-12, branch `polish-1` from `main` at `20d11e6`, not merged)
 
 Four small fixes, one commit each, each with tests and removal proofs (351-362), then the full set.
