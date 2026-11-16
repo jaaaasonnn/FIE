@@ -78,6 +78,15 @@ async function signOutFromProfile(page: Page) {
   await page.getByRole('button', { name: 'Log out' }).click()
   await expect(page).toHaveURL(/\/$/)
   await running(page)
+  // Back to the page signed out from: log-in, never the Profile page Next kept from while signed in (without the
+  // refresh after signing out it was drawn from the router's memory, signed in)
+  await page.goBack()
+  await expect(page, 'Back after signing out').toHaveURL(/\/login\?redirect=%2Faccount$/)
+  await expect(page.locator('#login-identifier'), 'Back after signing out').toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toHaveCount(0)
+  await noReload(page, 'Back after signing out')
+  await page.locator('a[href="/"]:visible').first().click()
+  await expect(page).toHaveURL(/\/$/)
 }
 
 /** Signed out: a protected tab leads to log-in (and from there back to that tab once signed in) */
@@ -144,17 +153,22 @@ test.describe('signing in and out, then the tabs, with no page loads (tester-fix
     const guest = await world.guest()
     await page.goto('/login?redirect=%2Faccount')
     await page.waitForLoadState('load')
-    // The first move to /account after signing in is answered with a move back to log-in, as a page the router kept
-    // from before signing in was (the moves after it reach the server as usual)
-    let sent = false
+    // Every move to /account after signing in is answered with a move back to log-in until log-in is on screen again,
+    // as a page the router kept from before signing in was (300 ms late, as the server's answer would be). Moves made
+    // after that reach the server as usual. The page must wait for its form's move to end before sending the person
+    // on: a send made while the move is still on its way is answered with log-in too, and then nothing sends again.
+    let bounced = 0
+    let backOnLogin = false
+    page.on('framenavigated', (f) => { if (f === page.mainFrame() && bounced > 0 && /\/login\?/.test(f.url())) backOnLogin = true })
     await page.route('**/account*', async (route) => {
       const req = route.request()
-      if (sent || !req.headers()['rsc'] || req.headers()['next-router-prefetch']) return route.fallback()
-      sent = true
+      if (backOnLogin || !req.headers()['rsc'] || req.headers()['next-router-prefetch']) return route.fallback()
+      bounced++
+      await new Promise((r) => setTimeout(r, 300))
       await route.fulfill({ status: 307, headers: { location: '/login?redirect=%2Faccount' } })
     })
     await new AuthPage(page).logIn(guest.email, guest.password)
-    await expect.poll(() => sent).toBe(true)
+    await expect.poll(() => backOnLogin).toBe(true)
     await expect(page).toHaveURL(/\/account$/)
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible()
     await page.unrouteAll({ behavior: 'ignoreErrors' })
