@@ -63,12 +63,18 @@ async function swipe(cdp: CDPSession, box: { x: number; y: number; width: number
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
 }
 
-/** One photo on, as each browser can: a real swipe (Android), a sideways wheel (a desktop's trackpad), or the scroll position (WebKit on a phone or iPad) */
+/**
+ * One photo on, as each browser can: a real swipe (Android), the scroll position (WebKit on a phone or iPad), and on a
+ * desktop with a mouse a sideways wheel (a trackpad) in the viewer, or the gallery's own arrow (there the gallery's
+ * strip does not scroll by hand, so it is drawn exactly as before: globals.css)
+ */
 async function nextPhoto(page: Page, s: Locator) {
   const box = (await s.boundingBox())!
   if (project() === 'android') await swipe(await page.context().newCDPSession(page), box)
-  else if (!touch()) { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(box.width * 0.6, 0) }
-  else await s.evaluate((el) => el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'instant' }))
+  else if (touch()) await s.evaluate((el) => el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'instant' }))
+  else if (await s.evaluate((el) => el.classList.contains('listing-gallery-strip') && getComputedStyle(el).overflowX === 'hidden')) {
+    await gallery(page).getByRole('button', { name: 'Next photo' }).click()
+  } else { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(box.width * 0.6, 0) }
 }
 
 test.describe('listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2)', () => {

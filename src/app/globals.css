@@ -1365,6 +1365,10 @@ input, select, textarea, button {
   position: relative; display: block; flex: 0 0 100%; height: 100%; padding: 0; border: 0; background: none;
   scroll-snap-align: start; scroll-snap-stop: always; cursor: zoom-in;
 }
+/* A desktop with a mouse: the strip does not scroll by hand (the arrows, the dots and the thumbnails move it), so it is
+   drawn exactly as the single photo was before: a scrolling strip is drawn on a layer of its own, which shifted the
+   arrows' and dots' edges over the photo by a colour level or two */
+@media (hover: hover) and (pointer: fine) and (min-width: 768px) { .listing-gallery-strip { overflow-x: hidden; } }
 .listing-gallery-slide:focus-visible { outline: 3px solid #FFFFFF; outline-offset: -6px; box-shadow: inset 0 0 0 6px rgba(31, 27, 22, 0.55); }
 .listing-gallery-bar { display: none; }
 @media (hover: none), (max-width: 767px) {
