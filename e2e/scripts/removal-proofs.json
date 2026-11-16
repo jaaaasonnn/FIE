@@ -5235,5 +5235,33 @@
   ],
   "testFile": "src/lib/photoViewer.test.ts",
   "test": "the photo viewer's image addresses ask for next/image's own widths, at its own quality, through its own path"
+ },
+ {
+  "n": 426,
+  "what": "AS38's exclusion is what keeps /search's scan clean at phone width (the strip is really not reachable by keyboard)",
+  "edits": [
+   {
+    "file": "e2e/tests/a11y/phone.spec.ts",
+    "find": "  if (!AS38.page.test(path)) return violations\n  return violations\n    .map(",
+    "replace": "  return violations\n  return violations\n    .map("
+   }
+  ],
+  "testFile": "e2e/tests/a11y/phone.spec.ts",
+  "test": "AS38: the search card photo strip is left out of one rule on /search only, and the listing page scans clean",
+  "e2e": true
+ },
+ {
+  "n": 427,
+  "what": "AS38's exclusion is on /search only, not every page",
+  "edits": [
+   {
+    "file": "e2e/tests/a11y/phone.spec.ts",
+    "find": "page: /^\\/search\\/?$/ }",
+    "replace": "page: /^/ }"
+   }
+  ],
+  "testFile": "e2e/tests/a11y/phone.spec.ts",
+  "test": "AS38: the search card photo strip is left out of one rule on /search only, and the listing page scans clean",
+  "e2e": true
  }
 ]
