@@ -1,5 +1,6 @@
 import { test, expect } from '../../lib/test'
 import { audit, type Problem } from '../../lib/phoneFit'
+import { withPhotos } from '../../lib/photos'
 
 // App shell, stage 1 polish: at phone widths (320, 360, 390, 430 px) on the main pages, signed out and signed in:
 //  - no text runs outside its own box (an element whose content is wider than it, scrollWidth > clientWidth),
@@ -18,6 +19,8 @@ async function pages(world: import('../../lib/world').World) {
   const host = await world.host()
   const guest = await world.guest()
   const home = await world.listing(host)
+  // Six photos: the listing page is checked with its gallery and slider (tester-fixes-2)
+  await withPhotos(home.id)
   const bookingId = await world.mustBook(guest, home.id)
   expect((await host.call('POST', '/api/messages', { receiverId: guest.id, content: 'Welcome, the key is with the caretaker', bookingId })).status).toBe(201)
   return { guest, listingId: home.id }

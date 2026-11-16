@@ -9,6 +9,11 @@ import { useOnDemand } from '@/lib/useOnDemand'
 // photo (CSS scroll-snap, globals.css .listing-gallery-*), so a finger swipes it with no script; the strip's scroll
 // position is the photo shown. A tap or click on a photo, or on a thumbnail, opens the full-screen viewer at that
 // photo (PhotoViewer.tsx), whose code is fetched on the first press, so the page's own script barely grows.
+//
+// On a touch screen ((hover: none)) the round arrows and the dots step aside: a small "1 / 6" counter and a thin
+// position bar (not a button) stay, and the thumbnails are the way to pick a photo without swiping. The dots are
+// also hidden below 768 px, where the phones' 44 px tap-target rule would stretch them into thick bars. A desktop
+// with a mouse looks as it did.
 
 const loadViewer = () => import('./PhotoViewer')
 const SIZES = '(min-width: 1280px) 1216px, 100vw'
@@ -70,6 +75,10 @@ export function ListingGallery({ photos, title }: { photos: string[]; title: str
               style={{ boxShadow: '0 4px 14px rgba(31, 27, 22, 0.12)' }}>
               <ChevronRight size={20} />
             </button>
+            {/* Where the photo shown sits among them: drawn, never pressed */}
+            <div className="listing-gallery-bar" aria-hidden>
+              <span style={{ width: `${100 / n}%`, transform: `translateX(${at * 100}%)` }} />
+            </div>
           </>
         )}
         <div className="listing-gallery-dots absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">

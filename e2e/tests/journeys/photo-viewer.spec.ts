@@ -12,6 +12,8 @@ import { setInsets, ISLAND } from '../../lib/installedApp'
 //    "2 / 6" (and "Photo 2 of 6" for a screen reader), Close of 44 px inside the safe areas, Escape and the arrow
 //    keys, the focus back on what opened it, the page behind still, pinch-zoom not blocked, Back closes it and the
 //    listing stays. Its code is fetched on the first press.
+//  - On a touch screen ((hover: none)) the round arrows and the dots are gone: a small counter and a thin bar that is
+//    not a button stay. Below 768 px the dots are gone in every browser, so no dot is stretched to 44 px.
 //
 // Real touch: Chromium's own touch input (DevTools Input.dispatchTouchEvent) in the Android set-up, so the browser
 // itself scrolls and snaps the strip. WebKit (the iPhone and iPad set-ups) has no way for Playwright to send a swipe
@@ -221,6 +223,55 @@ test.describe('listing photos: the gallery swipes and opens a full-screen viewer
     await expect(page).toHaveURL(new RegExp(`/listings/${home.id}$`))
     await page.goBack()
     await expect(page).toHaveURL(/\/how-it-works$/)
+  })
+
+  test('on a touch screen: no arrows or dots, a small counter and a thin bar; with a mouse on a desktop: arrows and dots as before @core', async ({ page, world }) => {
+    const home = await homeWithPhotos(world)
+    await openListing(page, home.id)
+    const touchScreen = await page.evaluate(() => matchMedia('(hover: none)').matches)
+    const wide = page.viewportSize()!.width >= 768
+    const arrows = gallery(page).getByRole('button', { name: /^(Previous|Next) photo$/ })
+    const dots = gallery(page).locator('.listing-gallery-dots button')
+    const bar = gallery(page).locator('.listing-gallery-bar')
+    if (touchScreen) {
+      await expect(arrows.first()).toBeHidden()
+      await expect(arrows.last()).toBeHidden()
+    } else {
+      await expect(arrows.first()).toBeVisible()
+      await expect(arrows.last()).toBeVisible()
+    }
+    if (!touchScreen && wide) {
+      // A desktop with a mouse: the dots, 8 px, and no bar
+      await expect(dots).toHaveCount(N)
+      for (const box of await dots.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()))) {
+        expect(Math.round(box.width)).toBe(8)
+        expect(Math.round(box.height)).toBe(8)
+      }
+      await expect(bar).toBeHidden()
+    } else {
+      await expect(dots.first()).toBeHidden()
+      await expect(bar).toBeVisible()
+      const b = (await bar.boundingBox())!
+      expect(b.height).toBeGreaterThanOrEqual(2)
+      expect(b.height).toBeLessThanOrEqual(3)
+      // Not a button and not reachable: drawn only
+      expect(await bar.evaluate((el) => [el.getAttribute('aria-hidden'), getComputedStyle(el).pointerEvents, el.querySelectorAll('button, a, [tabindex]').length])).toEqual(['true', 'none', 0])
+      const c = (await counter(page).boundingBox())!
+      expect(c.height, 'a small counter').toBeLessThanOrEqual(26)
+    }
+    // No control stretched out of shape anywhere in the gallery (the 44 px rule made the 8 px dots 8 x 44 bars)
+    const stretched = await gallery(page).evaluate((el) => Array.from(el.querySelectorAll('button'))
+      .filter((b) => getComputedStyle(b).display !== 'none' && b.getBoundingClientRect().width > 0 && !b.classList.contains('listing-gallery-slide'))
+      .map((b) => b.getBoundingClientRect())
+      .filter((r) => Math.max(r.width, r.height) / Math.min(r.width, r.height) > 1.5)
+      .map((r) => `${Math.round(r.width)}x${Math.round(r.height)}`))
+    expect(stretched).toEqual([])
+    // The counter follows the photo when the desktop's arrow is pressed
+    if (!touchScreen) {
+      await arrows.last().click()
+      await expect(counter(page)).toHaveText('2 / 6')
+      await expect.poll(() => resting(strip(page))).toEqual({ photo: 2, snapped: true })
+    }
   })
 
   test('no accessibility failures on the gallery or with the viewer open @core', async ({ page, world }) => {

@@ -1,5 +1,6 @@
 // Every page of the site, for each kind of visitor, with real ids filled in.
 import type { Actor, World } from './world'
+import { withPhotos } from './photos'
 
 export type Visitor = 'signed out' | 'guest' | 'host' | 'admin'
 export type Stop = { name: string; path: string }
@@ -11,6 +12,8 @@ export async function buildSite(world: World): Promise<Site> {
   const host = await world.host()
   const guest = await world.guest()
   const home = await world.listing(host, { title: `E2E crawl home ${Date.now().toString(36)}` })
+  // Six photos, so the listing page is scanned and crawled with its gallery (tester-fixes-2)
+  await withPhotos(home.id)
   const bookingId = await world.mustBook(guest, home.id)
   const L = home.id
   const pages: Record<Visitor, Stop[]> = {

@@ -5066,6 +5066,65 @@
   "e2e": true
  },
  {
+  "n": 414,
+  "what": "The round arrows step aside on a touch screen",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "@media (hover: none) { .listing-gallery-arrow { display: none !important; } }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) on a touch screen: no arrows or dots, a small counter and a thin bar; with a mouse on a desktop: arrows and dots as before @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 415,
+  "what": "The dots are hidden on phones, so the 44 px rule cannot stretch them into thick bars",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .listing-gallery-dots { display: none !important; }\n",
+    "replace": ""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) on a touch screen: no arrows or dots, a small counter and a thin bar; with a mouse on a desktop: arrows and dots as before @core",
+  "e2e": true,
+  "project": "iphone"
+ },
+ {
+  "n": 416,
+  "what": "The thin position bar shows on a touch screen",
+  "edits": [
+   {
+    "file": "src/app/globals.css",
+    "find": "  .listing-gallery-bar {\n    display: block; position: absolute;",
+    "replace": "  .listing-gallery-bar {\n    position: absolute;"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) on a touch screen: no arrows or dots, a small counter and a thin bar; with a mouse on a desktop: arrows and dots as before @core",
+  "e2e": true,
+  "project": "android"
+ },
+ {
+  "n": 417,
+  "what": "The desktop's arrows still move the gallery (and its counter)",
+  "edits": [
+   {
+    "file": "src/components/listing/ListingGallery.tsx",
+    "find": "<button type=\"button\" aria-label=\"Next photo\" onClick={() => go((at + 1) % n)}",
+    "replace": "<button type=\"button\" aria-label=\"Next photo\""
+   }
+  ],
+  "testFile": "e2e/tests/journeys/photo-viewer.spec.ts",
+  "test": "listing photos: the gallery swipes and opens a full-screen viewer (tester-fixes-2) on a touch screen: no arrows or dots, a small counter and a thin bar; with a mouse on a desktop: arrows and dots as before @core",
+  "e2e": true
+ },
+ {
   "n": 418,
   "what": "The viewer's code is fetched on the first press, not with the page",
   "edits": [
