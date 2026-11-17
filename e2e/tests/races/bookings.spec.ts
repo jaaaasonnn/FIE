@@ -301,7 +301,7 @@ test.describe('races: a home switched off while the guest pays (SU7)', () => {
 
   test('switched off at the moment the guest presses Pay', async ({ world }) => {
     const host = await world.host()
-    const outcomes = { refused: 0, refunded: 0 }
+    const outcomes = { refused: 0, endedFirst: 0, refunded: 0 }
     for (let round = 0; round < ROUNDS; round++) {
       const guest = await world.guest()
       const home = await world.listing(host)
@@ -311,7 +311,14 @@ test.describe('races: a home switched off while the guest pays (SU7)', () => {
         world.startPayment(guest, id, { server: round % 2 as 0 | 1 }),
       ])
       expect(off.status, `round ${round}`).toBe(200)
-      if (pay.status === 409) {
+      const ended = await db.booking.findUniqueOrThrow({ where: { id }, select: { status: true, cancelledBy: true, cancelReason: true } })
+      if (pay.status === 409 && pay.json.code === undefined && ended.status === 'CANCELLED') {
+        // An expiry run started by another test (it works on every booking, AS39) ended the booking between the
+        // switch-off and Pay: Pay is refused as for any ended booking, and nothing reaches Paystack either way
+        expect(ended, `round ${round}`).toMatchObject({ cancelledBy: 'SYSTEM', cancelReason: 'HOME_UNAVAILABLE' })
+        expect(await fakes.tx(id), `round ${round}: nothing reached Paystack`).toHaveLength(0)
+        outcomes.endedFirst++
+      } else if (pay.status === 409) {
         expect(pay.json.code, `round ${round}`).toBe('HOME_UNAVAILABLE')
         expect(await fakes.tx(id), `round ${round}: nothing reached Paystack`).toHaveLength(0)
         outcomes.refused++
@@ -330,7 +337,7 @@ test.describe('races: a home switched off while the guest pays (SU7)', () => {
       const after = await db.booking.findUniqueOrThrow({ where: { id } })
       expect(after, `round ${round}: ended either way`).toMatchObject({ status: 'CANCELLED', cancelReason: 'HOME_UNAVAILABLE' })
     }
-    measured(`switched off as Pay was pressed, ${ROUNDS} rounds: ${outcomes.refused} refused before Paystack, ${outcomes.refunded} paid on a page handed out first and refunded in full`)
+    measured(`switched off as Pay was pressed, ${ROUNDS} rounds: ${outcomes.refused} refused before Paystack, ${outcomes.endedFirst} ended first by another run's expiry (AS39), ${outcomes.refunded} paid on a page handed out first and refunded in full`)
     await expectInvariants()
   })
 })
