@@ -1,5 +1,52 @@
 # End-to-end test report
 
+## tester-fixes-2 (2026-11-17, branch `tester-fixes-2` from `main` at `66cb568`, not merged)
+
+Two items from the testers' report, each its own commits with tests and removal proofs, then the full set. Proofs are 399-428: the task said "from #387", but 381-398 are tester-fixes-1's and the runner refuses a number used twice. Findings AS37-AS41.
+
+| Item | Commit | What changed |
+|---|---|---|
+| 1. Photo viewer and swipe | `2aecdbe`, `e3cff09` | The listing page's photos are `components/listing/ListingGallery.tsx`: the big photo is a CSS scroll-snap strip, so a finger swipes it with no script. A tap on a photo or a thumbnail opens `PhotoViewer.tsx` at that photo, fetched on the first press (`useOnDemand`; about 1.6 KB compressed). It is the browser's modal `<dialog>` labelled "Photos of {title}": a scroll-snap strip that swipes, a "2 / 6" counter that a screen reader hears as "Photo 2 of 6", a 44 px Close inside the safe areas (`env(safe-area-inset-*)`), Escape to close, the arrow keys to move, focus to Close on opening and back to the photo or thumbnail that opened it. The page behind does not scroll (`:root:has(.photo-viewer[open])`); pinch-zoom is not blocked. Back closes it and the listing stays: one `#photos` history entry, as the search sheet does; closing it any other way removes the entry. On a desktop with a mouse the strip does not scroll by hand (`e3cff09`): drawn on its own layer it blended the arrows and dots 1 level differently over the photo (21 pixels); the arrows, dots and thumbnails still move it. Test `journeys/photo-viewer.spec.ts` (@core, six set-ups). Proofs 399-413, 418-425. |
+| 2. Slimmer slider on touch | `56b6af8` | On a touch screen (`(hover: none)`) the round arrows are hidden; the dots show only on a desktop with a mouse (hidden below 768 px too, where the 44 px tap-target rule stretched them into bars). In their place a 3 px position bar that is not a button (`aria-hidden`, no pointer events) and a smaller "1 / 6". Thumbnails are labelled "Photo 3 of 6" (`aria-current` on the one shown). Desktop unchanged. Proofs 414-417. |
+| AS38 | `c90ae69` | The owner's decision: the phone scan leaves the search card's photo strip out of axe's `scrollable-region-focusable`, on `/search` only, in the test, with the reason. A known limitation, not a pass (FINDINGS). A test checks the strip still fails the rule, nothing wider is left out, and the listing page with six photos scans clean with no exclusion. No search code changed. Proofs 426-427. |
+| After the first full set | `b1a3e27`, `c89dbb8`, `d018254` | AS39 (test), proof 406's test tightened, AS40 (inbox name on phones, proof 428). Below. |
+
+### Figures (at `d018254`)
+
+- **Desktop search: 649.598 KB** (0.402 KB of room under 650; `main` at `66cb568` 649.596 at its own build: the same files but the one carrying the commit hash, AS21).
+- **Listing page: 222.847 KB on desktop, 231.646 KB on a phone** (`main` 221.075 / 229.875: +1.772). Not the viewer, which is fetched on the first press: once the listing page's own code grew, the bundler split it into two files (25.5 KB became 9.3 + 18.2), about 0.7 KB of that. Checked: it still splits with the viewer import taken out, and with the gallery written inside the page file. Building the viewer's image addresses by hand instead of through next/image's `getImageProps` saved 0.387 KB (`src/lib/photoViewer.test.ts` keeps them equal to next/image's widths and quality).
+- Every other page +0.005 KB or less. Largest phone page home 253.546 KB; all under 350.
+- **Layout shift on the listing page with six photos: 0** at 320, 360, 390 and 430 px; at 1280 px the same as a listing with no photos (0.0028, the header, every page: AS37).
+- **Text-fit** clean at 320, 360, 390 and 430 px with the viewer open and closed.
+- **Pixels against `main`** (stage4-shots, 12 pages at 320, 390, 430 and 1280 px, Chromium, iPhone and Android, before `d018254`): desktop 1280 px identical on every page. The only differences are the listing page's photo area at phone widths: Chromium about 2,500 pixels at each of 320, 390 and 430; iPhone 320 32,186; Android 320 47,145 (the arrows and dots gone, the bar and the smaller counter). `d018254` changes only a phone inbox name that would overflow.
+- **What could not be tested here:** Playwright cannot swipe or pinch in WebKit, and no emulation shows a real Dynamic Island. Real swipes (CDP touch) and a real pinch (to more than 1.5x) ran in the Android set-up; in the iPhone and iPad set-ups the taps are real and the strip is moved by its scroll position; Chromium is told about a Dynamic Island's safe areas (`setSafeAreaInsetsOverride`).
+
+### Full set 1 (`e2e/.reports/tf2-final/`, at `e3cff09`, 2026-11-17, mains power, `caffeinate -dims`)
+
+Lint 0 errors, type check, unit tests 1,735 of 1,735 in six time zones, money rules 2/2 before and after, contention 5, chaos 18: all passed. **Not clean**: Chromium 1 309 passed, 1 flaky (AS39); Chromium 2 309 passed, 1 flaky (AS40); the other five 537 passed, 1 flaky (AS41); proofs 408 of 409 held, **406 did not**. Each cause was proven before anything changed:
+- AS39: another test's expiry run ended the booking between the switch-off and Pay (probe: 409 with no code, nothing at Paystack). Test fixed (`b1a3e27`).
+- AS40: that run's random host name had a word too long for a 320 px inbox row; overflows every time with that name. Fixed for phones (`d018254`), new test failed before it in three set-ups, proof 428.
+- AS41: WebKit's JavaScript engine crashed in its own garbage collector (macOS crash report 6 ms after the test's last step). Not our code; not changed.
+- Proof 406: the test pressed the arrow key twice within one frame, before any scroll event, so it could not tell the guard was gone. It now presses again once the strip has started to move (`c89dbb8`). Proofs 406 and 428 then held on their own; the changed tests 255 of 255 in six set-ups (`--repeat-each=3`).
+
+### Full set 2 (`e2e/.reports/tf2-final-2/`, `done.txt`, at `d018254`, 2026-11-17, mains power, `caffeinate -dims`)
+
+| Suite | Result |
+|---|---|
+| Lint | 0 errors (38 warnings, as before) |
+| Type check | passes |
+| Unit tests, six time zones | 1,735 of 1,735 in each |
+| Proof runner test | passes |
+| Money rules before / after | 2 passed / 2 passed |
+| Chromium 1 (clean stack: down, `rm -rf .next`, `up --build`; `E2E_ROUNDS=50`) | 311 passed, 46 skipped, 0 failed, 0 flaky |
+| Chromium 2 (clean stack again) | 311 passed, 46 skipped, 0 failed, 0 flaky |
+| Contention (alone) | 5 passed |
+| Chaos | 18 passed |
+| Firefox, WebKit, tablet, iPhone, Android | 543 passed, 182 skipped, 0 failed, 0 flaky |
+| Removal proofs (AGENTS.md stashed and put back byte for byte, SHA-256 compared) | **410 of 410 hold** |
+
+**Still to check on a real iPhone and Android phone**: tap a photo (the viewer opens at that photo); swipe in the gallery and in the viewer; pinch-zoom in the viewer; Close sits below the Dynamic Island; the Back gesture (and Android's Back) closes the viewer and the listing stays, and a second Back leaves the listing; the slider on a small phone (thin bar and small counter, no thick bars); a tap on a thumbnail moves the gallery and opens the viewer.
+
 ## tester-fixes-1 (2026-11-16, branch `tester-fixes-1` from `main` at `4eb42a3`, not merged)
 
 Four fixes from the testers' report (#381 onwards), each its own commit with tests and removal proofs (381-398), then the full set.
