@@ -145,7 +145,14 @@ test.describe('listing photos: the gallery swipes and opens a full-screen viewer
     const count = page.locator('.photo-viewer-count')
     await expect(count).toHaveAttribute('aria-live', 'polite')
     await expect(count.locator('.sr-only')).toHaveText('Photo 1 of 6')
+    // The second press comes while the first move is under way, as a person's does: once the strip has moved a
+    // little (its first scroll event, still nearer photo 1), it goes on from photo 2, the one it is heading for
+    await page.evaluate(() => {
+      const s = document.querySelector('.photo-viewer-strip')!
+      ;(window as unknown as { moving: Promise<void> }).moving = new Promise((r) => s.addEventListener('scroll', () => r(), { once: true }))
+    })
     await page.keyboard.press('ArrowRight')
+    await page.evaluate(() => (window as unknown as { moving: Promise<void> }).moving)
     await page.keyboard.press('ArrowRight')
     await expect(count.locator('.sr-only')).toHaveText('Photo 3 of 6')
     await expect(count).toContainText('3 / 6')
