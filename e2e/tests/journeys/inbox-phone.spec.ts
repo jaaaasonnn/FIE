@@ -1,6 +1,7 @@
 import type { Page, Request } from '@playwright/test'
 import { test, expect } from '../../lib/test'
 import { recordShifts } from '../../lib/layoutShift'
+import { audit } from '../../lib/phoneFit'
 import type { Actor, World } from '../../lib/world'
 
 // AS27: on a phone (below 640 px the list and a thread are never on screen together) opening Messages selects no
@@ -94,6 +95,26 @@ test.describe('the inbox on a phone and on a desktop (AS27)', () => {
     if (browserName === 'chromium') {
       const shift = await page.evaluate(() => (window as unknown as { __shift: { total: number; worst: string[] } }).__shift)
       expect(shift.total, shift.worst.join('; ')).toBe(0)
+    }
+  })
+
+  // AS40: a name with one long word (the failing run's host was "E2E Host 4d989720wm1z") pushed the row's time out of
+  // its box at 320 px, 174 px of text in a 169 px row; it now breaks inside the word. A plain name is drawn as before.
+  test('a name with one long word stays inside its row at 320 and 360 px, in both inboxes @core', async ({ page, world, signIn }) => {
+    const host = await world.person('HOST', { name: 'Wwmmwwmmwwmmwwmm Host' })
+    const guest = await world.person('GUEST', { name: 'Mmwwmmwwmmwwmmww Guest' })
+    const home = await world.listing(host)
+    const bookingId = await world.mustBook(guest, home.id)
+    expect((await host.call('POST', '/api/messages', { receiverId: guest.id, content: 'Welcome', bookingId, listingId: home.id })).status).toBe(201)
+    for (const [who, inbox, name] of [[guest, '/dashboard/guest/messages', 'Wwmmwwmmwwmmwwmm Host'], [host, '/dashboard/host/messages', 'Mmwwmmwwmmwwmmww Guest']] as const) {
+      await page.context().clearCookies()
+      await signIn(who)
+      for (const width of [320, 360]) {
+        await page.setViewportSize({ width, height: 800 })
+        await page.goto(inbox, { waitUntil: 'load' })
+        await expect(row(page, name).first()).toBeVisible()
+        expect(await audit(page, `${width}px ${inbox}`)).toEqual([])
+      }
     }
   })
 })

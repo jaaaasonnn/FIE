@@ -459,7 +459,9 @@ export function MessagesInbox({ userId, role, seed = null, nav }: Props) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="font-semibold text-sm" style={{ color: 'var(--color-text-primary)' }}>
+                      {/* On a phone a name with one long word breaks inside it rather than pushing the time out of the
+                          row (AS40, 320 px); a name that fits is drawn as before */}
+                      <span className="font-semibold text-sm max-md:[overflow-wrap:anywhere]" style={{ color: 'var(--color-text-primary)' }}>
                         {conv.otherName}
                       </span>
                       {/* A fixed width, right-aligned: "Just now" turning into "1m ago" as the conversation loads does

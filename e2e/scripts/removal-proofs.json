@@ -5263,5 +5263,20 @@
   "testFile": "e2e/tests/a11y/phone.spec.ts",
   "test": "AS38: the search card photo strip is left out of one rule on /search only, and the listing page scans clean",
   "e2e": true
+ },
+ {
+  "n": 428,
+  "what": "On a phone a name with one long word breaks inside the word instead of pushing the time out of the inbox row (AS40)",
+  "edits": [
+   {
+    "file": "src/components/messages/MessagesInbox.tsx",
+    "find": "font-semibold text-sm max-md:[overflow-wrap:anywhere]",
+    "replace": "font-semibold text-sm"
+   }
+  ],
+  "testFile": "e2e/tests/journeys/inbox-phone.spec.ts",
+  "test": "the inbox on a phone and on a desktop (AS27) a name with one long word stays inside its row at 320 and 360 px, in both inboxes @core",
+  "e2e": true,
+  "project": "android"
  }
 ]
